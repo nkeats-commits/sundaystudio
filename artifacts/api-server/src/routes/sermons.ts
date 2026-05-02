@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq } from "drizzle-orm";
-import { db, sermonsTable, sermonExportsTable } from "@workspace/db";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import {
+  db,
+  sermonsTable,
+  sermonExportsTable,
+  sermonResourcesTable,
+} from "@workspace/db";
 import {
   CreateSermonBody,
   UpdateSermonBody,
@@ -13,6 +18,36 @@ import {
 } from "../lib/sermonExport";
 
 const router: IRouter = Router();
+
+/**
+ * Verify that every resource id in `ids` belongs to `userId`.
+ * Returns null when valid, or a string with the offending ids when invalid.
+ * (Multi-tenant safety — without this, a user could attach another tenant's
+ * resource ids to their sermon and have the model receive their excerpts.)
+ */
+async function validateResourceOwnership(
+  userId: string,
+  ids: number[],
+): Promise<string | null> {
+  if (ids.length === 0) return null;
+  const unique = Array.from(new Set(ids.filter((n) => Number.isInteger(n))));
+  if (unique.length === 0) return null;
+  const owned = await db
+    .select({ id: sermonResourcesTable.id })
+    .from(sermonResourcesTable)
+    .where(
+      and(
+        eq(sermonResourcesTable.userId, userId),
+        inArray(sermonResourcesTable.id, unique),
+      ),
+    );
+  const ownedSet = new Set(owned.map((r) => r.id));
+  const missing = unique.filter((id) => !ownedSet.has(id));
+  if (missing.length > 0) {
+    return `Some attached resources do not exist or are not yours: ${missing.join(", ")}`;
+  }
+  return null;
+}
 
 router.get("/sermons", requireAuth, async (req, res) => {
   const rows = await db
@@ -30,6 +65,14 @@ router.post("/sermons", requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  const ownershipError = await validateResourceOwnership(
+    req.userId!,
+    d.attachedResourceIds ?? [],
+  );
+  if (ownershipError) {
+    res.status(400).json({ error: ownershipError });
+    return;
+  }
   const [row] = await db
     .insert(sermonsTable)
     .values({
@@ -86,6 +129,16 @@ router.patch("/sermons/:id", requireAuth, async (req, res) => {
     return;
   }
   const d = parsed.data;
+  if (d.attachedResourceIds !== undefined) {
+    const ownershipError = await validateResourceOwnership(
+      req.userId!,
+      d.attachedResourceIds,
+    );
+    if (ownershipError) {
+      res.status(400).json({ error: ownershipError });
+      return;
+    }
+  }
   const update: Record<string, unknown> = {};
   for (const k of [
     "title",

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useRoute } from 'wouter';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetSermon,
   useCreateSermon,
   useUpdateSermon,
   useExportSermon,
   useListSermonResources,
+  getGetSermonQueryKey,
   type Sermon,
   type SermonStudyOutput,
   type SermonBigIdeaOutput,
@@ -139,10 +141,11 @@ export default function SermonBuilder() {
   const sermonId = params?.id ? Number(params.id) : null;
   const isExisting = sermonId !== null && Number.isInteger(sermonId);
 
-  const sermonQuery = useGetSermon(sermonId ?? 0, {
-    query: { enabled: isExisting },
-  });
+  // useGetSermon's default `enabled: !!id` disables the query when id is 0,
+  // which is what we want for the "new sermon" route.
+  const sermonQuery = useGetSermon(sermonId ?? 0);
 
+  const queryClient = useQueryClient();
   const createSermon = useCreateSermon();
   const updateSermon = useUpdateSermon();
   const exportSermon = useExportSermon();
@@ -228,6 +231,10 @@ export default function SermonBuilder() {
           status: 'draft',
         },
       });
+      // Seed the get-sermon cache so subsequent renders read the canonical
+      // server row (architect feedback: previously the rendered data leaned
+      // on the initial query snapshot and ignored fresh PATCH results).
+      queryClient.setQueryData(getGetSermonQueryKey(created.id), created);
       setLocation(`/sermons/${created.id}`, { replace: true });
       hydratedRef.current = true;
       return created.id;
@@ -241,7 +248,14 @@ export default function SermonBuilder() {
     const id = await ensureSermonId();
     if (!id) return;
     try {
-      await updateSermon.mutateAsync({ id, data: { [field]: value } as Partial<Sermon> });
+      const updated = await updateSermon.mutateAsync({
+        id,
+        data: { [field]: value } as Partial<Sermon>,
+      });
+      // Keep the in-memory sermon synced with what we just persisted.
+      // Without this the UI keeps reading the stale section from the initial
+      // GET and Regenerate/Refine appears to do nothing on existing sermons.
+      queryClient.setQueryData(getGetSermonQueryKey(id), updated);
     } catch {
       toast.error('Could not save section. Try the explicit "Save context" button.');
     }
@@ -351,7 +365,7 @@ export default function SermonBuilder() {
     const id = await ensureSermonId();
     if (!id) return;
     try {
-      await updateSermon.mutateAsync({
+      const updated = await updateSermon.mutateAsync({
         id,
         data: {
           title: form.title,
@@ -372,6 +386,7 @@ export default function SermonBuilder() {
           tags: form.tags,
         },
       });
+      queryClient.setQueryData(getGetSermonQueryKey(id), updated);
       toast.success('Sermon saved');
     } catch {
       toast.error('Failed to save sermon');

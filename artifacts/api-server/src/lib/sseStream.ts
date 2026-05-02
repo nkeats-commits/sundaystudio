@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { ZodType } from "zod";
 import { extractJson, streamMessage } from "./anthropicJson";
 
 function canWrite(res: Response): boolean {
@@ -29,6 +30,7 @@ export async function streamGenerate(
   prompt: string,
   maxTokens: number,
   label: string,
+  responseSchema?: ZodType<unknown>,
 ): Promise<void> {
   res.status(200);
   res.setHeader("Content-Type", "text/event-stream");
@@ -95,6 +97,27 @@ export async function streamGenerate(
     });
     safeEnd();
     return;
+  }
+
+  // Optional shape check: if a zod schema was supplied, validate the parsed
+  // output before sending it to the client. This guards against model
+  // drift / prompt injection producing the wrong JSON shape, which would
+  // otherwise cascade into broken DB writes downstream.
+  if (responseSchema) {
+    const check = responseSchema.safeParse(parsed);
+    if (!check.success) {
+      req.log.error(
+        { issues: check.error.issues, sample: fullText.slice(0, 500) },
+        `${label} response schema validation failed`,
+      );
+      writeSseEvent(res, "error", {
+        message:
+          "The model returned a response in an unexpected shape. Please try again.",
+      });
+      safeEnd();
+      return;
+    }
+    parsed = check.data;
   }
 
   writeSseEvent(res, "done", parsed);
