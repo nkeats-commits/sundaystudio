@@ -17,7 +17,7 @@ Brand: warm pastoral aesthetic — navy `#1F2A44`, gold `#C99A3D`, cream `#F8F4E
 - `lib/api-spec` — OpenAPI 3.1 spec. Source of truth for the API contract. `pnpm --filter @workspace/api-spec run codegen` regenerates Zod schemas + React Query hooks.
 - `lib/api-zod` — generated Zod schemas.
 - `lib/api-client-react` — generated React Query hooks (Orval).
-- `lib/db` — Drizzle schema (`users`, `church_profiles`, `service_plans`, `library_items`).
+- `lib/db` — Drizzle schema (`users`, `church_profiles`, `service_plans`, `library_items`, `sermons`, `sermon_resources`, `sermon_exports`).
 - `lib/integrations-anthropic-ai` — Anthropic SDK wrapper.
 
 ## Routes
@@ -31,9 +31,17 @@ Signed-in (wrapped in `RequireSignedIn`):
 - `/service-builder` — generate full service plans, persist via `POST /api/service-plans`
 - `/services`, `/services/:id` — saved service plans CRUD
 - `/generators/{liturgy,songs,speaking-moment,devotional}` — single-purpose AI tools, save outputs to library
+- `/sermons`, `/sermons/new`, `/sermons/:id` — Sermon Builder (3-panel: context | tabs for Study, Big Idea, Outline, Manuscript, Applications, Illustrations, Worship Integration). Each tab streams from a dedicated SSE generator and PATCHes the sermon row.
+- `/resources` — Resource Library (commentary excerpts attachable to sermons; the AI sees `{ title, author, excerpt }` only).
 - `/library` — saved AI outputs by kind
 - `/church` — pastor's church profile (used as Anthropic context)
 - `/settings` — sign out
+
+### Sermon AI safety
+
+- `SERMON_GROUND_RULES` (in `routes/generateSermon.ts`) is included in every sermon prompt: no fabricated commentary quotes, no scholar attribution unless from user-supplied resources, mark unverifiable claims with `verifyBeforeUsing: true`, no extended verbatim copyrighted material.
+- `streamGenerate` in `lib/sseStream.ts` accepts an optional zod response schema and validates the model's parsed output before emitting the `done` event — rejects malformed shapes as SSE `error`.
+- `POST/PATCH /sermons` validate that every `attachedResourceIds` entry belongs to `req.userId` (multi-tenant guard).
 
 ## Auth
 

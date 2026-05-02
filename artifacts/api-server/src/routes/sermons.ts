@@ -30,8 +30,11 @@ async function validateResourceOwnership(
   ids: number[],
 ): Promise<string | null> {
   if (ids.length === 0) return null;
-  const unique = Array.from(new Set(ids.filter((n) => Number.isInteger(n))));
-  if (unique.length === 0) return null;
+  const nonInt = ids.filter((n) => !Number.isInteger(n));
+  if (nonInt.length > 0) {
+    return `attachedResourceIds must be integers: ${nonInt.join(", ")}`;
+  }
+  const unique = Array.from(new Set(ids));
   const owned = await db
     .select({ id: sermonResourcesTable.id })
     .from(sermonResourcesTable)

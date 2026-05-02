@@ -1,6 +1,16 @@
 import type { Request, Response } from "express";
-import type { ZodType } from "zod";
 import { extractJson, streamMessage } from "./anthropicJson";
+
+// Minimal structural type compatible with `zod` (and any other) schemas.
+// Avoids adding zod as a direct dep here — every caller already imports from
+// `@workspace/api-zod`, which carries the real zod runtime.
+type SafeParseable<T> = {
+  safeParse(
+    value: unknown,
+  ):
+    | { success: true; data: T }
+    | { success: false; error: { issues: unknown } };
+};
 
 function canWrite(res: Response): boolean {
   return !res.writableEnded && !res.destroyed;
@@ -30,7 +40,7 @@ export async function streamGenerate(
   prompt: string,
   maxTokens: number,
   label: string,
-  responseSchema?: ZodType<unknown>,
+  responseSchema?: SafeParseable<unknown>,
 ): Promise<void> {
   res.status(200);
   res.setHeader("Content-Type", "text/event-stream");
