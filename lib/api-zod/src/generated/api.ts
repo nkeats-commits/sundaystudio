@@ -608,3 +608,1189 @@ export const GenerateDevotionalResponse = zod.object({
   discussionQuestions: zod.array(zod.string()),
   closingPrayer: zod.string(),
 });
+
+/**
+ * @summary List sermons for the current user
+ */
+export const ListSermonsResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  title: zod.string(),
+  sermonDate: zod.coerce.date().nullish(),
+  passage: zod.string(),
+  secondaryPassages: zod.array(zod.string()),
+  theme: zod.string(),
+  series: zod.string(),
+  occasion: zod.string(),
+  audience: zod.string(),
+  length: zod.string(),
+  tone: zod.string(),
+  style: zod.string(),
+  depth: zod.string(),
+  outputFormat: zod.string(),
+  pastorNotes: zod.string(),
+  study: zod
+    .object({
+      context: zod.string().nullish(),
+      observation: zod.string().nullish(),
+      interpretation: zod.string().nullish(),
+      application: zod.string().nullish(),
+      crossReferences: zod.array(zod.string()).nullish(),
+      interpretiveCautions: zod.array(zod.string()).nullish(),
+      resourceInsights: zod.string().nullish(),
+    })
+    .nullish(),
+  bigIdea: zod
+    .object({
+      selected: zod.string().nullish(),
+      options: zod.array(
+        zod.object({
+          bigIdea: zod.string(),
+          rationale: zod.string().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+  outline: zod
+    .object({
+      selectedIndex: zod.number().nullish(),
+      options: zod.array(
+        zod.object({
+          title: zod.string(),
+          approach: zod.string().nullish(),
+          points: zod.array(
+            zod.object({
+              heading: zod.string(),
+              summary: zod.string().nullish(),
+              scriptureSupport: zod.array(zod.string()).nullish(),
+            }),
+          ),
+        }),
+      ),
+    })
+    .nullish(),
+  manuscript: zod
+    .object({
+      format: zod.enum(["manuscript", "notes", "outline"]),
+      introduction: zod.string().nullish(),
+      body: zod.string(),
+      conclusion: zod.string().nullish(),
+    })
+    .nullish(),
+  applications: zod
+    .object({
+      groups: zod.array(
+        zod.object({
+          audience: zod.string(),
+          application: zod.string(),
+        }),
+      ),
+      smallGroupQuestions: zod.array(zod.string()).nullish(),
+    })
+    .nullish(),
+  illustrations: zod
+    .object({
+      illustrations: zod.array(
+        zod.object({
+          kind: zod.enum([
+            "story",
+            "analogy",
+            "historical",
+            "cultural",
+            "personal",
+            "other",
+          ]),
+          title: zod.string(),
+          body: zod.string(),
+          verifyBeforeUsing: zod.boolean(),
+          notes: zod.string().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+  conclusion: zod
+    .object({
+      conclusion: zod.string(),
+      callToResponse: zod.string().nullish(),
+      closingPrayer: zod.string().nullish(),
+    })
+    .nullish(),
+  worshipIntegration: zod
+    .object({
+      themes: zod.array(zod.string()).nullish(),
+      songs: zod
+        .array(
+          zod.object({
+            title: zod.string(),
+            artist: zod.string().nullish(),
+            whyItFits: zod.string().nullish(),
+          }),
+        )
+        .nullish(),
+      callToWorship: zod.string().nullish(),
+      responseMoment: zod.string().nullish(),
+      communionMoment: zod.string().nullish(),
+      benediction: zod.string().nullish(),
+      prayerPrompts: zod.array(zod.string()).nullish(),
+      teamDevotionalSeed: zod.string().nullish(),
+      smallGroupQuestions: zod.array(zod.string()).nullish(),
+      socialSummary: zod.string().nullish(),
+      emailSummary: zod.string().nullish(),
+    })
+    .nullish(),
+  attachedResourceIds: zod.array(zod.number()),
+  tags: zod.array(zod.string()),
+  status: zod.string(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListSermonsResponse = zod.array(ListSermonsResponseItem);
+
+/**
+ * @summary Create a sermon
+ */
+
+export const CreateSermonBody = zod.object({
+  title: zod.string().min(1),
+  sermonDate: zod.coerce.date().nullish(),
+  passage: zod.string().optional(),
+  secondaryPassages: zod.array(zod.string()).optional(),
+  theme: zod.string().optional(),
+  series: zod.string().optional(),
+  occasion: zod.string().optional(),
+  audience: zod.string().optional(),
+  length: zod.string().optional(),
+  tone: zod.string().optional(),
+  style: zod.string().optional(),
+  depth: zod.string().optional(),
+  outputFormat: zod.string().optional(),
+  pastorNotes: zod.string().optional(),
+  attachedResourceIds: zod.array(zod.number()).optional(),
+  tags: zod.array(zod.string()).optional(),
+  status: zod.string().optional(),
+});
+
+/**
+ * @summary Get a sermon by id
+ */
+export const GetSermonParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetSermonResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  title: zod.string(),
+  sermonDate: zod.coerce.date().nullish(),
+  passage: zod.string(),
+  secondaryPassages: zod.array(zod.string()),
+  theme: zod.string(),
+  series: zod.string(),
+  occasion: zod.string(),
+  audience: zod.string(),
+  length: zod.string(),
+  tone: zod.string(),
+  style: zod.string(),
+  depth: zod.string(),
+  outputFormat: zod.string(),
+  pastorNotes: zod.string(),
+  study: zod
+    .object({
+      context: zod.string().nullish(),
+      observation: zod.string().nullish(),
+      interpretation: zod.string().nullish(),
+      application: zod.string().nullish(),
+      crossReferences: zod.array(zod.string()).nullish(),
+      interpretiveCautions: zod.array(zod.string()).nullish(),
+      resourceInsights: zod.string().nullish(),
+    })
+    .nullish(),
+  bigIdea: zod
+    .object({
+      selected: zod.string().nullish(),
+      options: zod.array(
+        zod.object({
+          bigIdea: zod.string(),
+          rationale: zod.string().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+  outline: zod
+    .object({
+      selectedIndex: zod.number().nullish(),
+      options: zod.array(
+        zod.object({
+          title: zod.string(),
+          approach: zod.string().nullish(),
+          points: zod.array(
+            zod.object({
+              heading: zod.string(),
+              summary: zod.string().nullish(),
+              scriptureSupport: zod.array(zod.string()).nullish(),
+            }),
+          ),
+        }),
+      ),
+    })
+    .nullish(),
+  manuscript: zod
+    .object({
+      format: zod.enum(["manuscript", "notes", "outline"]),
+      introduction: zod.string().nullish(),
+      body: zod.string(),
+      conclusion: zod.string().nullish(),
+    })
+    .nullish(),
+  applications: zod
+    .object({
+      groups: zod.array(
+        zod.object({
+          audience: zod.string(),
+          application: zod.string(),
+        }),
+      ),
+      smallGroupQuestions: zod.array(zod.string()).nullish(),
+    })
+    .nullish(),
+  illustrations: zod
+    .object({
+      illustrations: zod.array(
+        zod.object({
+          kind: zod.enum([
+            "story",
+            "analogy",
+            "historical",
+            "cultural",
+            "personal",
+            "other",
+          ]),
+          title: zod.string(),
+          body: zod.string(),
+          verifyBeforeUsing: zod.boolean(),
+          notes: zod.string().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+  conclusion: zod
+    .object({
+      conclusion: zod.string(),
+      callToResponse: zod.string().nullish(),
+      closingPrayer: zod.string().nullish(),
+    })
+    .nullish(),
+  worshipIntegration: zod
+    .object({
+      themes: zod.array(zod.string()).nullish(),
+      songs: zod
+        .array(
+          zod.object({
+            title: zod.string(),
+            artist: zod.string().nullish(),
+            whyItFits: zod.string().nullish(),
+          }),
+        )
+        .nullish(),
+      callToWorship: zod.string().nullish(),
+      responseMoment: zod.string().nullish(),
+      communionMoment: zod.string().nullish(),
+      benediction: zod.string().nullish(),
+      prayerPrompts: zod.array(zod.string()).nullish(),
+      teamDevotionalSeed: zod.string().nullish(),
+      smallGroupQuestions: zod.array(zod.string()).nullish(),
+      socialSummary: zod.string().nullish(),
+      emailSummary: zod.string().nullish(),
+    })
+    .nullish(),
+  attachedResourceIds: zod.array(zod.number()),
+  tags: zod.array(zod.string()),
+  status: zod.string(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a sermon (any subset of fields)
+ */
+export const UpdateSermonParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSermonBody = zod.object({
+  title: zod.string().optional(),
+  sermonDate: zod.coerce.date().nullish(),
+  passage: zod.string().optional(),
+  secondaryPassages: zod.array(zod.string()).optional(),
+  theme: zod.string().optional(),
+  series: zod.string().optional(),
+  occasion: zod.string().optional(),
+  audience: zod.string().optional(),
+  length: zod.string().optional(),
+  tone: zod.string().optional(),
+  style: zod.string().optional(),
+  depth: zod.string().optional(),
+  outputFormat: zod.string().optional(),
+  pastorNotes: zod.string().optional(),
+  study: zod
+    .object({
+      context: zod.string().nullish(),
+      observation: zod.string().nullish(),
+      interpretation: zod.string().nullish(),
+      application: zod.string().nullish(),
+      crossReferences: zod.array(zod.string()).nullish(),
+      interpretiveCautions: zod.array(zod.string()).nullish(),
+      resourceInsights: zod.string().nullish(),
+    })
+    .nullish(),
+  bigIdea: zod
+    .object({
+      selected: zod.string().nullish(),
+      options: zod.array(
+        zod.object({
+          bigIdea: zod.string(),
+          rationale: zod.string().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+  outline: zod
+    .object({
+      selectedIndex: zod.number().nullish(),
+      options: zod.array(
+        zod.object({
+          title: zod.string(),
+          approach: zod.string().nullish(),
+          points: zod.array(
+            zod.object({
+              heading: zod.string(),
+              summary: zod.string().nullish(),
+              scriptureSupport: zod.array(zod.string()).nullish(),
+            }),
+          ),
+        }),
+      ),
+    })
+    .nullish(),
+  manuscript: zod
+    .object({
+      format: zod.enum(["manuscript", "notes", "outline"]),
+      introduction: zod.string().nullish(),
+      body: zod.string(),
+      conclusion: zod.string().nullish(),
+    })
+    .nullish(),
+  applications: zod
+    .object({
+      groups: zod.array(
+        zod.object({
+          audience: zod.string(),
+          application: zod.string(),
+        }),
+      ),
+      smallGroupQuestions: zod.array(zod.string()).nullish(),
+    })
+    .nullish(),
+  illustrations: zod
+    .object({
+      illustrations: zod.array(
+        zod.object({
+          kind: zod.enum([
+            "story",
+            "analogy",
+            "historical",
+            "cultural",
+            "personal",
+            "other",
+          ]),
+          title: zod.string(),
+          body: zod.string(),
+          verifyBeforeUsing: zod.boolean(),
+          notes: zod.string().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+  conclusion: zod
+    .object({
+      conclusion: zod.string(),
+      callToResponse: zod.string().nullish(),
+      closingPrayer: zod.string().nullish(),
+    })
+    .nullish(),
+  worshipIntegration: zod
+    .object({
+      themes: zod.array(zod.string()).nullish(),
+      songs: zod
+        .array(
+          zod.object({
+            title: zod.string(),
+            artist: zod.string().nullish(),
+            whyItFits: zod.string().nullish(),
+          }),
+        )
+        .nullish(),
+      callToWorship: zod.string().nullish(),
+      responseMoment: zod.string().nullish(),
+      communionMoment: zod.string().nullish(),
+      benediction: zod.string().nullish(),
+      prayerPrompts: zod.array(zod.string()).nullish(),
+      teamDevotionalSeed: zod.string().nullish(),
+      smallGroupQuestions: zod.array(zod.string()).nullish(),
+      socialSummary: zod.string().nullish(),
+      emailSummary: zod.string().nullish(),
+    })
+    .nullish(),
+  attachedResourceIds: zod.array(zod.number()).optional(),
+  tags: zod.array(zod.string()).optional(),
+  status: zod.string().optional(),
+});
+
+export const UpdateSermonResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  title: zod.string(),
+  sermonDate: zod.coerce.date().nullish(),
+  passage: zod.string(),
+  secondaryPassages: zod.array(zod.string()),
+  theme: zod.string(),
+  series: zod.string(),
+  occasion: zod.string(),
+  audience: zod.string(),
+  length: zod.string(),
+  tone: zod.string(),
+  style: zod.string(),
+  depth: zod.string(),
+  outputFormat: zod.string(),
+  pastorNotes: zod.string(),
+  study: zod
+    .object({
+      context: zod.string().nullish(),
+      observation: zod.string().nullish(),
+      interpretation: zod.string().nullish(),
+      application: zod.string().nullish(),
+      crossReferences: zod.array(zod.string()).nullish(),
+      interpretiveCautions: zod.array(zod.string()).nullish(),
+      resourceInsights: zod.string().nullish(),
+    })
+    .nullish(),
+  bigIdea: zod
+    .object({
+      selected: zod.string().nullish(),
+      options: zod.array(
+        zod.object({
+          bigIdea: zod.string(),
+          rationale: zod.string().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+  outline: zod
+    .object({
+      selectedIndex: zod.number().nullish(),
+      options: zod.array(
+        zod.object({
+          title: zod.string(),
+          approach: zod.string().nullish(),
+          points: zod.array(
+            zod.object({
+              heading: zod.string(),
+              summary: zod.string().nullish(),
+              scriptureSupport: zod.array(zod.string()).nullish(),
+            }),
+          ),
+        }),
+      ),
+    })
+    .nullish(),
+  manuscript: zod
+    .object({
+      format: zod.enum(["manuscript", "notes", "outline"]),
+      introduction: zod.string().nullish(),
+      body: zod.string(),
+      conclusion: zod.string().nullish(),
+    })
+    .nullish(),
+  applications: zod
+    .object({
+      groups: zod.array(
+        zod.object({
+          audience: zod.string(),
+          application: zod.string(),
+        }),
+      ),
+      smallGroupQuestions: zod.array(zod.string()).nullish(),
+    })
+    .nullish(),
+  illustrations: zod
+    .object({
+      illustrations: zod.array(
+        zod.object({
+          kind: zod.enum([
+            "story",
+            "analogy",
+            "historical",
+            "cultural",
+            "personal",
+            "other",
+          ]),
+          title: zod.string(),
+          body: zod.string(),
+          verifyBeforeUsing: zod.boolean(),
+          notes: zod.string().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+  conclusion: zod
+    .object({
+      conclusion: zod.string(),
+      callToResponse: zod.string().nullish(),
+      closingPrayer: zod.string().nullish(),
+    })
+    .nullish(),
+  worshipIntegration: zod
+    .object({
+      themes: zod.array(zod.string()).nullish(),
+      songs: zod
+        .array(
+          zod.object({
+            title: zod.string(),
+            artist: zod.string().nullish(),
+            whyItFits: zod.string().nullish(),
+          }),
+        )
+        .nullish(),
+      callToWorship: zod.string().nullish(),
+      responseMoment: zod.string().nullish(),
+      communionMoment: zod.string().nullish(),
+      benediction: zod.string().nullish(),
+      prayerPrompts: zod.array(zod.string()).nullish(),
+      teamDevotionalSeed: zod.string().nullish(),
+      smallGroupQuestions: zod.array(zod.string()).nullish(),
+      socialSummary: zod.string().nullish(),
+      emailSummary: zod.string().nullish(),
+    })
+    .nullish(),
+  attachedResourceIds: zod.array(zod.number()),
+  tags: zod.array(zod.string()),
+  status: zod.string(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a sermon
+ */
+export const DeleteSermonParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Duplicate an existing sermon
+ */
+export const DuplicateSermonParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Render a sermon to text or markdown and record an export
+ */
+export const ExportSermonParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ExportSermonBody = zod.object({
+  format: zod.enum(["markdown", "text"]),
+});
+
+export const ExportSermonResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  sermonId: zod.number(),
+  format: zod.string(),
+  content: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary List sermon resources for the current user
+ */
+export const ListSermonResourcesResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  resourceType: zod.string(),
+  title: zod.string(),
+  author: zod.string(),
+  publisher: zod.string(),
+  year: zod.string(),
+  pageOrLocation: zod.string(),
+  url: zod.string(),
+  excerpt: zod.string(),
+  summary: zod.string(),
+  notes: zod.string(),
+  relatedPassage: zod.string(),
+  tags: zod.array(zod.string()),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListSermonResourcesResponse = zod.array(
+  ListSermonResourcesResponseItem,
+);
+
+/**
+ * @summary Add a new sermon resource
+ */
+
+export const CreateSermonResourceBody = zod.object({
+  resourceType: zod.string().optional(),
+  title: zod.string().min(1),
+  author: zod.string().optional(),
+  publisher: zod.string().optional(),
+  year: zod.string().optional(),
+  pageOrLocation: zod.string().optional(),
+  url: zod.string().optional(),
+  excerpt: zod.string().optional(),
+  summary: zod.string().optional(),
+  notes: zod.string().optional(),
+  relatedPassage: zod.string().optional(),
+  tags: zod.array(zod.string()).optional(),
+});
+
+/**
+ * @summary Update a sermon resource
+ */
+export const UpdateSermonResourceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSermonResourceBody = zod.object({
+  resourceType: zod.string().optional(),
+  title: zod.string().optional(),
+  author: zod.string().optional(),
+  publisher: zod.string().optional(),
+  year: zod.string().optional(),
+  pageOrLocation: zod.string().optional(),
+  url: zod.string().optional(),
+  excerpt: zod.string().optional(),
+  summary: zod.string().optional(),
+  notes: zod.string().optional(),
+  relatedPassage: zod.string().optional(),
+  tags: zod.array(zod.string()).optional(),
+});
+
+export const UpdateSermonResourceResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  resourceType: zod.string(),
+  title: zod.string(),
+  author: zod.string(),
+  publisher: zod.string(),
+  year: zod.string(),
+  pageOrLocation: zod.string(),
+  url: zod.string(),
+  excerpt: zod.string(),
+  summary: zod.string(),
+  notes: zod.string(),
+  relatedPassage: zod.string(),
+  tags: zod.array(zod.string()),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a sermon resource
+ */
+export const DeleteSermonResourceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary AI-generate a passage study — streamed over SSE
+ */
+export const GenerateSermonStudyBody = zod
+  .object({
+    title: zod.string().optional(),
+    passage: zod.string(),
+    secondaryPassages: zod.array(zod.string()).optional(),
+    theme: zod.string().optional(),
+    series: zod.string().optional(),
+    occasion: zod.string().optional(),
+    audience: zod.string().optional(),
+    length: zod.string().optional(),
+    tone: zod.string().optional(),
+    style: zod.string().optional(),
+    depth: zod.string().optional(),
+    outputFormat: zod.string().optional(),
+    pastorNotes: zod.string().optional(),
+    resources: zod
+      .array(
+        zod.object({
+          title: zod.string(),
+          author: zod.string().optional(),
+          excerpt: zod.string(),
+        }),
+      )
+      .optional(),
+  })
+  .describe(
+    "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
+  )
+  .and(
+    zod.object({
+      refineInstruction: zod.string().optional(),
+      existingContent: zod
+        .object({
+          context: zod.string().nullish(),
+          observation: zod.string().nullish(),
+          interpretation: zod.string().nullish(),
+          application: zod.string().nullish(),
+          crossReferences: zod.array(zod.string()).nullish(),
+          interpretiveCautions: zod.array(zod.string()).nullish(),
+          resourceInsights: zod.string().nullish(),
+        })
+        .optional(),
+    }),
+  );
+
+export const GenerateSermonStudyResponse = zod.object({
+  context: zod.string().nullish(),
+  observation: zod.string().nullish(),
+  interpretation: zod.string().nullish(),
+  application: zod.string().nullish(),
+  crossReferences: zod.array(zod.string()).nullish(),
+  interpretiveCautions: zod.array(zod.string()).nullish(),
+  resourceInsights: zod.string().nullish(),
+});
+
+/**
+ * @summary AI-generate big idea options — streamed over SSE
+ */
+export const GenerateSermonBigIdeaBody = zod
+  .object({
+    title: zod.string().optional(),
+    passage: zod.string(),
+    secondaryPassages: zod.array(zod.string()).optional(),
+    theme: zod.string().optional(),
+    series: zod.string().optional(),
+    occasion: zod.string().optional(),
+    audience: zod.string().optional(),
+    length: zod.string().optional(),
+    tone: zod.string().optional(),
+    style: zod.string().optional(),
+    depth: zod.string().optional(),
+    outputFormat: zod.string().optional(),
+    pastorNotes: zod.string().optional(),
+    resources: zod
+      .array(
+        zod.object({
+          title: zod.string(),
+          author: zod.string().optional(),
+          excerpt: zod.string(),
+        }),
+      )
+      .optional(),
+  })
+  .describe(
+    "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
+  )
+  .and(
+    zod.object({
+      study: zod
+        .object({
+          context: zod.string().nullish(),
+          observation: zod.string().nullish(),
+          interpretation: zod.string().nullish(),
+          application: zod.string().nullish(),
+          crossReferences: zod.array(zod.string()).nullish(),
+          interpretiveCautions: zod.array(zod.string()).nullish(),
+          resourceInsights: zod.string().nullish(),
+        })
+        .optional(),
+      refineInstruction: zod.string().optional(),
+    }),
+  );
+
+export const GenerateSermonBigIdeaResponse = zod.object({
+  selected: zod.string().nullish(),
+  options: zod.array(
+    zod.object({
+      bigIdea: zod.string(),
+      rationale: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary AI-generate sermon outline options — streamed over SSE
+ */
+export const GenerateSermonOutlineBody = zod
+  .object({
+    title: zod.string().optional(),
+    passage: zod.string(),
+    secondaryPassages: zod.array(zod.string()).optional(),
+    theme: zod.string().optional(),
+    series: zod.string().optional(),
+    occasion: zod.string().optional(),
+    audience: zod.string().optional(),
+    length: zod.string().optional(),
+    tone: zod.string().optional(),
+    style: zod.string().optional(),
+    depth: zod.string().optional(),
+    outputFormat: zod.string().optional(),
+    pastorNotes: zod.string().optional(),
+    resources: zod
+      .array(
+        zod.object({
+          title: zod.string(),
+          author: zod.string().optional(),
+          excerpt: zod.string(),
+        }),
+      )
+      .optional(),
+  })
+  .describe(
+    "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
+  )
+  .and(
+    zod.object({
+      study: zod
+        .object({
+          context: zod.string().nullish(),
+          observation: zod.string().nullish(),
+          interpretation: zod.string().nullish(),
+          application: zod.string().nullish(),
+          crossReferences: zod.array(zod.string()).nullish(),
+          interpretiveCautions: zod.array(zod.string()).nullish(),
+          resourceInsights: zod.string().nullish(),
+        })
+        .optional(),
+      bigIdea: zod.string().optional(),
+      refineInstruction: zod.string().optional(),
+      existingContent: zod
+        .object({
+          selectedIndex: zod.number().nullish(),
+          options: zod.array(
+            zod.object({
+              title: zod.string(),
+              approach: zod.string().nullish(),
+              points: zod.array(
+                zod.object({
+                  heading: zod.string(),
+                  summary: zod.string().nullish(),
+                  scriptureSupport: zod.array(zod.string()).nullish(),
+                }),
+              ),
+            }),
+          ),
+        })
+        .optional(),
+    }),
+  );
+
+export const GenerateSermonOutlineResponse = zod.object({
+  selectedIndex: zod.number().nullish(),
+  options: zod.array(
+    zod.object({
+      title: zod.string(),
+      approach: zod.string().nullish(),
+      points: zod.array(
+        zod.object({
+          heading: zod.string(),
+          summary: zod.string().nullish(),
+          scriptureSupport: zod.array(zod.string()).nullish(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
+ * @summary AI-generate the sermon manuscript / notes — streamed over SSE
+ */
+export const GenerateSermonManuscriptBody = zod
+  .object({
+    title: zod.string().optional(),
+    passage: zod.string(),
+    secondaryPassages: zod.array(zod.string()).optional(),
+    theme: zod.string().optional(),
+    series: zod.string().optional(),
+    occasion: zod.string().optional(),
+    audience: zod.string().optional(),
+    length: zod.string().optional(),
+    tone: zod.string().optional(),
+    style: zod.string().optional(),
+    depth: zod.string().optional(),
+    outputFormat: zod.string().optional(),
+    pastorNotes: zod.string().optional(),
+    resources: zod
+      .array(
+        zod.object({
+          title: zod.string(),
+          author: zod.string().optional(),
+          excerpt: zod.string(),
+        }),
+      )
+      .optional(),
+  })
+  .describe(
+    "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
+  )
+  .and(
+    zod.object({
+      study: zod
+        .object({
+          context: zod.string().nullish(),
+          observation: zod.string().nullish(),
+          interpretation: zod.string().nullish(),
+          application: zod.string().nullish(),
+          crossReferences: zod.array(zod.string()).nullish(),
+          interpretiveCautions: zod.array(zod.string()).nullish(),
+          resourceInsights: zod.string().nullish(),
+        })
+        .optional(),
+      bigIdea: zod.string().optional(),
+      outline: zod
+        .object({
+          title: zod.string(),
+          approach: zod.string().nullish(),
+          points: zod.array(
+            zod.object({
+              heading: zod.string(),
+              summary: zod.string().nullish(),
+              scriptureSupport: zod.array(zod.string()).nullish(),
+            }),
+          ),
+        })
+        .optional(),
+      refineInstruction: zod.string().optional(),
+      existingContent: zod
+        .object({
+          format: zod.enum(["manuscript", "notes", "outline"]),
+          introduction: zod.string().nullish(),
+          body: zod.string(),
+          conclusion: zod.string().nullish(),
+        })
+        .optional(),
+    }),
+  );
+
+export const GenerateSermonManuscriptResponse = zod.object({
+  format: zod.enum(["manuscript", "notes", "outline"]),
+  introduction: zod.string().nullish(),
+  body: zod.string(),
+  conclusion: zod.string().nullish(),
+});
+
+/**
+ * @summary AI-generate application ideas for many congregational segments — streamed over SSE
+ */
+export const GenerateSermonApplicationsBody = zod
+  .object({
+    title: zod.string().optional(),
+    passage: zod.string(),
+    secondaryPassages: zod.array(zod.string()).optional(),
+    theme: zod.string().optional(),
+    series: zod.string().optional(),
+    occasion: zod.string().optional(),
+    audience: zod.string().optional(),
+    length: zod.string().optional(),
+    tone: zod.string().optional(),
+    style: zod.string().optional(),
+    depth: zod.string().optional(),
+    outputFormat: zod.string().optional(),
+    pastorNotes: zod.string().optional(),
+    resources: zod
+      .array(
+        zod.object({
+          title: zod.string(),
+          author: zod.string().optional(),
+          excerpt: zod.string(),
+        }),
+      )
+      .optional(),
+  })
+  .describe(
+    "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
+  )
+  .and(
+    zod.object({
+      study: zod
+        .object({
+          context: zod.string().nullish(),
+          observation: zod.string().nullish(),
+          interpretation: zod.string().nullish(),
+          application: zod.string().nullish(),
+          crossReferences: zod.array(zod.string()).nullish(),
+          interpretiveCautions: zod.array(zod.string()).nullish(),
+          resourceInsights: zod.string().nullish(),
+        })
+        .optional(),
+      bigIdea: zod.string().optional(),
+      refineInstruction: zod.string().optional(),
+    }),
+  );
+
+export const GenerateSermonApplicationsResponse = zod.object({
+  groups: zod.array(
+    zod.object({
+      audience: zod.string(),
+      application: zod.string(),
+    }),
+  ),
+  smallGroupQuestions: zod.array(zod.string()).nullish(),
+});
+
+/**
+ * @summary AI-generate sermon illustrations — streamed over SSE
+ */
+export const GenerateSermonIllustrationsBody = zod
+  .object({
+    title: zod.string().optional(),
+    passage: zod.string(),
+    secondaryPassages: zod.array(zod.string()).optional(),
+    theme: zod.string().optional(),
+    series: zod.string().optional(),
+    occasion: zod.string().optional(),
+    audience: zod.string().optional(),
+    length: zod.string().optional(),
+    tone: zod.string().optional(),
+    style: zod.string().optional(),
+    depth: zod.string().optional(),
+    outputFormat: zod.string().optional(),
+    pastorNotes: zod.string().optional(),
+    resources: zod
+      .array(
+        zod.object({
+          title: zod.string(),
+          author: zod.string().optional(),
+          excerpt: zod.string(),
+        }),
+      )
+      .optional(),
+  })
+  .describe(
+    "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
+  )
+  .and(
+    zod.object({
+      bigIdea: zod.string().optional(),
+      outline: zod
+        .object({
+          title: zod.string(),
+          approach: zod.string().nullish(),
+          points: zod.array(
+            zod.object({
+              heading: zod.string(),
+              summary: zod.string().nullish(),
+              scriptureSupport: zod.array(zod.string()).nullish(),
+            }),
+          ),
+        })
+        .optional(),
+      refineInstruction: zod.string().optional(),
+    }),
+  );
+
+export const GenerateSermonIllustrationsResponse = zod.object({
+  illustrations: zod.array(
+    zod.object({
+      kind: zod.enum([
+        "story",
+        "analogy",
+        "historical",
+        "cultural",
+        "personal",
+        "other",
+      ]),
+      title: zod.string(),
+      body: zod.string(),
+      verifyBeforeUsing: zod.boolean(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary AI-generate worship-integration ideas from a sermon — streamed over SSE
+ */
+export const GenerateSermonToServiceBody = zod
+  .object({
+    title: zod.string().optional(),
+    passage: zod.string(),
+    secondaryPassages: zod.array(zod.string()).optional(),
+    theme: zod.string().optional(),
+    series: zod.string().optional(),
+    occasion: zod.string().optional(),
+    audience: zod.string().optional(),
+    length: zod.string().optional(),
+    tone: zod.string().optional(),
+    style: zod.string().optional(),
+    depth: zod.string().optional(),
+    outputFormat: zod.string().optional(),
+    pastorNotes: zod.string().optional(),
+    resources: zod
+      .array(
+        zod.object({
+          title: zod.string(),
+          author: zod.string().optional(),
+          excerpt: zod.string(),
+        }),
+      )
+      .optional(),
+  })
+  .describe(
+    "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
+  )
+  .and(
+    zod.object({
+      bigIdea: zod.string().optional(),
+      outline: zod
+        .object({
+          title: zod.string(),
+          approach: zod.string().nullish(),
+          points: zod.array(
+            zod.object({
+              heading: zod.string(),
+              summary: zod.string().nullish(),
+              scriptureSupport: zod.array(zod.string()).nullish(),
+            }),
+          ),
+        })
+        .optional(),
+      applications: zod
+        .object({
+          groups: zod.array(
+            zod.object({
+              audience: zod.string(),
+              application: zod.string(),
+            }),
+          ),
+          smallGroupQuestions: zod.array(zod.string()).nullish(),
+        })
+        .optional(),
+      refineInstruction: zod.string().optional(),
+    }),
+  );
+
+export const GenerateSermonToServiceResponse = zod.object({
+  themes: zod.array(zod.string()).nullish(),
+  songs: zod
+    .array(
+      zod.object({
+        title: zod.string(),
+        artist: zod.string().nullish(),
+        whyItFits: zod.string().nullish(),
+      }),
+    )
+    .nullish(),
+  callToWorship: zod.string().nullish(),
+  responseMoment: zod.string().nullish(),
+  communionMoment: zod.string().nullish(),
+  benediction: zod.string().nullish(),
+  prayerPrompts: zod.array(zod.string()).nullish(),
+  teamDevotionalSeed: zod.string().nullish(),
+  smallGroupQuestions: zod.array(zod.string()).nullish(),
+  socialSummary: zod.string().nullish(),
+  emailSummary: zod.string().nullish(),
+});

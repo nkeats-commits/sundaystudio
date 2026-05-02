@@ -5,6 +5,9 @@ import dashboardRouter from "./dashboard";
 import servicePlansRouter from "./servicePlans";
 import libraryRouter from "./library";
 import generateRouter from "./generate";
+import sermonsRouter from "./sermons";
+import sermonResourcesRouter from "./sermonResources";
+import generateSermonRouter from "./generateSermon";
 
 const router: IRouter = Router();
 
@@ -14,5 +17,8 @@ router.use(dashboardRouter);
 router.use(servicePlansRouter);
 router.use(libraryRouter);
 router.use(generateRouter);
+router.use(sermonsRouter);
+router.use(sermonResourcesRouter);
+router.use(generateSermonRouter);
 
 export default router;

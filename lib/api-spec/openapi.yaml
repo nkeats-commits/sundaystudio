@@ -20,6 +20,12 @@ tags:
     description: Dashboard summaries
   - name: generate
     description: AI generation endpoints
+  - name: sermons
+    description: Sermon Builder operations
+  - name: sermon-resources
+    description: Sermon resource library (commentary excerpts, scholar notes, etc.)
+  - name: sermon-exports
+    description: Exported sermon documents
 paths:
   /healthz:
     get:
@@ -419,6 +425,446 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedDevotional"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sermons:
+    get:
+      operationId: listSermons
+      tags: [sermons]
+      summary: List sermons for the current user
+      responses:
+        "200":
+          description: List of sermons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sermon"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createSermon
+      tags: [sermons]
+      summary: Create a sermon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSermonBody"
+      responses:
+        "201":
+          description: Created sermon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sermon"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sermons/{id}:
+    get:
+      operationId: getSermon
+      tags: [sermons]
+      summary: Get a sermon by id
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Sermon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sermon"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateSermon
+      tags: [sermons]
+      summary: Update a sermon (any subset of fields)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSermonBody"
+      responses:
+        "200":
+          description: Updated sermon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sermon"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteSermon
+      tags: [sermons]
+      summary: Delete a sermon
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /sermons/{id}/duplicate:
+    post:
+      operationId: duplicateSermon
+      tags: [sermons]
+      summary: Duplicate an existing sermon
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "201":
+          description: Duplicated sermon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sermon"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /sermons/{id}/export:
+    post:
+      operationId: exportSermon
+      tags: [sermon-exports]
+      summary: Render a sermon to text or markdown and record an export
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportSermonBody"
+      responses:
+        "200":
+          description: Exported sermon document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonExport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /sermon-resources:
+    get:
+      operationId: listSermonResources
+      tags: [sermon-resources]
+      summary: List sermon resources for the current user
+      responses:
+        "200":
+          description: List of sermon resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SermonResource"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createSermonResource
+      tags: [sermon-resources]
+      summary: Add a new sermon resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSermonResourceBody"
+      responses:
+        "201":
+          description: Created resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonResource"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sermon-resources/{id}:
+    patch:
+      operationId: updateSermonResource
+      tags: [sermon-resources]
+      summary: Update a sermon resource
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSermonResourceBody"
+      responses:
+        "200":
+          description: Updated resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonResource"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteSermonResource
+      tags: [sermon-resources]
+      summary: Delete a sermon resource
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /generate/sermon-study:
+    post:
+      operationId: generateSermonStudy
+      tags: [generate]
+      summary: AI-generate a passage study — streamed over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSermonStudyBody"
+      responses:
+        "200":
+          description: SSE stream; final `done` event is a `SermonStudyOutput`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonStudyOutput"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/sermon-big-idea:
+    post:
+      operationId: generateSermonBigIdea
+      tags: [generate]
+      summary: AI-generate big idea options — streamed over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSermonBigIdeaBody"
+      responses:
+        "200":
+          description: SSE stream; final `done` event is a `SermonBigIdeaOutput`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonBigIdeaOutput"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/sermon-outline:
+    post:
+      operationId: generateSermonOutline
+      tags: [generate]
+      summary: AI-generate sermon outline options — streamed over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSermonOutlineBody"
+      responses:
+        "200":
+          description: SSE stream; final `done` event is a `SermonOutlineOutput`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonOutlineOutput"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/sermon-manuscript:
+    post:
+      operationId: generateSermonManuscript
+      tags: [generate]
+      summary: AI-generate the sermon manuscript / notes — streamed over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSermonManuscriptBody"
+      responses:
+        "200":
+          description: SSE stream; final `done` event is a `SermonManuscriptOutput`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonManuscriptOutput"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/sermon-applications:
+    post:
+      operationId: generateSermonApplications
+      tags: [generate]
+      summary: AI-generate application ideas for many congregational segments — streamed over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSermonApplicationsBody"
+      responses:
+        "200":
+          description: SSE stream; final `done` event is a `SermonApplicationsOutput`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonApplicationsOutput"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/sermon-illustrations:
+    post:
+      operationId: generateSermonIllustrations
+      tags: [generate]
+      summary: AI-generate sermon illustrations — streamed over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSermonIllustrationsBody"
+      responses:
+        "200":
+          description: SSE stream; final `done` event is a `SermonIllustrationsOutput`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonIllustrationsOutput"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/sermon-to-service:
+    post:
+      operationId: generateSermonToService
+      tags: [generate]
+      summary: AI-generate worship-integration ideas from a sermon — streamed over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSermonToServiceBody"
+      responses:
+        "200":
+          description: SSE stream; final `done` event is a `SermonWorshipIntegrationOutput`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonWorshipIntegrationOutput"
         "400":
           description: Invalid request body
           content:
@@ -947,3 +1393,750 @@ components:
         closingPrayer:
           type: string
       required: [title, scripture, opening, body, discussionQuestions, closingPrayer]
+
+    SermonStudyOutput:
+      type: object
+      properties:
+        context:
+          type: string
+          nullable: true
+        observation:
+          type: string
+          nullable: true
+        interpretation:
+          type: string
+          nullable: true
+        application:
+          type: string
+          nullable: true
+        crossReferences:
+          type: array
+          nullable: true
+          items:
+            type: string
+        interpretiveCautions:
+          type: array
+          nullable: true
+          items:
+            type: string
+        resourceInsights:
+          type: string
+          nullable: true
+
+    SermonBigIdeaOption:
+      type: object
+      properties:
+        bigIdea:
+          type: string
+        rationale:
+          type: string
+          nullable: true
+      required: [bigIdea]
+
+    SermonBigIdeaOutput:
+      type: object
+      properties:
+        selected:
+          type: string
+          nullable: true
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/SermonBigIdeaOption"
+      required: [options]
+
+    SermonOutlinePoint:
+      type: object
+      properties:
+        heading:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        scriptureSupport:
+          type: array
+          nullable: true
+          items:
+            type: string
+      required: [heading]
+
+    SermonOutlineOption:
+      type: object
+      properties:
+        title:
+          type: string
+        approach:
+          type: string
+          nullable: true
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/SermonOutlinePoint"
+      required: [title, points]
+
+    SermonOutlineOutput:
+      type: object
+      properties:
+        selectedIndex:
+          type: integer
+          nullable: true
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/SermonOutlineOption"
+      required: [options]
+
+    SermonManuscriptOutput:
+      type: object
+      properties:
+        format:
+          type: string
+          enum: [manuscript, notes, outline]
+        introduction:
+          type: string
+          nullable: true
+        body:
+          type: string
+        conclusion:
+          type: string
+          nullable: true
+      required: [format, body]
+
+    SermonApplicationItem:
+      type: object
+      properties:
+        audience:
+          type: string
+        application:
+          type: string
+      required: [audience, application]
+
+    SermonApplicationsOutput:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/SermonApplicationItem"
+        smallGroupQuestions:
+          type: array
+          nullable: true
+          items:
+            type: string
+      required: [groups]
+
+    SermonIllustrationItem:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [story, analogy, historical, cultural, personal, other]
+        title:
+          type: string
+        body:
+          type: string
+        verifyBeforeUsing:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+      required: [kind, title, body, verifyBeforeUsing]
+
+    SermonIllustrationsOutput:
+      type: object
+      properties:
+        illustrations:
+          type: array
+          items:
+            $ref: "#/components/schemas/SermonIllustrationItem"
+      required: [illustrations]
+
+    SermonConclusionOutput:
+      type: object
+      properties:
+        conclusion:
+          type: string
+        callToResponse:
+          type: string
+          nullable: true
+        closingPrayer:
+          type: string
+          nullable: true
+      required: [conclusion]
+
+    SermonWorshipSongSuggestion:
+      type: object
+      properties:
+        title:
+          type: string
+        artist:
+          type: string
+          nullable: true
+        whyItFits:
+          type: string
+          nullable: true
+      required: [title]
+
+    SermonWorshipIntegrationOutput:
+      type: object
+      properties:
+        themes:
+          type: array
+          nullable: true
+          items:
+            type: string
+        songs:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/SermonWorshipSongSuggestion"
+        callToWorship:
+          type: string
+          nullable: true
+        responseMoment:
+          type: string
+          nullable: true
+        communionMoment:
+          type: string
+          nullable: true
+        benediction:
+          type: string
+          nullable: true
+        prayerPrompts:
+          type: array
+          nullable: true
+          items:
+            type: string
+        teamDevotionalSeed:
+          type: string
+          nullable: true
+        smallGroupQuestions:
+          type: array
+          nullable: true
+          items:
+            type: string
+        socialSummary:
+          type: string
+          nullable: true
+        emailSummary:
+          type: string
+          nullable: true
+
+    Sermon:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        title:
+          type: string
+        sermonDate:
+          type: string
+          format: date-time
+          nullable: true
+        passage:
+          type: string
+        secondaryPassages:
+          type: array
+          items:
+            type: string
+        theme:
+          type: string
+        series:
+          type: string
+        occasion:
+          type: string
+        audience:
+          type: string
+        length:
+          type: string
+        tone:
+          type: string
+        style:
+          type: string
+        depth:
+          type: string
+        outputFormat:
+          type: string
+        pastorNotes:
+          type: string
+        study:
+          allOf:
+            - $ref: "#/components/schemas/SermonStudyOutput"
+          nullable: true
+        bigIdea:
+          allOf:
+            - $ref: "#/components/schemas/SermonBigIdeaOutput"
+          nullable: true
+        outline:
+          allOf:
+            - $ref: "#/components/schemas/SermonOutlineOutput"
+          nullable: true
+        manuscript:
+          allOf:
+            - $ref: "#/components/schemas/SermonManuscriptOutput"
+          nullable: true
+        applications:
+          allOf:
+            - $ref: "#/components/schemas/SermonApplicationsOutput"
+          nullable: true
+        illustrations:
+          allOf:
+            - $ref: "#/components/schemas/SermonIllustrationsOutput"
+          nullable: true
+        conclusion:
+          allOf:
+            - $ref: "#/components/schemas/SermonConclusionOutput"
+          nullable: true
+        worshipIntegration:
+          allOf:
+            - $ref: "#/components/schemas/SermonWorshipIntegrationOutput"
+          nullable: true
+        attachedResourceIds:
+          type: array
+          items:
+            type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - title
+        - passage
+        - secondaryPassages
+        - theme
+        - series
+        - occasion
+        - audience
+        - length
+        - tone
+        - style
+        - depth
+        - outputFormat
+        - pastorNotes
+        - attachedResourceIds
+        - tags
+        - status
+        - createdAt
+        - updatedAt
+
+    CreateSermonBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        sermonDate:
+          type: string
+          format: date-time
+          nullable: true
+        passage:
+          type: string
+        secondaryPassages:
+          type: array
+          items:
+            type: string
+        theme:
+          type: string
+        series:
+          type: string
+        occasion:
+          type: string
+        audience:
+          type: string
+        length:
+          type: string
+        tone:
+          type: string
+        style:
+          type: string
+        depth:
+          type: string
+        outputFormat:
+          type: string
+        pastorNotes:
+          type: string
+        attachedResourceIds:
+          type: array
+          items:
+            type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+      required: [title]
+
+    UpdateSermonBody:
+      type: object
+      properties:
+        title:
+          type: string
+        sermonDate:
+          type: string
+          format: date-time
+          nullable: true
+        passage:
+          type: string
+        secondaryPassages:
+          type: array
+          items:
+            type: string
+        theme:
+          type: string
+        series:
+          type: string
+        occasion:
+          type: string
+        audience:
+          type: string
+        length:
+          type: string
+        tone:
+          type: string
+        style:
+          type: string
+        depth:
+          type: string
+        outputFormat:
+          type: string
+        pastorNotes:
+          type: string
+        study:
+          allOf:
+            - $ref: "#/components/schemas/SermonStudyOutput"
+          nullable: true
+        bigIdea:
+          allOf:
+            - $ref: "#/components/schemas/SermonBigIdeaOutput"
+          nullable: true
+        outline:
+          allOf:
+            - $ref: "#/components/schemas/SermonOutlineOutput"
+          nullable: true
+        manuscript:
+          allOf:
+            - $ref: "#/components/schemas/SermonManuscriptOutput"
+          nullable: true
+        applications:
+          allOf:
+            - $ref: "#/components/schemas/SermonApplicationsOutput"
+          nullable: true
+        illustrations:
+          allOf:
+            - $ref: "#/components/schemas/SermonIllustrationsOutput"
+          nullable: true
+        conclusion:
+          allOf:
+            - $ref: "#/components/schemas/SermonConclusionOutput"
+          nullable: true
+        worshipIntegration:
+          allOf:
+            - $ref: "#/components/schemas/SermonWorshipIntegrationOutput"
+          nullable: true
+        attachedResourceIds:
+          type: array
+          items:
+            type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+
+    SermonResource:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        resourceType:
+          type: string
+        title:
+          type: string
+        author:
+          type: string
+        publisher:
+          type: string
+        year:
+          type: string
+        pageOrLocation:
+          type: string
+        url:
+          type: string
+        excerpt:
+          type: string
+        summary:
+          type: string
+        notes:
+          type: string
+        relatedPassage:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - resourceType
+        - title
+        - author
+        - publisher
+        - year
+        - pageOrLocation
+        - url
+        - excerpt
+        - summary
+        - notes
+        - relatedPassage
+        - tags
+        - createdAt
+        - updatedAt
+
+    CreateSermonResourceBody:
+      type: object
+      properties:
+        resourceType:
+          type: string
+        title:
+          type: string
+          minLength: 1
+        author:
+          type: string
+        publisher:
+          type: string
+        year:
+          type: string
+        pageOrLocation:
+          type: string
+        url:
+          type: string
+        excerpt:
+          type: string
+        summary:
+          type: string
+        notes:
+          type: string
+        relatedPassage:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required: [title]
+
+    UpdateSermonResourceBody:
+      type: object
+      properties:
+        resourceType:
+          type: string
+        title:
+          type: string
+        author:
+          type: string
+        publisher:
+          type: string
+        year:
+          type: string
+        pageOrLocation:
+          type: string
+        url:
+          type: string
+        excerpt:
+          type: string
+        summary:
+          type: string
+        notes:
+          type: string
+        relatedPassage:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    ExportSermonBody:
+      type: object
+      properties:
+        format:
+          type: string
+          enum: [markdown, text]
+      required: [format]
+
+    SermonExport:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        sermonId:
+          type: integer
+        format:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, sermonId, format, content, createdAt]
+
+    SermonResourceRef:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        excerpt:
+          type: string
+      required: [title, excerpt]
+
+    SermonContextBlurb:
+      type: object
+      description: |
+        Common shape every sermon-generator request shares so the AI gets the
+        sermon's context, the church's context, and any selected resources.
+      properties:
+        title:
+          type: string
+        passage:
+          type: string
+        secondaryPassages:
+          type: array
+          items:
+            type: string
+        theme:
+          type: string
+        series:
+          type: string
+        occasion:
+          type: string
+        audience:
+          type: string
+        length:
+          type: string
+        tone:
+          type: string
+        style:
+          type: string
+        depth:
+          type: string
+        outputFormat:
+          type: string
+        pastorNotes:
+          type: string
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SermonResourceRef"
+      required: [passage]
+
+    GenerateSermonStudyBody:
+      allOf:
+        - $ref: "#/components/schemas/SermonContextBlurb"
+        - type: object
+          properties:
+            refineInstruction:
+              type: string
+            existingContent:
+              $ref: "#/components/schemas/SermonStudyOutput"
+
+    GenerateSermonBigIdeaBody:
+      allOf:
+        - $ref: "#/components/schemas/SermonContextBlurb"
+        - type: object
+          properties:
+            study:
+              $ref: "#/components/schemas/SermonStudyOutput"
+            refineInstruction:
+              type: string
+
+    GenerateSermonOutlineBody:
+      allOf:
+        - $ref: "#/components/schemas/SermonContextBlurb"
+        - type: object
+          properties:
+            study:
+              $ref: "#/components/schemas/SermonStudyOutput"
+            bigIdea:
+              type: string
+            refineInstruction:
+              type: string
+            existingContent:
+              $ref: "#/components/schemas/SermonOutlineOutput"
+
+    GenerateSermonManuscriptBody:
+      allOf:
+        - $ref: "#/components/schemas/SermonContextBlurb"
+        - type: object
+          properties:
+            study:
+              $ref: "#/components/schemas/SermonStudyOutput"
+            bigIdea:
+              type: string
+            outline:
+              $ref: "#/components/schemas/SermonOutlineOption"
+            refineInstruction:
+              type: string
+            existingContent:
+              $ref: "#/components/schemas/SermonManuscriptOutput"
+
+    GenerateSermonApplicationsBody:
+      allOf:
+        - $ref: "#/components/schemas/SermonContextBlurb"
+        - type: object
+          properties:
+            study:
+              $ref: "#/components/schemas/SermonStudyOutput"
+            bigIdea:
+              type: string
+            refineInstruction:
+              type: string
+
+    GenerateSermonIllustrationsBody:
+      allOf:
+        - $ref: "#/components/schemas/SermonContextBlurb"
+        - type: object
+          properties:
+            bigIdea:
+              type: string
+            outline:
+              $ref: "#/components/schemas/SermonOutlineOption"
+            refineInstruction:
+              type: string
+
+    GenerateSermonToServiceBody:
+      allOf:
+        - $ref: "#/components/schemas/SermonContextBlurb"
+        - type: object
+          properties:
+            bigIdea:
+              type: string
+            outline:
+              $ref: "#/components/schemas/SermonOutlineOption"
+            applications:
+              $ref: "#/components/schemas/SermonApplicationsOutput"
+            refineInstruction:
+              type: string

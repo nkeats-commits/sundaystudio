@@ -312,6 +312,343 @@ export interface GeneratedDevotional {
   closingPrayer: string;
 }
 
+export interface SermonStudyOutput {
+  context?: string | null;
+  observation?: string | null;
+  interpretation?: string | null;
+  application?: string | null;
+  crossReferences?: string[] | null;
+  interpretiveCautions?: string[] | null;
+  resourceInsights?: string | null;
+}
+
+export interface SermonBigIdeaOption {
+  bigIdea: string;
+  rationale?: string | null;
+}
+
+export interface SermonBigIdeaOutput {
+  selected?: string | null;
+  options: SermonBigIdeaOption[];
+}
+
+export interface SermonOutlinePoint {
+  heading: string;
+  summary?: string | null;
+  scriptureSupport?: string[] | null;
+}
+
+export interface SermonOutlineOption {
+  title: string;
+  approach?: string | null;
+  points: SermonOutlinePoint[];
+}
+
+export interface SermonOutlineOutput {
+  selectedIndex?: number | null;
+  options: SermonOutlineOption[];
+}
+
+export type SermonManuscriptOutputFormat =
+  (typeof SermonManuscriptOutputFormat)[keyof typeof SermonManuscriptOutputFormat];
+
+export const SermonManuscriptOutputFormat = {
+  manuscript: "manuscript",
+  notes: "notes",
+  outline: "outline",
+} as const;
+
+export interface SermonManuscriptOutput {
+  format: SermonManuscriptOutputFormat;
+  introduction?: string | null;
+  body: string;
+  conclusion?: string | null;
+}
+
+export interface SermonApplicationItem {
+  audience: string;
+  application: string;
+}
+
+export interface SermonApplicationsOutput {
+  groups: SermonApplicationItem[];
+  smallGroupQuestions?: string[] | null;
+}
+
+export type SermonIllustrationItemKind =
+  (typeof SermonIllustrationItemKind)[keyof typeof SermonIllustrationItemKind];
+
+export const SermonIllustrationItemKind = {
+  story: "story",
+  analogy: "analogy",
+  historical: "historical",
+  cultural: "cultural",
+  personal: "personal",
+  other: "other",
+} as const;
+
+export interface SermonIllustrationItem {
+  kind: SermonIllustrationItemKind;
+  title: string;
+  body: string;
+  verifyBeforeUsing: boolean;
+  notes?: string | null;
+}
+
+export interface SermonIllustrationsOutput {
+  illustrations: SermonIllustrationItem[];
+}
+
+export interface SermonConclusionOutput {
+  conclusion: string;
+  callToResponse?: string | null;
+  closingPrayer?: string | null;
+}
+
+export interface SermonWorshipSongSuggestion {
+  title: string;
+  artist?: string | null;
+  whyItFits?: string | null;
+}
+
+export interface SermonWorshipIntegrationOutput {
+  themes?: string[] | null;
+  songs?: SermonWorshipSongSuggestion[] | null;
+  callToWorship?: string | null;
+  responseMoment?: string | null;
+  communionMoment?: string | null;
+  benediction?: string | null;
+  prayerPrompts?: string[] | null;
+  teamDevotionalSeed?: string | null;
+  smallGroupQuestions?: string[] | null;
+  socialSummary?: string | null;
+  emailSummary?: string | null;
+}
+
+export interface Sermon {
+  id: number;
+  userId: string;
+  title: string;
+  sermonDate?: string | null;
+  passage: string;
+  secondaryPassages: string[];
+  theme: string;
+  series: string;
+  occasion: string;
+  audience: string;
+  length: string;
+  tone: string;
+  style: string;
+  depth: string;
+  outputFormat: string;
+  pastorNotes: string;
+  study?: SermonStudyOutput | null;
+  bigIdea?: SermonBigIdeaOutput | null;
+  outline?: SermonOutlineOutput | null;
+  manuscript?: SermonManuscriptOutput | null;
+  applications?: SermonApplicationsOutput | null;
+  illustrations?: SermonIllustrationsOutput | null;
+  conclusion?: SermonConclusionOutput | null;
+  worshipIntegration?: SermonWorshipIntegrationOutput | null;
+  attachedResourceIds: number[];
+  tags: string[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSermonBody {
+  /** @minLength 1 */
+  title: string;
+  sermonDate?: string | null;
+  passage?: string;
+  secondaryPassages?: string[];
+  theme?: string;
+  series?: string;
+  occasion?: string;
+  audience?: string;
+  length?: string;
+  tone?: string;
+  style?: string;
+  depth?: string;
+  outputFormat?: string;
+  pastorNotes?: string;
+  attachedResourceIds?: number[];
+  tags?: string[];
+  status?: string;
+}
+
+export interface UpdateSermonBody {
+  title?: string;
+  sermonDate?: string | null;
+  passage?: string;
+  secondaryPassages?: string[];
+  theme?: string;
+  series?: string;
+  occasion?: string;
+  audience?: string;
+  length?: string;
+  tone?: string;
+  style?: string;
+  depth?: string;
+  outputFormat?: string;
+  pastorNotes?: string;
+  study?: SermonStudyOutput | null;
+  bigIdea?: SermonBigIdeaOutput | null;
+  outline?: SermonOutlineOutput | null;
+  manuscript?: SermonManuscriptOutput | null;
+  applications?: SermonApplicationsOutput | null;
+  illustrations?: SermonIllustrationsOutput | null;
+  conclusion?: SermonConclusionOutput | null;
+  worshipIntegration?: SermonWorshipIntegrationOutput | null;
+  attachedResourceIds?: number[];
+  tags?: string[];
+  status?: string;
+}
+
+export interface SermonResource {
+  id: number;
+  userId: string;
+  resourceType: string;
+  title: string;
+  author: string;
+  publisher: string;
+  year: string;
+  pageOrLocation: string;
+  url: string;
+  excerpt: string;
+  summary: string;
+  notes: string;
+  relatedPassage: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSermonResourceBody {
+  resourceType?: string;
+  /** @minLength 1 */
+  title: string;
+  author?: string;
+  publisher?: string;
+  year?: string;
+  pageOrLocation?: string;
+  url?: string;
+  excerpt?: string;
+  summary?: string;
+  notes?: string;
+  relatedPassage?: string;
+  tags?: string[];
+}
+
+export interface UpdateSermonResourceBody {
+  resourceType?: string;
+  title?: string;
+  author?: string;
+  publisher?: string;
+  year?: string;
+  pageOrLocation?: string;
+  url?: string;
+  excerpt?: string;
+  summary?: string;
+  notes?: string;
+  relatedPassage?: string;
+  tags?: string[];
+}
+
+export type ExportSermonBodyFormat =
+  (typeof ExportSermonBodyFormat)[keyof typeof ExportSermonBodyFormat];
+
+export const ExportSermonBodyFormat = {
+  markdown: "markdown",
+  text: "text",
+} as const;
+
+export interface ExportSermonBody {
+  format: ExportSermonBodyFormat;
+}
+
+export interface SermonExport {
+  id: number;
+  userId: string;
+  sermonId: number;
+  format: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface SermonResourceRef {
+  title: string;
+  author?: string;
+  excerpt: string;
+}
+
+/**
+ * Common shape every sermon-generator request shares so the AI gets the
+sermon's context, the church's context, and any selected resources.
+
+ */
+export interface SermonContextBlurb {
+  title?: string;
+  passage: string;
+  secondaryPassages?: string[];
+  theme?: string;
+  series?: string;
+  occasion?: string;
+  audience?: string;
+  length?: string;
+  tone?: string;
+  style?: string;
+  depth?: string;
+  outputFormat?: string;
+  pastorNotes?: string;
+  resources?: SermonResourceRef[];
+}
+
+export type GenerateSermonStudyBody = SermonContextBlurb & {
+  refineInstruction?: string;
+  existingContent?: SermonStudyOutput;
+};
+
+export type GenerateSermonBigIdeaBody = SermonContextBlurb & {
+  study?: SermonStudyOutput;
+  refineInstruction?: string;
+};
+
+export type GenerateSermonOutlineBody = SermonContextBlurb & {
+  study?: SermonStudyOutput;
+  bigIdea?: string;
+  refineInstruction?: string;
+  existingContent?: SermonOutlineOutput;
+};
+
+export type GenerateSermonManuscriptBody = SermonContextBlurb & {
+  study?: SermonStudyOutput;
+  bigIdea?: string;
+  outline?: SermonOutlineOption;
+  refineInstruction?: string;
+  existingContent?: SermonManuscriptOutput;
+};
+
+export type GenerateSermonApplicationsBody = SermonContextBlurb & {
+  study?: SermonStudyOutput;
+  bigIdea?: string;
+  refineInstruction?: string;
+};
+
+export type GenerateSermonIllustrationsBody = SermonContextBlurb & {
+  bigIdea?: string;
+  outline?: SermonOutlineOption;
+  refineInstruction?: string;
+};
+
+export type GenerateSermonToServiceBody = SermonContextBlurb & {
+  bigIdea?: string;
+  outline?: SermonOutlineOption;
+  applications?: SermonApplicationsOutput;
+  refineInstruction?: string;
+};
+
 /**
  * Unauthorized
  */
@@ -353,5 +690,33 @@ export type GenerateSpeakingMoment400 = {
 };
 
 export type GenerateDevotional400 = {
+  error?: string;
+};
+
+export type GenerateSermonStudy400 = {
+  error?: string;
+};
+
+export type GenerateSermonBigIdea400 = {
+  error?: string;
+};
+
+export type GenerateSermonOutline400 = {
+  error?: string;
+};
+
+export type GenerateSermonManuscript400 = {
+  error?: string;
+};
+
+export type GenerateSermonApplications400 = {
+  error?: string;
+};
+
+export type GenerateSermonIllustrations400 = {
+  error?: string;
+};
+
+export type GenerateSermonToService400 = {
   error?: string;
 };

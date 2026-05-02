@@ -22,6 +22,9 @@ import DevotionalGenerator from "./pages/DevotionalGenerator";
 import Library from "./pages/Library";
 import ChurchProfile from "./pages/ChurchProfile";
 import Settings from "./pages/Settings";
+import SermonBuilder from "./pages/SermonBuilder";
+import SermonArchive from "./pages/SermonArchive";
+import ResourceLibrary from "./pages/ResourceLibrary";
 import NotFound from "./pages/NotFound";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -302,6 +305,10 @@ function ClerkProviderWithRoutes() {
           <Route path="/generators/speaking-moment">{() => <Protected component={SpeakingMomentGenerator} />}</Route>
           <Route path="/generators/devotional">{() => <Protected component={DevotionalGenerator} />}</Route>
           <Route path="/library">{() => <Protected component={Library} />}</Route>
+          <Route path="/sermons">{() => <Protected component={SermonArchive} />}</Route>
+          <Route path="/sermons/new">{() => <Protected component={SermonBuilder} />}</Route>
+          <Route path="/sermons/:id">{() => <Protected component={SermonBuilder} />}</Route>
+          <Route path="/resources">{() => <Protected component={ResourceLibrary} />}</Route>
           <Route path="/church">{() => <Protected component={ChurchProfile} />}</Route>
           <Route path="/settings">{() => <Protected component={Settings} />}</Route>
           <Route>{() => <Protected component={NotFound} />}</Route>

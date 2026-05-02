@@ -9,7 +9,10 @@ import {
   FolderOpen,
   Settings,
   Building,
-  Flame
+  Flame,
+  ScrollText,
+  Library as LibraryIcon,
+  Archive,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
@@ -17,6 +20,12 @@ import { useUser } from '@clerk/react';
 export function Sidebar() {
   const [location] = useLocation();
   const { user } = useUser();
+
+  const sermonItems = [
+    { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
+    { icon: Archive, label: 'Sermon Archive', href: '/sermons' },
+    { icon: LibraryIcon, label: 'Resource Library', href: '/resources' },
+  ];
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
@@ -67,7 +76,30 @@ export function Sidebar() {
             </Link>
           )
         })}
-        
+
+        <div className="my-4 mx-3 h-px bg-white/10" />
+        <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Sermon Prep</div>
+        {sermonItems.map((item, i) => {
+          const active =
+            location === item.href ||
+            (item.href === '/sermons' && location.startsWith('/sermons/') && location !== '/sermons/new') ||
+            (item.href === '/sermons/new' && location === '/sermons/new');
+          return (
+            <Link
+              key={`s-${i}`}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                active
+                  ? 'bg-white/10 text-white'
+                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
+              {item.label}
+            </Link>
+          );
+        })}
+
         <div className="my-4 mx-3 h-px bg-white/10" />
         
         {bottomItems.map((item, i) => {
