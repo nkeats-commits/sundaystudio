@@ -221,8 +221,9 @@ export default function ServiceBuilder() {
           <div className="p-6 border-t bg-[var(--worship-cream)] shrink-0" style={{ borderColor: 'var(--worship-border)' }}>
             <button 
               onClick={handleGenerate}
-              disabled={generate.isPending}
-              className="w-full py-3.5 rounded-xl font-medium text-lg worship-btn-gold flex items-center justify-center gap-2 shadow-lg disabled:opacity-75"
+              disabled={generate.isPending || !profileReady}
+              title={!profileReady ? "Finish your church profile to enable AI generation" : undefined}
+              className="w-full py-3.5 rounded-xl font-medium text-lg worship-btn-gold flex items-center justify-center gap-2 shadow-lg disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {generate.isPending ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> Weaving your service...</>
