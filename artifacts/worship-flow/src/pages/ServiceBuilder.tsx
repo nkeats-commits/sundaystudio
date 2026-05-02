@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Save, Download, RotateCcw, Copy, Loader2, Plus, X, LayoutTemplate, Music, BookOpen, Mic, Wheat, Gift, DoorOpen, Sparkles, ChevronsRight, Bookmark, Trash2, AlertCircle } from 'lucide-react';
-import { useCreateServicePlan, type GeneratedServicePlan } from '@workspace/api-client-react';
+import { Save, Download, RotateCcw, Copy, Loader2, Plus, X, LayoutTemplate, Music, BookOpen, Mic, Wheat, Gift, DoorOpen, Sparkles, ChevronsRight, Bookmark, Trash2, AlertCircle, Link2 } from 'lucide-react';
+import { useCreateServicePlan, type GeneratedServicePlan, type ServicePlanItem } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
+import { SlotPicker, LinkedPill, slotPickerSupported } from '../components/SlotPicker';
 
 export default function ServiceBuilder() {
   const searchParams = new URLSearchParams(window.location.search);
@@ -24,6 +25,17 @@ export default function ServiceBuilder() {
   const createPlan = useCreateServicePlan();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
 
+  // Slot-level overrides applied on top of the freshly-generated draft.
+  // Keyed by slot index (positions in `generate.data.content.order`) so
+  // they survive minor edits but are reset whenever a new generation
+  // replaces the underlying draft.
+  const [slotOverrides, setSlotOverrides] = useState<Record<number, Partial<ServicePlanItem>>>({});
+  const [pickingIndex, setPickingIndex] = useState<number | null>(null);
+
+  const mergedOrder: ServicePlanItem[] = (generate.data?.content.order ?? []).map((slot, i) =>
+    slotOverrides[i] ? ({ ...slot, ...slotOverrides[i] } as ServicePlanItem) : slot,
+  );
+
   const elements = ["Call to Worship", "Opening Song", "Greeting", "Worship Set", "Prayer of Confession", "Assurance of Pardon", "Sermon", "Communion", "Closing Song", "Benediction"];
   const [selectedElements, setSelectedElements] = useState(["Call to Worship", "Opening Song", "Worship Set", "Sermon", "Closing Song", "Benediction"]);
 
@@ -38,6 +50,9 @@ export default function ServiceBuilder() {
   const runGeneration = (body?: typeof formData) => {
     const payload = body ?? lastSubmittedRef.current ?? formData;
     lastSubmittedRef.current = payload;
+    // A fresh draft invalidates any slot overrides — they were keyed to
+    // the previous order's positions and would land in the wrong place.
+    setSlotOverrides({});
     generate.mutate(payload).catch((err: Error) => {
       toast.error(err.message || "Generation failed. Please try again.");
     });
@@ -61,7 +76,7 @@ export default function ServiceBuilder() {
         theme: generate.data.theme,
         season: generate.data.season,
         serviceDate: formData.serviceDate ? new Date(formData.serviceDate).toISOString() : null,
-        content: generate.data.content
+        content: { ...generate.data.content, order: mergedOrder }
       }
     }, {
       onSuccess: (data) => {
@@ -303,19 +318,34 @@ export default function ServiceBuilder() {
                     </div>
                     
                     <div className="space-y-6">
-                      {generate.data.content.order.map((item, i) => (
+                      {mergedOrder.map((item, i) => (
                         <div key={item.id || i} className="worship-card !p-4 !shadow-sm flex gap-4 items-start">
                           <div className="w-10 h-10 shrink-0 rounded-lg bg-[var(--worship-cream)] flex items-center justify-center border border-[var(--worship-border)]">
                             {getIcon(item.kind)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-1">
-                              <h4 className="font-semibold text-[var(--worship-navy)] text-base">{item.title}</h4>
-                              {item.durationMinutes && (
-                                <span className="text-xs font-medium text-[var(--worship-slate)] bg-[var(--worship-cream)] px-2 py-0.5 rounded">
-                                  {item.durationMinutes}m
-                                </span>
-                              )}
+                            <div className="flex justify-between items-start gap-2 mb-1 flex-wrap">
+                              <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                                <h4 className="font-semibold text-[var(--worship-navy)] text-base">{item.title}</h4>
+                                <LinkedPill slot={item} />
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {slotPickerSupported(item.kind) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPickingIndex(i)}
+                                    className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-md border text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] flex items-center gap-1"
+                                    style={{ borderColor: 'var(--worship-border)' }}
+                                  >
+                                    <Link2 className="w-3 h-3" /> {item.linkedKind ? 'Change' : 'Use saved'}
+                                  </button>
+                                )}
+                                {item.durationMinutes && (
+                                  <span className="text-xs font-medium text-[var(--worship-slate)] bg-[var(--worship-cream)] px-2 py-0.5 rounded">
+                                    {item.durationMinutes}m
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             {item.kind === 'song' ? (
                               <p className="text-sm font-medium text-[var(--worship-charcoal)] leading-relaxed">{item.body}</p>
@@ -339,6 +369,19 @@ export default function ServiceBuilder() {
         </div>
 
       </div>
+
+      {pickingIndex !== null && mergedOrder[pickingIndex] && (
+        <SlotPicker
+          slot={mergedOrder[pickingIndex]!}
+          onApply={(patch) =>
+            setSlotOverrides((prev) => ({
+              ...prev,
+              [pickingIndex]: { ...(prev[pickingIndex] ?? {}), ...patch },
+            }))
+          }
+          onClose={() => setPickingIndex(null)}
+        />
+      )}
     </AppLayout>
   );
 }

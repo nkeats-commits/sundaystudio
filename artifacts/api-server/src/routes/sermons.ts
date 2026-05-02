@@ -1,11 +1,14 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   sermonsTable,
   sermonExportsTable,
   sermonResourcesTable,
   sermonSeriesTable,
+  servicePlansTable,
+  type ServicePlanContent,
+  type ServicePlanItem,
 } from "@workspace/db";
 import {
   CreateSermonBody,
@@ -17,6 +20,133 @@ import {
   renderSermonAsMarkdown,
   renderSermonAsText,
 } from "../lib/sermonExport";
+
+/**
+ * Compose a fresh service plan around a sermon. We pull what we can from
+ * the sermon's worshipIntegration block (call to worship, songs, prayer
+ * prompts, response, communion, benediction), and always include a sermon
+ * slot whose `linkedKind`/`linkedId`/`linkedTitle` point back to the source
+ * sermon. The sermon body snapshot is the chosen big idea (or first option)
+ * so the slot keeps reading well even if the sermon is later edited.
+ */
+function composeServicePlanFromSermon(sermon: typeof sermonsTable.$inferSelect): {
+  title: string;
+  scripture: string;
+  theme: string;
+  season: string;
+  serviceDate: Date | null;
+  content: ServicePlanContent;
+} {
+  const wi = sermon.worshipIntegration;
+  const order: ServicePlanItem[] = [];
+  let nextId = 1;
+  const id = () => `slot-${nextId++}`;
+
+  order.push({
+    id: id(),
+    kind: "welcome",
+    title: "Welcome & Announcements",
+    body: "",
+  });
+
+  if (wi?.callToWorship) {
+    order.push({
+      id: id(),
+      kind: "scripture",
+      title: "Call to Worship",
+      body: wi.callToWorship,
+    });
+  }
+
+  const songs = wi?.songs ?? [];
+  if (songs[0]) {
+    order.push({
+      id: id(),
+      kind: "song",
+      title: songs[0].title,
+      body: [songs[0].artist, songs[0].whyItFits].filter(Boolean).join(" — "),
+    });
+  }
+
+  if (wi?.prayerPrompts && wi.prayerPrompts.length > 0) {
+    order.push({
+      id: id(),
+      kind: "prayer",
+      title: "Opening Prayer",
+      body: wi.prayerPrompts[0]!,
+    });
+  }
+
+  if (sermon.passage) {
+    order.push({
+      id: id(),
+      kind: "scripture",
+      title: "Scripture Reading",
+      body: sermon.passage,
+    });
+  }
+
+  // Snapshot of sermon for the slot body — use the chosen big idea, or fall
+  // back to the first option, or the sermon theme. Linked fields point back
+  // to the sermon row so the UI can render a "Linked to ..." pill.
+  const bigIdea =
+    sermon.bigIdea?.selected ??
+    sermon.bigIdea?.options?.[0]?.bigIdea ??
+    sermon.theme ??
+    "";
+  order.push({
+    id: id(),
+    kind: "sermon",
+    title: sermon.title,
+    body: bigIdea,
+    linkedKind: "sermon",
+    linkedId: sermon.id,
+    linkedTitle: sermon.title,
+  });
+
+  if (songs[1]) {
+    order.push({
+      id: id(),
+      kind: "song",
+      title: songs[1].title,
+      body: [songs[1].artist, songs[1].whyItFits].filter(Boolean).join(" — "),
+    });
+  }
+
+  if (wi?.responseMoment) {
+    order.push({
+      id: id(),
+      kind: "custom",
+      title: "Response Moment",
+      body: wi.responseMoment,
+    });
+  }
+
+  if (wi?.communionMoment) {
+    order.push({
+      id: id(),
+      kind: "communion",
+      title: "Communion",
+      body: wi.communionMoment,
+    });
+  }
+
+  order.push({
+    id: id(),
+    kind: "benediction",
+    title: "Benediction",
+    body: wi?.benediction ?? "",
+  });
+
+  return {
+    title: `Service for ${sermon.title}`,
+    scripture: sermon.passage ?? "",
+    theme: sermon.theme ?? "",
+    season: "",
+    serviceDate: sermon.sermonDate ?? null,
+    content: { notes: wi?.teamDevotionalSeed ?? null, order },
+  };
+}
 
 const router: IRouter = Router();
 
@@ -281,6 +411,68 @@ router.post("/sermons/:id/duplicate", requireAuth, async (req, res) => {
     .values({ ...rest, title: `${src.title} (copy)`, status: "draft" })
     .returning();
   res.status(201).json(row);
+});
+
+router.post("/sermons/:id/build-service", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const [sermon] = await db
+    .select()
+    .from(sermonsTable)
+    .where(and(eq(sermonsTable.id, id), eq(sermonsTable.userId, req.userId!)))
+    .limit(1);
+  if (!sermon) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const composed = composeServicePlanFromSermon(sermon);
+  const [row] = await db
+    .insert(servicePlansTable)
+    .values({
+      userId: req.userId!,
+      title: composed.title,
+      scripture: composed.scripture,
+      theme: composed.theme,
+      season: composed.season,
+      serviceDate: composed.serviceDate,
+      content: composed.content,
+    })
+    .returning();
+  res.status(201).json(row);
+});
+
+/**
+ * Reverse lookup: which service plans pull this sermon into one of their
+ * slots? We scan the jsonb `content.order` array for elements whose
+ * `linkedKind`/`linkedId` point back to this sermon. The `@>` containment
+ * operator runs against the jsonb GIN index efficiently when one exists,
+ * and degrades to a sequential scan otherwise — fine at this scale.
+ */
+router.get("/sermons/:id/linked-services", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const needle = JSON.stringify([{ linkedKind: "sermon", linkedId: id }]);
+  const rows = await db
+    .select({
+      id: servicePlansTable.id,
+      title: servicePlansTable.title,
+      serviceDate: servicePlansTable.serviceDate,
+    })
+    .from(servicePlansTable)
+    .where(
+      and(
+        eq(servicePlansTable.userId, req.userId!),
+        sql`${servicePlansTable.content}->'order' @> ${needle}::jsonb`,
+      ),
+    )
+    .orderBy(desc(servicePlansTable.serviceDate));
+  res.json(rows);
 });
 
 router.post("/sermons/:id/export", requireAuth, async (req, res) => {

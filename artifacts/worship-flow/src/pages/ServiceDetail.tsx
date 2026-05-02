@@ -1,44 +1,169 @@
+import { useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
-import { useGetServicePlan, useDeleteServicePlan, getListServicePlansQueryKey, getGetServicePlanQueryKey } from '@workspace/api-client-react';
+import {
+  useGetServicePlan,
+  useDeleteServicePlan,
+  useUpdateServicePlan,
+  getListServicePlansQueryKey,
+  getGetServicePlanQueryKey,
+  type ServicePlanItem,
+} from '@workspace/api-client-react';
 import { useRoute, useLocation } from 'wouter';
-import { Trash2, ArrowLeft, Loader2, Music, BookOpen, Mic, Wheat, Gift, DoorOpen, Sparkles, ChevronsRight, Bookmark } from 'lucide-react';
+import {
+  Trash2,
+  ArrowLeft,
+  Music,
+  BookOpen,
+  Mic,
+  Wheat,
+  Gift,
+  DoorOpen,
+  Sparkles,
+  ChevronsRight,
+  Bookmark,
+  Link2,
+} from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { SlotPicker, LinkedPill, slotPickerSupported } from '../components/SlotPicker';
 
 export default function ServiceDetail() {
   const [, params] = useRoute('/services/:id');
   const [, setLocation] = useLocation();
   const id = params?.id ? parseInt(params.id) : 0;
-  
-  const { data: service, isLoading } = useGetServicePlan(id, { query: { enabled: !!id, queryKey: getGetServicePlanQueryKey(id) } });
+
+  const { data: service, isLoading } = useGetServicePlan(id, {
+    query: { enabled: !!id, queryKey: getGetServicePlanQueryKey(id) },
+  });
   const deletePlan = useDeleteServicePlan();
+  const updatePlan = useUpdateServicePlan();
   const queryClient = useQueryClient();
 
+  // Index of the slot we are currently picking a link for; null = closed.
+  const [pickingIndex, setPickingIndex] = useState<number | null>(null);
+
   const handleDelete = () => {
-    if (!confirm("Are you sure you want to delete this service plan?")) return;
-    deletePlan.mutate({ id }, {
-      onSuccess: () => {
-        toast.success("Service plan deleted");
-        queryClient.invalidateQueries({ queryKey: getListServicePlansQueryKey() });
-        setLocation('/services');
+    if (!confirm('Are you sure you want to delete this service plan?')) return;
+    deletePlan.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          toast.success('Service plan deleted');
+          queryClient.invalidateQueries({ queryKey: getListServicePlansQueryKey() });
+          setLocation('/services');
+        },
+        onError: () => toast.error('Failed to delete service plan'),
       },
-      onError: () => toast.error("Failed to delete service plan")
+    );
+  };
+
+  // After any slot link change, refresh badge counts on every sermon /
+  // library card. We don't know exactly which item ids were affected by the
+  // diff, so invalidate the whole family of /linked-services queries by
+  // matching the URL prefix in the query key.
+  const invalidateLinkedServiceBadges = () => {
+    queryClient.invalidateQueries({
+      predicate: (q) => {
+        const first = q.queryKey[0];
+        return (
+          typeof first === 'string' &&
+          (first.startsWith('/api/sermons/') || first.startsWith('/api/library/')) &&
+          first.endsWith('/linked-services')
+        );
+      },
     });
   };
 
+  // Apply a slot patch coming back from the picker. We rebuild the order in
+  // place and PUT the whole content blob — the API has no per-slot patch
+  // endpoint and the document is small. We seed the cache from the mutation
+  // response so back-to-back edits don't race against a stale read.
+  const applySlotPatch = (index: number, patch: Partial<ServicePlanItem>) => {
+    if (!service) return;
+    const order = service.content.order ?? [];
+    const next = order.map((slot, i) =>
+      i === index ? ({ ...slot, ...patch } as ServicePlanItem) : slot,
+    );
+    updatePlan.mutate(
+      {
+        id,
+        data: {
+          title: service.title,
+          scripture: service.scripture,
+          theme: service.theme,
+          season: service.season,
+          serviceDate: service.serviceDate,
+          content: { ...service.content, order: next },
+        },
+      },
+      {
+        onSuccess: (updated) => {
+          toast.success('Slot linked');
+          queryClient.setQueryData(getGetServicePlanQueryKey(id), updated);
+          invalidateLinkedServiceBadges();
+        },
+        onError: () => toast.error('Could not save'),
+      },
+    );
+  };
+
+  const clearSlotLink = (index: number) => {
+    if (!service) return;
+    const order = service.content.order ?? [];
+    const next = order.map((slot, i) => {
+      if (i !== index) return slot;
+      const { linkedKind: _lk, linkedId: _li, linkedTitle: _lt, ...rest } = slot;
+      void _lk;
+      void _li;
+      void _lt;
+      return rest as ServicePlanItem;
+    });
+    updatePlan.mutate(
+      {
+        id,
+        data: {
+          title: service.title,
+          scripture: service.scripture,
+          theme: service.theme,
+          season: service.season,
+          serviceDate: service.serviceDate,
+          content: { ...service.content, order: next },
+        },
+      },
+      {
+        onSuccess: (updated) => {
+          toast.success('Link removed');
+          queryClient.setQueryData(getGetServicePlanQueryKey(id), updated);
+          invalidateLinkedServiceBadges();
+        },
+        onError: () => toast.error('Could not save'),
+      },
+    );
+  };
+
   const getIcon = (kind: string) => {
-    const props = { className: "w-5 h-5 text-[var(--worship-navy)]" };
-    switch(kind) {
-      case 'song': return <Music {...props} />;
-      case 'scripture': return <BookOpen {...props} />;
-      case 'prayer': return <Mic {...props} />;
-      case 'sermon': return <Mic {...props} />;
-      case 'communion': return <Wheat {...props} />;
-      case 'offering': return <Gift {...props} />;
-      case 'welcome': return <DoorOpen {...props} />;
-      case 'benediction': return <Sparkles {...props} />;
-      case 'transition': return <ChevronsRight {...props} />;
-      default: return <Bookmark {...props} />;
+    const props = { className: 'w-5 h-5 text-[var(--worship-navy)]' };
+    switch (kind) {
+      case 'song':
+        return <Music {...props} />;
+      case 'scripture':
+        return <BookOpen {...props} />;
+      case 'prayer':
+        return <Mic {...props} />;
+      case 'sermon':
+        return <Mic {...props} />;
+      case 'communion':
+        return <Wheat {...props} />;
+      case 'offering':
+        return <Gift {...props} />;
+      case 'welcome':
+        return <DoorOpen {...props} />;
+      case 'benediction':
+        return <Sparkles {...props} />;
+      case 'transition':
+        return <ChevronsRight {...props} />;
+      default:
+        return <Bookmark {...props} />;
     }
   };
 
@@ -57,35 +182,42 @@ export default function ServiceDetail() {
       <AppLayout title="Not Found">
         <div className="text-center py-20">
           <h2 className="text-xl font-serif">Service plan not found</h2>
-          <button onClick={() => setLocation('/services')} className="mt-4 text-[var(--worship-gold)] hover:underline">Go back to services</button>
+          <button onClick={() => setLocation('/services')} className="mt-4 text-[var(--worship-gold)] hover:underline">
+            Go back to services
+          </button>
         </div>
       </AppLayout>
     );
   }
 
+  const orderItems = service.content.order ?? [];
+
   return (
     <AppLayout title="Service Detail">
       <div className="max-w-4xl mx-auto pb-16">
-        
-        {/* Actions Bar */}
         <div className="flex justify-between items-center mb-8">
           <button onClick={() => setLocation('/services')} className="text-sm font-medium text-[var(--worship-slate)] hover:text-[var(--worship-navy)] flex items-center gap-1 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Services
           </button>
           <div className="flex gap-3">
             <button onClick={handleDelete} disabled={deletePlan.isPending} className="px-4 py-2 rounded-lg text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors disabled:opacity-50">
-              <Trash2 className="w-4 h-4" /> {deletePlan.isPending ? "Deleting..." : "Delete"}
+              <Trash2 className="w-4 h-4" /> {deletePlan.isPending ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl border border-[var(--worship-border)] shadow-sm overflow-hidden p-8 md:p-12">
-          
-          {/* Doc Header */}
           <div className="text-center pb-10 border-b border-[var(--worship-border)]">
             <h1 className="text-4xl md:text-5xl font-serif mb-4 text-[var(--worship-navy)]">{service.title}</h1>
             <p className="text-sm md:text-base uppercase tracking-widest text-[var(--worship-slate)] mb-6 font-medium">
-              {service.serviceDate ? new Date(service.serviceDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Unscheduled'} 
+              {service.serviceDate
+                ? new Date(service.serviceDate).toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                : 'Unscheduled'}
               {service.scripture && ` • ${service.scripture}`}
             </p>
             <div className="flex gap-2 justify-center">
@@ -95,18 +227,14 @@ export default function ServiceDetail() {
           </div>
 
           <div className="space-y-12 mt-10">
-            {/* Pastoral Notes */}
             {service.content.notes && (
               <div className="relative pl-6">
                 <div className="absolute left-0 top-0 bottom-0 w-1 rounded-full bg-[var(--worship-gold)]"></div>
                 <h3 className="font-serif text-2xl text-[var(--worship-navy)] mb-3">Pastoral Notes</h3>
-                <p className="text-base leading-relaxed text-[var(--worship-charcoal)]">
-                  {service.content.notes}
-                </p>
+                <p className="text-base leading-relaxed text-[var(--worship-charcoal)]">{service.content.notes}</p>
               </div>
             )}
 
-            {/* Liturgical Blocks (if provided outside of order) */}
             <div className="space-y-6">
               {service.content.callToWorship && (
                 <div className="bg-[var(--worship-cream)] p-6 rounded-xl border border-[var(--worship-border)]">
@@ -122,26 +250,50 @@ export default function ServiceDetail() {
               )}
             </div>
 
-            {/* Order of Service */}
-            {service.content.order && service.content.order.length > 0 && (
+            {orderItems.length > 0 && (
               <div className="relative pl-6 pt-2">
                 <div className="absolute left-0 top-0 bottom-0 w-1 rounded-full bg-[var(--worship-navy)]"></div>
                 <h3 className="font-serif text-2xl text-[var(--worship-navy)] mb-6">Order of Service</h3>
-                
+
                 <div className="space-y-6">
-                  {service.content.order.map((item, i) => (
+                  {orderItems.map((item, i) => (
                     <div key={item.id || i} className="worship-card !p-5 flex gap-5 items-start">
                       <div className="w-12 h-12 shrink-0 rounded-xl bg-[var(--worship-cream)] flex items-center justify-center border border-[var(--worship-border)]">
                         {getIcon(item.kind)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-semibold text-[var(--worship-navy)] text-lg">{item.title}</h4>
-                          {item.durationMinutes && (
-                            <span className="text-sm font-medium text-[var(--worship-slate)] bg-[var(--worship-cream)] border border-[var(--worship-border)] px-2 py-0.5 rounded-md">
-                              {item.durationMinutes}m
-                            </span>
-                          )}
+                        <div className="flex justify-between items-start gap-3 mb-1 flex-wrap">
+                          <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                            <h4 className="font-semibold text-[var(--worship-navy)] text-lg">{item.title}</h4>
+                            <LinkedPill slot={item} />
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {item.linkedKind && (
+                              <button
+                                onClick={() => clearSlotLink(i)}
+                                disabled={updatePlan.isPending}
+                                className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-md border text-[var(--worship-slate)] hover:bg-slate-50 disabled:opacity-60"
+                                style={{ borderColor: 'var(--worship-border)' }}
+                              >
+                                Unlink
+                              </button>
+                            )}
+                            {slotPickerSupported(item.kind) && (
+                              <button
+                                onClick={() => setPickingIndex(i)}
+                                disabled={updatePlan.isPending}
+                                className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-md border text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] flex items-center gap-1 disabled:opacity-60"
+                                style={{ borderColor: 'var(--worship-border)' }}
+                              >
+                                <Link2 className="w-3 h-3" /> {item.linkedKind ? 'Change' : 'Use saved'}
+                              </button>
+                            )}
+                            {item.durationMinutes && (
+                              <span className="text-sm font-medium text-[var(--worship-slate)] bg-[var(--worship-cream)] border border-[var(--worship-border)] px-2 py-0.5 rounded-md">
+                                {item.durationMinutes}m
+                              </span>
+                            )}
+                          </div>
                         </div>
                         {item.kind === 'song' ? (
                           <p className="text-base font-medium text-[var(--worship-charcoal)] leading-relaxed mt-1">{item.body}</p>
@@ -159,7 +311,6 @@ export default function ServiceDetail() {
               </div>
             )}
 
-            {/* Closing Blocks */}
             <div className="space-y-6">
               {service.content.benediction && (
                 <div className="bg-[var(--worship-cream)] p-6 rounded-xl border border-[var(--worship-border)]">
@@ -168,11 +319,17 @@ export default function ServiceDetail() {
                 </div>
               )}
             </div>
-
           </div>
         </div>
-
       </div>
+
+      {pickingIndex !== null && orderItems[pickingIndex] && (
+        <SlotPicker
+          slot={orderItems[pickingIndex]!}
+          onApply={(patch) => applySlotPatch(pickingIndex, patch)}
+          onClose={() => setPickingIndex(null)}
+        />
+      )}
     </AppLayout>
   );
 }

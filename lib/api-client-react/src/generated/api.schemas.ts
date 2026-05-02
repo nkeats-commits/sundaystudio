@@ -68,12 +68,37 @@ export const ServicePlanItemKind = {
   custom: "custom",
 } as const;
 
+/**
+ * Optional source this slot was pulled from. When present, the
+UI shows a "Linked to ..." pill that navigates to the source.
+`body` always carries a snapshot so the slot keeps rendering
+even if the source is later edited or deleted.
+
+ */
+export type ServicePlanItemLinkedKind =
+  | (typeof ServicePlanItemLinkedKind)[keyof typeof ServicePlanItemLinkedKind]
+  | null;
+
+export const ServicePlanItemLinkedKind = {
+  sermon: "sermon",
+  library_item: "library_item",
+} as const;
+
 export interface ServicePlanItem {
   id: string;
   kind: ServicePlanItemKind;
   title: string;
   body: string;
   durationMinutes?: number | null;
+  /** Optional source this slot was pulled from. When present, the
+UI shows a "Linked to ..." pill that navigates to the source.
+`body` always carries a snapshot so the slot keeps rendering
+even if the source is later edited or deleted.
+ */
+  linkedKind?: ServicePlanItemLinkedKind;
+  linkedId?: number | null;
+  /** Snapshot of the linked source's title for display when the source is gone. */
+  linkedTitle?: string | null;
 }
 
 /**
@@ -89,6 +114,15 @@ export interface ServicePlanContent {
   benediction?: string | null;
   notes?: string | null;
   order: ServicePlanItem[];
+}
+
+/**
+ * A service plan that links back to a sermon or library item.
+ */
+export interface LinkedServiceRef {
+  id: number;
+  title: string;
+  serviceDate?: string | null;
 }
 
 export interface ServicePlan {

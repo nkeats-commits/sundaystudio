@@ -56,6 +56,7 @@ import type {
   GeneratedSpeakingMoment,
   HealthStatus,
   LibraryItem,
+  LinkedServiceRef,
   ListLibraryItemsParams,
   MeResponse,
   NotFoundResponse,
@@ -1014,7 +1015,7 @@ export const deleteLibraryItem = async (
 };
 
 export const getDeleteLibraryItemMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TError = ErrorType<UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1055,15 +1056,13 @@ export type DeleteLibraryItemMutationResult = NonNullable<
   Awaited<ReturnType<typeof deleteLibraryItem>>
 >;
 
-export type DeleteLibraryItemMutationError = ErrorType<
-  UnauthorizedResponse | NotFoundResponse
->;
+export type DeleteLibraryItemMutationError = ErrorType<UnauthorizedResponse>;
 
 /**
  * @summary Delete a library item
  */
 export const useDeleteLibraryItem = <
-  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TError = ErrorType<UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1081,6 +1080,103 @@ export const useDeleteLibraryItem = <
 > => {
   return useMutation(getDeleteLibraryItemMutationOptions(options));
 };
+
+/**
+ * @summary List service plans whose order references this library item.
+ */
+export const getListServicesLinkedToLibraryItemUrl = (id: number) => {
+  return `/api/library/${id}/linked-services`;
+};
+
+export const listServicesLinkedToLibraryItem = async (
+  id: number,
+  options?: RequestInit,
+): Promise<LinkedServiceRef[]> => {
+  return customFetch<LinkedServiceRef[]>(
+    getListServicesLinkedToLibraryItemUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListServicesLinkedToLibraryItemQueryKey = (id: number) => {
+  return [`/api/library/${id}/linked-services`] as const;
+};
+
+export const getListServicesLinkedToLibraryItemQueryOptions = <
+  TData = Awaited<ReturnType<typeof listServicesLinkedToLibraryItem>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listServicesLinkedToLibraryItem>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListServicesLinkedToLibraryItemQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listServicesLinkedToLibraryItem>>
+  > = ({ signal }) =>
+    listServicesLinkedToLibraryItem(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listServicesLinkedToLibraryItem>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListServicesLinkedToLibraryItemQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listServicesLinkedToLibraryItem>>
+>;
+export type ListServicesLinkedToLibraryItemQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary List service plans whose order references this library item.
+ */
+
+export function useListServicesLinkedToLibraryItem<
+  TData = Awaited<ReturnType<typeof listServicesLinkedToLibraryItem>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listServicesLinkedToLibraryItem>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListServicesLinkedToLibraryItemQueryOptions(
+    id,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * Streams the model output back as Server-Sent Events to avoid the
@@ -2489,6 +2585,190 @@ export const useDuplicateSermon = <
 > => {
   return useMutation(getDuplicateSermonMutationOptions(options));
 };
+
+/**
+ * @summary Compose and save a new service plan around this sermon — pulls in
+any worship-integration suggestions (call to worship, songs, prayers,
+benediction) the sermon has generated, links the sermon slot back to
+the source sermon, and returns the persisted ServicePlan.
+
+ */
+export const getBuildServiceFromSermonUrl = (id: number) => {
+  return `/api/sermons/${id}/build-service`;
+};
+
+export const buildServiceFromSermon = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ServicePlan> => {
+  return customFetch<ServicePlan>(getBuildServiceFromSermonUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getBuildServiceFromSermonMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof buildServiceFromSermon>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof buildServiceFromSermon>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["buildServiceFromSermon"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof buildServiceFromSermon>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return buildServiceFromSermon(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BuildServiceFromSermonMutationResult = NonNullable<
+  Awaited<ReturnType<typeof buildServiceFromSermon>>
+>;
+
+export type BuildServiceFromSermonMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Compose and save a new service plan around this sermon — pulls in
+any worship-integration suggestions (call to worship, songs, prayers,
+benediction) the sermon has generated, links the sermon slot back to
+the source sermon, and returns the persisted ServicePlan.
+
+ */
+export const useBuildServiceFromSermon = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof buildServiceFromSermon>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof buildServiceFromSermon>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getBuildServiceFromSermonMutationOptions(options));
+};
+
+/**
+ * @summary List service plans whose order references this sermon.
+ */
+export const getListServicesLinkedToSermonUrl = (id: number) => {
+  return `/api/sermons/${id}/linked-services`;
+};
+
+export const listServicesLinkedToSermon = async (
+  id: number,
+  options?: RequestInit,
+): Promise<LinkedServiceRef[]> => {
+  return customFetch<LinkedServiceRef[]>(getListServicesLinkedToSermonUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListServicesLinkedToSermonQueryKey = (id: number) => {
+  return [`/api/sermons/${id}/linked-services`] as const;
+};
+
+export const getListServicesLinkedToSermonQueryOptions = <
+  TData = Awaited<ReturnType<typeof listServicesLinkedToSermon>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listServicesLinkedToSermon>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListServicesLinkedToSermonQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listServicesLinkedToSermon>>
+  > = ({ signal }) =>
+    listServicesLinkedToSermon(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listServicesLinkedToSermon>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListServicesLinkedToSermonQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listServicesLinkedToSermon>>
+>;
+export type ListServicesLinkedToSermonQueryError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List service plans whose order references this sermon.
+ */
+
+export function useListServicesLinkedToSermon<
+  TData = Awaited<ReturnType<typeof listServicesLinkedToSermon>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listServicesLinkedToSermon>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListServicesLinkedToSermonQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Render a sermon to text or markdown and record an export

@@ -119,6 +119,19 @@ export const GetDashboardResponse = zod.object({
               title: zod.string(),
               body: zod.string(),
               durationMinutes: zod.number().nullish(),
+              linkedKind: zod
+                .enum(["sermon", "library_item"])
+                .nullish()
+                .describe(
+                  'Optional source this slot was pulled from. When present, the\nUI shows a \"Linked to ...\" pill that navigates to the source.\n`body` always carries a snapshot so the slot keeps rendering\neven if the source is later edited or deleted.\n',
+                ),
+              linkedId: zod.number().nullish(),
+              linkedTitle: zod
+                .string()
+                .nullish()
+                .describe(
+                  "Snapshot of the linked source's title for display when the source is gone.",
+                ),
             }),
           ),
         })
@@ -184,6 +197,19 @@ export const ListServicePlansResponseItem = zod.object({
           title: zod.string(),
           body: zod.string(),
           durationMinutes: zod.number().nullish(),
+          linkedKind: zod
+            .enum(["sermon", "library_item"])
+            .nullish()
+            .describe(
+              'Optional source this slot was pulled from. When present, the\nUI shows a \"Linked to ...\" pill that navigates to the source.\n`body` always carries a snapshot so the slot keeps rendering\neven if the source is later edited or deleted.\n',
+            ),
+          linkedId: zod.number().nullish(),
+          linkedTitle: zod
+            .string()
+            .nullish()
+            .describe(
+              "Snapshot of the linked source's title for display when the source is gone.",
+            ),
         }),
       ),
     })
@@ -231,6 +257,19 @@ export const CreateServicePlanBody = zod.object({
           title: zod.string(),
           body: zod.string(),
           durationMinutes: zod.number().nullish(),
+          linkedKind: zod
+            .enum(["sermon", "library_item"])
+            .nullish()
+            .describe(
+              'Optional source this slot was pulled from. When present, the\nUI shows a \"Linked to ...\" pill that navigates to the source.\n`body` always carries a snapshot so the slot keeps rendering\neven if the source is later edited or deleted.\n',
+            ),
+          linkedId: zod.number().nullish(),
+          linkedTitle: zod
+            .string()
+            .nullish()
+            .describe(
+              "Snapshot of the linked source's title for display when the source is gone.",
+            ),
         }),
       ),
     })
@@ -280,6 +319,19 @@ export const GetServicePlanResponse = zod.object({
           title: zod.string(),
           body: zod.string(),
           durationMinutes: zod.number().nullish(),
+          linkedKind: zod
+            .enum(["sermon", "library_item"])
+            .nullish()
+            .describe(
+              'Optional source this slot was pulled from. When present, the\nUI shows a \"Linked to ...\" pill that navigates to the source.\n`body` always carries a snapshot so the slot keeps rendering\neven if the source is later edited or deleted.\n',
+            ),
+          linkedId: zod.number().nullish(),
+          linkedTitle: zod
+            .string()
+            .nullish()
+            .describe(
+              "Snapshot of the linked source's title for display when the source is gone.",
+            ),
         }),
       ),
     })
@@ -329,6 +381,19 @@ export const UpdateServicePlanBody = zod.object({
           title: zod.string(),
           body: zod.string(),
           durationMinutes: zod.number().nullish(),
+          linkedKind: zod
+            .enum(["sermon", "library_item"])
+            .nullish()
+            .describe(
+              'Optional source this slot was pulled from. When present, the\nUI shows a \"Linked to ...\" pill that navigates to the source.\n`body` always carries a snapshot so the slot keeps rendering\neven if the source is later edited or deleted.\n',
+            ),
+          linkedId: zod.number().nullish(),
+          linkedTitle: zod
+            .string()
+            .nullish()
+            .describe(
+              "Snapshot of the linked source's title for display when the source is gone.",
+            ),
         }),
       ),
     })
@@ -372,6 +437,19 @@ export const UpdateServicePlanResponse = zod.object({
           title: zod.string(),
           body: zod.string(),
           durationMinutes: zod.number().nullish(),
+          linkedKind: zod
+            .enum(["sermon", "library_item"])
+            .nullish()
+            .describe(
+              'Optional source this slot was pulled from. When present, the\nUI shows a \"Linked to ...\" pill that navigates to the source.\n`body` always carries a snapshot so the slot keeps rendering\neven if the source is later edited or deleted.\n',
+            ),
+          linkedId: zod.number().nullish(),
+          linkedTitle: zod
+            .string()
+            .nullish()
+            .describe(
+              "Snapshot of the linked source's title for display when the source is gone.",
+            ),
         }),
       ),
     })
@@ -424,6 +502,24 @@ export const CreateLibraryItemBody = zod.object({
 export const DeleteLibraryItemParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List service plans whose order references this library item.
+ */
+export const ListServicesLinkedToLibraryItemParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListServicesLinkedToLibraryItemResponseItem = zod
+  .object({
+    id: zod.number(),
+    title: zod.string(),
+    serviceDate: zod.coerce.date().nullish(),
+  })
+  .describe("A service plan that links back to a sermon or library item.");
+export const ListServicesLinkedToLibraryItemResponse = zod.array(
+  ListServicesLinkedToLibraryItemResponseItem,
+);
 
 /**
  * Streams the model output back as Server-Sent Events to avoid the
@@ -485,6 +581,19 @@ export const GenerateServicePlanResponse = zod.object({
           title: zod.string(),
           body: zod.string(),
           durationMinutes: zod.number().nullish(),
+          linkedKind: zod
+            .enum(["sermon", "library_item"])
+            .nullish()
+            .describe(
+              'Optional source this slot was pulled from. When present, the\nUI shows a \"Linked to ...\" pill that navigates to the source.\n`body` always carries a snapshot so the slot keeps rendering\neven if the source is later edited or deleted.\n',
+            ),
+          linkedId: zod.number().nullish(),
+          linkedTitle: zod
+            .string()
+            .nullish()
+            .describe(
+              "Snapshot of the linked source's title for display when the source is gone.",
+            ),
         }),
       ),
     })
@@ -1439,6 +1548,35 @@ export const DeleteSermonParams = zod.object({
 export const DuplicateSermonParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary Compose and save a new service plan around this sermon — pulls in
+any worship-integration suggestions (call to worship, songs, prayers,
+benediction) the sermon has generated, links the sermon slot back to
+the source sermon, and returns the persisted ServicePlan.
+
+ */
+export const BuildServiceFromSermonParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List service plans whose order references this sermon.
+ */
+export const ListServicesLinkedToSermonParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListServicesLinkedToSermonResponseItem = zod
+  .object({
+    id: zod.number(),
+    title: zod.string(),
+    serviceDate: zod.coerce.date().nullish(),
+  })
+  .describe("A service plan that links back to a sermon or library item.");
+export const ListServicesLinkedToSermonResponse = zod.array(
+  ListServicesLinkedToSermonResponseItem,
+);
 
 /**
  * @summary Render a sermon to text or markdown and record an export

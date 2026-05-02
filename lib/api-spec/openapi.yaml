@@ -239,6 +239,25 @@ paths:
           description: Deleted
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /library/{id}/linked-services:
+    get:
+      operationId: listServicesLinkedToLibraryItem
+      tags: [library]
+      summary: List service plans whose order references this library item.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Service plans linked to this library item
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LinkedServiceRef"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -639,6 +658,48 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /sermons/{id}/build-service:
+    post:
+      operationId: buildServiceFromSermon
+      tags: [sermons]
+      summary: |
+        Compose and save a new service plan around this sermon — pulls in
+        any worship-integration suggestions (call to worship, songs, prayers,
+        benediction) the sermon has generated, links the sermon slot back to
+        the source sermon, and returns the persisted ServicePlan.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "201":
+          description: Created service plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicePlan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /sermons/{id}/linked-services:
+    get:
+      operationId: listServicesLinkedToSermon
+      tags: [sermons]
+      summary: List service plans whose order references this sermon.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Service plans linked to this sermon
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LinkedServiceRef"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /sermons/{id}/export:
     post:
@@ -1154,7 +1215,37 @@ components:
         durationMinutes:
           type: integer
           nullable: true
+        linkedKind:
+          type: string
+          nullable: true
+          enum: [sermon, library_item]
+          description: |
+            Optional source this slot was pulled from. When present, the
+            UI shows a "Linked to ..." pill that navigates to the source.
+            `body` always carries a snapshot so the slot keeps rendering
+            even if the source is later edited or deleted.
+        linkedId:
+          type: integer
+          nullable: true
+        linkedTitle:
+          type: string
+          nullable: true
+          description: Snapshot of the linked source's title for display when the source is gone.
       required: [id, kind, title, body]
+
+    LinkedServiceRef:
+      type: object
+      description: A service plan that links back to a sermon or library item.
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        serviceDate:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, title]
 
     ServicePlan:
       type: object

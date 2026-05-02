@@ -5,9 +5,29 @@ import {
   useListSermons,
   useDeleteSermon,
   useDuplicateSermon,
+  useListServicesLinkedToSermon,
 } from '@workspace/api-client-react';
 import { toast } from 'sonner';
-import { Plus, Search, ScrollText, Copy, Trash2, ExternalLink, Calendar, Layers } from 'lucide-react';
+import { Plus, Search, ScrollText, Copy, Trash2, ExternalLink, Calendar, Layers, Link2 } from 'lucide-react';
+
+/**
+ * Tiny per-card badge showing how many service plans link to this sermon.
+ * Each card fires its own query — fine at this scale (typically <50 cards)
+ * and React Query dedupes/caches identical keys.
+ */
+function UsedInBadge({ sermonId }: { sermonId: number }) {
+  const q = useListServicesLinkedToSermon(sermonId);
+  const count = q.data?.length ?? 0;
+  if (q.isLoading || count === 0) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] font-bold"
+      title={q.data?.map((s) => s.title).join(', ')}
+    >
+      <Link2 className="w-3 h-3" /> Used in {count} {count === 1 ? 'service' : 'services'}
+    </span>
+  );
+}
 
 function fmtDate(d: string | null | undefined): string {
   if (!d) return '—';
@@ -117,6 +137,7 @@ export default function SermonArchive() {
                   {s.theme && <span>• {s.theme}</span>}
                   {s.bigIdea?.selected && <span className="line-clamp-1">• {s.bigIdea.selected}</span>}
                 </div>
+                <UsedInBadge sermonId={s.id} />
                 {s.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {s.tags.map((t) => (

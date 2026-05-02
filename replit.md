@@ -37,6 +37,15 @@ Signed-in (wrapped in `RequireSignedIn`):
 - `/church` — pastor's church profile (used as Anthropic context)
 - `/settings` — sign out
 
+### Cross-feature linking (Task #9)
+
+Each `ServicePlanItem` may carry `linkedKind` (`'sermon' | 'library_item'`), `linkedId`, and `linkedTitle` — a soft FK that points back to a saved sermon or library item. The slot's `body`/`title` remain a snapshot so the service plan stays self-contained even if the source is later edited or deleted.
+
+- `POST /api/sermons/:id/build-service` composes a service plan from a sermon's `worshipIntegration` block and links the sermon slot back to it.
+- `GET /api/sermons/:id/linked-services` and `GET /api/library/:id/linked-services` reverse-look up service plans containing the link via a jsonb `@>` containment query (scoped to `userId`).
+- `SlotPicker` (in `src/components/SlotPicker.tsx`) is the modal that lets a pastor swap any service slot for a saved sermon or library item; `slotPickerSupported(kind)` is the parent's gate (slot kinds like `offering` have no sensible source). `LinkedPill` is the bronze pill rendered next to a linked slot title.
+- ServiceDetail PUTs the whole `content` blob and seeds the cache via `setQueryData` from the mutation response to avoid back-to-back overwrite races. After every link/unlink it invalidates every `/linked-services` query so reverse-lookup badges on Sermon Archive / Library refresh.
+
 ### Sermon AI safety
 
 - `SERMON_GROUND_RULES` (in `routes/generateSermon.ts`) is included in every sermon prompt: no fabricated commentary quotes, no scholar attribution unless from user-supplied resources, mark unverifiable claims with `verifyBeforeUsing: true`, no extended verbatim copyrighted material.

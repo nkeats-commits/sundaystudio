@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ServicePlanItemKind } from "./servicePlanItemKind";
+import type { ServicePlanItemLinkedKind } from "./servicePlanItemLinkedKind";
 
 export interface ServicePlanItem {
   id: string;
@@ -13,4 +14,13 @@ export interface ServicePlanItem {
   title: string;
   body: string;
   durationMinutes?: number | null;
+  /** Optional source this slot was pulled from. When present, the
+UI shows a "Linked to ..." pill that navigates to the source.
+`body` always carries a snapshot so the slot keeps rendering
+even if the source is later edited or deleted.
+ */
+  linkedKind?: ServicePlanItemLinkedKind;
+  linkedId?: number | null;
+  /** Snapshot of the linked source's title for display when the source is gone. */
+  linkedTitle?: string | null;
 }

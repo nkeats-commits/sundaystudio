@@ -10,8 +10,10 @@ import {
   useListSermonResources,
   useListSermonSeries,
   useCreateSermonSeries,
+  useBuildServiceFromSermon,
   getListSermonSeriesQueryKey,
   getGetSermonQueryKey,
+  getListServicePlansQueryKey,
   type Sermon,
   type SermonSeries,
   type SermonStudyOutput,
@@ -44,6 +46,7 @@ import {
   Plus,
   X,
   ChevronRight,
+  Calendar,
 } from 'lucide-react';
 
 const LENGTHS = ['10 minutes', '15 minutes', '20 minutes', '25 minutes', '30 minutes', '40 minutes'];
@@ -162,6 +165,7 @@ export default function SermonBuilder() {
   const resourcesQuery = useListSermonResources();
   const seriesListQuery = useListSermonSeries();
   const createSeries = useCreateSermonSeries();
+  const buildService = useBuildServiceFromSermon();
 
   const [form, setForm] = useState<FormState>(blankForm());
   const [tab, setTab] = useState<string>('study');
@@ -874,6 +878,46 @@ export default function SermonBuilder() {
                   onRegenerate={handleWorship}
                 >
                   {worshipData && <WorshipView data={worshipData} />}
+                  {worshipData && (
+                    <div className="mt-4 p-5 rounded-xl border bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="min-w-0">
+                          <h4 className="font-serif text-lg text-[var(--worship-navy)] flex items-center gap-2">
+                            <Calendar className="w-4 h-4" /> Take this to Sunday
+                          </h4>
+                          <p className="text-xs text-[var(--worship-slate)] mt-1 max-w-md">
+                            We'll spin up a draft service plan from these worship ideas — songs, call to worship, prayer, sermon, and benediction. You can refine slots after.
+                          </p>
+                          {!sermonId && (
+                            <p className="text-xs text-[var(--worship-gold)] font-medium mt-2">
+                              Save the sermon first to enable this.
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          disabled={!sermonId || buildService.isPending}
+                          onClick={() => {
+                            if (!sermonId) return;
+                            buildService.mutate(
+                              { id: sermonId },
+                              {
+                                onSuccess: (svc) => {
+                                  toast.success('Service draft created');
+                                  queryClient.invalidateQueries({ queryKey: getListServicePlansQueryKey() });
+                                  setLocation(`/services/${svc.id}`);
+                                },
+                                onError: () => toast.error('Could not build service plan'),
+                              },
+                            );
+                          }}
+                          className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60 shrink-0"
+                        >
+                          {buildService.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+                          Build a service from this sermon
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </SectionPanel>
               )}
             </div>

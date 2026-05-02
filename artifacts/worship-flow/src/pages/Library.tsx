@@ -1,9 +1,32 @@
 import { AppLayout } from '../components/layout/AppLayout';
-import { useListLibraryItems, useDeleteLibraryItem, getListLibraryItemsQueryKey } from '@workspace/api-client-react';
-import { BookOpen, Music, Mic, Users, Trash2 } from 'lucide-react';
+import {
+  useListLibraryItems,
+  useDeleteLibraryItem,
+  useListServicesLinkedToLibraryItem,
+  getListLibraryItemsQueryKey,
+} from '@workspace/api-client-react';
+import { BookOpen, Music, Mic, Users, Trash2, Link2 } from 'lucide-react';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+
+/**
+ * Per-item badge showing how many service plans pull this library item
+ * into one of their slots. Cheap query, cached by React Query.
+ */
+function UsedInBadge({ itemId }: { itemId: number }) {
+  const q = useListServicesLinkedToLibraryItem(itemId);
+  const count = q.data?.length ?? 0;
+  if (q.isLoading || count === 0) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] font-bold"
+      title={q.data?.map((s) => s.title).join(', ')}
+    >
+      <Link2 className="w-3 h-3" /> Used in {count}
+    </span>
+  );
+}
 
 type TabType = "all" | "liturgy" | "song" | "speaking_moment" | "devotional";
 
@@ -120,15 +143,18 @@ export default function Library() {
                   <span className="text-xs text-[var(--worship-muted-slate)]">
                     {new Date(item.createdAt).toLocaleDateString()}
                   </span>
-                  {item.tags && item.tags.length > 0 && (
-                    <div className="flex gap-1">
-                      {item.tags.slice(0, 2).map(t => (
-                        <span key={t} className="text-[10px] px-2 py-0.5 bg-[var(--worship-sand)] text-[var(--worship-navy)] rounded-full">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    <UsedInBadge itemId={item.id} />
+                    {item.tags && item.tags.length > 0 && (
+                      <div className="flex gap-1">
+                        {item.tags.slice(0, 2).map(t => (
+                          <span key={t} className="text-[10px] px-2 py-0.5 bg-[var(--worship-sand)] text-[var(--worship-navy)] rounded-full">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

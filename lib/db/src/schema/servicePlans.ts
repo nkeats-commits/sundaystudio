@@ -16,6 +16,15 @@ export type ServicePlanItem = {
   title: string;
   body: string;
   durationMinutes?: number | null;
+  /**
+   * Optional link to a sermon row or library_items row this slot was
+   * sourced from. The slot still carries `body` as a snapshot so the
+   * service plan keeps rendering even if the source is later edited
+   * or deleted.
+   */
+  linkedKind?: "sermon" | "library_item" | null;
+  linkedId?: number | null;
+  linkedTitle?: string | null;
 };
 
 export type ServicePlanContent = {
