@@ -1,0 +1,699 @@
+Redesign the WorshipFlow app with a polished, modern, warm, pastoral, and professional UI.
+
+The app is for worship pastors, worship leaders, and church creative teams. It should feel like a trusted ministry planning tool, not a generic SaaS dashboard. The design should be beautiful, calm, uncluttered, and easy to use.
+
+Primary design goal:
+Make WorshipFlow feel like the “Notion + Planning Center + devotional journal” for worship leaders.
+
+Core tagline:
+“Plan worship with depth, not panic.”
+
+DESIGN PERSONALITY
+
+The app should feel:
+- Warm
+- Pastoral
+- Creative
+- Trustworthy
+- Calm
+- Thoughtful
+- Premium
+- Ministry-minded
+- Easy to use
+
+The app should NOT feel:
+- Corporate
+- Cold
+- Overly techy
+- Cheesy church stock-photo
+- Cluttered
+- Overly playful
+- Generic AI wrapper
+
+VISUAL STYLE
+
+Use a warm editorial SaaS style.
+
+Think:
+- Clean dashboard
+- Soft cards
+- Warm neutral backgrounds
+- Elegant typography
+- Thoughtful spacing
+- Subtle gradients
+- Gentle shadows
+- Rounded corners
+- Calm icons
+- Clear hierarchy
+- Beautiful empty states
+
+Suggested inspiration:
+- Notion simplicity
+- Linear polish
+- Planning Center practicality
+- The BibleProject warmth
+- A modern devotional app
+- A premium writing tool
+
+COLOR PALETTE
+
+Use this palette throughout the app:
+
+Primary:
+- Deep Navy: #1F2A44
+
+Secondary:
+- Warm Gold: #C99A3D
+
+Backgrounds:
+- Soft Cream: #F8F4EA
+- Warm White: #FFFDF8
+
+Text:
+- Charcoal: #1E293B
+- Slate: #475569
+- Muted Slate: #64748B
+
+Accent:
+- Muted Green: #6E8B74
+- Soft Sand: #E8DDC7
+- Pale Gold: #F3E7C6
+
+Borders:
+- Light Warm Gray: #E5E1D8
+
+Error:
+- Soft Red: #B42318
+
+Success:
+- Deep Green: #3F6B4F
+
+Avoid harsh bright colors.
+
+TYPOGRAPHY
+
+Use elegant, readable typography.
+
+Suggested:
+- Headings: a refined serif or strong humanist sans-serif
+- Body: clean sans-serif
+
+If available, use:
+- Headings: Playfair Display, Lora, or Merriweather
+- Body: Inter, Source Sans 3, or Manrope
+
+Typography hierarchy:
+- Hero headline: large, elegant, confident
+- Section headings: clear and warm
+- Card titles: semi-bold
+- Body copy: readable and calm
+- Labels: small, clear, muted
+
+Use generous line height.
+
+LAYOUT PRINCIPLES
+
+Use:
+- Lots of breathing room
+- Clear sections
+- Card-based layouts
+- Consistent spacing
+- Soft dividers
+- Large form fields
+- Helpful helper text
+- Sticky actions where useful
+- Responsive mobile-first design
+
+Avoid dense admin-dashboard clutter.
+
+APP SHELL
+
+Create a beautiful logged-in app shell.
+
+Desktop:
+- Left sidebar navigation
+- Top header area
+- Main content area
+- Right-side contextual panel when helpful
+
+Mobile:
+- Collapsible menu or bottom navigation
+- Large touch-friendly buttons
+- Simplified cards
+- Stacked layouts
+
+SIDEBAR DESIGN
+
+Sidebar should include:
+- WorshipFlow logo/wordmark
+- Main navigation
+- Small user/account section at bottom
+- Upgrade button if user is on Free plan
+
+Navigation items:
+- Dashboard
+- Service Builder
+- Liturgy Generator
+- Song Assistant
+- Speaking Moments
+- Team Devotionals
+- Saved Services
+- Church Profile
+- Settings
+
+Sidebar style:
+- Deep navy background or warm white with navy text
+- Active nav item should use warm gold or soft cream highlight
+- Icons should be simple and line-based
+- Keep it clean and not visually noisy
+
+LOGO / BRAND MARK
+
+Create a simple wordmark for WorshipFlow.
+
+Style:
+- Text-based logo
+- Optional simple icon combining:
+  - flowing line
+  - music note
+  - open book
+  - flame
+  - wave
+  - subtle cross-inspired shape without being cheesy
+
+Do not make the logo look like clip art.
+
+LANDING PAGE DESIGN
+
+Create a beautiful public landing page.
+
+Hero section:
+- Warm cream background
+- Large headline
+- Subheadline
+- Primary CTA
+- Secondary CTA
+- Product screenshot/mock dashboard card
+- Subtle decorative gradient or soft abstract shape
+
+Hero copy:
+Headline:
+“Plan worship with depth, not panic.”
+
+Subheadline:
+“WorshipFlow helps worship pastors and leaders build biblically rich, congregation-ready worship services with AI-powered tools for songs, liturgy, devotionals, and service flow.”
+
+Primary button:
+“Start Planning”
+
+Secondary button:
+“See How It Works”
+
+Add a small trust line:
+“Built for worship pastors, creative teams, and church leaders who want more than a song list.”
+
+Problem section:
+Use a warm, empathetic design.
+
+Section headline:
+“You’re not just picking songs. You’re pastoring a room.”
+
+Body:
+“Every week, worship leaders are asked to think like pastors, musicians, theologians, liturgists, team leaders, and event producers. WorshipFlow helps you move from scattered ideas to a thoughtful service plan.”
+
+Feature section:
+Use beautiful feature cards with icons.
+
+Feature cards:
+1. Worship Service Builder
+2. Song Selection Assistant
+3. Liturgy Generator
+4. Speaking Moments
+5. Team Devotionals
+6. Seasonal Planning
+7. Denomination-Aware Outputs
+8. Saved Church Profile
+
+How it works:
+Use three horizontal or vertical cards:
+1. Add your context
+2. Generate thoughtful content
+3. Edit, save, and lead with confidence
+
+Pricing preview:
+Use clean pricing cards:
+- Free
+- Pro
+- Church
+
+Final CTA:
+Warm background panel with headline:
+“Stop starting from scratch every week.”
+
+Button:
+“Start Planning”
+
+DASHBOARD DESIGN
+
+The dashboard should feel helpful immediately.
+
+Top section:
+- Personalized welcome
+- Short encouraging line
+- Primary action button: “Build a Service”
+- Secondary action button: “Generate Liturgy”
+
+Example welcome:
+“Welcome back. What are you planning this week?”
+
+Dashboard cards:
+- Quick Actions
+- Recent Services
+- Seasonal Ideas
+- Saved Church Profile
+- Monthly Usage
+- Suggested Prompts
+
+Quick action cards:
+- Build a Service
+- Generate Liturgy
+- Find Songs
+- Write Team Devotional
+- Create Speaking Moment
+
+Each card should have:
+- Icon
+- Short title
+- One sentence description
+- Button or clickable area
+
+Seasonal prompt cards:
+- “Plan an Advent service around hope”
+- “Create a communion invitation”
+- “Find songs about surrender”
+- “Write a rehearsal devotional on humility”
+- “Build a Good Friday service flow”
+
+SERVICE BUILDER DESIGN
+
+This is the main product experience. Make it excellent.
+
+Use a split layout on desktop:
+Left side:
+- Input form
+
+Right side:
+- Generated preview / plan output
+
+On mobile:
+- Form first
+- Output below
+
+Form should feel guided, not overwhelming.
+
+Use sections:
+1. Service Basics
+2. Sermon and Theme
+3. Church Context
+4. Worship Elements
+5. Songs and Notes
+6. Generate
+
+Use progress indicator or section cards.
+
+Inputs:
+- Large, clean fields
+- Select dropdowns
+- Toggle switches
+- Multi-select chips
+- Text areas
+- Helper text under complex fields
+
+Generate button:
+Large, warm gold or deep navy button:
+“Generate Service Plan”
+
+Loading state:
+Show a calm loading card:
+“Building a thoughtful worship plan…”
+
+Do not use generic spinners only. Add pastoral loading messages:
+- “Shaping the service arc…”
+- “Looking for Scripture connections…”
+- “Preparing editable liturgy…”
+- “Organizing songs and transitions…”
+
+Generated output design:
+Use a beautiful document-style preview.
+
+Sections:
+- Service Overview
+- Worship Arc
+- Service Order
+- Song Suggestions
+- Scripture Readings
+- Prayers and Liturgy
+- Transitions
+- Notes for Worship Leader
+- Notes for Team
+- Theological/Pastoral Rationale
+
+Each section should be editable.
+
+Include buttons:
+- Save Service
+- Copy
+- Export
+- Regenerate
+- Edit Inputs
+
+LITURGY GENERATOR DESIGN
+
+Create a focused generator page.
+
+Top:
+- Page title: “Liturgy Generator”
+- Subtitle: “Create prayers, calls to worship, responsive readings, and spoken moments shaped by your context.”
+
+Layout:
+- Form card on left
+- Generated output on right
+
+Use liturgy type cards or dropdown:
+- Call to Worship
+- Opening Prayer
+- Prayer of Confession
+- Assurance
+- Communion Invitation
+- Baptism Introduction
+- Offering Prayer
+- Benediction
+- Responsive Reading
+
+Generated output should look like a clean spoken script.
+
+Include:
+- Copy button
+- Save to Library
+- Edit
+- Regenerate
+
+SONG ASSISTANT DESIGN
+
+Create a song recommendation interface.
+
+Top:
+- Page title: “Song Assistant”
+- Subtitle: “Find songs that fit your theme, Scripture, season, and congregation.”
+
+Form sections:
+- Theme and Scripture
+- Style and Tradition
+- Energy and Placement
+- Songs Already Chosen
+- Songs to Avoid
+
+Generated song cards should include:
+- Song title
+- Artist/writer if known
+- Suggested placement
+- Why it fits
+- Energy level badge
+- Theme badges
+- Pastoral note
+- Transition idea
+- Caution note if applicable
+
+Use cards, not a plain list.
+
+Important:
+Do not display copyrighted lyrics.
+
+TEAM DEVOTIONALS DESIGN
+
+Create a devotional generator that feels warm and pastoral.
+
+Top:
+- Page title: “Team Devotionals”
+- Subtitle: “Create short devotionals to shepherd your team before they lead others.”
+
+Output should look like a devotional document.
+
+Sections:
+- Title
+- Scripture
+- Reflection
+- Application for Worship Ministry
+- Prayer
+- Discussion Questions
+
+Use a softer, more devotional visual style here:
+- Cream background
+- Warm white card
+- Gold accent line
+- Calm typography
+
+SAVED SERVICES DESIGN
+
+Saved Services page should include:
+- Search bar
+- Filter by season
+- Filter by theme
+- Filter by date
+- Service cards
+
+Each service card:
+- Service title
+- Date
+- Scripture passage
+- Theme
+- Season badge
+- Last updated
+- Buttons:
+  - Open
+  - Duplicate
+  - Export
+  - Delete
+
+Empty state:
+Show a beautiful empty state with simple icon.
+
+Text:
+“You haven’t saved any services yet.”
+“Build your first worship plan and save it here.”
+
+Button:
+“Build a Service”
+
+CHURCH PROFILE DESIGN
+
+Make this page feel like setting the “voice and context” of the app.
+
+Top:
+- Page title: “Church Profile”
+- Subtitle: “Help WorshipFlow understand your church so every generation feels more tailored to your people.”
+
+Use grouped cards:
+1. Basic Info
+2. Worship Style
+3. Theology and Tradition
+4. Service Defaults
+5. Language and Tone
+6. Song Preferences
+
+Add helper text:
+“The more specific you are, the more useful your generated service plans will be.”
+
+Use save confirmation:
+“Church profile saved.”
+
+FORMS
+
+All forms should be:
+- Clean
+- Spacious
+- Easy to scan
+- Not intimidating
+
+Use:
+- Section headings
+- Helper text
+- Dropdowns
+- Toggles
+- Chips
+- Textareas
+- Clear validation
+- Disabled/loading states
+
+Buttons:
+Primary:
+- Deep navy background with white text
+- Or warm gold background with navy text
+
+Secondary:
+- White/cream background with border
+
+Danger:
+- Soft red, used sparingly
+
+CARD DESIGN
+
+Cards should use:
+- Background: #FFFDF8 or white
+- Border: #E5E1D8
+- Border radius: 18-24px
+- Padding: generous
+- Shadow: subtle and soft
+
+Badges:
+Use soft backgrounds:
+- Season badges
+- Tone badges
+- Theme badges
+- Energy badges
+- Plan badges
+
+EMPTY STATES
+
+Create thoughtful empty states throughout the app.
+
+Examples:
+No saved services:
+“You haven’t saved any services yet. Build your first worship plan and save it here.”
+
+No church profile:
+“Create your church profile so WorshipFlow can tailor songs, liturgy, and service plans to your context.”
+
+No generations:
+“Start with a theme, passage, or season and WorshipFlow will help shape the first draft.”
+
+LOADING STATES
+
+Use custom loading messages instead of only generic spinners.
+
+Examples:
+- “Preparing your service flow…”
+- “Connecting theme, Scripture, and season…”
+- “Writing editable liturgy…”
+- “Finding songs that fit your congregation…”
+- “Creating a devotional for your team…”
+
+ERROR STATES
+
+Errors should be calm and helpful.
+
+Example:
+“Something went wrong while generating your content. Try again, or simplify your inputs.”
+
+Do not use scary technical language.
+
+MICROCOPY STYLE
+
+Use warm, pastoral, practical language.
+
+Good:
+- “Build a Service”
+- “Save to Library”
+- “Copy for Planning Center”
+- “Generate Another Option”
+- “Shape this moment”
+- “Add your church context”
+
+Avoid:
+- “Submit”
+- “Execute”
+- “Run AI”
+- “Payload”
+- “Mutation”
+- “System output”
+
+AI OUTPUT DESIGN
+
+Generated content should be displayed in editable document-style blocks.
+
+Each block should have:
+- Section title
+- Editable content
+- Copy button
+- Optional regenerate button
+
+For longer outputs, use:
+- Sticky table of contents
+- Collapsible sections
+- Clear headings
+- Print-friendly styling
+
+MOBILE DESIGN
+
+Make the app fully responsive.
+
+Mobile priorities:
+- Easy form completion
+- Large buttons
+- Stacked cards
+- Minimal sidebar clutter
+- Sticky bottom action button for generation
+- Output sections collapsed by default where helpful
+
+ACCESSIBILITY
+
+Ensure:
+- Strong contrast
+- Keyboard navigation
+- Focus states
+- Labels on inputs
+- Buttons have clear text
+- Mobile tap targets are large
+- Font sizes are readable
+
+DETAILS THAT WILL MAKE IT FEEL PREMIUM
+
+Add subtle design touches:
+- Soft gradient backgrounds
+- Gentle gold accent lines
+- Section dividers that feel editorial
+- Nice hover states
+- Smooth transitions
+- Thoughtful empty state illustrations/icons
+- Beautiful document preview styling
+- Warm button interactions
+- Clean icon set
+
+Use icons from Lucide or similar.
+
+Suggested icons:
+- Music
+- Book Open
+- Sparkles
+- Calendar
+- Users
+- Church
+- Mic
+- FileText
+- Heart
+- Flame
+- Clipboard
+- Library
+- Settings
+
+FINAL DESIGN REQUIREMENT
+
+The finished design should feel like something worship pastors would actually trust and want to use every week.
+
+It should be beautiful enough to demo, simple enough for a tired worship leader on a Thursday afternoon, and thoughtful enough to feel like it understands ministry.
+
+Prioritize:
+1. Clean dashboard experience
+2. Beautiful Service Builder
+3. Editable document-style AI outputs
+4. Warm ministry-focused brand identity
+5. Mobile usability
+6. Clear navigation
+7. Premium but not flashy design
+
+Do not use cheesy church imagery.
+Do not use random worship stock photos.
+Do not use harsh colors.
+Do not make it look like a generic AI chat app.
+
+Make WorshipFlow feel like a calm, intelligent, pastoral workspace for planning worship.
