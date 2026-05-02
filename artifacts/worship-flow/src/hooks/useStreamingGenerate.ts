@@ -105,6 +105,11 @@ export function useStreamingGenerate<TData>(
         setIsPending(true);
       }
 
+      // eslint-disable-next-line no-console
+      const dbg = (...args: unknown[]) =>
+        console.log(`[stream:${path}#${myId}]`, ...args);
+      dbg("mutate start");
+
       try {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -128,6 +133,7 @@ export function useStreamingGenerate<TData>(
           credentials: "include",
           signal: ac.signal,
         });
+        dbg("response", res.status, res.headers.get("content-type"));
 
         if (!res.ok) {
           if (res.status === 401 && _onUnauthorized) {
@@ -244,12 +250,15 @@ export function useStreamingGenerate<TData>(
                   /* ignore malformed delta */
                 }
               } else if (event === "done") {
+                dbg("done event received", dataStr.length, "bytes");
                 try {
                   done = JSON.parse(dataStr) as TData;
-                } catch {
+                } catch (parseErr) {
+                  dbg("done parse failed", parseErr);
                   errorMessage = "Failed to parse generated content.";
                 }
               } else if (event === "error") {
+                dbg("error event", dataStr);
                 try {
                   const parsed = JSON.parse(dataStr) as { message?: unknown };
                   errorMessage =
@@ -268,6 +277,14 @@ export function useStreamingGenerate<TData>(
           if (flushHandle != null) clearTimeout(flushHandle);
           flushPartial();
         }
+        dbg(
+          "stream ended; done?",
+          done !== null,
+          "errorMessage?",
+          errorMessage,
+          "isCurrent?",
+          isCurrent(),
+        );
 
         if (errorMessage) throw new Error(errorMessage);
         if (done === null) {
@@ -284,10 +301,16 @@ export function useStreamingGenerate<TData>(
           (e instanceof DOMException && e.name === "AbortError") ||
           (e instanceof Error && e.name === "AbortError")
         ) {
-          // Stale/aborted: do not touch state — a newer request owns it now,
-          // or the component has unmounted.
+          dbg("AbortError — returning null");
+          // Stale/aborted: clear pending state on the *active* request only.
+          // (For a stale/superseded request, the newer mutate call owns
+          // pending state and we must not touch it.)
+          if (isCurrent()) {
+            setIsPending(false);
+          }
           return null;
         }
+        dbg("threw", e);
         const errObj = e instanceof Error ? e : new Error(String(e));
         if (isCurrent()) {
           setError(errObj);
