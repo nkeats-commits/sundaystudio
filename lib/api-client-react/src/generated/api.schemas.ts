@@ -335,3 +335,23 @@ export const ListLibraryItemsKind = {
   speaking_moment: "speaking_moment",
   devotional: "devotional",
 } as const;
+
+export type GenerateServicePlan400 = {
+  error?: string;
+};
+
+export type GenerateLiturgy400 = {
+  error?: string;
+};
+
+export type GenerateSongSuggestions400 = {
+  error?: string;
+};
+
+export type GenerateSpeakingMoment400 = {
+  error?: string;
+};
+
+export type GenerateDevotional400 = {
+  error?: string;
+};

@@ -21,10 +21,15 @@ import type {
   CreateLibraryItemBody,
   CreateServicePlanBody,
   DashboardResponse,
+  GenerateDevotional400,
   GenerateDevotionalBody,
+  GenerateLiturgy400,
   GenerateLiturgyBody,
+  GenerateServicePlan400,
   GenerateServicePlanBody,
+  GenerateSongSuggestions400,
   GenerateSongsBody,
+  GenerateSpeakingMoment400,
   GenerateSpeakingMomentBody,
   GeneratedDevotional,
   GeneratedLiturgy,
@@ -1045,7 +1050,20 @@ export const useDeleteLibraryItem = <
 };
 
 /**
- * @summary AI-generate a full service plan outline
+ * Streams the model output back as Server-Sent Events to avoid the
+autoscale proxy's 30s idle timeout. The Zod request schema is
+validated first; on success the response switches to SSE.
+
+Wire protocol (`text/event-stream`):
+  - `event: delta`  data: `{ "text": "..." }` per token chunk
+  - `event: done`   data: the final parsed `GeneratedServicePlan`
+  - `event: error`  data: `{ "message": "..." }`
+  - `: ping`        keepalive comments every ~10s
+
+On validation failure the response is a normal `application/json`
+body with status `400`.
+
+ * @summary AI-generate a full service plan outline (streamed over SSE)
  */
 export const getGenerateServicePlanUrl = () => {
   return `/api/generate/service-plan`;
@@ -1054,17 +1072,20 @@ export const getGenerateServicePlanUrl = () => {
 export const generateServicePlan = async (
   generateServicePlanBody: GenerateServicePlanBody,
   options?: RequestInit,
-): Promise<GeneratedServicePlan> => {
-  return customFetch<GeneratedServicePlan>(getGenerateServicePlanUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(generateServicePlanBody),
-  });
+): Promise<string | GeneratedServicePlan> => {
+  return customFetch<string | GeneratedServicePlan>(
+    getGenerateServicePlanUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(generateServicePlanBody),
+    },
+  );
 };
 
 export const getGenerateServicePlanMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateServicePlan400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1105,13 +1126,15 @@ export type GenerateServicePlanMutationResult = NonNullable<
   Awaited<ReturnType<typeof generateServicePlan>>
 >;
 export type GenerateServicePlanMutationBody = BodyType<GenerateServicePlanBody>;
-export type GenerateServicePlanMutationError = ErrorType<UnauthorizedResponse>;
+export type GenerateServicePlanMutationError = ErrorType<
+  GenerateServicePlan400 | UnauthorizedResponse
+>;
 
 /**
- * @summary AI-generate a full service plan outline
+ * @summary AI-generate a full service plan outline (streamed over SSE)
  */
 export const useGenerateServicePlan = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateServicePlan400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1131,7 +1154,11 @@ export const useGenerateServicePlan = <
 };
 
 /**
- * @summary AI-generate a liturgy (call to worship, prayer, benediction, etc.)
+ * Streams the model output as SSE. See `/generate/service-plan` for
+the wire protocol. The final `done` event payload conforms to
+`GeneratedLiturgy`. Validation failures return `400 application/json`.
+
+ * @summary AI-generate a liturgy (call to worship, prayer, benediction, etc.) — streamed over SSE
  */
 export const getGenerateLiturgyUrl = () => {
   return `/api/generate/liturgy`;
@@ -1140,8 +1167,8 @@ export const getGenerateLiturgyUrl = () => {
 export const generateLiturgy = async (
   generateLiturgyBody: GenerateLiturgyBody,
   options?: RequestInit,
-): Promise<GeneratedLiturgy> => {
-  return customFetch<GeneratedLiturgy>(getGenerateLiturgyUrl(), {
+): Promise<string | GeneratedLiturgy> => {
+  return customFetch<string | GeneratedLiturgy>(getGenerateLiturgyUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -1150,7 +1177,7 @@ export const generateLiturgy = async (
 };
 
 export const getGenerateLiturgyMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateLiturgy400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1191,13 +1218,15 @@ export type GenerateLiturgyMutationResult = NonNullable<
   Awaited<ReturnType<typeof generateLiturgy>>
 >;
 export type GenerateLiturgyMutationBody = BodyType<GenerateLiturgyBody>;
-export type GenerateLiturgyMutationError = ErrorType<UnauthorizedResponse>;
+export type GenerateLiturgyMutationError = ErrorType<
+  GenerateLiturgy400 | UnauthorizedResponse
+>;
 
 /**
- * @summary AI-generate a liturgy (call to worship, prayer, benediction, etc.)
+ * @summary AI-generate a liturgy (call to worship, prayer, benediction, etc.) — streamed over SSE
  */
 export const useGenerateLiturgy = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateLiturgy400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1217,7 +1246,11 @@ export const useGenerateLiturgy = <
 };
 
 /**
- * @summary AI-suggest worship songs for a theme or scripture
+ * Streams the model output as SSE. See `/generate/service-plan` for
+the wire protocol. The final `done` event payload conforms to
+`GeneratedSongs`. Validation failures return `400 application/json`.
+
+ * @summary AI-suggest worship songs for a theme or scripture — streamed over SSE
  */
 export const getGenerateSongSuggestionsUrl = () => {
   return `/api/generate/songs`;
@@ -1226,8 +1259,8 @@ export const getGenerateSongSuggestionsUrl = () => {
 export const generateSongSuggestions = async (
   generateSongsBody: GenerateSongsBody,
   options?: RequestInit,
-): Promise<GeneratedSongs> => {
-  return customFetch<GeneratedSongs>(getGenerateSongSuggestionsUrl(), {
+): Promise<string | GeneratedSongs> => {
+  return customFetch<string | GeneratedSongs>(getGenerateSongSuggestionsUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -1236,7 +1269,7 @@ export const generateSongSuggestions = async (
 };
 
 export const getGenerateSongSuggestionsMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateSongSuggestions400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1277,14 +1310,15 @@ export type GenerateSongSuggestionsMutationResult = NonNullable<
   Awaited<ReturnType<typeof generateSongSuggestions>>
 >;
 export type GenerateSongSuggestionsMutationBody = BodyType<GenerateSongsBody>;
-export type GenerateSongSuggestionsMutationError =
-  ErrorType<UnauthorizedResponse>;
+export type GenerateSongSuggestionsMutationError = ErrorType<
+  GenerateSongSuggestions400 | UnauthorizedResponse
+>;
 
 /**
- * @summary AI-suggest worship songs for a theme or scripture
+ * @summary AI-suggest worship songs for a theme or scripture — streamed over SSE
  */
 export const useGenerateSongSuggestions = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateSongSuggestions400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1304,7 +1338,11 @@ export const useGenerateSongSuggestions = <
 };
 
 /**
- * @summary AI-generate a speaking moment (welcome, transition, communion invitation, benediction)
+ * Streams the model output as SSE. See `/generate/service-plan` for
+the wire protocol. The final `done` event payload conforms to
+`GeneratedSpeakingMoment`. Validation failures return `400 application/json`.
+
+ * @summary AI-generate a speaking moment — streamed over SSE
  */
 export const getGenerateSpeakingMomentUrl = () => {
   return `/api/generate/speaking-moment`;
@@ -1313,17 +1351,20 @@ export const getGenerateSpeakingMomentUrl = () => {
 export const generateSpeakingMoment = async (
   generateSpeakingMomentBody: GenerateSpeakingMomentBody,
   options?: RequestInit,
-): Promise<GeneratedSpeakingMoment> => {
-  return customFetch<GeneratedSpeakingMoment>(getGenerateSpeakingMomentUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(generateSpeakingMomentBody),
-  });
+): Promise<string | GeneratedSpeakingMoment> => {
+  return customFetch<string | GeneratedSpeakingMoment>(
+    getGenerateSpeakingMomentUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(generateSpeakingMomentBody),
+    },
+  );
 };
 
 export const getGenerateSpeakingMomentMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateSpeakingMoment400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1365,14 +1406,15 @@ export type GenerateSpeakingMomentMutationResult = NonNullable<
 >;
 export type GenerateSpeakingMomentMutationBody =
   BodyType<GenerateSpeakingMomentBody>;
-export type GenerateSpeakingMomentMutationError =
-  ErrorType<UnauthorizedResponse>;
+export type GenerateSpeakingMomentMutationError = ErrorType<
+  GenerateSpeakingMoment400 | UnauthorizedResponse
+>;
 
 /**
- * @summary AI-generate a speaking moment (welcome, transition, communion invitation, benediction)
+ * @summary AI-generate a speaking moment — streamed over SSE
  */
 export const useGenerateSpeakingMoment = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateSpeakingMoment400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1392,7 +1434,11 @@ export const useGenerateSpeakingMoment = <
 };
 
 /**
- * @summary AI-generate a team devotional for rehearsal
+ * Streams the model output as SSE. See `/generate/service-plan` for
+the wire protocol. The final `done` event payload conforms to
+`GeneratedDevotional`. Validation failures return `400 application/json`.
+
+ * @summary AI-generate a team devotional for rehearsal — streamed over SSE
  */
 export const getGenerateDevotionalUrl = () => {
   return `/api/generate/devotional`;
@@ -1401,8 +1447,8 @@ export const getGenerateDevotionalUrl = () => {
 export const generateDevotional = async (
   generateDevotionalBody: GenerateDevotionalBody,
   options?: RequestInit,
-): Promise<GeneratedDevotional> => {
-  return customFetch<GeneratedDevotional>(getGenerateDevotionalUrl(), {
+): Promise<string | GeneratedDevotional> => {
+  return customFetch<string | GeneratedDevotional>(getGenerateDevotionalUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -1411,7 +1457,7 @@ export const generateDevotional = async (
 };
 
 export const getGenerateDevotionalMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateDevotional400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1452,13 +1498,15 @@ export type GenerateDevotionalMutationResult = NonNullable<
   Awaited<ReturnType<typeof generateDevotional>>
 >;
 export type GenerateDevotionalMutationBody = BodyType<GenerateDevotionalBody>;
-export type GenerateDevotionalMutationError = ErrorType<UnauthorizedResponse>;
+export type GenerateDevotionalMutationError = ErrorType<
+  GenerateDevotional400 | UnauthorizedResponse
+>;
 
 /**
- * @summary AI-generate a team devotional for rehearsal
+ * @summary AI-generate a team devotional for rehearsal — streamed over SSE
  */
 export const useGenerateDevotional = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<GenerateDevotional400 | UnauthorizedResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

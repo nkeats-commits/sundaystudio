@@ -218,14 +218,21 @@ export default function ServiceBuilder() {
           )}
 
           {generate.isPending && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[var(--worship-cream)]/90 backdrop-blur-sm z-10">
-              <Loader2 className="w-10 h-10 animate-spin mb-4 text-[var(--worship-gold)]" />
-              <h3 className="text-xl mb-2 font-serif text-[var(--worship-navy)]">Weaving your service...</h3>
-              <p className="text-sm text-[var(--worship-slate)]">Curating songs, writing liturgy, and forming the service arc.</p>
+            <div className="absolute inset-0 flex flex-col p-8 bg-[var(--worship-cream)]/90 backdrop-blur-sm z-10">
+              <div className="flex flex-col items-center text-center mb-4">
+                <Loader2 className="w-10 h-10 animate-spin mb-4 text-[var(--worship-gold)]" />
+                <h3 className="text-xl mb-1 font-serif text-[var(--worship-navy)]">Weaving your service...</h3>
+                <p className="text-sm text-[var(--worship-slate)]">Curating songs, writing liturgy, and forming the service arc.</p>
+                {generate.partialText.length > 0 && (
+                  <p className="text-xs text-[var(--worship-slate)] mt-2 opacity-70">
+                    {generate.partialText.length} characters received
+                  </p>
+                )}
+              </div>
               {generate.partialText.length > 0 && (
-                <p className="text-xs text-[var(--worship-slate)] mt-3 opacity-70">
-                  {generate.partialText.length} characters received
-                </p>
+                <div className="flex-1 overflow-y-auto rounded-lg bg-white/70 border border-[var(--worship-border)] p-4 text-sm font-mono text-[var(--worship-charcoal)] whitespace-pre-wrap leading-relaxed">
+                  {generate.partialText}
+                </div>
               )}
             </div>
           )}

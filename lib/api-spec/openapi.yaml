@@ -238,7 +238,20 @@ paths:
     post:
       operationId: generateServicePlan
       tags: [generate]
-      summary: AI-generate a full service plan outline
+      summary: AI-generate a full service plan outline (streamed over SSE)
+      description: |
+        Streams the model output back as Server-Sent Events to avoid the
+        autoscale proxy's 30s idle timeout. The Zod request schema is
+        validated first; on success the response switches to SSE.
+
+        Wire protocol (`text/event-stream`):
+          - `event: delta`  data: `{ "text": "..." }` per token chunk
+          - `event: done`   data: the final parsed `GeneratedServicePlan`
+          - `event: error`  data: `{ "message": "..." }`
+          - `: ping`        keepalive comments every ~10s
+
+        On validation failure the response is a normal `application/json`
+        body with status `400`.
       requestBody:
         required: true
         content:
@@ -247,11 +260,26 @@ paths:
               $ref: "#/components/schemas/GenerateServicePlanBody"
       responses:
         "200":
-          description: Generated service plan content
+          description: |
+            SSE stream. Final `done` event payload conforms to
+            `GeneratedServicePlan`.
           content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE-framed text stream; see operation description.
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedServicePlan"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -259,7 +287,11 @@ paths:
     post:
       operationId: generateLiturgy
       tags: [generate]
-      summary: AI-generate a liturgy (call to worship, prayer, benediction, etc.)
+      summary: AI-generate a liturgy (call to worship, prayer, benediction, etc.) — streamed over SSE
+      description: |
+        Streams the model output as SSE. See `/generate/service-plan` for
+        the wire protocol. The final `done` event payload conforms to
+        `GeneratedLiturgy`. Validation failures return `400 application/json`.
       requestBody:
         required: true
         content:
@@ -268,11 +300,23 @@ paths:
               $ref: "#/components/schemas/GenerateLiturgyBody"
       responses:
         "200":
-          description: Generated liturgy
+          description: SSE stream; final `done` event is a `GeneratedLiturgy`.
           content:
+            text/event-stream:
+              schema:
+                type: string
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedLiturgy"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -280,7 +324,11 @@ paths:
     post:
       operationId: generateSongSuggestions
       tags: [generate]
-      summary: AI-suggest worship songs for a theme or scripture
+      summary: AI-suggest worship songs for a theme or scripture — streamed over SSE
+      description: |
+        Streams the model output as SSE. See `/generate/service-plan` for
+        the wire protocol. The final `done` event payload conforms to
+        `GeneratedSongs`. Validation failures return `400 application/json`.
       requestBody:
         required: true
         content:
@@ -289,11 +337,23 @@ paths:
               $ref: "#/components/schemas/GenerateSongsBody"
       responses:
         "200":
-          description: Song suggestions
+          description: SSE stream; final `done` event is a `GeneratedSongs`.
           content:
+            text/event-stream:
+              schema:
+                type: string
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedSongs"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -301,7 +361,11 @@ paths:
     post:
       operationId: generateSpeakingMoment
       tags: [generate]
-      summary: AI-generate a speaking moment (welcome, transition, communion invitation, benediction)
+      summary: AI-generate a speaking moment — streamed over SSE
+      description: |
+        Streams the model output as SSE. See `/generate/service-plan` for
+        the wire protocol. The final `done` event payload conforms to
+        `GeneratedSpeakingMoment`. Validation failures return `400 application/json`.
       requestBody:
         required: true
         content:
@@ -310,11 +374,23 @@ paths:
               $ref: "#/components/schemas/GenerateSpeakingMomentBody"
       responses:
         "200":
-          description: Generated speaking moment
+          description: SSE stream; final `done` event is a `GeneratedSpeakingMoment`.
           content:
+            text/event-stream:
+              schema:
+                type: string
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedSpeakingMoment"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -322,7 +398,11 @@ paths:
     post:
       operationId: generateDevotional
       tags: [generate]
-      summary: AI-generate a team devotional for rehearsal
+      summary: AI-generate a team devotional for rehearsal — streamed over SSE
+      description: |
+        Streams the model output as SSE. See `/generate/service-plan` for
+        the wire protocol. The final `done` event payload conforms to
+        `GeneratedDevotional`. Validation failures return `400 application/json`.
       requestBody:
         required: true
         content:
@@ -331,11 +411,23 @@ paths:
               $ref: "#/components/schemas/GenerateDevotionalBody"
       responses:
         "200":
-          description: Generated devotional
+          description: SSE stream; final `done` event is a `GeneratedDevotional`.
           content:
+            text/event-stream:
+              schema:
+                type: string
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedDevotional"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
 

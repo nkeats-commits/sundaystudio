@@ -143,20 +143,40 @@ export function useStreamingGenerate<TData>(
           }, 50);
         };
 
+        // Find the next SSE event boundary, accepting both LF/LF and CRLF/CRLF
+        // framings. Returns the index of the first byte of the separator and
+        // the separator length, or null if no boundary is present yet.
+        const findEventBoundary = (
+          s: string,
+        ): { index: number; length: number } | null => {
+          const lf = s.indexOf("\n\n");
+          const crlf = s.indexOf("\r\n\r\n");
+          if (lf < 0 && crlf < 0) return null;
+          if (lf < 0) return { index: crlf, length: 4 };
+          if (crlf < 0) return { index: lf, length: 2 };
+          return crlf < lf
+            ? { index: crlf, length: 4 }
+            : { index: lf, length: 2 };
+        };
+
         try {
           while (true) {
             const { value, done: streamDone } = await reader.read();
-            if (streamDone) break;
+            if (streamDone) {
+              // Flush any remaining bytes from the decoder at EOF.
+              buf += decoder.decode();
+              break;
+            }
             buf += decoder.decode(value, { stream: true });
 
-            let sep: number;
-            while ((sep = buf.indexOf("\n\n")) >= 0) {
-              const raw = buf.slice(0, sep);
-              buf = buf.slice(sep + 2);
+            let boundary = findEventBoundary(buf);
+            while (boundary !== null) {
+              const raw = buf.slice(0, boundary.index);
+              buf = buf.slice(boundary.index + boundary.length);
 
               let event = "message";
               const dataLines: string[] = [];
-              for (const line of raw.split("\n")) {
+              for (const line of raw.split(/\r?\n/)) {
                 if (line === "" || line.startsWith(":")) continue;
                 if (line.startsWith("event:")) {
                   event = line.slice(6).trim();
@@ -194,6 +214,8 @@ export function useStreamingGenerate<TData>(
                   errorMessage = "Generation failed.";
                 }
               }
+
+              boundary = findEventBoundary(buf);
             }
           }
         } finally {

@@ -148,13 +148,20 @@ export default function SpeakingMomentGenerator() {
           )}
 
           {generate.isPending && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-[var(--worship-cream)]/80 backdrop-blur-sm rounded-2xl z-10">
-               <Loader2 className="w-10 h-10 animate-spin text-[var(--worship-gold)] mb-4" />
-               <h3 className="font-serif text-xl text-[var(--worship-navy)]">Drafting moment...</h3>
+            <div className="absolute inset-0 flex flex-col p-8 bg-[var(--worship-cream)]/80 backdrop-blur-sm rounded-2xl z-10">
+               <div className="flex flex-col items-center text-center mb-4">
+                 <Loader2 className="w-10 h-10 animate-spin text-[var(--worship-gold)] mb-4" />
+                 <h3 className="font-serif text-xl text-[var(--worship-navy)]">Drafting moment...</h3>
+                 {generate.partialText.length > 0 && (
+                   <p className="text-xs text-[var(--worship-slate)] mt-2">
+                     {generate.partialText.length} characters received
+                   </p>
+                 )}
+               </div>
                {generate.partialText.length > 0 && (
-                 <p className="text-xs text-[var(--worship-slate)] mt-3">
-                   {generate.partialText.length} characters received
-                 </p>
+                 <div className="flex-1 overflow-y-auto rounded-lg bg-white/70 border border-[var(--worship-border)] p-4 text-sm font-mono text-[var(--worship-charcoal)] whitespace-pre-wrap leading-relaxed">
+                   {generate.partialText}
+                 </div>
                )}
             </div>
           )}

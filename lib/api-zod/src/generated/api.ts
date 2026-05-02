@@ -426,7 +426,20 @@ export const DeleteLibraryItemParams = zod.object({
 });
 
 /**
- * @summary AI-generate a full service plan outline
+ * Streams the model output back as Server-Sent Events to avoid the
+autoscale proxy's 30s idle timeout. The Zod request schema is
+validated first; on success the response switches to SSE.
+
+Wire protocol (`text/event-stream`):
+  - `event: delta`  data: `{ "text": "..." }` per token chunk
+  - `event: done`   data: the final parsed `GeneratedServicePlan`
+  - `event: error`  data: `{ "message": "..." }`
+  - `: ping`        keepalive comments every ~10s
+
+On validation failure the response is a normal `application/json`
+body with status `400`.
+
+ * @summary AI-generate a full service plan outline (streamed over SSE)
  */
 export const GenerateServicePlanBody = zod.object({
   theme: zod.string(),
@@ -479,7 +492,11 @@ export const GenerateServicePlanResponse = zod.object({
 });
 
 /**
- * @summary AI-generate a liturgy (call to worship, prayer, benediction, etc.)
+ * Streams the model output as SSE. See `/generate/service-plan` for
+the wire protocol. The final `done` event payload conforms to
+`GeneratedLiturgy`. Validation failures return `400 application/json`.
+
+ * @summary AI-generate a liturgy (call to worship, prayer, benediction, etc.) — streamed over SSE
  */
 export const GenerateLiturgyBody = zod.object({
   kind: zod.enum([
@@ -508,7 +525,11 @@ export const GenerateLiturgyResponse = zod.object({
 });
 
 /**
- * @summary AI-suggest worship songs for a theme or scripture
+ * Streams the model output as SSE. See `/generate/service-plan` for
+the wire protocol. The final `done` event payload conforms to
+`GeneratedSongs`. Validation failures return `400 application/json`.
+
+ * @summary AI-suggest worship songs for a theme or scripture — streamed over SSE
  */
 export const GenerateSongSuggestionsBody = zod.object({
   theme: zod.string(),
@@ -534,7 +555,11 @@ export const GenerateSongSuggestionsResponse = zod.object({
 });
 
 /**
- * @summary AI-generate a speaking moment (welcome, transition, communion invitation, benediction)
+ * Streams the model output as SSE. See `/generate/service-plan` for
+the wire protocol. The final `done` event payload conforms to
+`GeneratedSpeakingMoment`. Validation failures return `400 application/json`.
+
+ * @summary AI-generate a speaking moment — streamed over SSE
  */
 export const GenerateSpeakingMomentBody = zod.object({
   kind: zod.enum([
@@ -559,7 +584,11 @@ export const GenerateSpeakingMomentResponse = zod.object({
 });
 
 /**
- * @summary AI-generate a team devotional for rehearsal
+ * Streams the model output as SSE. See `/generate/service-plan` for
+the wire protocol. The final `done` event payload conforms to
+`GeneratedDevotional`. Validation failures return `400 application/json`.
+
+ * @summary AI-generate a team devotional for rehearsal — streamed over SSE
  */
 export const GenerateDevotionalBody = zod.object({
   theme: zod.string(),
