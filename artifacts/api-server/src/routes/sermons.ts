@@ -5,6 +5,7 @@ import {
   sermonsTable,
   sermonExportsTable,
   sermonResourcesTable,
+  sermonSeriesTable,
 } from "@workspace/db";
 import {
   CreateSermonBody,
@@ -52,6 +53,35 @@ async function validateResourceOwnership(
   return null;
 }
 
+/**
+ * Verify that `seriesId` belongs to `userId`. Returns null when valid (or when
+ * id is null/undefined — meaning "unlink from any series"), or an error string.
+ * Without this a user could attach their sermon to another tenant's series row.
+ */
+async function validateSeriesOwnership(
+  userId: string,
+  seriesId: number | null | undefined,
+): Promise<string | null> {
+  if (seriesId === null || seriesId === undefined) return null;
+  if (!Number.isInteger(seriesId)) {
+    return `seriesId must be an integer: ${seriesId}`;
+  }
+  const [row] = await db
+    .select({ id: sermonSeriesTable.id })
+    .from(sermonSeriesTable)
+    .where(
+      and(
+        eq(sermonSeriesTable.userId, userId),
+        eq(sermonSeriesTable.id, seriesId),
+      ),
+    )
+    .limit(1);
+  if (!row) {
+    return `Sermon series ${seriesId} does not exist or is not yours`;
+  }
+  return null;
+}
+
 router.get("/sermons", requireAuth, async (req, res) => {
   const rows = await db
     .select()
@@ -76,6 +106,11 @@ router.post("/sermons", requireAuth, async (req, res) => {
     res.status(400).json({ error: ownershipError });
     return;
   }
+  const seriesError = await validateSeriesOwnership(req.userId!, d.seriesId);
+  if (seriesError) {
+    res.status(400).json({ error: seriesError });
+    return;
+  }
   const [row] = await db
     .insert(sermonsTable)
     .values({
@@ -86,6 +121,8 @@ router.post("/sermons", requireAuth, async (req, res) => {
       secondaryPassages: d.secondaryPassages ?? [],
       theme: d.theme ?? "",
       series: d.series ?? "",
+      seriesId: d.seriesId ?? null,
+      seriesOrder: d.seriesOrder ?? null,
       occasion: d.occasion ?? "",
       audience: d.audience ?? "",
       length: d.length ?? "",
@@ -142,6 +179,13 @@ router.patch("/sermons/:id", requireAuth, async (req, res) => {
       return;
     }
   }
+  if (d.seriesId !== undefined) {
+    const seriesError = await validateSeriesOwnership(req.userId!, d.seriesId);
+    if (seriesError) {
+      res.status(400).json({ error: seriesError });
+      return;
+    }
+  }
   const update: Record<string, unknown> = {};
   for (const k of [
     "title",
@@ -150,6 +194,8 @@ router.patch("/sermons/:id", requireAuth, async (req, res) => {
     "secondaryPassages",
     "theme",
     "series",
+    "seriesId",
+    "seriesOrder",
     "occasion",
     "audience",
     "length",

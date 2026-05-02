@@ -610,6 +610,243 @@ export const GenerateDevotionalResponse = zod.object({
 });
 
 /**
+ * @summary List sermon series for the current user
+ */
+export const ListSermonSeriesResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  title: zod.string(),
+  summary: zod.string(),
+  bigIdea: zod.string(),
+  startDate: zod.coerce.date().nullish(),
+  endDate: zod.coerce.date().nullish(),
+  plannedSermonCount: zod.number().nullish(),
+  status: zod.string(),
+  tags: zod.array(zod.string()),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListSermonSeriesResponse = zod.array(ListSermonSeriesResponseItem);
+
+/**
+ * @summary Create a sermon series
+ */
+
+export const CreateSermonSeriesBody = zod.object({
+  title: zod.string().min(1),
+  summary: zod.string().optional(),
+  bigIdea: zod.string().optional(),
+  startDate: zod.coerce.date().nullish(),
+  endDate: zod.coerce.date().nullish(),
+  plannedSermonCount: zod.number().nullish(),
+  status: zod.string().optional(),
+  tags: zod.array(zod.string()).optional(),
+});
+
+/**
+ * @summary Get a sermon series with its ordered sermons
+ */
+export const GetSermonSeriesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetSermonSeriesResponse = zod
+  .object({
+    id: zod.number(),
+    userId: zod.string(),
+    title: zod.string(),
+    summary: zod.string(),
+    bigIdea: zod.string(),
+    startDate: zod.coerce.date().nullish(),
+    endDate: zod.coerce.date().nullish(),
+    plannedSermonCount: zod.number().nullish(),
+    status: zod.string(),
+    tags: zod.array(zod.string()),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  })
+  .and(
+    zod.object({
+      sermons: zod.array(
+        zod.object({
+          id: zod.number(),
+          userId: zod.string(),
+          title: zod.string(),
+          sermonDate: zod.coerce.date().nullish(),
+          passage: zod.string(),
+          secondaryPassages: zod.array(zod.string()),
+          theme: zod.string(),
+          series: zod.string(),
+          seriesId: zod.number().nullish(),
+          seriesOrder: zod.number().nullish(),
+          occasion: zod.string(),
+          audience: zod.string(),
+          length: zod.string(),
+          tone: zod.string(),
+          style: zod.string(),
+          depth: zod.string(),
+          outputFormat: zod.string(),
+          pastorNotes: zod.string(),
+          study: zod
+            .object({
+              context: zod.string().nullish(),
+              observation: zod.string().nullish(),
+              interpretation: zod.string().nullish(),
+              application: zod.string().nullish(),
+              crossReferences: zod.array(zod.string()).nullish(),
+              interpretiveCautions: zod.array(zod.string()).nullish(),
+              resourceInsights: zod.string().nullish(),
+            })
+            .nullish(),
+          bigIdea: zod
+            .object({
+              selected: zod.string().nullish(),
+              options: zod.array(
+                zod.object({
+                  bigIdea: zod.string(),
+                  rationale: zod.string().nullish(),
+                }),
+              ),
+            })
+            .nullish(),
+          outline: zod
+            .object({
+              selectedIndex: zod.number().nullish(),
+              options: zod.array(
+                zod.object({
+                  title: zod.string(),
+                  approach: zod.string().nullish(),
+                  points: zod.array(
+                    zod.object({
+                      heading: zod.string(),
+                      summary: zod.string().nullish(),
+                      scriptureSupport: zod.array(zod.string()).nullish(),
+                    }),
+                  ),
+                }),
+              ),
+            })
+            .nullish(),
+          manuscript: zod
+            .object({
+              format: zod.enum(["manuscript", "notes", "outline"]),
+              introduction: zod.string().nullish(),
+              body: zod.string(),
+              conclusion: zod.string().nullish(),
+            })
+            .nullish(),
+          applications: zod
+            .object({
+              groups: zod.array(
+                zod.object({
+                  audience: zod.string(),
+                  application: zod.string(),
+                }),
+              ),
+              smallGroupQuestions: zod.array(zod.string()).nullish(),
+            })
+            .nullish(),
+          illustrations: zod
+            .object({
+              illustrations: zod.array(
+                zod.object({
+                  kind: zod.enum([
+                    "story",
+                    "analogy",
+                    "historical",
+                    "cultural",
+                    "personal",
+                    "other",
+                  ]),
+                  title: zod.string(),
+                  body: zod.string(),
+                  verifyBeforeUsing: zod.boolean(),
+                  notes: zod.string().nullish(),
+                }),
+              ),
+            })
+            .nullish(),
+          conclusion: zod
+            .object({
+              conclusion: zod.string(),
+              callToResponse: zod.string().nullish(),
+              closingPrayer: zod.string().nullish(),
+            })
+            .nullish(),
+          worshipIntegration: zod
+            .object({
+              themes: zod.array(zod.string()).nullish(),
+              songs: zod
+                .array(
+                  zod.object({
+                    title: zod.string(),
+                    artist: zod.string().nullish(),
+                    whyItFits: zod.string().nullish(),
+                  }),
+                )
+                .nullish(),
+              callToWorship: zod.string().nullish(),
+              responseMoment: zod.string().nullish(),
+              communionMoment: zod.string().nullish(),
+              benediction: zod.string().nullish(),
+              prayerPrompts: zod.array(zod.string()).nullish(),
+              teamDevotionalSeed: zod.string().nullish(),
+              smallGroupQuestions: zod.array(zod.string()).nullish(),
+              socialSummary: zod.string().nullish(),
+              emailSummary: zod.string().nullish(),
+            })
+            .nullish(),
+          attachedResourceIds: zod.array(zod.number()),
+          tags: zod.array(zod.string()),
+          status: zod.string(),
+          createdAt: zod.coerce.date(),
+          updatedAt: zod.coerce.date(),
+        }),
+      ),
+    }),
+  );
+
+/**
+ * @summary Update a sermon series
+ */
+export const UpdateSermonSeriesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSermonSeriesBody = zod.object({
+  title: zod.string().optional(),
+  summary: zod.string().optional(),
+  bigIdea: zod.string().optional(),
+  startDate: zod.coerce.date().nullish(),
+  endDate: zod.coerce.date().nullish(),
+  plannedSermonCount: zod.number().nullish(),
+  status: zod.string().optional(),
+  tags: zod.array(zod.string()).optional(),
+});
+
+export const UpdateSermonSeriesResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  title: zod.string(),
+  summary: zod.string(),
+  bigIdea: zod.string(),
+  startDate: zod.coerce.date().nullish(),
+  endDate: zod.coerce.date().nullish(),
+  plannedSermonCount: zod.number().nullish(),
+  status: zod.string(),
+  tags: zod.array(zod.string()),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a sermon series (sermons are unlinked, not deleted)
+ */
+export const DeleteSermonSeriesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List sermons for the current user
  */
 export const ListSermonsResponseItem = zod.object({
@@ -621,6 +858,8 @@ export const ListSermonsResponseItem = zod.object({
   secondaryPassages: zod.array(zod.string()),
   theme: zod.string(),
   series: zod.string(),
+  seriesId: zod.number().nullish(),
+  seriesOrder: zod.number().nullish(),
   occasion: zod.string(),
   audience: zod.string(),
   length: zod.string(),
@@ -757,6 +996,8 @@ export const CreateSermonBody = zod.object({
   secondaryPassages: zod.array(zod.string()).optional(),
   theme: zod.string().optional(),
   series: zod.string().optional(),
+  seriesId: zod.number().nullish(),
+  seriesOrder: zod.number().nullish(),
   occasion: zod.string().optional(),
   audience: zod.string().optional(),
   length: zod.string().optional(),
@@ -786,6 +1027,8 @@ export const GetSermonResponse = zod.object({
   secondaryPassages: zod.array(zod.string()),
   theme: zod.string(),
   series: zod.string(),
+  seriesId: zod.number().nullish(),
+  seriesOrder: zod.number().nullish(),
   occasion: zod.string(),
   audience: zod.string(),
   length: zod.string(),
@@ -924,6 +1167,8 @@ export const UpdateSermonBody = zod.object({
   secondaryPassages: zod.array(zod.string()).optional(),
   theme: zod.string().optional(),
   series: zod.string().optional(),
+  seriesId: zod.number().nullish(),
+  seriesOrder: zod.number().nullish(),
   occasion: zod.string().optional(),
   audience: zod.string().optional(),
   length: zod.string().optional(),
@@ -1055,6 +1300,8 @@ export const UpdateSermonResponse = zod.object({
   secondaryPassages: zod.array(zod.string()),
   theme: zod.string(),
   series: zod.string(),
+  seriesId: zod.number().nullish(),
+  seriesOrder: zod.number().nullish(),
   occasion: zod.string(),
   audience: zod.string(),
   length: zod.string(),
@@ -1315,6 +1562,24 @@ export const GenerateSermonStudyBody = zod
     secondaryPassages: zod.array(zod.string()).optional(),
     theme: zod.string().optional(),
     series: zod.string().optional(),
+    seriesId: zod
+      .number()
+      .nullish()
+      .describe(
+        "Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.",
+      ),
+    seriesBigIdea: zod
+      .string()
+      .optional()
+      .describe(
+        "Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    seriesSummary: zod
+      .string()
+      .optional()
+      .describe(
+        "Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
     occasion: zod.string().optional(),
     audience: zod.string().optional(),
     length: zod.string().optional(),
@@ -1373,6 +1638,24 @@ export const GenerateSermonBigIdeaBody = zod
     secondaryPassages: zod.array(zod.string()).optional(),
     theme: zod.string().optional(),
     series: zod.string().optional(),
+    seriesId: zod
+      .number()
+      .nullish()
+      .describe(
+        "Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.",
+      ),
+    seriesBigIdea: zod
+      .string()
+      .optional()
+      .describe(
+        "Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    seriesSummary: zod
+      .string()
+      .optional()
+      .describe(
+        "Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
     occasion: zod.string().optional(),
     audience: zod.string().optional(),
     length: zod.string().optional(),
@@ -1431,6 +1714,24 @@ export const GenerateSermonOutlineBody = zod
     secondaryPassages: zod.array(zod.string()).optional(),
     theme: zod.string().optional(),
     series: zod.string().optional(),
+    seriesId: zod
+      .number()
+      .nullish()
+      .describe(
+        "Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.",
+      ),
+    seriesBigIdea: zod
+      .string()
+      .optional()
+      .describe(
+        "Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    seriesSummary: zod
+      .string()
+      .optional()
+      .describe(
+        "Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
     occasion: zod.string().optional(),
     audience: zod.string().optional(),
     length: zod.string().optional(),
@@ -1515,6 +1816,24 @@ export const GenerateSermonManuscriptBody = zod
     secondaryPassages: zod.array(zod.string()).optional(),
     theme: zod.string().optional(),
     series: zod.string().optional(),
+    seriesId: zod
+      .number()
+      .nullish()
+      .describe(
+        "Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.",
+      ),
+    seriesBigIdea: zod
+      .string()
+      .optional()
+      .describe(
+        "Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    seriesSummary: zod
+      .string()
+      .optional()
+      .describe(
+        "Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
     occasion: zod.string().optional(),
     audience: zod.string().optional(),
     length: zod.string().optional(),
@@ -1592,6 +1911,24 @@ export const GenerateSermonApplicationsBody = zod
     secondaryPassages: zod.array(zod.string()).optional(),
     theme: zod.string().optional(),
     series: zod.string().optional(),
+    seriesId: zod
+      .number()
+      .nullish()
+      .describe(
+        "Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.",
+      ),
+    seriesBigIdea: zod
+      .string()
+      .optional()
+      .describe(
+        "Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    seriesSummary: zod
+      .string()
+      .optional()
+      .describe(
+        "Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
     occasion: zod.string().optional(),
     audience: zod.string().optional(),
     length: zod.string().optional(),
@@ -1651,6 +1988,24 @@ export const GenerateSermonIllustrationsBody = zod
     secondaryPassages: zod.array(zod.string()).optional(),
     theme: zod.string().optional(),
     series: zod.string().optional(),
+    seriesId: zod
+      .number()
+      .nullish()
+      .describe(
+        "Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.",
+      ),
+    seriesBigIdea: zod
+      .string()
+      .optional()
+      .describe(
+        "Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    seriesSummary: zod
+      .string()
+      .optional()
+      .describe(
+        "Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
     occasion: zod.string().optional(),
     audience: zod.string().optional(),
     length: zod.string().optional(),
@@ -1721,6 +2076,24 @@ export const GenerateSermonToServiceBody = zod
     secondaryPassages: zod.array(zod.string()).optional(),
     theme: zod.string().optional(),
     series: zod.string().optional(),
+    seriesId: zod
+      .number()
+      .nullish()
+      .describe(
+        "Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.",
+      ),
+    seriesBigIdea: zod
+      .string()
+      .optional()
+      .describe(
+        "Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    seriesSummary: zod
+      .string()
+      .optional()
+      .describe(
+        "Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
     occasion: zod.string().optional(),
     audience: zod.string().optional(),
     length: zod.string().optional(),

@@ -434,6 +434,8 @@ export interface Sermon {
   secondaryPassages: string[];
   theme: string;
   series: string;
+  seriesId?: number | null;
+  seriesOrder?: number | null;
   occasion: string;
   audience: string;
   length: string;
@@ -465,6 +467,8 @@ export interface CreateSermonBody {
   secondaryPassages?: string[];
   theme?: string;
   series?: string;
+  seriesId?: number | null;
+  seriesOrder?: number | null;
   occasion?: string;
   audience?: string;
   length?: string;
@@ -485,6 +489,8 @@ export interface UpdateSermonBody {
   secondaryPassages?: string[];
   theme?: string;
   series?: string;
+  seriesId?: number | null;
+  seriesOrder?: number | null;
   occasion?: string;
   audience?: string;
   length?: string;
@@ -577,6 +583,48 @@ export interface SermonExport {
   createdAt: string;
 }
 
+export interface SermonSeries {
+  id: number;
+  userId: string;
+  title: string;
+  summary: string;
+  bigIdea: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  plannedSermonCount?: number | null;
+  status: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SermonSeriesWithSermons = SermonSeries & {
+  sermons: Sermon[];
+};
+
+export interface CreateSermonSeriesBody {
+  /** @minLength 1 */
+  title: string;
+  summary?: string;
+  bigIdea?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  plannedSermonCount?: number | null;
+  status?: string;
+  tags?: string[];
+}
+
+export interface UpdateSermonSeriesBody {
+  title?: string;
+  summary?: string;
+  bigIdea?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  plannedSermonCount?: number | null;
+  status?: string;
+  tags?: string[];
+}
+
 export interface SermonResourceRef {
   title: string;
   author?: string;
@@ -594,6 +642,12 @@ export interface SermonContextBlurb {
   secondaryPassages?: string[];
   theme?: string;
   series?: string;
+  /** Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context. */
+  seriesId?: number | null;
+  /** Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank. */
+  seriesBigIdea?: string;
+  /** Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank. */
+  seriesSummary?: string;
   occasion?: string;
   audience?: string;
   length?: string;

@@ -24,6 +24,8 @@ import ChurchProfile from "./pages/ChurchProfile";
 import Settings from "./pages/Settings";
 import SermonBuilder from "./pages/SermonBuilder";
 import SermonArchive from "./pages/SermonArchive";
+import SermonSeriesArchive from "./pages/SermonSeriesArchive";
+import SermonSeriesDetail from "./pages/SermonSeriesDetail";
 import ResourceLibrary from "./pages/ResourceLibrary";
 import NotFound from "./pages/NotFound";
 
@@ -306,6 +308,8 @@ function ClerkProviderWithRoutes() {
           <Route path="/generators/devotional">{() => <Protected component={DevotionalGenerator} />}</Route>
           <Route path="/library">{() => <Protected component={Library} />}</Route>
           <Route path="/sermons">{() => <Protected component={SermonArchive} />}</Route>
+          <Route path="/sermons/series">{() => <Protected component={SermonSeriesArchive} />}</Route>
+          <Route path="/sermons/series/:id">{() => <Protected component={SermonSeriesDetail} />}</Route>
           <Route path="/sermons/new">{() => <Protected component={SermonBuilder} />}</Route>
           <Route path="/sermons/:id">{() => <Protected component={SermonBuilder} />}</Route>
           <Route path="/resources">{() => <Protected component={ResourceLibrary} />}</Route>

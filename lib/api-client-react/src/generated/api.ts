@@ -21,6 +21,7 @@ import type {
   CreateLibraryItemBody,
   CreateSermonBody,
   CreateSermonResourceBody,
+  CreateSermonSeriesBody,
   CreateServicePlanBody,
   DashboardResponse,
   ExportSermonBody,
@@ -66,12 +67,15 @@ import type {
   SermonManuscriptOutput,
   SermonOutlineOutput,
   SermonResource,
+  SermonSeries,
+  SermonSeriesWithSermons,
   SermonStudyOutput,
   SermonWorshipIntegrationOutput,
   ServicePlan,
   UnauthorizedResponse,
   UpdateSermonBody,
   UpdateSermonResourceBody,
+  UpdateSermonSeriesBody,
   UpdateServicePlanBody,
   UpsertChurchProfileBody,
 } from "./api.schemas";
@@ -1552,6 +1556,431 @@ export const useGenerateDevotional = <
   TContext
 > => {
   return useMutation(getGenerateDevotionalMutationOptions(options));
+};
+
+/**
+ * @summary List sermon series for the current user
+ */
+export const getListSermonSeriesUrl = () => {
+  return `/api/sermon-series`;
+};
+
+export const listSermonSeries = async (
+  options?: RequestInit,
+): Promise<SermonSeries[]> => {
+  return customFetch<SermonSeries[]>(getListSermonSeriesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSermonSeriesQueryKey = () => {
+  return [`/api/sermon-series`] as const;
+};
+
+export const getListSermonSeriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSermonSeries>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSermonSeries>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSermonSeriesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSermonSeries>>
+  > = ({ signal }) => listSermonSeries({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSermonSeries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSermonSeriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSermonSeries>>
+>;
+export type ListSermonSeriesQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List sermon series for the current user
+ */
+
+export function useListSermonSeries<
+  TData = Awaited<ReturnType<typeof listSermonSeries>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSermonSeries>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSermonSeriesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a sermon series
+ */
+export const getCreateSermonSeriesUrl = () => {
+  return `/api/sermon-series`;
+};
+
+export const createSermonSeries = async (
+  createSermonSeriesBody: CreateSermonSeriesBody,
+  options?: RequestInit,
+): Promise<SermonSeries> => {
+  return customFetch<SermonSeries>(getCreateSermonSeriesUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createSermonSeriesBody),
+  });
+};
+
+export const getCreateSermonSeriesMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSermonSeries>>,
+    TError,
+    { data: BodyType<CreateSermonSeriesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSermonSeries>>,
+  TError,
+  { data: BodyType<CreateSermonSeriesBody> },
+  TContext
+> => {
+  const mutationKey = ["createSermonSeries"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSermonSeries>>,
+    { data: BodyType<CreateSermonSeriesBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSermonSeries(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSermonSeriesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSermonSeries>>
+>;
+export type CreateSermonSeriesMutationBody = BodyType<CreateSermonSeriesBody>;
+export type CreateSermonSeriesMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Create a sermon series
+ */
+export const useCreateSermonSeries = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSermonSeries>>,
+    TError,
+    { data: BodyType<CreateSermonSeriesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSermonSeries>>,
+  TError,
+  { data: BodyType<CreateSermonSeriesBody> },
+  TContext
+> => {
+  return useMutation(getCreateSermonSeriesMutationOptions(options));
+};
+
+/**
+ * @summary Get a sermon series with its ordered sermons
+ */
+export const getGetSermonSeriesUrl = (id: number) => {
+  return `/api/sermon-series/${id}`;
+};
+
+export const getSermonSeries = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SermonSeriesWithSermons> => {
+  return customFetch<SermonSeriesWithSermons>(getGetSermonSeriesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSermonSeriesQueryKey = (id: number) => {
+  return [`/api/sermon-series/${id}`] as const;
+};
+
+export const getGetSermonSeriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSermonSeries>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSermonSeries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSermonSeriesQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSermonSeries>>> = ({
+    signal,
+  }) => getSermonSeries(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSermonSeries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSermonSeriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSermonSeries>>
+>;
+export type GetSermonSeriesQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Get a sermon series with its ordered sermons
+ */
+
+export function useGetSermonSeries<
+  TData = Awaited<ReturnType<typeof getSermonSeries>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSermonSeries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSermonSeriesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a sermon series
+ */
+export const getUpdateSermonSeriesUrl = (id: number) => {
+  return `/api/sermon-series/${id}`;
+};
+
+export const updateSermonSeries = async (
+  id: number,
+  updateSermonSeriesBody: UpdateSermonSeriesBody,
+  options?: RequestInit,
+): Promise<SermonSeries> => {
+  return customFetch<SermonSeries>(getUpdateSermonSeriesUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateSermonSeriesBody),
+  });
+};
+
+export const getUpdateSermonSeriesMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSermonSeries>>,
+    TError,
+    { id: number; data: BodyType<UpdateSermonSeriesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSermonSeries>>,
+  TError,
+  { id: number; data: BodyType<UpdateSermonSeriesBody> },
+  TContext
+> => {
+  const mutationKey = ["updateSermonSeries"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSermonSeries>>,
+    { id: number; data: BodyType<UpdateSermonSeriesBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateSermonSeries(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSermonSeriesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSermonSeries>>
+>;
+export type UpdateSermonSeriesMutationBody = BodyType<UpdateSermonSeriesBody>;
+export type UpdateSermonSeriesMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Update a sermon series
+ */
+export const useUpdateSermonSeries = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSermonSeries>>,
+    TError,
+    { id: number; data: BodyType<UpdateSermonSeriesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateSermonSeries>>,
+  TError,
+  { id: number; data: BodyType<UpdateSermonSeriesBody> },
+  TContext
+> => {
+  return useMutation(getUpdateSermonSeriesMutationOptions(options));
+};
+
+/**
+ * @summary Delete a sermon series (sermons are unlinked, not deleted)
+ */
+export const getDeleteSermonSeriesUrl = (id: number) => {
+  return `/api/sermon-series/${id}`;
+};
+
+export const deleteSermonSeries = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteSermonSeriesUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteSermonSeriesMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSermonSeries>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteSermonSeries>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteSermonSeries"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteSermonSeries>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteSermonSeries(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteSermonSeriesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteSermonSeries>>
+>;
+
+export type DeleteSermonSeriesMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Delete a sermon series (sermons are unlinked, not deleted)
+ */
+export const useDeleteSermonSeries = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSermonSeries>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSermonSeries>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteSermonSeriesMutationOptions(options));
 };
 
 /**

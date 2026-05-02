@@ -8,8 +8,12 @@ import {
   useUpdateSermon,
   useExportSermon,
   useListSermonResources,
+  useListSermonSeries,
+  useCreateSermonSeries,
+  getListSermonSeriesQueryKey,
   getGetSermonQueryKey,
   type Sermon,
+  type SermonSeries,
   type SermonStudyOutput,
   type SermonBigIdeaOutput,
   type SermonOutlineOutput,
@@ -59,6 +63,8 @@ type FormState = {
   secondaryPassagesText: string;
   theme: string;
   series: string;
+  seriesId: number | null;
+  seriesOrder: number | null;
   occasion: string;
   audience: string;
   length: string;
@@ -78,6 +84,8 @@ const blankForm = (): FormState => ({
   secondaryPassagesText: '',
   theme: '',
   series: '',
+  seriesId: null,
+  seriesOrder: null,
   occasion: '',
   audience: '',
   length: '25 minutes',
@@ -98,6 +106,8 @@ function fromSermon(s: Sermon): FormState {
     secondaryPassagesText: (s.secondaryPassages ?? []).join(', '),
     theme: s.theme,
     series: s.series,
+    seriesId: s.seriesId ?? null,
+    seriesOrder: s.seriesOrder ?? null,
     occasion: s.occasion,
     audience: s.audience,
     length: s.length || '25 minutes',
@@ -150,6 +160,8 @@ export default function SermonBuilder() {
   const updateSermon = useUpdateSermon();
   const exportSermon = useExportSermon();
   const resourcesQuery = useListSermonResources();
+  const seriesListQuery = useListSermonSeries();
+  const createSeries = useCreateSermonSeries();
 
   const [form, setForm] = useState<FormState>(blankForm());
   const [tab, setTab] = useState<string>('study');
@@ -185,6 +197,7 @@ export default function SermonBuilder() {
       secondaryPassages: parseSecondary(form.secondaryPassagesText),
       theme: form.theme,
       series: form.series,
+      seriesId: form.seriesId,
       occasion: form.occasion,
       audience: form.audience,
       length: form.length,
@@ -218,6 +231,8 @@ export default function SermonBuilder() {
           secondaryPassages: parseSecondary(form.secondaryPassagesText),
           theme: form.theme,
           series: form.series,
+          seriesId: form.seriesId,
+          seriesOrder: form.seriesOrder,
           occasion: form.occasion,
           audience: form.audience,
           length: form.length,
@@ -374,6 +389,8 @@ export default function SermonBuilder() {
           secondaryPassages: parseSecondary(form.secondaryPassagesText),
           theme: form.theme,
           series: form.series,
+          seriesId: form.seriesId,
+          seriesOrder: form.seriesOrder,
           occasion: form.occasion,
           audience: form.audience,
           length: form.length,
@@ -469,9 +486,50 @@ export default function SermonBuilder() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">SERIES</label>
-                  <input value={form.series} onChange={(e) => setForm({ ...form, series: e.target.value })} placeholder="e.g. Romans" className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }} />
+                  <SeriesPicker
+                    value={form.seriesId}
+                    fallbackText={form.series}
+                    options={seriesListQuery.data ?? []}
+                    onChange={(picked) => {
+                      if (picked === null) {
+                        setForm({ ...form, seriesId: null, seriesOrder: null, series: '' });
+                      } else {
+                        setForm({ ...form, seriesId: picked.id, series: picked.title });
+                      }
+                    }}
+                    onCreate={async (title) => {
+                      try {
+                        const created = await createSeries.mutateAsync({ data: { title } });
+                        await queryClient.invalidateQueries({ queryKey: getListSermonSeriesQueryKey() });
+                        setForm((f) => ({ ...f, seriesId: created.id, series: created.title }));
+                        toast.success('Series created');
+                      } catch {
+                        toast.error('Could not create series');
+                      }
+                    }}
+                  />
                 </div>
               </div>
+              {form.seriesId !== null && (
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">PART NUMBER</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.seriesOrder ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setForm({ ...form, seriesOrder: v === '' ? null : Number(v) });
+                    }}
+                    placeholder="e.g. 1 for week 1"
+                    className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]"
+                    style={{ borderColor: 'var(--worship-border)' }}
+                  />
+                  <p className="text-[10px] text-[var(--worship-muted-slate)] mt-1">
+                    Optional. Controls the order this sermon appears within the series.
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">PRIMARY PASSAGE *</label>
                 <input value={form.passage} onChange={(e) => setForm({ ...form, passage: e.target.value })} placeholder="e.g. Romans 8:1-11" className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }} />
@@ -1041,5 +1099,104 @@ function BlockSection({ title, children }: { title: string; children: React.Reac
       <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">{title}</h4>
       <div className="p-3 rounded-lg border bg-white text-sm leading-relaxed text-[var(--worship-charcoal)] whitespace-pre-wrap" style={{ borderColor: 'var(--worship-border)' }}>{children}</div>
     </div>
+  );
+}
+
+function SeriesPicker({
+  value,
+  fallbackText,
+  options,
+  onChange,
+  onCreate,
+}: {
+  value: number | null;
+  fallbackText: string;
+  options: SermonSeries[];
+  onChange: (s: SermonSeries | null) => void;
+  onCreate: (title: string) => Promise<void>;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // If the sermon points to a series the current user can't see (deleted/etc),
+  // surface the legacy free-text title so the pastor still sees something.
+  const showLegacy = value === null && !!fallbackText;
+
+  const submitCreate = async () => {
+    const t = newTitle.trim();
+    if (!t || busy) return;
+    setBusy(true);
+    try {
+      await onCreate(t);
+      setNewTitle('');
+      setCreating(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (creating) {
+    return (
+      <div className="flex gap-2">
+        <input
+          autoFocus
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); void submitCreate(); }
+            if (e.key === 'Escape') { setCreating(false); setNewTitle(''); }
+          }}
+          placeholder="New series title"
+          className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]"
+          style={{ borderColor: 'var(--worship-border)' }}
+        />
+        <button
+          onClick={() => void submitCreate()}
+          disabled={!newTitle.trim() || busy}
+          className="px-3 py-2 rounded-lg text-xs worship-btn-primary disabled:opacity-60"
+        >
+          {busy ? '…' : 'Create'}
+        </button>
+        <button
+          onClick={() => { setCreating(false); setNewTitle(''); }}
+          className="px-2 py-2 rounded-lg text-xs border"
+          style={{ borderColor: 'var(--worship-border)' }}
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={value ?? '__none__'}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v === '__none__') {
+          onChange(null);
+        } else if (v === '__new__') {
+          setCreating(true);
+        } else {
+          const id = Number(v);
+          const picked = options.find((o) => o.id === id);
+          if (picked) onChange(picked);
+        }
+      }}
+      className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]"
+      style={{ borderColor: 'var(--worship-border)' }}
+    >
+      <option value="__none__">— Standalone sermon —</option>
+      {showLegacy && (
+        <option value="__none__" disabled>
+          (was: {fallbackText})
+        </option>
+      )}
+      {options.map((s) => (
+        <option key={s.id} value={s.id}>{s.title}</option>
+      ))}
+      <option value="__new__">+ Create new series…</option>
+    </select>
   );
 }

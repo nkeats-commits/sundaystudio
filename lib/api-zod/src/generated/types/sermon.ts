@@ -23,6 +23,8 @@ export interface Sermon {
   secondaryPassages: string[];
   theme: string;
   series: string;
+  seriesId?: number | null;
+  seriesOrder?: number | null;
   occasion: string;
   audience: string;
   length: string;

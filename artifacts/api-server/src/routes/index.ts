@@ -6,6 +6,7 @@ import servicePlansRouter from "./servicePlans";
 import libraryRouter from "./library";
 import generateRouter from "./generate";
 import sermonsRouter from "./sermons";
+import sermonSeriesRouter from "./sermonSeries";
 import sermonResourcesRouter from "./sermonResources";
 import generateSermonRouter from "./generateSermon";
 
@@ -18,6 +19,7 @@ router.use(servicePlansRouter);
 router.use(libraryRouter);
 router.use(generateRouter);
 router.use(sermonsRouter);
+router.use(sermonSeriesRouter);
 router.use(sermonResourcesRouter);
 router.use(generateSermonRouter);
 

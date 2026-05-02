@@ -26,6 +26,8 @@ tags:
     description: Sermon resource library (commentary excerpts, scholar notes, etc.)
   - name: sermon-exports
     description: Exported sermon documents
+  - name: sermon-series
+    description: Multi-week sermon series (shared big idea + ordered sermons)
 paths:
   /healthz:
     get:
@@ -436,6 +438,97 @@ paths:
                     type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /sermon-series:
+    get:
+      operationId: listSermonSeries
+      tags: [sermon-series]
+      summary: List sermon series for the current user
+      responses:
+        "200":
+          description: List of sermon series
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SermonSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createSermonSeries
+      tags: [sermon-series]
+      summary: Create a sermon series
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSermonSeriesBody"
+      responses:
+        "201":
+          description: Created sermon series
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sermon-series/{id}:
+    get:
+      operationId: getSermonSeries
+      tags: [sermon-series]
+      summary: Get a sermon series with its ordered sermons
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Sermon series with ordered sermons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonSeriesWithSermons"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateSermonSeries
+      tags: [sermon-series]
+      summary: Update a sermon series
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSermonSeriesBody"
+      responses:
+        "200":
+          description: Updated sermon series
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonSeries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteSermonSeries
+      tags: [sermon-series]
+      summary: Delete a sermon series (sermons are unlinked, not deleted)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /sermons:
     get:
@@ -1645,6 +1738,12 @@ components:
           type: string
         series:
           type: string
+        seriesId:
+          type: integer
+          nullable: true
+        seriesOrder:
+          type: integer
+          nullable: true
         occasion:
           type: string
         audience:
@@ -1751,6 +1850,12 @@ components:
           type: string
         series:
           type: string
+        seriesId:
+          type: integer
+          nullable: true
+        seriesOrder:
+          type: integer
+          nullable: true
         occasion:
           type: string
         audience:
@@ -1798,6 +1903,12 @@ components:
           type: string
         series:
           type: string
+        seriesId:
+          type: integer
+          nullable: true
+        seriesOrder:
+          type: integer
+          nullable: true
         occasion:
           type: string
         audience:
@@ -2002,6 +2113,120 @@ components:
           format: date-time
       required: [id, userId, sermonId, format, content, createdAt]
 
+    SermonSeries:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        bigIdea:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        plannedSermonCount:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - title
+        - summary
+        - bigIdea
+        - status
+        - tags
+        - createdAt
+        - updatedAt
+
+    SermonSeriesWithSermons:
+      allOf:
+        - $ref: "#/components/schemas/SermonSeries"
+        - type: object
+          properties:
+            sermons:
+              type: array
+              items:
+                $ref: "#/components/schemas/Sermon"
+          required: [sermons]
+
+    CreateSermonSeriesBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        summary:
+          type: string
+        bigIdea:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        plannedSermonCount:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required: [title]
+
+    UpdateSermonSeriesBody:
+      type: object
+      properties:
+        title:
+          type: string
+        summary:
+          type: string
+        bigIdea:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        plannedSermonCount:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
     SermonResourceRef:
       type: object
       properties:
@@ -2031,6 +2256,16 @@ components:
           type: string
         series:
           type: string
+        seriesId:
+          type: integer
+          nullable: true
+          description: Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.
+        seriesBigIdea:
+          type: string
+          description: Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.
+        seriesSummary:
+          type: string
+          description: Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.
         occasion:
           type: string
         audience:

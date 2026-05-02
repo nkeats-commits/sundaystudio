@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, churchProfilesTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
+import { db, churchProfilesTable, sermonSeriesTable } from "@workspace/db";
 import {
   GenerateSermonStudyBody,
   GenerateSermonStudyResponse,
@@ -39,6 +39,42 @@ async function getChurchContext(userId: string): Promise<ChurchContext | null> {
   };
 }
 
+/**
+ * Hydrate `seriesBigIdea` / `seriesSummary` / `series` (title) on the SermonContext
+ * from the parent sermon series row. We trust only the seriesId from the client
+ * and look up the rest server-side, scoped to the user, so a client can't spoof
+ * series context for another tenant.
+ */
+async function hydrateSeriesContext<
+  T extends {
+    seriesId?: number | null;
+    series?: string;
+    seriesBigIdea?: string;
+    seriesSummary?: string;
+  },
+>(userId: string, ctx: T): Promise<T> {
+  // Always wipe any client-supplied hydrated fields — they are server-owned.
+  ctx.seriesBigIdea = "";
+  ctx.seriesSummary = "";
+  if (ctx.seriesId === null || ctx.seriesId === undefined) return ctx;
+  if (!Number.isInteger(ctx.seriesId)) return ctx;
+  const [row] = await db
+    .select()
+    .from(sermonSeriesTable)
+    .where(
+      and(
+        eq(sermonSeriesTable.id, ctx.seriesId),
+        eq(sermonSeriesTable.userId, userId),
+      ),
+    )
+    .limit(1);
+  if (!row) return ctx;
+  if (!ctx.series) ctx.series = row.title;
+  if (row.bigIdea) ctx.seriesBigIdea = row.bigIdea;
+  if (row.summary) ctx.seriesSummary = row.summary;
+  return ctx;
+}
+
 const SERMON_GROUND_RULES = `
 Hard rules for sermon content:
 - Be biblically grounded; honor the church's denominational context if provided.
@@ -58,6 +94,8 @@ interface SermonContext {
   secondaryPassages?: string[];
   theme?: string;
   series?: string;
+  seriesBigIdea?: string;
+  seriesSummary?: string;
   occasion?: string;
   audience?: string;
   length?: string;
@@ -78,6 +116,12 @@ function sermonContextBlurb(s: SermonContext): string {
   }
   if (s.theme) lines.push(`Theme: ${s.theme}`);
   if (s.series) lines.push(`Series: ${s.series}`);
+  if (s.seriesSummary) lines.push(`Series summary: ${s.seriesSummary}`);
+  if (s.seriesBigIdea) {
+    lines.push(
+      `Series BIG IDEA (anchor every section to this overarching truth — the sermon should advance the series arc, not duplicate previous weeks): ${s.seriesBigIdea}`,
+    );
+  }
   if (s.occasion) lines.push(`Occasion: ${s.occasion}`);
   if (s.audience) lines.push(`Audience: ${s.audience}`);
   if (s.length) lines.push(`Target spoken length: ${s.length}`);
@@ -126,6 +170,7 @@ router.post("/generate/sermon-study", requireAuth, async (req, res) => {
     refineInstruction?: string;
     existingContent?: unknown;
   };
+  await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Produce a passage study for this sermon as JSON.
 
@@ -164,6 +209,7 @@ router.post("/generate/sermon-big-idea", requireAuth, async (req, res) => {
     study?: unknown;
     refineInstruction?: string;
   };
+  await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Propose 3-5 candidate "big idea" statements for this sermon as JSON.
 
@@ -205,6 +251,7 @@ router.post("/generate/sermon-outline", requireAuth, async (req, res) => {
     refineInstruction?: string;
     existingContent?: unknown;
   };
+  await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Propose 3-5 distinct sermon outline options as JSON.
 
@@ -255,6 +302,7 @@ router.post("/generate/sermon-manuscript", requireAuth, async (req, res) => {
     refineInstruction?: string;
     existingContent?: unknown;
   };
+  await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const format = d.outputFormat === "notes" || d.outputFormat === "outline" ? d.outputFormat : "manuscript";
   const audience =
@@ -307,6 +355,7 @@ router.post("/generate/sermon-applications", requireAuth, async (req, res) => {
     bigIdea?: string;
     refineInstruction?: string;
   };
+  await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Generate concrete sermon application ideas tailored to many congregational segments, returned as JSON.
 
@@ -349,6 +398,7 @@ router.post("/generate/sermon-illustrations", requireAuth, async (req, res) => {
     outline?: unknown;
     refineInstruction?: string;
   };
+  await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Suggest 3-6 candidate sermon illustrations as JSON.
 
@@ -396,6 +446,7 @@ router.post("/generate/sermon-to-service", requireAuth, async (req, res) => {
     applications?: unknown;
     refineInstruction?: string;
   };
+  await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `From this sermon, generate worship-integration ideas that connect the sermon to a Sunday service, as JSON.
 

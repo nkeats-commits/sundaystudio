@@ -18,6 +18,12 @@ export interface SermonContextBlurb {
   secondaryPassages?: string[];
   theme?: string;
   series?: string;
+  /** Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context. */
+  seriesId?: number | null;
+  /** Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank. */
+  seriesBigIdea?: string;
+  /** Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank. */
+  seriesSummary?: string;
   occasion?: string;
   audience?: string;
   length?: string;

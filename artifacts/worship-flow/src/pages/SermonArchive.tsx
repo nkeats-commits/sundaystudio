@@ -7,7 +7,7 @@ import {
   useDuplicateSermon,
 } from '@workspace/api-client-react';
 import { toast } from 'sonner';
-import { Plus, Search, ScrollText, Copy, Trash2, ExternalLink, Calendar } from 'lucide-react';
+import { Plus, Search, ScrollText, Copy, Trash2, ExternalLink, Calendar, Layers } from 'lucide-react';
 
 function fmtDate(d: string | null | undefined): string {
   if (!d) return '—';
@@ -65,9 +65,18 @@ export default function SermonArchive() {
             <h1 className="text-3xl font-serif text-[var(--worship-navy)]">Sermon Archive</h1>
             <p className="text-sm mt-1 text-[var(--worship-slate)] max-w-xl">Every sermon you've drafted in the Builder lives here. Search, duplicate to start a follow-up, or jump back in.</p>
           </div>
-          <Link href="/sermons/new" className="worship-btn-gold px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 self-start md:self-auto">
-            <Plus className="w-4 h-4" /> New sermon
-          </Link>
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <Link
+              href="/sermons/series"
+              className="px-4 py-2.5 rounded-lg text-sm font-medium border bg-white text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] flex items-center gap-2"
+              style={{ borderColor: 'var(--worship-border)' }}
+            >
+              <Layers className="w-4 h-4" /> Series
+            </Link>
+            <Link href="/sermons/new" className="worship-btn-gold px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2">
+              <Plus className="w-4 h-4" /> New sermon
+            </Link>
+          </div>
         </div>
 
         <div className="worship-card !p-3 mb-6 flex items-center gap-3">

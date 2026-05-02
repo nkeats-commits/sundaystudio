@@ -13,6 +13,7 @@ import {
   ScrollText,
   Library as LibraryIcon,
   Archive,
+  Layers,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
@@ -24,6 +25,7 @@ export function Sidebar() {
   const sermonItems = [
     { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
     { icon: Archive, label: 'Sermon Archive', href: '/sermons' },
+    { icon: Layers, label: 'Series', href: '/sermons/series' },
     { icon: LibraryIcon, label: 'Resource Library', href: '/resources' },
   ];
 
@@ -82,8 +84,12 @@ export function Sidebar() {
         {sermonItems.map((item, i) => {
           const active =
             location === item.href ||
-            (item.href === '/sermons' && location.startsWith('/sermons/') && location !== '/sermons/new') ||
-            (item.href === '/sermons/new' && location === '/sermons/new');
+            (item.href === '/sermons' &&
+              location.startsWith('/sermons/') &&
+              location !== '/sermons/new' &&
+              !location.startsWith('/sermons/series')) ||
+            (item.href === '/sermons/new' && location === '/sermons/new') ||
+            (item.href === '/sermons/series' && location.startsWith('/sermons/series'));
           return (
             <Link
               key={`s-${i}`}

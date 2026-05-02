@@ -1,5 +1,25 @@
 import { pgTable, text, serial, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 
+export const sermonSeriesTable = pgTable("sermon_series", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull().default(""),
+  bigIdea: text("big_idea").notNull().default(""),
+  startDate: timestamp("start_date", { withTimezone: true }),
+  endDate: timestamp("end_date", { withTimezone: true }),
+  plannedSermonCount: integer("planned_sermon_count"),
+  status: text("status").notNull().default("planning"),
+  tags: text("tags").array().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export type SermonSeries = typeof sermonSeriesTable.$inferSelect;
+
 export type SermonStudyOutput = {
   context?: string | null;
   observation?: string | null;
@@ -95,6 +115,8 @@ export const sermonsTable = pgTable("sermons", {
   secondaryPassages: jsonb("secondary_passages").$type<string[]>().notNull().default([]),
   theme: text("theme").notNull().default(""),
   series: text("series").notNull().default(""),
+  seriesId: integer("series_id"),
+  seriesOrder: integer("series_order"),
   occasion: text("occasion").notNull().default(""),
   audience: text("audience").notNull().default(""),
   length: text("length").notNull().default(""),
