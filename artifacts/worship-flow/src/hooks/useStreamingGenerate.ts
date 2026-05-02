@@ -136,13 +136,17 @@ export function useStreamingGenerate<TData>(
         // Attach a fresh Clerk session JWT.  We refetch on every request so
         // the server always sees a non-expired token even after Clerk has
         // rotated the session client-side.
+        dbg("getToken: start");
         try {
           const token = await getTokenRef.current();
+          dbg("getToken: done", token ? "(token)" : "(no token)");
           if (token) headers.Authorization = `Bearer ${token}`;
-        } catch {
+        } catch (tokenErr) {
+          dbg("getToken: threw", tokenErr);
           /* ignore — fall back to cookie-based auth */
         }
 
+        dbg("fetch: start");
         const res = await fetch(path, {
           method: "POST",
           headers,
