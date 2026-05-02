@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Save, Download, RotateCcw, Copy, Loader2, Plus, X, LayoutTemplate, Music, BookOpen, Mic, Wheat, Gift, DoorOpen, Sparkles, ChevronsRight, Bookmark, Trash2, AlertCircle } from 'lucide-react';
 import { useCreateServicePlan, type GeneratedServicePlan } from '@workspace/api-client-react';
@@ -22,6 +22,7 @@ export default function ServiceBuilder() {
   const [, setLocation] = useLocation();
   const generate = useStreamingGenerate<GeneratedServicePlan>('/api/generate/service-plan');
   const createPlan = useCreateServicePlan();
+  const lastSubmittedRef = useRef<typeof formData | null>(null);
 
   const elements = ["Call to Worship", "Opening Song", "Greeting", "Worship Set", "Prayer of Confession", "Assurance of Pardon", "Sermon", "Communion", "Closing Song", "Benediction"];
   const [selectedElements, setSelectedElements] = useState(["Call to Worship", "Opening Song", "Worship Set", "Sermon", "Closing Song", "Benediction"]);
@@ -34,8 +35,10 @@ export default function ServiceBuilder() {
     }
   };
 
-  const runGeneration = () => {
-    generate.mutate(formData).catch((err: Error) => {
+  const runGeneration = (body?: typeof formData) => {
+    const payload = body ?? lastSubmittedRef.current ?? formData;
+    lastSubmittedRef.current = payload;
+    generate.mutate(payload).catch((err: Error) => {
       toast.error(err.message || "Generation failed. Please try again.");
     });
   };
@@ -46,7 +49,7 @@ export default function ServiceBuilder() {
       toast.error("Please provide a theme or thematic focus.");
       return;
     }
-    runGeneration();
+    runGeneration({ ...formData });
   };
 
   const handleSave = () => {
@@ -243,7 +246,7 @@ export default function ServiceBuilder() {
               <h3 className="text-xl mb-2 font-serif text-[var(--worship-navy)]">Generation failed</h3>
               <p className="text-sm text-[var(--worship-slate)] max-w-sm mb-5">{generate.error.message}</p>
               <button
-                onClick={runGeneration}
+                onClick={() => runGeneration()}
                 className="px-5 py-2.5 rounded-lg font-medium text-sm worship-btn-primary text-white"
               >
                 Try again

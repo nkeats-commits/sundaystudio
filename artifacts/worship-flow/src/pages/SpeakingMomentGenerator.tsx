@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Save, Loader2, Mic, Copy, AlertCircle } from 'lucide-react';
 import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedSpeakingMoment } from '@workspace/api-client-react';
@@ -18,16 +18,19 @@ export default function SpeakingMomentGenerator() {
   const generate = useStreamingGenerate<GeneratedSpeakingMoment>('/api/generate/speaking-moment');
   const createLibraryItem = useCreateLibraryItem();
   const queryClient = useQueryClient();
+  const lastSubmittedRef = useRef<typeof formData | null>(null);
 
-  const runGeneration = () => {
-    generate.mutate(formData).catch((err: Error) => {
+  const runGeneration = (body?: typeof formData) => {
+    const payload = body ?? lastSubmittedRef.current ?? formData;
+    lastSubmittedRef.current = payload;
+    generate.mutate(payload).catch((err: Error) => {
       toast.error(err.message || "Generation failed. Please try again.");
     });
   };
 
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
-    runGeneration();
+    runGeneration({ ...formData });
   };
 
   const handleSave = () => {
@@ -172,7 +175,7 @@ export default function SpeakingMomentGenerator() {
               <h3 className="font-serif text-xl text-[var(--worship-navy)] mb-2">Generation failed</h3>
               <p className="text-[var(--worship-slate)] max-w-sm text-sm mb-5">{generate.error.message}</p>
               <button
-                onClick={runGeneration}
+                onClick={() => runGeneration()}
                 className="px-5 py-2.5 rounded-lg font-medium text-sm worship-btn-primary text-white"
               >
                 Try again
