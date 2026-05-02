@@ -17,10 +17,14 @@ import { useAuth } from "@clerk/react";
 
 const PARTIAL_TEXT_DISPLAY_CAP = 4000;
 const POLL_INTERVAL_MS = 1500;
-/** Time between polls treated as a soft elapsed-time tick for the UI. */
 const POLL_BASE_PATH = "/api/generate/jobs";
-/** How many consecutive `unknown` responses to tolerate before failing. */
-const UNKNOWN_RETRY_LIMIT = 4;
+/**
+ * How long we tolerate consecutive `unknown` poll responses before giving
+ * up. Autoscale runs multiple workers and routing is not sticky, so polls
+ * can repeatedly land on a worker that doesn't own the job. We give the
+ * routing plenty of time to land on the right worker before failing.
+ */
+const UNKNOWN_TOLERANCE_MS = 45_000;
 
 interface JobSnapshotResponse {
   status: "pending" | "done" | "error" | "unknown";
@@ -107,6 +111,37 @@ export function useJobGenerate<TData>(
   const abortRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
   const mountedRef = useRef(true);
+  /** Most-recent active jobId, used for fire-and-forget cancel on abort. */
+  const activeJobIdRef = useRef<string | null>(null);
+
+  /**
+   * Best-effort cancel of a server-side job. Fire-and-forget: we use
+   * `keepalive` so the request still goes out if the page is being torn
+   * down. Failures are silently ignored — the server's idle sweeper will
+   * clean up eventually.
+   */
+  const cancelJob = useCallback(async (jobId: string): Promise<void> => {
+    try {
+      const headers = await (async (): Promise<Record<string, string>> => {
+        const h: Record<string, string> = { Accept: "application/json" };
+        try {
+          const token = await getTokenRef.current();
+          if (token) h.Authorization = `Bearer ${token}`;
+        } catch {
+          /* fall through */
+        }
+        return h;
+      })();
+      await fetch(`${POLL_BASE_PATH}/${jobId}`, {
+        method: "DELETE",
+        headers,
+        credentials: "include",
+        keepalive: true,
+      });
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -114,19 +149,29 @@ export function useJobGenerate<TData>(
       mountedRef.current = false;
       abortRef.current?.abort();
       abortRef.current = null;
+      const id = activeJobIdRef.current;
+      if (id) {
+        activeJobIdRef.current = null;
+        void cancelJob(id);
+      }
     };
-  }, []);
+  }, [cancelJob]);
 
   const reset = useCallback(() => {
     requestIdRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
+    const id = activeJobIdRef.current;
+    if (id) {
+      activeJobIdRef.current = null;
+      void cancelJob(id);
+    }
     if (!mountedRef.current) return;
     setData(null);
     setError(null);
     setIsPending(false);
     setPartialText("");
-  }, []);
+  }, [cancelJob]);
 
   const buildAuthHeaders = useCallback(async (): Promise<
     Record<string, string>
@@ -161,6 +206,13 @@ export function useJobGenerate<TData>(
         setIsPending(true);
       }
 
+      // Cancel any prior in-flight job server-side before starting a new one.
+      const previousJobId = activeJobIdRef.current;
+      if (previousJobId) {
+        activeJobIdRef.current = null;
+        void cancelJob(previousJobId);
+      }
+
       try {
         // 1. Start the job.
         const startHeaders = await buildAuthHeaders();
@@ -187,10 +239,11 @@ export function useJobGenerate<TData>(
         const jobId =
           typeof startJson.jobId === "string" ? startJson.jobId : null;
         if (!jobId) throw new Error("Server did not return a jobId.");
+        if (isCurrent()) activeJobIdRef.current = jobId;
 
         // 2. Poll until done / error / aborted.
         let lastPartial = "";
-        let unknownCount = 0;
+        let firstUnknownAt: number | null = null;
         // First poll happens immediately (so if Anthropic was very fast we
         // don't make the user wait the full interval).
         let firstPoll = true;
@@ -220,15 +273,18 @@ export function useJobGenerate<TData>(
           const snap = (await pollRes.json()) as JobSnapshotResponse;
 
           if (snap.status === "unknown") {
-            unknownCount += 1;
-            if (unknownCount > UNKNOWN_RETRY_LIMIT) {
+            // Autoscale may route this poll to a worker that doesn't own
+            // the job; tolerate sustained unknowns up to a time budget
+            // before giving up.
+            if (firstUnknownAt === null) firstUnknownAt = Date.now();
+            else if (Date.now() - firstUnknownAt > UNKNOWN_TOLERANCE_MS) {
               throw new Error(
                 "Lost track of this generation. Please try again.",
               );
             }
             continue;
           }
-          unknownCount = 0;
+          firstUnknownAt = null;
 
           if (typeof snap.partialTail === "string") {
             const next = snap.partialTail.slice(-PARTIAL_TEXT_DISPLAY_CAP);
@@ -244,12 +300,14 @@ export function useJobGenerate<TData>(
               throw new Error("Generation finished without producing a result.");
             }
             if (isCurrent()) {
+              activeJobIdRef.current = null;
               setData(result);
               setIsPending(false);
             }
             return result;
           }
           if (snap.status === "error") {
+            if (isCurrent()) activeJobIdRef.current = null;
             throw new Error(snap.errorMessage || "Generation failed.");
           }
           // status === "pending" → continue polling.

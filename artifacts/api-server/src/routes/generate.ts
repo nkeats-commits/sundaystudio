@@ -339,12 +339,24 @@ Aim for content that fits in the ${minutes}-minute window when read aloud.`;
 // for the requested job, or `{ status: "unknown" }` when the job is not on
 // this instance (autoscale may run multiple workers).
 router.get("/generate/jobs/:jobId", requireAuth, (req, res) => {
-  const snap = jobManager.get(req.params.jobId, req.userId!);
+  const jobId = String(req.params.jobId ?? "");
+  const snap = jobManager.get(jobId, req.userId!);
   if (!snap) {
     res.json({ status: "unknown" });
     return;
   }
   res.json(snap);
+});
+
+// Cancel a running job. Used by the client when the user navigates away,
+// resets the form, or kicks off a replacement generation. The endpoint is
+// idempotent and safe to call repeatedly. We answer 204 in all cases so the
+// client doesn't need to special-case "job already gone" or cross-instance
+// misses (autoscale: the cancel may land on a different worker).
+router.delete("/generate/jobs/:jobId", requireAuth, (req, res) => {
+  const jobId = String(req.params.jobId ?? "");
+  jobManager.cancel(jobId, req.userId!);
+  res.status(204).end();
 });
 
 export default router;

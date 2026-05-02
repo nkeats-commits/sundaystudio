@@ -203,6 +203,26 @@ class JobManager {
   }
 
   /**
+   * Cancel a running job and evict it. No-op if the job doesn't exist on
+   * this instance or isn't owned by `userId`. Returns `true` when a job
+   * was found and cancelled.
+   */
+  cancel(jobId: string, userId: string): boolean {
+    const job = this.jobs.get(jobId);
+    if (!job) return false;
+    if (job.userId !== userId) return false;
+    if (job.status === "pending") {
+      try {
+        job.abort();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.jobs.delete(jobId);
+    return true;
+  }
+
+  /**
    * Returns a snapshot of the job, or `null` if no such job exists on this
    * instance OR the requesting user does not own it. Successful lookups
    * refresh the abandon-detection clock.
