@@ -142,11 +142,16 @@ router.post("/generate/songs", requireAuth, async (req, res) => {
   // Skip the repertoire load entirely when the caller opted out.
   const repertoire =
     requestedMode === "off" ? [] : await loadRepertoireSongs(req.userId!);
-  // Auto-fall-back to "off" when there is nothing to bias toward, so we don't
-  // confuse the model with an empty Prefer block or ask Strict for an
-  // impossible answer.
+  // Strict must stay strict even when the repertoire is empty — the
+  // post-validation transform will filter to zero songs and emit the
+  // "no matches in your repertoire" notice, which is the contract a direct
+  // API caller expects. Prefer with an empty repertoire degrades to "off"
+  // so we don't confuse the model with an empty Prefer block; the transform
+  // still emits an informative notice.
   const effectiveMode: RepertoireMode =
-    repertoire.length === 0 ? "off" : requestedMode;
+    requestedMode === "prefer" && repertoire.length === 0
+      ? "off"
+      : requestedMode;
   const titleSet = repertoireTitleSet(repertoire);
   const repBlock = repertoirePromptBlock(repertoire, effectiveMode);
   // In Strict mode we cap the requested count at the repertoire size — there
