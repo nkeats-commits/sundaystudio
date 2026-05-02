@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/react";
 
 export interface StreamingGenerateState<TData> {
   data: TData | null;
@@ -16,6 +17,21 @@ export interface StreamingGenerateState<TData> {
 }
 
 /**
+ * Module-level callback invoked when the streaming endpoint returns 401.
+ * Mirrors `setOnUnauthorized` in `@workspace/api-client-react`, kept local so
+ * the hook stays self-contained and doesn't need to import the API client
+ * package just for one symbol.
+ */
+type UnauthorizedHandler = () => void;
+let _onUnauthorized: UnauthorizedHandler | null = null;
+
+export function setStreamingOnUnauthorized(
+  handler: UnauthorizedHandler | null,
+): void {
+  _onUnauthorized = handler;
+}
+
+/**
  * Hook for endpoints that stream a generated JSON document over
  * Server-Sent Events using this protocol:
  *   event: delta  -> { text }   token chunks
@@ -30,10 +46,21 @@ export interface StreamingGenerateState<TData> {
  * State writes are gated by a per-request id so that an aborted or stale
  * request can never overwrite the state of a newer in-flight request.
  * The active request is also aborted on component unmount.
+ *
+ * Authentication: every request fetches a fresh Clerk session JWT via
+ * `useAuth().getToken()` and attaches it as `Authorization: Bearer <token>`.
+ * The browser session cookie is also sent (`credentials: "include"`) as a
+ * fallback for environments where header-based auth is not yet active.
  */
 export function useStreamingGenerate<TData>(
   path: string,
 ): StreamingGenerateState<TData> {
+  const { getToken } = useAuth();
+  const getTokenRef = useRef(getToken);
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
+
   const [data, setData] = useState<TData | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -79,18 +106,37 @@ export function useStreamingGenerate<TData>(
       }
 
       try {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        };
+
+        // Attach a fresh Clerk session JWT.  We refetch on every request so
+        // the server always sees a non-expired token even after Clerk has
+        // rotated the session client-side.
+        try {
+          const token = await getTokenRef.current();
+          if (token) headers.Authorization = `Bearer ${token}`;
+        } catch {
+          /* ignore — fall back to cookie-based auth */
+        }
+
         const res = await fetch(path, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "text/event-stream",
-          },
+          headers,
           body: JSON.stringify(body),
           credentials: "include",
           signal: ac.signal,
         });
 
         if (!res.ok) {
+          if (res.status === 401 && _onUnauthorized) {
+            try {
+              _onUnauthorized();
+            } catch {
+              /* swallow handler errors */
+            }
+          }
           let message = `Request failed (${res.status})`;
           try {
             const ct = res.headers.get("content-type") ?? "";

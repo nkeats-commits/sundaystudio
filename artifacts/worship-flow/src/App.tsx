@@ -1,10 +1,15 @@
 import { Component, useEffect, type ReactNode } from 'react';
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useAuth, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
+import {
+  setAuthTokenGetter,
+  setOnUnauthorized,
+} from "@workspace/api-client-react";
+import { setStreamingOnUnauthorized } from "./hooks/useStreamingGenerate";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import ServiceBuilder from "./pages/ServiceBuilder";
@@ -148,6 +153,72 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+/**
+ * Bridges Clerk auth into the API client and the streaming hook:
+ *   1. Every API request gets a freshly-minted Clerk session JWT in
+ *      `Authorization: Bearer <token>`, so the server doesn't depend on
+ *      the browser's session cookie staying in sync with Clerk's
+ *      client-side session refreshes.
+ *   2. On any 401 response, sign the user out, surface a toast, and send
+ *      them to the sign-in page — but at most once per session, so a
+ *      burst of failing requests doesn't fire the same handler N times.
+ */
+function ClerkAuthBootstrap() {
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { signOut } = useClerk();
+  const [, setLocation] = useLocation();
+  const handlingUnauthorizedRef = useRef(false);
+
+  // Reset the once-per-session guard whenever the user signs back in.
+  useEffect(() => {
+    if (isSignedIn) {
+      handlingUnauthorizedRef.current = false;
+    }
+  }, [isSignedIn]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    // Always (re-)install the token getter once Clerk has loaded.  We
+    // intentionally re-key on `isSignedIn` so that signing back in after a
+    // forced sign-out re-installs a fresh getter, even if Clerk's
+    // `getToken` reference is stable across the auth transition.
+    setAuthTokenGetter(async () => {
+      try {
+        return await getToken();
+      } catch {
+        return null;
+      }
+    });
+
+    const handleUnauthorized = () => {
+      if (handlingUnauthorizedRef.current) return;
+      handlingUnauthorizedRef.current = true;
+      // Note: do NOT clear the auth token getter here.  After the user
+      // signs back in, the same getter will start returning a fresh JWT
+      // again — clearing it would silently disable Bearer auth for the
+      // rest of the page lifetime.
+      toast.error("Your session expired — please sign in again.");
+      // Fire-and-forget: sign out then redirect.  Either step succeeding is
+      // enough to get the user back to a clean state.
+      void signOut().finally(() => {
+        setLocation("/sign-in");
+      });
+    };
+
+    setOnUnauthorized(handleUnauthorized);
+    setStreamingOnUnauthorized(handleUnauthorized);
+
+    return () => {
+      setAuthTokenGetter(null);
+      setOnUnauthorized(null);
+      setStreamingOnUnauthorized(null);
+    };
+  }, [isLoaded, isSignedIn, getToken, signOut, setLocation]);
+
+  return null;
+}
+
 function HomeRedirect() {
   return (
     <>
@@ -211,6 +282,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
+        <ClerkAuthBootstrap />
         <Switch>
           <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />

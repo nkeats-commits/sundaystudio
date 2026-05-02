@@ -8,6 +8,12 @@ export type BodyType<T> = T;
 
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
+export type UnauthorizedHandler = (info: {
+  method: string;
+  url: string;
+  response: Response;
+}) => void;
+
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
@@ -17,6 +23,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _onUnauthorized: UnauthorizedHandler | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -34,14 +41,30 @@ export function setBaseUrl(url: string | null): void {
  * the getter is invoked; when it returns a non-null string, an
  * `Authorization: Bearer <token>` header is attached to the request.
  *
- * Useful for Expo bundles making token-gated API calls.
- * Pass `null` to clear the getter.
+ * Useful for Expo bundles making token-gated API calls, and for web apps
+ * that use a token-based auth provider (e.g. Clerk) where short-lived
+ * session JWTs need to be refreshed in-band rather than relying solely on
+ * cookies.
  *
- * NOTE: This function should never be used in web applications where session
- * token cookies are automatically associated with API calls by the browser.
+ * Pass `null` to clear the getter.
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+/**
+ * Register a callback that fires when the API responds with HTTP 401
+ * Unauthorized.  Useful for centrally handling expired sessions: the host
+ * application can sign the user out, surface a toast, and redirect to the
+ * sign-in page.
+ *
+ * The callback fires before the failing request rejects, so callers still
+ * receive the {@link ApiError} as normal.
+ *
+ * Pass `null` to clear the handler.
+ */
+export function setOnUnauthorized(handler: UnauthorizedHandler | null): void {
+  _onUnauthorized = handler;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -363,6 +386,13 @@ export async function customFetch<T = unknown>(
   const response = await fetch(input, { ...init, method, headers });
 
   if (!response.ok) {
+    if (response.status === 401 && _onUnauthorized) {
+      try {
+        _onUnauthorized({ method, url: requestInfo.url, response });
+      } catch {
+        /* swallow handler errors so they don't mask the original 401 */
+      }
+    }
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }
