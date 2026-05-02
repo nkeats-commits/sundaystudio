@@ -1,17 +1,18 @@
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 
 const MODEL = "claude-sonnet-4-6";
-const MAX_TOKENS = 8192;
+const DEFAULT_MAX_TOKENS = 4096;
 
 const SYSTEM = [
   "You are WorshipFlow, an AI assistant for Christian worship pastors.",
   "Your tone is warm, theologically grounded, and pastoral.",
   "You produce content suitable for Sunday worship: liturgy, prayers, songs, devotionals, and speaking moments.",
   "You always respect the church's denominational context when provided.",
+  "You write concisely without padding or repetition; finish within the requested length.",
   "When asked to return JSON, you return ONLY valid JSON — no markdown fences, no commentary, no preamble.",
 ].join(" ");
 
-function extractJson(text: string): string {
+export function extractJson(text: string): string {
   const trimmed = text.trim();
   const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenceMatch) return fenceMatch[1].trim();
@@ -25,10 +26,26 @@ function extractJson(text: string): string {
   return trimmed;
 }
 
-export async function generateJson<T>(prompt: string): Promise<T> {
+export interface StreamOptions {
+  maxTokens?: number;
+}
+
+export function streamMessage(prompt: string, opts: StreamOptions = {}) {
+  return anthropic.messages.stream({
+    model: MODEL,
+    max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
+    system: SYSTEM,
+    messages: [{ role: "user", content: prompt }],
+  });
+}
+
+export async function generateJson<T>(
+  prompt: string,
+  opts: StreamOptions = {},
+): Promise<T> {
   const message = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: MAX_TOKENS,
+    max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
     system: SYSTEM,
     messages: [{ role: "user", content: prompt }],
   });

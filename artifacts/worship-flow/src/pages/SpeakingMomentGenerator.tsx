@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Save, Loader2, Mic, Copy } from 'lucide-react';
-import { useGenerateSpeakingMoment, useCreateLibraryItem, getListLibraryItemsQueryKey } from '@workspace/api-client-react';
+import { Save, Loader2, Mic, Copy, AlertCircle } from 'lucide-react';
+import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedSpeakingMoment } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
 
 export default function SpeakingMomentGenerator() {
   const [formData, setFormData] = useState({
@@ -14,13 +15,19 @@ export default function SpeakingMomentGenerator() {
     tone: 'warm, pastoral, inviting'
   });
   
-  const generate = useGenerateSpeakingMoment();
+  const generate = useStreamingGenerate<GeneratedSpeakingMoment>('/api/generate/speaking-moment');
   const createLibraryItem = useCreateLibraryItem();
   const queryClient = useQueryClient();
 
+  const runGeneration = () => {
+    generate.mutate(formData).catch((err: Error) => {
+      toast.error(err.message || "Generation failed. Please try again.");
+    });
+  };
+
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
-    generate.mutate({ data: formData });
+    runGeneration();
   };
 
   const handleSave = () => {
@@ -132,7 +139,7 @@ export default function SpeakingMomentGenerator() {
 
         {/* OUTPUT */}
         <div className="w-full md:w-2/3 bg-white rounded-2xl border border-[var(--worship-border)] shadow-sm relative min-h-[400px]">
-          {!generate.data && !generate.isPending && (
+          {!generate.data && !generate.isPending && !generate.error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-[var(--worship-cream)] rounded-2xl">
                <Mic className="w-12 h-12 text-[var(--worship-gold)] opacity-50 mb-4" />
                <h3 className="font-serif text-xl text-[var(--worship-navy)] mb-2">Awaiting context</h3>
@@ -144,6 +151,25 @@ export default function SpeakingMomentGenerator() {
             <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-[var(--worship-cream)]/80 backdrop-blur-sm rounded-2xl z-10">
                <Loader2 className="w-10 h-10 animate-spin text-[var(--worship-gold)] mb-4" />
                <h3 className="font-serif text-xl text-[var(--worship-navy)]">Drafting moment...</h3>
+               {generate.partialText.length > 0 && (
+                 <p className="text-xs text-[var(--worship-slate)] mt-3">
+                   {generate.partialText.length} characters received
+                 </p>
+               )}
+            </div>
+          )}
+
+          {generate.error && !generate.isPending && !generate.data && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-[var(--worship-cream)] rounded-2xl">
+              <AlertCircle className="w-12 h-12 text-red-500 opacity-80 mb-4" />
+              <h3 className="font-serif text-xl text-[var(--worship-navy)] mb-2">Generation failed</h3>
+              <p className="text-[var(--worship-slate)] max-w-sm text-sm mb-5">{generate.error.message}</p>
+              <button
+                onClick={runGeneration}
+                className="px-5 py-2.5 rounded-lg font-medium text-sm worship-btn-primary text-white"
+              >
+                Try again
+              </button>
             </div>
           )}
 

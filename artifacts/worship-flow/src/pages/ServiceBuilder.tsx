@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Save, Download, RotateCcw, Copy, Loader2, Plus, X, LayoutTemplate, Music, BookOpen, Mic, Wheat, Gift, DoorOpen, Sparkles, ChevronsRight, Bookmark, Trash2 } from 'lucide-react';
-import { useGenerateServicePlan, useCreateServicePlan } from '@workspace/api-client-react';
+import { Save, Download, RotateCcw, Copy, Loader2, Plus, X, LayoutTemplate, Music, BookOpen, Mic, Wheat, Gift, DoorOpen, Sparkles, ChevronsRight, Bookmark, Trash2, AlertCircle } from 'lucide-react';
+import { useCreateServicePlan, type GeneratedServicePlan } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
+import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
 
 export default function ServiceBuilder() {
   const searchParams = new URLSearchParams(window.location.search);
@@ -18,9 +19,8 @@ export default function ServiceBuilder() {
     serviceDate: new Date().toISOString().split('T')[0]
   });
 
-  const [isGenerating, setIsGenerating] = useState(false);
   const [, setLocation] = useLocation();
-  const generate = useGenerateServicePlan();
+  const generate = useStreamingGenerate<GeneratedServicePlan>('/api/generate/service-plan');
   const createPlan = useCreateServicePlan();
 
   const elements = ["Call to Worship", "Opening Song", "Greeting", "Worship Set", "Prayer of Confession", "Assurance of Pardon", "Sermon", "Communion", "Closing Song", "Benediction"];
@@ -34,19 +34,19 @@ export default function ServiceBuilder() {
     }
   };
 
-  const handleGenerate = async (e?: React.FormEvent) => {
+  const runGeneration = () => {
+    generate.mutate(formData).catch((err: Error) => {
+      toast.error(err.message || "Generation failed. Please try again.");
+    });
+  };
+
+  const handleGenerate = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!formData.theme) {
       toast.error("Please provide a theme or thematic focus.");
       return;
     }
-    
-    setIsGenerating(true);
-    try {
-      await generate.mutateAsync({ data: formData });
-    } finally {
-      setIsGenerating(false);
-    }
+    runGeneration();
   };
 
   const handleSave = () => {
@@ -192,10 +192,10 @@ export default function ServiceBuilder() {
           <div className="p-6 border-t bg-[var(--worship-cream)] shrink-0" style={{ borderColor: 'var(--worship-border)' }}>
             <button 
               onClick={handleGenerate}
-              disabled={isGenerating || generate.isPending}
+              disabled={generate.isPending}
               className="w-full py-3.5 rounded-xl font-medium text-lg worship-btn-gold flex items-center justify-center gap-2 shadow-lg disabled:opacity-75"
             >
-              {isGenerating || generate.isPending ? (
+              {generate.isPending ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> Weaving your service...</>
               ) : (
                 "Generate Service Plan"
@@ -207,7 +207,7 @@ export default function ServiceBuilder() {
         {/* RIGHT PANEL: OUTPUT */}
         <div className="w-full lg:w-[60%] flex flex-col bg-white rounded-2xl shadow-sm border overflow-hidden relative min-h-[500px]" style={{ borderColor: 'var(--worship-border)' }}>
           
-          {!generate.data && !isGenerating && !generate.isPending && (
+          {!generate.data && !generate.isPending && !generate.error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[var(--worship-cream)]">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 opacity-50 bg-[var(--worship-sand)]">
                 <LayoutTemplate className="w-8 h-8 text-[var(--worship-navy)]" />
@@ -217,15 +217,34 @@ export default function ServiceBuilder() {
             </div>
           )}
 
-          {(isGenerating || generate.isPending) && (
+          {generate.isPending && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[var(--worship-cream)]/90 backdrop-blur-sm z-10">
               <Loader2 className="w-10 h-10 animate-spin mb-4 text-[var(--worship-gold)]" />
               <h3 className="text-xl mb-2 font-serif text-[var(--worship-navy)]">Weaving your service...</h3>
               <p className="text-sm text-[var(--worship-slate)]">Curating songs, writing liturgy, and forming the service arc.</p>
+              {generate.partialText.length > 0 && (
+                <p className="text-xs text-[var(--worship-slate)] mt-3 opacity-70">
+                  {generate.partialText.length} characters received
+                </p>
+              )}
             </div>
           )}
 
-          {generate.data && !isGenerating && !generate.isPending && (
+          {generate.error && !generate.isPending && !generate.data && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[var(--worship-cream)]">
+              <AlertCircle className="w-12 h-12 text-red-500 opacity-80 mb-4" />
+              <h3 className="text-xl mb-2 font-serif text-[var(--worship-navy)]">Generation failed</h3>
+              <p className="text-sm text-[var(--worship-slate)] max-w-sm mb-5">{generate.error.message}</p>
+              <button
+                onClick={runGeneration}
+                className="px-5 py-2.5 rounded-lg font-medium text-sm worship-btn-primary text-white"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {generate.data && !generate.isPending && (
             <>
               {/* Output Header Actions */}
               <div className="px-6 py-4 flex items-center justify-end gap-3 border-b bg-white z-10 sticky top-0" style={{ borderColor: 'var(--worship-border)' }}>

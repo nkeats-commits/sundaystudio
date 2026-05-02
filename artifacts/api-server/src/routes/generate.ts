@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
 import { db, churchProfilesTable } from "@workspace/db";
 import {
@@ -11,7 +11,8 @@ import {
 import { requireAuth } from "../middlewares/requireAuth";
 import {
   churchContextBlurb,
-  generateJson,
+  extractJson,
+  streamMessage,
   type ChurchContext,
 } from "../lib/anthropicJson";
 
@@ -31,6 +32,103 @@ async function getChurchContext(userId: string): Promise<ChurchContext | null> {
     musicStyle: row.musicStyle,
     traditions: row.traditions,
   };
+}
+
+function canWrite(res: Response): boolean {
+  return !res.writableEnded && !res.destroyed;
+}
+
+function writeSseEvent(res: Response, event: string, data: unknown): void {
+  if (!canWrite(res)) return;
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+/**
+ * Stream a generated JSON document over Server-Sent Events.
+ *
+ * Wire protocol:
+ *   - `event: delta`  -> { text: string }   incremental token text
+ *   - `event: done`   -> parsed JSON object (final result)
+ *   - `event: error`  -> { message: string }
+ *   - `: ping`        -> keepalive comment every 10s
+ *
+ * SSE keeps a steady byte stream flowing so the deployment proxy
+ * (autoscale, ~30s idle limit) does not abort long Anthropic responses.
+ */
+async function streamGenerate(
+  req: Request,
+  res: Response,
+  prompt: string,
+  maxTokens: number,
+  label: string,
+): Promise<void> {
+  res.status(200);
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  // Disable nginx-style proxy buffering so chunks flush immediately.
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+  if (canWrite(res)) res.write(": ready\n\n");
+
+  const ping = setInterval(() => {
+    if (canWrite(res)) res.write(": ping\n\n");
+  }, 10_000);
+
+  const stream = streamMessage(prompt, { maxTokens });
+
+  const onClientClose = () => {
+    if (!stream.ended && !stream.aborted) {
+      stream.abort();
+    }
+  };
+  req.on("close", onClientClose);
+
+  let fullText = "";
+
+  stream.on("text", (delta: string) => {
+    fullText += delta;
+    writeSseEvent(res, "delta", { text: delta });
+  });
+
+  const safeEnd = () => {
+    if (canWrite(res)) res.end();
+  };
+
+  try {
+    await stream.finalMessage();
+  } catch (err) {
+    clearInterval(ping);
+    req.off("close", onClientClose);
+    req.log.error({ err }, `${label} streaming failed`);
+    writeSseEvent(res, "error", {
+      message: "Generation failed. Please try again.",
+    });
+    safeEnd();
+    return;
+  }
+
+  clearInterval(ping);
+  req.off("close", onClientClose);
+
+  if (!canWrite(res)) return;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(extractJson(fullText));
+  } catch (err) {
+    req.log.error({ err, sample: fullText.slice(0, 500) }, `${label} JSON parse failed`);
+    writeSseEvent(res, "error", {
+      message:
+        "We received a response from the model but couldn't parse it as JSON. Please try again.",
+    });
+    safeEnd();
+    return;
+  }
+
+  writeSseEvent(res, "done", parsed);
+  safeEnd();
 }
 
 router.post("/generate/service-plan", requireAuth, async (req, res) => {
@@ -82,15 +180,10 @@ Return JSON matching exactly this shape (no extra fields, no missing required fi
 Guidelines:
 - Order should have 8-12 items in a thoughtful arc that fits the requested length.
 - Every order item must include id, kind, title, body. durationMinutes is optional.
-- Liturgical text should be theologically rich and singable/speakable aloud.`;
+- Liturgical text should be theologically rich and singable/speakable aloud.
+- Be concise. Each body field should be the minimum text needed; do not pad.`;
 
-  try {
-    const result = await generateJson<unknown>(prompt);
-    res.json(result);
-  } catch (err) {
-    req.log.error({ err }, "service plan generation failed");
-    res.status(502).json({ error: "Generation failed. Please try again." });
-  }
+  await streamGenerate(req, res, prompt, 6000, "service plan");
 });
 
 router.post("/generate/liturgy", requireAuth, async (req, res) => {
@@ -118,15 +211,11 @@ Return JSON exactly in this shape:
   "title": "string — a short evocative title",
   "body": "string — the liturgy itself, ready to be spoken aloud. Use line breaks for cadence. Include leader/people responses where appropriate using the format 'Leader: ...' and 'People: ...'.",
   "notes": "string — short pastoral notes for the worship leader"
-}`;
+}
 
-  try {
-    const result = await generateJson<unknown>(prompt);
-    res.json(result);
-  } catch (err) {
-    req.log.error({ err }, "liturgy generation failed");
-    res.status(502).json({ error: "Generation failed. Please try again." });
-  }
+Be concise: liturgy body should be the natural length for its kind, not padded.`;
+
+  await streamGenerate(req, res, prompt, 2000, "liturgy");
 });
 
 router.post("/generate/songs", requireAuth, async (req, res) => {
@@ -161,15 +250,10 @@ Return JSON exactly in this shape:
   ]
 }
 
-Only suggest real, published songs/hymns the pastor can actually find. Do not invent songs.`;
+Only suggest real, published songs/hymns the pastor can actually find. Do not invent songs.
+Keep "whyItFits" to 1-2 short sentences.`;
 
-  try {
-    const result = await generateJson<unknown>(prompt);
-    res.json(result);
-  } catch (err) {
-    req.log.error({ err }, "song generation failed");
-    res.status(502).json({ error: "Generation failed. Please try again." });
-  }
+  await streamGenerate(req, res, prompt, 3000, "songs");
 });
 
 router.post("/generate/speaking-moment", requireAuth, async (req, res) => {
@@ -198,15 +282,11 @@ Return JSON exactly in this shape:
   "title": "string",
   "body": "string — the words to be spoken aloud, paced for ~${seconds} seconds",
   "deliveryNotes": "string — short notes about pacing, tone, transitions"
-}`;
+}
 
-  try {
-    const result = await generateJson<unknown>(prompt);
-    res.json(result);
-  } catch (err) {
-    req.log.error({ err }, "speaking moment generation failed");
-    res.status(502).json({ error: "Generation failed. Please try again." });
-  }
+Match the requested duration. Don't exceed the spoken length budget.`;
+
+  await streamGenerate(req, res, prompt, 1500, "speaking moment");
 });
 
 router.post("/generate/devotional", requireAuth, async (req, res) => {
@@ -236,15 +316,11 @@ Return JSON exactly in this shape:
   "body": "string — 3-5 paragraphs leading the team into the passage. Use \\n\\n between paragraphs.",
   "discussionQuestions": ["string", "string", "string"],
   "closingPrayer": "string — a short prayer to close the devotional"
-}`;
+}
 
-  try {
-    const result = await generateJson<unknown>(prompt);
-    res.json(result);
-  } catch (err) {
-    req.log.error({ err }, "devotional generation failed");
-    res.status(502).json({ error: "Generation failed. Please try again." });
-  }
+Aim for content that fits in the ${minutes}-minute window when read aloud.`;
+
+  await streamGenerate(req, res, prompt, 3000, "devotional");
 });
 
 export default router;
