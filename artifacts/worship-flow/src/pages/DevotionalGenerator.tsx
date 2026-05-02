@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
 
 export default function DevotionalGenerator() {
+  console.log("[mount] DevotionalGenerator");
   const [formData, setFormData] = useState({
     theme: '',
     scripture: '',

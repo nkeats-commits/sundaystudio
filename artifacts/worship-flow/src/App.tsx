@@ -175,6 +175,8 @@ function RequireSignedIn({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedRoutes() {
+  const [loc] = useLocation();
+  console.log("[route] ProtectedRoutes location =", loc);
   return (
     <RequireSignedIn>
       <Switch>
