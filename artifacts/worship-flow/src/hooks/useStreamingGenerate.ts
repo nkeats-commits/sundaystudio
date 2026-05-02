@@ -1,5 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useAuth } from "@clerk/react";
+
+/**
+ * Display cap for the live "tokens streaming in" preview. The full streamed
+ * text can exceed 16KB for long sermon sections; rendering that whole string
+ * inside a parent component on every flush thrashes the renderer hard enough
+ * for Chrome to show "Page Unresponsive". We only ever surface a tail window
+ * to the UI — once the model finishes, the parsed `done` payload replaces it.
+ */
+const PARTIAL_TEXT_DISPLAY_CAP = 4000;
+/** Min delay between React state updates while streaming. */
+const PARTIAL_FLUSH_INTERVAL_MS = 500;
 
 export interface StreamingGenerateState<TData> {
   data: TData | null;
@@ -178,13 +195,24 @@ export function useStreamingGenerate<TData>(
         let textBuffer = "";
         let flushHandle: ReturnType<typeof setTimeout> | null = null;
 
+        // Tail-only accumulator: we only ever push the most recent
+        // PARTIAL_TEXT_DISPLAY_CAP characters into React state, regardless of
+        // how long the underlying response is.
+        let partialTail = "";
         const flushPartial = () => {
           if (textBuffer.length === 0) return;
-          const next = textBuffer;
+          partialTail = (partialTail + textBuffer).slice(
+            -PARTIAL_TEXT_DISPLAY_CAP,
+          );
           textBuffer = "";
-          if (isCurrent()) {
-            setPartialText((prev) => prev + next);
-          }
+          if (!isCurrent()) return;
+          // startTransition tells React this update is interruptible — if a
+          // higher-priority update (the final `done` event, or a click)
+          // arrives, React can drop in-flight render work for partial text.
+          const snapshot = partialTail;
+          startTransition(() => {
+            setPartialText(snapshot);
+          });
         };
 
         const scheduleFlush = () => {
@@ -192,7 +220,7 @@ export function useStreamingGenerate<TData>(
           flushHandle = setTimeout(() => {
             flushHandle = null;
             flushPartial();
-          }, 50);
+          }, PARTIAL_FLUSH_INTERVAL_MS);
         };
 
         // Find the next SSE event boundary, accepting both LF/LF and CRLF/CRLF
