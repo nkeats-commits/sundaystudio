@@ -6,6 +6,8 @@ import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
 import { SlotPicker, LinkedPill, slotPickerSupported } from '../components/SlotPicker';
+import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
+import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 
 export default function ServiceBuilder() {
   const searchParams = new URLSearchParams(window.location.search);
@@ -47,7 +49,15 @@ export default function ServiceBuilder() {
     }
   };
 
+  const { ready: profileReady } = useChurchProfileReady();
+
   const runGeneration = (body?: typeof formData) => {
+    if (!profileReady) {
+      toast.error("Set up your church profile first.", {
+        description: "Service shape depends on your tradition.",
+      });
+      return;
+    }
     const payload = body ?? lastSubmittedRef.current ?? formData;
     lastSubmittedRef.current = payload;
     // A fresh draft invalidates any slot overrides — they were keyed to
@@ -105,6 +115,7 @@ export default function ServiceBuilder() {
 
   return (
     <AppLayout title="Service Builder">
+      <ProfileRequiredBanner variant="inline" />
       <div className="flex flex-col lg:flex-row gap-8 h-auto min-h-[calc(100vh-8rem)]">
         
         {/* LEFT PANEL: INPUT FORM */}

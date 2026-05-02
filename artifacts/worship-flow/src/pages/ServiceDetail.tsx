@@ -4,6 +4,7 @@ import {
   useGetServicePlan,
   useDeleteServicePlan,
   useUpdateServicePlan,
+  useExportServicePlan,
   getListServicePlansQueryKey,
   getGetServicePlanQueryKey,
   type ServicePlanItem,
@@ -22,6 +23,11 @@ import {
   ChevronsRight,
   Bookmark,
   Link2,
+  Download,
+  Printer,
+  Copy,
+  X,
+  FileText,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -37,10 +43,39 @@ export default function ServiceDetail() {
   });
   const deletePlan = useDeleteServicePlan();
   const updatePlan = useUpdateServicePlan();
+  const exportPlan = useExportServicePlan();
   const queryClient = useQueryClient();
 
   // Index of the slot we are currently picking a link for; null = closed.
   const [pickingIndex, setPickingIndex] = useState<number | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+
+  const handleCopy = (format: 'markdown' | 'text') => {
+    if (!id) return;
+    exportPlan.mutate(
+      { id, data: { format } },
+      {
+        onSuccess: (resp) => {
+          navigator.clipboard
+            .writeText(resp.content)
+            .then(() => {
+              toast.success(
+                format === 'markdown' ? 'Markdown copied' : 'Text copied',
+              );
+              setExportOpen(false);
+            })
+            .catch(() => toast.error('Could not copy to clipboard'));
+        },
+        onError: () => toast.error('Could not export service plan'),
+      },
+    );
+  };
+
+  const handlePrint = () => {
+    if (!id) return;
+    setExportOpen(false);
+    window.open(`${import.meta.env.BASE_URL}services/${id}/print`, '_blank');
+  };
 
   const handleDelete = () => {
     if (!confirm('Are you sure you want to delete this service plan?')) return;
@@ -200,6 +235,12 @@ export default function ServiceDetail() {
             <ArrowLeft className="w-4 h-4" /> Back to Services
           </button>
           <div className="flex gap-3">
+            <button
+              onClick={() => setExportOpen(true)}
+              className="px-4 py-2 rounded-lg text-sm font-medium border border-[var(--worship-border)] text-[var(--worship-navy)] bg-white hover:bg-[var(--worship-cream)] flex items-center gap-2 transition-colors"
+            >
+              <Download className="w-4 h-4" /> Export
+            </button>
             <button onClick={handleDelete} disabled={deletePlan.isPending} className="px-4 py-2 rounded-lg text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors disabled:opacity-50">
               <Trash2 className="w-4 h-4" /> {deletePlan.isPending ? 'Deleting...' : 'Delete'}
             </button>
@@ -329,6 +370,77 @@ export default function ServiceDetail() {
           onApply={(patch) => applySlotPatch(pickingIndex, patch)}
           onClose={() => setPickingIndex(null)}
         />
+      )}
+
+      {exportOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setExportOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-md rounded-2xl shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--worship-border)]">
+              <h3 className="font-serif text-lg text-[var(--worship-navy)]">
+                Export service plan
+              </h3>
+              <button
+                onClick={() => setExportOpen(false)}
+                className="p-1.5 rounded hover:bg-slate-100"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              <button
+                onClick={handlePrint}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--worship-border)] hover:bg-[var(--worship-cream)] text-left transition-colors"
+              >
+                <Printer className="w-5 h-5 text-[var(--worship-navy)] shrink-0" />
+                <span className="flex-1">
+                  <span className="block text-sm font-medium text-[var(--worship-navy)]">
+                    Print or save as PDF
+                  </span>
+                  <span className="block text-xs text-[var(--worship-slate)]">
+                    Opens a clean printable view in a new tab
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => handleCopy('markdown')}
+                disabled={exportPlan.isPending}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--worship-border)] hover:bg-[var(--worship-cream)] text-left transition-colors disabled:opacity-50"
+              >
+                <FileText className="w-5 h-5 text-[var(--worship-navy)] shrink-0" />
+                <span className="flex-1">
+                  <span className="block text-sm font-medium text-[var(--worship-navy)]">
+                    Copy as Markdown
+                  </span>
+                  <span className="block text-xs text-[var(--worship-slate)]">
+                    For Notion, Obsidian, or any markdown editor
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => handleCopy('text')}
+                disabled={exportPlan.isPending}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--worship-border)] hover:bg-[var(--worship-cream)] text-left transition-colors disabled:opacity-50"
+              >
+                <Copy className="w-5 h-5 text-[var(--worship-navy)] shrink-0" />
+                <span className="flex-1">
+                  <span className="block text-sm font-medium text-[var(--worship-navy)]">
+                    Copy as plain text
+                  </span>
+                  <span className="block text-xs text-[var(--worship-slate)]">
+                    Paste into email, Word, or run sheets
+                  </span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   );

@@ -5,6 +5,8 @@ import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedSpeaki
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
+import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
+import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 
 export default function SpeakingMomentGenerator() {
   const [formData, setFormData] = useState({
@@ -19,8 +21,15 @@ export default function SpeakingMomentGenerator() {
   const createLibraryItem = useCreateLibraryItem();
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
+  const { ready: profileReady } = useChurchProfileReady();
 
   const runGeneration = (body?: typeof formData) => {
+    if (!profileReady) {
+      toast.error("Set up your church profile first.", {
+        description: "Tone and pastoral voice depend on it.",
+      });
+      return;
+    }
     const payload = body ?? lastSubmittedRef.current ?? formData;
     lastSubmittedRef.current = payload;
     generate.mutate(payload).catch((err: Error) => {
@@ -58,8 +67,9 @@ export default function SpeakingMomentGenerator() {
 
   return (
     <AppLayout title="Speaking Moments">
+      <ProfileRequiredBanner variant="inline" />
       <div className="flex flex-col md:flex-row gap-8 h-auto min-h-[calc(100vh-8rem)]">
-        
+
         {/* FORM */}
         <div className="w-full md:w-1/3 flex flex-col space-y-6">
           <div className="pb-4 border-b border-[var(--worship-border)]">

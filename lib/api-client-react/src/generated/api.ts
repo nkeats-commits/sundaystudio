@@ -25,6 +25,7 @@ import type {
   CreateServicePlanBody,
   DashboardResponse,
   ExportSermonBody,
+  ExportServicePlanBody,
   GenerateDevotional400,
   GenerateDevotionalBody,
   GenerateLiturgy400,
@@ -73,6 +74,7 @@ import type {
   SermonStudyOutput,
   SermonWorshipIntegrationOutput,
   ServicePlan,
+  ServicePlanExport,
   UnauthorizedResponse,
   UpdateSermonBody,
   UpdateSermonResourceBody,
@@ -812,6 +814,95 @@ export const useDeleteServicePlan = <
   TContext
 > => {
   return useMutation(getDeleteServicePlanMutationOptions(options));
+};
+
+/**
+ * @summary Render a service plan to text or markdown
+ */
+export const getExportServicePlanUrl = (id: number) => {
+  return `/api/service-plans/${id}/export`;
+};
+
+export const exportServicePlan = async (
+  id: number,
+  exportServicePlanBody: ExportServicePlanBody,
+  options?: RequestInit,
+): Promise<ServicePlanExport> => {
+  return customFetch<ServicePlanExport>(getExportServicePlanUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(exportServicePlanBody),
+  });
+};
+
+export const getExportServicePlanMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportServicePlan>>,
+    TError,
+    { id: number; data: BodyType<ExportServicePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof exportServicePlan>>,
+  TError,
+  { id: number; data: BodyType<ExportServicePlanBody> },
+  TContext
+> => {
+  const mutationKey = ["exportServicePlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof exportServicePlan>>,
+    { id: number; data: BodyType<ExportServicePlanBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return exportServicePlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExportServicePlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof exportServicePlan>>
+>;
+export type ExportServicePlanMutationBody = BodyType<ExportServicePlanBody>;
+export type ExportServicePlanMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Render a service plan to text or markdown
+ */
+export const useExportServicePlan = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportServicePlan>>,
+    TError,
+    { id: number; data: BodyType<ExportServicePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof exportServicePlan>>,
+  TError,
+  { id: number; data: BodyType<ExportServicePlanBody> },
+  TContext
+> => {
+  return useMutation(getExportServicePlanMutationOptions(options));
 };
 
 /**

@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import ServiceBuilder from "./pages/ServiceBuilder";
 import Services from "./pages/Services";
 import ServiceDetail from "./pages/ServiceDetail";
+import ServicePlanPrint from "./pages/ServicePlanPrint";
 import LiturgyGenerator from "./pages/LiturgyGenerator";
 import SongGenerator from "./pages/SongGenerator";
 import SpeakingMomentGenerator from "./pages/SpeakingMomentGenerator";
@@ -301,6 +302,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/dashboard">{() => <Protected component={Dashboard} />}</Route>
           <Route path="/service-builder">{() => <Protected component={ServiceBuilder} />}</Route>
           <Route path="/services">{() => <Protected component={Services} />}</Route>
+          <Route path="/services/:id/print">{() => <Protected component={ServicePlanPrint} />}</Route>
           <Route path="/services/:id">{() => <Protected component={ServiceDetail} />}</Route>
           <Route path="/generators/liturgy">{() => <Protected component={LiturgyGenerator} />}</Route>
           <Route path="/generators/songs">{() => <Protected component={SongGenerator} />}</Route>

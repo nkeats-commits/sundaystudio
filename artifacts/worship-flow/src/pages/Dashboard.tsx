@@ -3,6 +3,7 @@ import { Layers, Music, BookOpen, Mic, Users, Calendar, ChevronRight, FileText, 
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
 import { useGetDashboard } from '@workspace/api-client-react';
+import { OnboardingBanner } from '../components/OnboardingBanner';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -24,7 +25,9 @@ export default function Dashboard() {
   return (
     <AppLayout title="Dashboard">
       <div className="max-w-6xl mx-auto space-y-10">
-        
+
+        <OnboardingBanner />
+
         {/* Welcome Section */}
         <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b" style={{ borderColor: 'var(--worship-border)' }}>
           <div>

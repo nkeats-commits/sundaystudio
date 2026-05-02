@@ -5,8 +5,13 @@ import {
   CreateServicePlanBody,
   UpdateServicePlanBody,
   UpdateServicePlanParams,
+  ExportServicePlanBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import {
+  renderServicePlanAsMarkdown,
+  renderServicePlanAsText,
+} from "../lib/servicePlanExport";
 
 const router: IRouter = Router();
 
@@ -94,6 +99,35 @@ router.put("/service-plans/:id", requireAuth, async (req, res) => {
     return;
   }
   res.json(row);
+});
+
+router.post("/service-plans/:id/export", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const parsed = ExportServicePlanBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [plan] = await db
+    .select()
+    .from(servicePlansTable)
+    .where(
+      and(eq(servicePlansTable.id, id), eq(servicePlansTable.userId, req.userId!)),
+    )
+    .limit(1);
+  if (!plan) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const content =
+    parsed.data.format === "text"
+      ? renderServicePlanAsText(plan)
+      : renderServicePlanAsMarkdown(plan);
+  res.json({ servicePlanId: id, format: parsed.data.format, content });
 });
 
 router.delete("/service-plans/:id", requireAuth, async (req, res) => {

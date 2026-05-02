@@ -466,6 +466,23 @@ export const DeleteServicePlanParams = zod.object({
 });
 
 /**
+ * @summary Render a service plan to text or markdown
+ */
+export const ExportServicePlanParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ExportServicePlanBody = zod.object({
+  format: zod.enum(["markdown", "text"]),
+});
+
+export const ExportServicePlanResponse = zod.object({
+  servicePlanId: zod.number(),
+  format: zod.string(),
+  content: zod.string(),
+});
+
+/**
  * @summary List saved library items
  */
 export const ListLibraryItemsQueryParams = zod.object({

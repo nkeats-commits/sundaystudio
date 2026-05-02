@@ -608,6 +608,24 @@ export interface ExportSermonBody {
   format: ExportSermonBodyFormat;
 }
 
+export type ExportServicePlanBodyFormat =
+  (typeof ExportServicePlanBodyFormat)[keyof typeof ExportServicePlanBodyFormat];
+
+export const ExportServicePlanBodyFormat = {
+  markdown: "markdown",
+  text: "text",
+} as const;
+
+export interface ExportServicePlanBody {
+  format: ExportServicePlanBodyFormat;
+}
+
+export interface ServicePlanExport {
+  servicePlanId: number;
+  format: string;
+  content: string;
+}
+
 export interface SermonExport {
   id: number;
   userId: string;

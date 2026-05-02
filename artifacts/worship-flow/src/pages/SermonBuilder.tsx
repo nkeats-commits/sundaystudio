@@ -28,6 +28,8 @@ import {
 } from '@workspace/api-client-react';
 import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
 import { AppLayout } from '../components/layout/AppLayout';
+import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
+import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import {
   BookOpen,
   Lightbulb,
@@ -282,7 +284,15 @@ export default function SermonBuilder() {
 
   // ------- Generate handlers -------
 
+  const { ready: profileReady } = useChurchProfileReady();
+
   const requirePassage = (): boolean => {
+    if (!profileReady) {
+      toast.error('Set up your church profile first.', {
+        description: 'It tunes the AI to your tradition.',
+      });
+      return false;
+    }
     if (!form.passage.trim()) {
       toast.error('Add a primary passage before generating.');
       return false;
@@ -467,6 +477,7 @@ export default function SermonBuilder() {
 
   return (
     <AppLayout title="Sermon Builder">
+      <ProfileRequiredBanner variant="inline" />
       {isExisting && sermonQuery.isLoading ? (
         <div className="flex items-center gap-2 text-[var(--worship-slate)]"><Loader2 className="w-4 h-4 animate-spin" /> Loading sermon…</div>
       ) : (

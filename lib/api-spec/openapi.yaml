@@ -184,6 +184,31 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /service-plans/{id}/export:
+    post:
+      operationId: exportServicePlan
+      tags: [services]
+      summary: Render a service plan to text or markdown
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportServicePlanBody"
+      responses:
+        "200":
+          description: Exported service plan document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicePlanExport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /library:
     get:
       operationId: listLibraryItems
@@ -2185,6 +2210,25 @@ components:
           type: string
           enum: [markdown, text]
       required: [format]
+
+    ExportServicePlanBody:
+      type: object
+      properties:
+        format:
+          type: string
+          enum: [markdown, text]
+      required: [format]
+
+    ServicePlanExport:
+      type: object
+      properties:
+        servicePlanId:
+          type: integer
+        format:
+          type: string
+        content:
+          type: string
+      required: [servicePlanId, format, content]
 
     SermonExport:
       type: object

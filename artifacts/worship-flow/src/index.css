@@ -158,3 +158,35 @@
     color: white;
   }
 }
+
+/* Print mode: strip the app chrome (sidebar, header, toolbar) and
+   force a clean black-on-white serif layout for service plans. */
+@media print {
+  @page {
+    margin: 0.75in;
+  }
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .worship-app-chrome,
+  .worship-print-toolbar,
+  aside,
+  nav {
+    display: none !important;
+  }
+  .worship-print-page {
+    background: white !important;
+    color: black !important;
+  }
+  .worship-print-article {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .worship-print-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

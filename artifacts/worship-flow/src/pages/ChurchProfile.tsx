@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useLocation } from 'wouter';
 
 const schema = z.object({
   churchName: z.string().min(1, "Church name is required"),
@@ -26,6 +27,24 @@ export default function ChurchProfile() {
   const updateProfile = useUpdateChurchProfile();
   const queryClient = useQueryClient();
   const initRef = useRef(false);
+  const [, setLocation] = useLocation();
+
+  // Allow other pages to deep-link here with ?next=<path> so we can bounce
+  // the user back after they save their profile (e.g. from a generator that
+  // was gated until the profile was filled).
+  const nextPath = (() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next');
+      if (!next) return null;
+      // Only honor in-app paths; never an absolute URL.
+      if (!next.startsWith('/') || next.startsWith('//')) return null;
+      return next;
+    } catch {
+      return null;
+    }
+  })();
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -56,6 +75,9 @@ export default function ChurchProfile() {
           description: "Your AI generations will now use this context."
         });
         queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        if (nextPath) {
+          setLocation(nextPath);
+        }
       },
       onError: () => {
         toast.error("Failed to update profile");
