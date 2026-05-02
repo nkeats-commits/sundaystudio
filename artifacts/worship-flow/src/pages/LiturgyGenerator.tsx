@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
 
 export default function LiturgyGenerator() {
-  console.log("[mount] LiturgyGenerator");
   const [formData, setFormData] = useState({
     kind: 'call_to_worship' as const,
     theme: '',

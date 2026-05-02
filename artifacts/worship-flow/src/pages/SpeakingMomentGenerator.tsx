@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
 
 export default function SpeakingMomentGenerator() {
-  console.log("[mount] SpeakingMomentGenerator");
   const [formData, setFormData] = useState({
     kind: 'welcome' as const,
     topic: '',

@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
 
 export default function SongGenerator() {
-  console.log("[mount] SongGenerator");
   const [formData, setFormData] = useState({
     theme: '',
     scripture: '',

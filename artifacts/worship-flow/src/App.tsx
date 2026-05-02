@@ -174,25 +174,10 @@ function RequireSignedIn({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ProtectedRoutes() {
-  const [loc] = useLocation();
-  console.log("[route] ProtectedRoutes location =", loc);
+function Protected({ component: Component }: { component: React.ComponentType }) {
   return (
     <RequireSignedIn>
-      <Switch>
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/service-builder" component={ServiceBuilder} />
-        <Route path="/services" component={Services} />
-        <Route path="/services/:id" component={ServiceDetail} />
-        <Route path="/generators/liturgy" component={LiturgyGenerator} />
-        <Route path="/generators/songs" component={SongGenerator} />
-        <Route path="/generators/speaking-moment" component={SpeakingMomentGenerator} />
-        <Route path="/generators/devotional" component={DevotionalGenerator} />
-        <Route path="/library" component={Library} />
-        <Route path="/church" component={ChurchProfile} />
-        <Route path="/settings" component={Settings} />
-        <Route component={NotFound} />
-      </Switch>
+      <Component />
     </RequireSignedIn>
   );
 }
@@ -230,9 +215,18 @@ function ClerkProviderWithRoutes() {
           <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
-          <Route path="/:rest*">
-            <ProtectedRoutes />
-          </Route>
+          <Route path="/dashboard">{() => <Protected component={Dashboard} />}</Route>
+          <Route path="/service-builder">{() => <Protected component={ServiceBuilder} />}</Route>
+          <Route path="/services">{() => <Protected component={Services} />}</Route>
+          <Route path="/services/:id">{() => <Protected component={ServiceDetail} />}</Route>
+          <Route path="/generators/liturgy">{() => <Protected component={LiturgyGenerator} />}</Route>
+          <Route path="/generators/songs">{() => <Protected component={SongGenerator} />}</Route>
+          <Route path="/generators/speaking-moment">{() => <Protected component={SpeakingMomentGenerator} />}</Route>
+          <Route path="/generators/devotional">{() => <Protected component={DevotionalGenerator} />}</Route>
+          <Route path="/library">{() => <Protected component={Library} />}</Route>
+          <Route path="/church">{() => <Protected component={ChurchProfile} />}</Route>
+          <Route path="/settings">{() => <Protected component={Settings} />}</Route>
+          <Route>{() => <Protected component={NotFound} />}</Route>
         </Switch>
       </QueryClientProvider>
     </ClerkProvider>
