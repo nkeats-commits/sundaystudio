@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "0EJFEb7uPMChlmi7tDc_H"
+uri = "file://artifacts/mockup-sandbox/public/images/worship-hero.png"
+type = "image"
+title = "warm abstract background texture"

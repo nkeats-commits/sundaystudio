@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+
+:root {
+  --worship-navy: #1F2A44;
+  --worship-gold: #C99A3D;
+  --worship-cream: #F8F4EA;
+  --worship-white: #FFFDF8;
+  --worship-charcoal: #1E293B;
+  --worship-slate: #475569;
+  --worship-muted-slate: #64748B;
+  --worship-muted-green: #6E8B74;
+  --worship-sand: #E8DDC7;
+  --worship-pale-gold: #F3E7C6;
+  --worship-border: #E5E1D8;
+  --worship-error: #B42318;
+  --worship-success: #3F6B4F;
+  
+  --font-serif: 'Playfair Display', serif;
+  --font-sans: 'Inter', sans-serif;
+}
+
+.worship-theme {
+  font-family: var(--font-sans);
+  background-color: var(--worship-cream);
+  color: var(--worship-charcoal);
+  min-height: 100vh;
+}
+
+.worship-theme h1,
+.worship-theme h2,
+.worship-theme h3,
+.worship-theme h4,
+.worship-theme h5,
+.worship-theme h6 {
+  font-family: var(--font-serif);
+  color: var(--worship-navy);
+}
+
+.worship-card {
+  background-color: var(--worship-white);
+  border: 1px solid var(--worship-border);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.worship-btn-primary {
+  background-color: var(--worship-navy);
+  color: white;
+  transition: background-color 0.2s;
+}
+.worship-btn-primary:hover {
+  background-color: #161e30;
+}
+
+.worship-btn-gold {
+  background-color: var(--worship-gold);
+  color: white;
+  transition: background-color 0.2s;
+}
+.worship-btn-gold:hover {
+  background-color: #b58935;
+}
+
+.worship-btn-outline {
+  border: 1px solid var(--worship-gold);
+  color: var(--worship-gold);
+  transition: all 0.2s;
+}
+.worship-btn-outline:hover {
+  background-color: var(--worship-gold);
+  color: white;
+}
