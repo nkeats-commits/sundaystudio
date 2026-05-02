@@ -41,7 +41,7 @@ export function Sidebar() {
 
   const bottomItems = [
     { icon: FolderOpen, label: 'Library', href: '/library' },
-    { icon: Building, label: 'Church Profile', href: '/church' },
+    { icon: Building, label: 'Your Profile', href: '/church' },
     { icon: Settings, label: 'Settings', href: '/settings' },
   ];
 

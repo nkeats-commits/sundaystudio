@@ -50,7 +50,7 @@ export function OnboardingBanner() {
   const steps: Step[] = [
     {
       key: 'profile',
-      label: 'Set up your church profile',
+      label: 'Set up your profile',
       description:
         'Tell us your tradition, theology, and rhythms so the AI matches your context.',
       done: profileReady,

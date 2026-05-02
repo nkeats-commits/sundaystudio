@@ -288,7 +288,7 @@ export default function SermonBuilder() {
 
   const requirePassage = (): boolean => {
     if (!profileReady) {
-      toast.error('Set up your church profile first.', {
+      toast.error('Set up your profile first.', {
         description: 'It tunes the AI to your tradition.',
       });
       return false;

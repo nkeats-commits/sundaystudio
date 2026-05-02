@@ -66,7 +66,7 @@ export default function SongGenerator() {
 
   const runGeneration = (body?: typeof formData) => {
     if (!profileReady) {
-      toast.error('Set up your church profile first.', {
+      toast.error('Set up your profile first.', {
         description: 'Music style suggestions depend on it.',
       });
       return;
@@ -292,7 +292,7 @@ export default function SongGenerator() {
               disabled={generate.isPending || !profileReady}
               title={
                 !profileReady
-                  ? 'Finish your church profile to enable AI generation'
+                  ? 'Finish your profile to enable AI generation'
                   : undefined
               }
               className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"

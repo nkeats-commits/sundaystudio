@@ -53,7 +53,7 @@ export default function ServiceBuilder() {
 
   const runGeneration = (body?: typeof formData) => {
     if (!profileReady) {
-      toast.error("Set up your church profile first.", {
+      toast.error("Set up your profile first.", {
         description: "Service shape depends on your tradition.",
       });
       return;
@@ -222,7 +222,7 @@ export default function ServiceBuilder() {
             <button 
               onClick={handleGenerate}
               disabled={generate.isPending || !profileReady}
-              title={!profileReady ? "Finish your church profile to enable AI generation" : undefined}
+              title={!profileReady ? "Finish your profile to enable AI generation" : undefined}
               className="w-full py-3.5 rounded-xl font-medium text-lg worship-btn-gold flex items-center justify-center gap-2 shadow-lg disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {generate.isPending ? (

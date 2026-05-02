@@ -24,7 +24,7 @@ export default function DevotionalGenerator() {
 
   const runGeneration = (body?: typeof formData) => {
     if (!profileReady) {
-      toast.error("Set up your church profile first.", {
+      toast.error("Set up your profile first.", {
         description: "Helps tailor the devotional to your team.",
       });
       return;
@@ -133,7 +133,7 @@ export default function DevotionalGenerator() {
             <button 
               type="submit"
               disabled={generate.isPending || !profileReady}
-              title={!profileReady ? "Finish your church profile to enable AI generation" : undefined}
+              title={!profileReady ? "Finish your profile to enable AI generation" : undefined}
               className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {generate.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Preparing...</> : "Generate Devotional"}

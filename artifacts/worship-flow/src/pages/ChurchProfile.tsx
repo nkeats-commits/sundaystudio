@@ -71,7 +71,7 @@ export default function ChurchProfile() {
   const onSubmit = (data: FormData) => {
     updateProfile.mutate({ data }, {
       onSuccess: () => {
-        toast.success("Church profile updated", {
+        toast.success("Your profile updated", {
           description: "Your AI generations will now use this context."
         });
         queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
@@ -86,13 +86,13 @@ export default function ChurchProfile() {
   };
 
   return (
-    <AppLayout title="Church Profile">
+    <AppLayout title="Your Profile">
       <div className="max-w-3xl mx-auto space-y-6">
         
         <div className="pb-6 border-b border-[var(--worship-border)]">
-          <h1 className="text-2xl font-serif text-[var(--worship-navy)] mb-1">Church Context</h1>
+          <h1 className="text-2xl font-serif text-[var(--worship-navy)] mb-1">Your Profile</h1>
           <p className="text-sm text-[var(--worship-slate)]">
-            Tell WorshipFlow about your church. We use this context to ensure AI-generated liturgy, songs, and services align with your theology and traditions.
+            Tell WorshipFlow about your context. We use this to ensure AI-generated liturgy, songs, and services align with your theology and traditions.
           </p>
         </div>
 

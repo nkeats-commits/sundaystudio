@@ -36,7 +36,7 @@ export default function Settings() {
               <span className="text-[var(--worship-charcoal)]">Active • Free Plan</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-medium text-[var(--worship-slate)]">Church Profile</span>
+              <span className="text-sm font-medium text-[var(--worship-slate)]">Your Profile</span>
               <span className="text-[var(--worship-charcoal)]">{me?.profile?.churchName || "Not configured yet"}</span>
             </div>
           </div>
