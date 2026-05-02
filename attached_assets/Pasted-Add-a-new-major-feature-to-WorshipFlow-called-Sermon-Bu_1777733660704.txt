@@ -1,0 +1,530 @@
+Add a new major feature to WorshipFlow called Sermon Builder.
+
+The Sermon Builder is an AI-powered sermon preparation workspace for pastors, worship pastors, church planters, youth pastors, and ministry leaders. It should help users move from biblical passage to sermon outline, manuscript, applications, and worship service integration.
+
+This feature should not feel like “AI writes your sermon for you.” It should feel like a study and sermon planning assistant that helps the pastor prepare thoughtfully, biblically, and pastorally.
+
+Feature tagline:
+“From passage to proclamation.”
+
+Primary purpose:
+Help users study a biblical passage, identify the main idea, consult scholarly/commentary notes, generate sermon outlines, draft sermon content, build applications, and connect the sermon to worship planning.
+
+Add Sermon Builder to the main navigation.
+
+Update main navigation to include:
+- Dashboard
+- Service Builder
+- Sermon Builder
+- Liturgy Generator
+- Song Assistant
+- Speaking Moments
+- Team Devotionals
+- Saved Services
+- Sermon Archive
+- Resource Library
+- Church Profile
+- Settings
+
+SERMON BUILDER USER FLOW
+
+Create a guided Sermon Builder workflow with the following steps:
+
+1. Sermon Setup
+2. Passage Study
+3. Big Idea
+4. Outline
+5. Draft/Manuscript
+6. Applications
+7. Worship Integration
+8. Save/Export
+
+SERMON SETUP FORM
+
+Fields:
+- Sermon title
+- Sermon date
+- Series title
+- Series week
+- Main passage
+- Secondary passages
+- Preferred Bible translation
+- Theme
+- Sermon length in minutes
+- Tone
+- Sermon style
+- Depth level
+- Audience/congregation
+- Occasion/service type
+- Denomination/tradition
+- Application emphasis
+- Notes from the pastor/user
+
+Tone options:
+- Warm and pastoral
+- Reflective
+- Prophetic/challenging
+- Encouraging
+- Evangelistic
+- Academic
+- Conversational
+- Urgent
+- Hopeful
+- Reverent
+- Practical
+- Emotionally moving
+
+Sermon style options:
+- Expository
+- Text-driven
+- Topical
+- Narrative
+- Thematic
+- Big idea sermon
+- Three-point sermon
+- Inductive
+- Deductive
+- Christ-centered/redemptive-historical
+- Pastoral exhortation
+- Evangelistic
+- Teaching/classroom style
+- Devotional reflection
+
+Depth level options:
+- Introductory
+- Moderate
+- In-depth
+- Seminary-level
+- Layperson-friendly
+- Youth-friendly
+- New believer-friendly
+
+Output format options:
+- Big idea only
+- Sermon outline
+- Full manuscript
+- Expanded manuscript
+- Speaking notes
+- Teaching notes
+- Small group guide
+- Slide outline
+- Worship planning summary
+
+PASSAGE STUDY GENERATOR
+
+Generate a passage study based on the user’s main passage.
+
+Output sections:
+- Passage summary
+- Historical context
+- Literary context
+- Book-level context
+- Immediate context
+- Key themes
+- Key words and phrases
+- Important theological ideas
+- Passage structure
+- Main tension/problem
+- Gospel connection
+- Christ-centered connection where appropriate
+- Pastoral implications
+- Interpretive challenges
+- Questions for further study
+- Common misreadings to avoid
+- Ideas to verify
+
+BIG IDEA GENERATOR
+
+Generate several big idea options:
+- Exegetical main idea
+- Congregational main idea
+- Short memorable sentence
+- Sermon thesis
+- Question-based big idea
+- Pastoral burden statement
+- Desired congregational response
+
+SERMON OUTLINE GENERATOR
+
+Generate 3 to 5 sermon outline options.
+
+Each outline should include:
+- Outline title
+- Structure type
+- Introduction idea
+- Main idea
+- Main points
+- Subpoints
+- Explanation notes
+- Illustration ideas
+- Application moments
+- Transitions
+- Conclusion idea
+- Call to response
+- Strengths of this structure
+- Potential weaknesses
+
+SERMON DRAFT / MANUSCRIPT GENERATOR
+
+Allow the user to generate:
+- Full manuscript
+- Expanded manuscript
+- Speaking notes
+- Teaching notes
+- Bullet preaching notes
+- Short devotional sermon
+- Youth sermon
+- Small group lesson
+
+Output should be editable.
+
+APPLICATION BUILDER
+
+Generate application ideas for different groups:
+- New believers
+- Longtime Christians
+- Parents
+- Singles
+- Married couples
+- Students
+- Leaders
+- People suffering
+- Skeptics
+- Volunteers
+- The whole church community
+
+Generate application categories:
+- Heart
+- Mind
+- Habits
+- Relationships
+- Church life
+- Mission
+- Repentance
+- Worship
+- Prayer
+- Work
+- Family
+
+ILLUSTRATION BUILDER
+
+Add an illustration helper.
+
+Generate:
+- Personal story prompts
+- Everyday life analogies
+- Biblical cross-reference illustrations
+- Historical illustration ideas
+- Cultural observation ideas
+- Object lesson ideas
+- Opening hook ideas
+
+Important:
+Do not invent historical facts. If giving a historical illustration idea, mark it as “verify before using.”
+
+COMMENTARY AND SCHOLARLY RESOURCE FEATURES
+
+Add a Resource Library.
+
+Users should be able to add sermon resources manually.
+
+Resource fields:
+- Resource type
+- Title
+- Author
+- Publisher
+- Year
+- Page number
+- URL
+- Quote/excerpt
+- Summary
+- Notes
+- Tags
+- Related passage
+- Related sermon
+
+Resource types:
+- Commentary
+- Journal article
+- Book
+- Class notes
+- Sermon notes
+- Bible dictionary
+- Lexicon
+- User note
+- Public-domain source
+- Website
+- Other
+
+In the Sermon Builder, include a right-side Resource Panel where users can:
+- Paste commentary notes
+- Add source metadata
+- Select saved resources
+- Summarize a resource
+- Compare selected resources
+- Ask how the resources relate to the passage
+- Pull sermon insights from selected resources
+
+Important:
+The app should not claim to access paid commentaries unless a legal integration exists. For MVP, the user can paste commentary excerpts or notes, upload notes if file upload exists, or add public-domain resources. The app may summarize user-provided resources, but must not reproduce copyrighted commentary at length.
+
+RESOURCE-AWARE SERMON GENERATION
+
+When selected resources are included, generated sermon content should include:
+- Source-informed insights
+- A resource notes section
+- Optional citation notes
+- Agreement/disagreement among resources
+- Ideas to verify
+- Interpretive cautions
+
+The AI must not invent commentary quotes or scholar claims.
+
+SERMON REVIEW TOOLS
+
+Add refinement buttons:
+- Make it warmer
+- Make it more direct
+- Make it more hopeful
+- Make it less academic
+- Make it more exegetical
+- Make it more story-driven
+- Make it more concise
+- Make it more conversational
+- Make it more emotionally compelling
+- Make it more accessible
+- Add Scripture cross-references
+- Add historical background
+- Add scholarly nuance
+- Add stronger introduction
+- Add stronger conclusion
+- Improve transitions
+- Reduce jargon
+
+WORSHIP INTEGRATION
+
+After a sermon is created, allow users to generate:
+- Worship service themes
+- Song suggestions based on the sermon
+- Call to worship based on the sermon passage
+- Response song suggestions
+- Communion moment based on the sermon
+- Benediction tied to the sermon theme
+- Team devotional based on the sermon
+- Prayer prompts
+- Service arc
+- Small group questions
+- Social/email summary
+
+Add buttons:
+- Build Worship Service from Sermon
+- Suggest Songs for This Sermon
+- Generate Call to Worship
+- Generate Response Moment
+- Generate Team Devotional
+- Generate Small Group Questions
+
+SERMON ARCHIVE
+
+Create a Sermon Archive page.
+
+Users should be able to save, search, filter, duplicate, edit, delete, and export sermons.
+
+Filter by:
+- Passage
+- Theme
+- Series
+- Date
+- Testament
+- Book of the Bible
+- Occasion
+- Tone
+
+Each sermon card should display:
+- Sermon title
+- Date
+- Passage
+- Theme
+- Series
+- Length
+- Tone
+- Last updated
+- Buttons: Open, Duplicate, Export, Delete
+
+DATABASE ADDITIONS
+
+Add the following tables:
+
+SERMONS
+- id
+- user_id
+- church_profile_id
+- title
+- sermon_date
+- series_title
+- series_week
+- main_passage
+- secondary_passages
+- bible_translation
+- theme
+- tone
+- length_minutes
+- audience
+- occasion
+- denomination
+- sermon_style
+- depth_level
+- output_format
+- big_idea
+- outline
+- manuscript
+- applications
+- illustrations
+- conclusion
+- worship_integration
+- resource_notes_used
+- tags
+- created_at
+- updated_at
+
+SERMON_RESOURCES
+- id
+- user_id
+- sermon_id
+- related_passage
+- resource_type
+- title
+- author
+- publisher
+- year
+- page_number
+- url
+- quote_or_excerpt
+- summary
+- notes
+- tags
+- created_at
+- updated_at
+
+SERMON_SERIES
+- id
+- user_id
+- church_profile_id
+- title
+- description
+- start_date
+- end_date
+- number_of_weeks
+- book_or_theme
+- series_goal
+- weekly_plan
+- created_at
+- updated_at
+
+SERMON_EXPORTS
+- id
+- user_id
+- sermon_id
+- export_type
+- exported_content
+- created_at
+
+AI ENDPOINTS TO ADD
+
+Add backend endpoints:
+- POST /api/generate/sermon-study
+- POST /api/generate/sermon-big-idea
+- POST /api/generate/sermon-outline
+- POST /api/generate/sermon-manuscript
+- POST /api/generate/sermon-applications
+- POST /api/generate/sermon-illustrations
+- POST /api/generate/sermon-conclusion
+- POST /api/generate/sermon-series
+- POST /api/generate/sermon-to-service
+- POST /api/resources/summarize
+- POST /api/resources/compare
+
+AI SERMON BUILDER RULES
+
+The AI should:
+- Act as a thoughtful sermon preparation assistant
+- Be biblically grounded
+- Respect denominational and theological context
+- Clearly separate biblical observations, interpretive suggestions, resource insights, and application ideas
+- Avoid plagiarizing sermons
+- Avoid inventing commentary quotes
+- Avoid claiming a scholar said something unless provided by the user or verifiable
+- Avoid reproducing copyrighted commentary at length
+- Mark historical claims and scholarly claims as “verify before using” when needed
+- Encourage pastoral review, prayerful discernment, and theological accountability
+- Make all output editable
+- Include “interpretive cautions” where helpful
+
+AI should not present itself as replacing the pastor’s study. It should be a research, structure, and drafting assistant.
+
+DESIGN REQUIREMENTS FOR SERMON BUILDER
+
+The Sermon Builder page should feel like a focused sermon preparation workspace.
+
+Desktop layout:
+- Left setup panel
+- Main sermon workspace
+- Right resource/context panel
+
+Main workspace tabs:
+- Study
+- Big Idea
+- Outline
+- Manuscript
+- Applications
+- Worship Integration
+
+Right panel:
+- Church profile summary
+- Selected resources
+- Add resource
+- Commentary notes
+- Interpretive cautions
+- Cross-references
+
+Mobile layout:
+Use a step-by-step guided flow:
+1. Setup
+2. Study
+3. Outline
+4. Draft
+5. Save/Export
+
+Use warm, clean design consistent with WorshipFlow:
+- Soft cream background
+- Warm white cards
+- Deep navy headings
+- Gold accent buttons
+- Muted green highlights
+- Document-style editable output blocks
+
+MVP REQUIREMENTS
+
+For the first version of Sermon Builder, make sure users can:
+- Enter sermon details
+- Generate a passage study
+- Generate big idea options
+- Generate outline options
+- Generate sermon manuscript or notes
+- Generate application ideas
+- Add/paste commentary or resource notes
+- Save a sermon
+- Export/copy a sermon
+- Generate worship planning ideas from a sermon
+
+Build this in a scalable way so future features can include:
+- Logos integration
+- Accordance integration
+- Bible software integrations
+- Sermon series planner
+- Team collaboration
+- Approval workflows
+- Shared church resource library
+- Public-domain commentary database
+- Slide generation
+- Sermon audio/video repurposing
