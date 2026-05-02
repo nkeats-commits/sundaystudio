@@ -10,7 +10,8 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
-import { streamGenerate } from "../lib/sseStream";
+import { runJob } from "../lib/runJob";
+import { jobManager } from "../lib/jobManager";
 import {
   loadRepertoireSongs,
   normalizeTitle,
@@ -94,7 +95,7 @@ Guidelines:
 - Liturgical text should be theologically rich and singable/speakable aloud.
 - Be concise. Each body field should be the minimum text needed; do not pad.`;
 
-  await streamGenerate(req, res, prompt, 6000, "service plan");
+  runJob(req, res, prompt, 6000, "service plan");
 });
 
 router.post("/generate/liturgy", requireAuth, async (req, res) => {
@@ -126,7 +127,7 @@ Return JSON exactly in this shape:
 
 Be concise: liturgy body should be the natural length for its kind, not padded.`;
 
-  await streamGenerate(req, res, prompt, 2000, "liturgy");
+  runJob(req, res, prompt, 2000, "liturgy");
 });
 
 router.post("/generate/songs", requireAuth, async (req, res) => {
@@ -196,7 +197,7 @@ Keep "whyItFits" to 1-2 short sentences.`;
   };
   type RawResult = { theme?: unknown; songs?: unknown };
 
-  await streamGenerate<RawResult>(
+  runJob<RawResult>(
     req,
     res,
     prompt,
@@ -297,7 +298,7 @@ Return JSON exactly in this shape:
 
 Match the requested duration. Don't exceed the spoken length budget.`;
 
-  await streamGenerate(req, res, prompt, 1500, "speaking moment");
+  runJob(req, res, prompt, 1500, "speaking moment");
 });
 
 router.post("/generate/devotional", requireAuth, async (req, res) => {
@@ -331,7 +332,19 @@ Return JSON exactly in this shape:
 
 Aim for content that fits in the ${minutes}-minute window when read aloud.`;
 
-  await streamGenerate(req, res, prompt, 3000, "devotional");
+  runJob(req, res, prompt, 3000, "devotional");
+});
+
+// Polling endpoint for any background generation job. Returns the snapshot
+// for the requested job, or `{ status: "unknown" }` when the job is not on
+// this instance (autoscale may run multiple workers).
+router.get("/generate/jobs/:jobId", requireAuth, (req, res) => {
+  const snap = jobManager.get(req.params.jobId, req.userId!);
+  if (!snap) {
+    res.json({ status: "unknown" });
+    return;
+  }
+  res.json(snap);
 });
 
 export default router;

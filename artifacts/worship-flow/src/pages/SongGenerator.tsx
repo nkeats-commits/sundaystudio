@@ -11,7 +11,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
+import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 
@@ -48,7 +48,7 @@ export default function SongGenerator() {
     repertoireMode: 'prefer' as RepertoireMode,
   });
 
-  const generate = useStreamingGenerate<GeneratedSongs>('/api/generate/songs');
+  const generate = useJobGenerate<GeneratedSongs>('/api/generate/songs');
   const createLibraryItem = useCreateLibraryItem();
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);

@@ -4,7 +4,7 @@ import { Save, Download, RotateCcw, Copy, Loader2, Plus, X, LayoutTemplate, Musi
 import { useCreateServicePlan, type GeneratedServicePlan, type ServicePlanItem } from '@workspace/api-client-react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
-import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
+import { useJobGenerate } from '../hooks/useJobGenerate';
 import { SlotPicker, LinkedPill, slotPickerSupported } from '../components/SlotPicker';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
@@ -23,7 +23,7 @@ export default function ServiceBuilder() {
   });
 
   const [, setLocation] = useLocation();
-  const generate = useStreamingGenerate<GeneratedServicePlan>('/api/generate/service-plan');
+  const generate = useJobGenerate<GeneratedServicePlan>('/api/generate/service-plan');
   const createPlan = useCreateServicePlan();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
 

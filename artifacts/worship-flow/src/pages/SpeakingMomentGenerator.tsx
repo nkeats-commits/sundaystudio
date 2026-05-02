@@ -4,7 +4,7 @@ import { Save, Loader2, Mic, Copy, AlertCircle } from 'lucide-react';
 import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedSpeakingMoment } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
+import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 
@@ -17,7 +17,7 @@ export default function SpeakingMomentGenerator() {
     tone: 'warm, pastoral, inviting'
   });
   
-  const generate = useStreamingGenerate<GeneratedSpeakingMoment>('/api/generate/speaking-moment');
+  const generate = useJobGenerate<GeneratedSpeakingMoment>('/api/generate/speaking-moment');
   const createLibraryItem = useCreateLibraryItem();
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);

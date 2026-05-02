@@ -26,7 +26,7 @@ import {
   type SermonWorshipIntegrationOutput,
   type SermonResource,
 } from '@workspace/api-client-react';
-import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
+import { useJobGenerate } from '../hooks/useJobGenerate';
 import { AppLayout } from '../components/layout/AppLayout';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
@@ -185,13 +185,13 @@ export default function SermonBuilder() {
   const sermon: Sermon | null = isExisting ? sermonQuery.data ?? null : null;
 
   // Streaming generators
-  const studyGen = useStreamingGenerate<SermonStudyOutput>('/api/generate/sermon-study');
-  const bigIdeaGen = useStreamingGenerate<SermonBigIdeaOutput>('/api/generate/sermon-big-idea');
-  const outlineGen = useStreamingGenerate<SermonOutlineOutput>('/api/generate/sermon-outline');
-  const manuscriptGen = useStreamingGenerate<SermonManuscriptOutput>('/api/generate/sermon-manuscript');
-  const applicationsGen = useStreamingGenerate<SermonApplicationsOutput>('/api/generate/sermon-applications');
-  const illustrationsGen = useStreamingGenerate<SermonIllustrationsOutput>('/api/generate/sermon-illustrations');
-  const worshipGen = useStreamingGenerate<SermonWorshipIntegrationOutput>('/api/generate/sermon-to-service');
+  const studyGen = useJobGenerate<SermonStudyOutput>('/api/generate/sermon-study');
+  const bigIdeaGen = useJobGenerate<SermonBigIdeaOutput>('/api/generate/sermon-big-idea');
+  const outlineGen = useJobGenerate<SermonOutlineOutput>('/api/generate/sermon-outline');
+  const manuscriptGen = useJobGenerate<SermonManuscriptOutput>('/api/generate/sermon-manuscript');
+  const applicationsGen = useJobGenerate<SermonApplicationsOutput>('/api/generate/sermon-applications');
+  const illustrationsGen = useJobGenerate<SermonIllustrationsOutput>('/api/generate/sermon-illustrations');
+  const worshipGen = useJobGenerate<SermonWorshipIntegrationOutput>('/api/generate/sermon-to-service');
 
   // Each tab keeps its own refine instruction
   const [refine, setRefine] = useState<Record<string, string>>({});

@@ -19,7 +19,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
-import { streamGenerate } from "../lib/sseStream";
+import { runJob } from "../lib/runJob";
 import {
   loadRepertoireSongs,
   repertoirePromptBlock,
@@ -200,7 +200,7 @@ Return JSON exactly in this shape:
   "interpretiveCautions": ["short caution", ...] | null,
   "resourceInsights": "string | null — ONLY if pastor-supplied resources were provided, surface what they add or where they disagree, attributing by title/author."
 }`;
-  await streamGenerate(req, res, prompt, 4000, "sermon study", GenerateSermonStudyResponse);
+  runJob(req, res, prompt, 4000, "sermon study", GenerateSermonStudyResponse);
 });
 
 router.post("/generate/sermon-big-idea", requireAuth, async (req, res) => {
@@ -240,7 +240,7 @@ Return JSON exactly in this shape:
     { "bigIdea": "single sentence", "rationale": "1-2 sentence rationale anchored in the passage" }
   ]
 }`;
-  await streamGenerate(req, res, prompt, 2500, "sermon big idea", GenerateSermonBigIdeaResponse);
+  runJob(req, res, prompt, 2500, "sermon big idea", GenerateSermonBigIdeaResponse);
 });
 
 router.post("/generate/sermon-outline", requireAuth, async (req, res) => {
@@ -290,7 +290,7 @@ Return JSON exactly in this shape:
     }
   ]
 }`;
-  await streamGenerate(req, res, prompt, 4000, "sermon outline", GenerateSermonOutlineResponse);
+  runJob(req, res, prompt, 4000, "sermon outline", GenerateSermonOutlineResponse);
 });
 
 router.post("/generate/sermon-manuscript", requireAuth, async (req, res) => {
@@ -345,7 +345,7 @@ Return JSON exactly in this shape:
   "body": "string — the sermon body. Use \\n\\n between paragraphs. Follow the outline if provided.",
   "conclusion": "string | null — landing the big idea, including a clear call to response"
 }`;
-  await streamGenerate(req, res, prompt, 6500, "sermon manuscript", GenerateSermonManuscriptResponse);
+  runJob(req, res, prompt, 6500, "sermon manuscript", GenerateSermonManuscriptResponse);
 });
 
 router.post("/generate/sermon-applications", requireAuth, async (req, res) => {
@@ -388,7 +388,7 @@ Return JSON exactly in this shape:
   ],
   "smallGroupQuestions": ["question", ...]
 }`;
-  await streamGenerate(req, res, prompt, 3500, "sermon applications", GenerateSermonApplicationsResponse);
+  runJob(req, res, prompt, 3500, "sermon applications", GenerateSermonApplicationsResponse);
 });
 
 router.post("/generate/sermon-illustrations", requireAuth, async (req, res) => {
@@ -435,7 +435,7 @@ Return JSON exactly in this shape:
     }
   ]
 }`;
-  await streamGenerate(req, res, prompt, 3000, "sermon illustrations", GenerateSermonIllustrationsResponse);
+  runJob(req, res, prompt, 3000, "sermon illustrations", GenerateSermonIllustrationsResponse);
 });
 
 router.post("/generate/sermon-to-service", requireAuth, async (req, res) => {
@@ -492,7 +492,7 @@ Return JSON exactly in this shape:
   "socialSummary": "string | null — 1-2 sentences for social media",
   "emailSummary": "string | null — 3-5 sentences for a follow-up email"
 }`;
-  await streamGenerate(req, res, prompt, 4000, "sermon to service", GenerateSermonToServiceResponse);
+  runJob(req, res, prompt, 4000, "sermon to service", GenerateSermonToServiceResponse);
 });
 
 export default router;

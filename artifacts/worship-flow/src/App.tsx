@@ -9,7 +9,7 @@ import {
   setAuthTokenGetter,
   setOnUnauthorized,
 } from "@workspace/api-client-react";
-import { setStreamingOnUnauthorized } from "./hooks/useStreamingGenerate";
+import { setJobGenerateOnUnauthorized } from "./hooks/useJobGenerate";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import ServiceBuilder from "./pages/ServiceBuilder";
@@ -219,12 +219,12 @@ function ClerkAuthBootstrap() {
     };
 
     setOnUnauthorized(handleUnauthorized);
-    setStreamingOnUnauthorized(handleUnauthorized);
+    setJobGenerateOnUnauthorized(handleUnauthorized);
 
     return () => {
       setAuthTokenGetter(null);
       setOnUnauthorized(null);
-      setStreamingOnUnauthorized(null);
+      setJobGenerateOnUnauthorized(null);
     };
   }, [isLoaded, isSignedIn, getToken, signOut, setLocation]);
 

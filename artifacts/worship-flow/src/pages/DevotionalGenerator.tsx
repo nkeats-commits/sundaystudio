@@ -4,7 +4,7 @@ import { Save, Loader2, Users, Copy, AlertCircle } from 'lucide-react';
 import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedDevotional } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useStreamingGenerate } from '../hooks/useStreamingGenerate';
+import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 
@@ -16,7 +16,7 @@ export default function DevotionalGenerator() {
     durationMinutes: 10
   });
   
-  const generate = useStreamingGenerate<GeneratedDevotional>('/api/generate/devotional');
+  const generate = useJobGenerate<GeneratedDevotional>('/api/generate/devotional');
   const createLibraryItem = useCreateLibraryItem();
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
