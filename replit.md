@@ -17,7 +17,7 @@ Brand: warm pastoral aesthetic — navy `#1F2A44`, gold `#C99A3D`, cream `#F8F4E
 - `lib/api-spec` — OpenAPI 3.1 spec. Source of truth for the API contract. `pnpm --filter @workspace/api-spec run codegen` regenerates Zod schemas + React Query hooks.
 - `lib/api-zod` — generated Zod schemas.
 - `lib/api-client-react` — generated React Query hooks (Orval).
-- `lib/db` — Drizzle schema (`users`, `church_profiles`, `service_plans`, `library_items`, `sermons`, `sermon_resources`, `sermon_exports`).
+- `lib/db` — Drizzle schema (`users`, `church_profiles`, `service_plans`, `library_items`, `sermons`, `sermon_resources`, `sermon_exports`). `library_items.isRepertoire` (boolean, default false) marks songs as part of the user's personal repertoire.
 - `lib/integrations-anthropic-ai` — Anthropic SDK wrapper.
 
 ## Routes
@@ -45,6 +45,14 @@ Each `ServicePlanItem` may carry `linkedKind` (`'sermon' | 'library_item'`), `li
 - `GET /api/sermons/:id/linked-services` and `GET /api/library/:id/linked-services` reverse-look up service plans containing the link via a jsonb `@>` containment query (scoped to `userId`).
 - `SlotPicker` (in `src/components/SlotPicker.tsx`) is the modal that lets a pastor swap any service slot for a saved sermon or library item; `slotPickerSupported(kind)` is the parent's gate (slot kinds like `offering` have no sensible source). `LinkedPill` is the bronze pill rendered next to a linked slot title.
 - ServiceDetail PUTs the whole `content` blob and seeds the cache via `setQueryData` from the mutation response to avoid back-to-back overwrite races. After every link/unlink it invalidates every `/linked-services` query so reverse-lookup badges on Sermon Archive / Library refresh.
+
+### Song Repertoire (Task #11)
+
+- Songs in `library_items` can be flagged `isRepertoire=true` (server enforces songs-only). The Library has an "Our Repertoire" tab with an inline add form, a "Paste a list" modal (parses `Title`, `Title - Artist`, `Title — Artist` lines), and a star toggle on every song card. Bulk import dedupes case-insensitively against the user's existing repertoire titles.
+- New endpoints in `routes/library.ts`: `PATCH /library/{id}/repertoire`, `POST /library/repertoire/bulk-import`. `GET /library` accepts `repertoire=true` for the filtered view (sorted alphabetically).
+- Song Assistant has a 3-state "Use my repertoire" segmented control: **Prefer** (default — bias toward repertoire, fill gaps from elsewhere), **Strict** (only repertoire titles; disabled when 0), **Off**. Strict is downgraded to Prefer on submit when the repertoire is empty so the server can emit its informative notice.
+- Repertoire helper lives in `artifacts/api-server/src/lib/repertoire.ts`. `/generate/songs` injects mode-specific prompt blocks and a server-side transform on `streamGenerate` filters Strict-mode results to repertoire titles only and annotates `inRepertoire` on every kept song; `notice` is emitted when Strict is short or Prefer was requested with an empty repertoire. `/generate/service-plan` and `/generate/sermon-to-service` always inject Prefer-mode context (no UI control).
+- `streamGenerate` (`lib/sseStream.ts`) gained a generic `T` parameter and an optional `transform(parsed)` hook that runs after schema validation, before the `done` event.
 
 ### Sermon AI safety
 

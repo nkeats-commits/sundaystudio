@@ -12,4 +12,6 @@ export interface SongSuggestion {
   style?: string;
   themes?: string[];
   whyItFits: string;
+  /** Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match). */
+  inRepertoire?: boolean;
 }

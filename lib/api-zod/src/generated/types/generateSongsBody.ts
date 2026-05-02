@@ -5,6 +5,7 @@
  * WorshipFlow API
  * OpenAPI spec version: 0.1.0
  */
+import type { GenerateSongsBodyRepertoireMode } from "./generateSongsBodyRepertoireMode";
 
 export interface GenerateSongsBody {
   theme: string;
@@ -12,4 +13,10 @@ export interface GenerateSongsBody {
   /** e.g. "hymn", "modern worship", "gospel", "acoustic" */
   style?: string;
   count?: number;
+  /** How to use the user's saved repertoire when suggesting songs.
+- `off`: ignore the repertoire entirely.
+- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.
+- `strict`: only suggest songs from the user's repertoire; never invent new titles.
+ */
+  repertoireMode?: GenerateSongsBodyRepertoireMode;
 }

@@ -17,6 +17,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  BulkImportRepertoireBody,
+  BulkImportRepertoireResult,
   ChurchProfile,
   CreateLibraryItemBody,
   CreateSermonBody,
@@ -75,6 +77,7 @@ import type {
   SermonWorshipIntegrationOutput,
   ServicePlan,
   ServicePlanExport,
+  SetRepertoireBody,
   UnauthorizedResponse,
   UpdateSermonBody,
   UpdateSermonResourceBody,
@@ -1170,6 +1173,182 @@ export const useDeleteLibraryItem = <
   TContext
 > => {
   return useMutation(getDeleteLibraryItemMutationOptions(options));
+};
+
+/**
+ * @summary Toggle whether a library item is part of the user's repertoire.
+ */
+export const getSetLibraryItemRepertoireUrl = (id: number) => {
+  return `/api/library/${id}/repertoire`;
+};
+
+export const setLibraryItemRepertoire = async (
+  id: number,
+  setRepertoireBody: SetRepertoireBody,
+  options?: RequestInit,
+): Promise<LibraryItem> => {
+  return customFetch<LibraryItem>(getSetLibraryItemRepertoireUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setRepertoireBody),
+  });
+};
+
+export const getSetLibraryItemRepertoireMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLibraryItemRepertoire>>,
+    TError,
+    { id: number; data: BodyType<SetRepertoireBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setLibraryItemRepertoire>>,
+  TError,
+  { id: number; data: BodyType<SetRepertoireBody> },
+  TContext
+> => {
+  const mutationKey = ["setLibraryItemRepertoire"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setLibraryItemRepertoire>>,
+    { id: number; data: BodyType<SetRepertoireBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return setLibraryItemRepertoire(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetLibraryItemRepertoireMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setLibraryItemRepertoire>>
+>;
+export type SetLibraryItemRepertoireMutationBody = BodyType<SetRepertoireBody>;
+export type SetLibraryItemRepertoireMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Toggle whether a library item is part of the user's repertoire.
+ */
+export const useSetLibraryItemRepertoire = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setLibraryItemRepertoire>>,
+    TError,
+    { id: number; data: BodyType<SetRepertoireBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setLibraryItemRepertoire>>,
+  TError,
+  { id: number; data: BodyType<SetRepertoireBody> },
+  TContext
+> => {
+  return useMutation(getSetLibraryItemRepertoireMutationOptions(options));
+};
+
+/**
+ * @summary Bulk-add songs to the user's repertoire from a parsed list.
+ */
+export const getBulkImportRepertoireUrl = () => {
+  return `/api/library/repertoire/bulk-import`;
+};
+
+export const bulkImportRepertoire = async (
+  bulkImportRepertoireBody: BulkImportRepertoireBody,
+  options?: RequestInit,
+): Promise<BulkImportRepertoireResult> => {
+  return customFetch<BulkImportRepertoireResult>(getBulkImportRepertoireUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(bulkImportRepertoireBody),
+  });
+};
+
+export const getBulkImportRepertoireMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkImportRepertoire>>,
+    TError,
+    { data: BodyType<BulkImportRepertoireBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkImportRepertoire>>,
+  TError,
+  { data: BodyType<BulkImportRepertoireBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkImportRepertoire"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkImportRepertoire>>,
+    { data: BodyType<BulkImportRepertoireBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkImportRepertoire(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkImportRepertoireMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkImportRepertoire>>
+>;
+export type BulkImportRepertoireMutationBody =
+  BodyType<BulkImportRepertoireBody>;
+export type BulkImportRepertoireMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Bulk-add songs to the user's repertoire from a parsed list.
+ */
+export const useBulkImportRepertoire = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkImportRepertoire>>,
+    TError,
+    { data: BodyType<BulkImportRepertoireBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkImportRepertoire>>,
+  TError,
+  { data: BodyType<BulkImportRepertoireBody> },
+  TContext
+> => {
+  return useMutation(getBulkImportRepertoireMutationOptions(options));
 };
 
 /**

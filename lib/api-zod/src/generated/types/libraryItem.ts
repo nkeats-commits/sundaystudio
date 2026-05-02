@@ -15,5 +15,7 @@ export interface LibraryItem {
   title: string;
   content: LibraryItemContent;
   tags: string[];
+  /** True when this song is part of the user's personal repertoire that worship-song generators will prefer. */
+  isRepertoire: boolean;
   createdAt: Date;
 }

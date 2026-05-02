@@ -10,4 +10,6 @@ import type { SongSuggestion } from "./songSuggestion";
 export interface GeneratedSongs {
   theme: string;
   songs: SongSuggestion[];
+  /** Optional explanatory note from the server, e.g. when Strict mode produced fewer songs than requested. */
+  notice?: string;
 }

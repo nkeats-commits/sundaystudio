@@ -9,4 +9,8 @@ import type { ListLibraryItemsKind } from "./listLibraryItemsKind";
 
 export type ListLibraryItemsParams = {
   kind?: ListLibraryItemsKind;
+  /**
+   * When true, only return items the user has marked as part of their repertoire.
+   */
+  repertoire?: boolean;
 };

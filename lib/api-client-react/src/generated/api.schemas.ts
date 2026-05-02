@@ -176,6 +176,8 @@ export interface LibraryItem {
   title: string;
   content: LibraryItemContent;
   tags: string[];
+  /** True when this song is part of the user's personal repertoire that worship-song generators will prefer. */
+  isRepertoire: boolean;
   createdAt: string;
 }
 
@@ -197,6 +199,34 @@ export interface CreateLibraryItemBody {
   title: string;
   content: CreateLibraryItemBodyContent;
   tags?: string[];
+  /** When true, also marks the saved song as part of the user's repertoire. */
+  isRepertoire?: boolean;
+}
+
+export interface SetRepertoireBody {
+  isRepertoire: boolean;
+}
+
+export interface RepertoireImportSong {
+  /** @minLength 1 */
+  title: string;
+  artist?: string;
+  style?: string;
+  tags?: string[];
+}
+
+export interface BulkImportRepertoireBody {
+  /** @minItems 1 */
+  songs: RepertoireImportSong[];
+}
+
+export interface BulkImportRepertoireResult {
+  /** Number of new repertoire songs created. */
+  added: number;
+  /** Number of submitted titles that matched an existing repertoire song (case-insensitive title match). */
+  skippedDuplicates: number;
+  /** Number of submitted entries dropped because they lacked a usable title. */
+  invalidLines: number;
 }
 
 export interface DashboardStat {
@@ -281,12 +311,34 @@ export interface GeneratedLiturgy {
   notes?: string;
 }
 
+/**
+ * How to use the user's saved repertoire when suggesting songs.
+- `off`: ignore the repertoire entirely.
+- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.
+- `strict`: only suggest songs from the user's repertoire; never invent new titles.
+
+ */
+export type GenerateSongsBodyRepertoireMode =
+  (typeof GenerateSongsBodyRepertoireMode)[keyof typeof GenerateSongsBodyRepertoireMode];
+
+export const GenerateSongsBodyRepertoireMode = {
+  off: "off",
+  prefer: "prefer",
+  strict: "strict",
+} as const;
+
 export interface GenerateSongsBody {
   theme: string;
   scripture?: string;
   /** e.g. "hymn", "modern worship", "gospel", "acoustic" */
   style?: string;
   count?: number;
+  /** How to use the user's saved repertoire when suggesting songs.
+- `off`: ignore the repertoire entirely.
+- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.
+- `strict`: only suggest songs from the user's repertoire; never invent new titles.
+ */
+  repertoireMode?: GenerateSongsBodyRepertoireMode;
 }
 
 export interface SongSuggestion {
@@ -295,11 +347,15 @@ export interface SongSuggestion {
   style?: string;
   themes?: string[];
   whyItFits: string;
+  /** Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match). */
+  inRepertoire?: boolean;
 }
 
 export interface GeneratedSongs {
   theme: string;
   songs: SongSuggestion[];
+  /** Optional explanatory note from the server, e.g. when Strict mode produced fewer songs than requested. */
+  notice?: string;
 }
 
 export type GenerateSpeakingMomentBodyKind =
@@ -767,6 +823,10 @@ export type NotFoundResponse = ApiError;
 
 export type ListLibraryItemsParams = {
   kind?: ListLibraryItemsKind;
+  /**
+   * When true, only return items the user has marked as part of their repertoire.
+   */
+  repertoire?: boolean;
 };
 
 export type ListLibraryItemsKind =

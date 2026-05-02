@@ -14,4 +14,6 @@ export interface CreateLibraryItemBody {
   title: string;
   content: CreateLibraryItemBodyContent;
   tags?: string[];
+  /** When true, also marks the saved song as part of the user's repertoire. */
+  isRepertoire?: boolean;
 }

@@ -11,6 +11,13 @@ import {
 import { requireAuth } from "../middlewares/requireAuth";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
 import { streamGenerate } from "../lib/sseStream";
+import {
+  loadRepertoireSongs,
+  normalizeTitle,
+  repertoirePromptBlock,
+  repertoireTitleSet,
+  type RepertoireMode,
+} from "../lib/repertoire";
 
 const router: IRouter = Router();
 
@@ -38,6 +45,11 @@ router.post("/generate/service-plan", requireAuth, async (req, res) => {
   }
   const data = parsed.data;
   const ctx = await getChurchContext(req.userId!);
+  // Service plans always run in "prefer" mode so song slots favor the team's
+  // own repertoire when one exists. There is no UI to opt out today; if the
+  // user has no repertoire, the block silently disappears.
+  const repertoire = await loadRepertoireSongs(req.userId!);
+  const repBlock = repertoirePromptBlock(repertoire, "prefer");
   const prompt = `Generate a complete worship service plan as JSON.
 
 Theme: ${data.theme}
@@ -48,7 +60,7 @@ Notes: ${data.notes ?? "(none)"}
 
 Church context:
 ${churchContextBlurb(ctx)}
-
+${repBlock ? `\n${repBlock}\n` : ""}
 Return JSON matching exactly this shape (no extra fields, no missing required fields):
 {
   "title": "string — a beautiful service title",
@@ -125,8 +137,26 @@ router.post("/generate/songs", requireAuth, async (req, res) => {
   }
   const data = parsed.data;
   const ctx = await getChurchContext(req.userId!);
-  const count = Math.max(3, Math.min(data.count ?? 6, 10));
-  const prompt = `Suggest ${count} worship songs that fit this theme.
+  const requestedCount = Math.max(3, Math.min(data.count ?? 6, 10));
+  const requestedMode = (data.repertoireMode ?? "prefer") as RepertoireMode;
+  // Skip the repertoire load entirely when the caller opted out.
+  const repertoire =
+    requestedMode === "off" ? [] : await loadRepertoireSongs(req.userId!);
+  // Auto-fall-back to "off" when there is nothing to bias toward, so we don't
+  // confuse the model with an empty Prefer block or ask Strict for an
+  // impossible answer.
+  const effectiveMode: RepertoireMode =
+    repertoire.length === 0 ? "off" : requestedMode;
+  const titleSet = repertoireTitleSet(repertoire);
+  const repBlock = repertoirePromptBlock(repertoire, effectiveMode);
+  // In Strict mode we cap the requested count at the repertoire size — there
+  // is no value in asking for 8 songs when the user only knows 3.
+  const promptCount =
+    effectiveMode === "strict"
+      ? Math.max(1, Math.min(requestedCount, repertoire.length))
+      : requestedCount;
+
+  const prompt = `Suggest ${promptCount} worship songs that fit this theme.
 
 Theme: ${data.theme}
 Scripture: ${data.scripture ?? "(any)"}
@@ -134,7 +164,7 @@ Style preference: ${data.style ?? "mixed (modern worship and hymns)"}
 
 Church context:
 ${churchContextBlurb(ctx)}
-
+${repBlock ? `\n${repBlock}\n` : ""}
 Return JSON exactly in this shape:
 {
   "theme": "string",
@@ -152,7 +182,84 @@ Return JSON exactly in this shape:
 Only suggest real, published songs/hymns the pastor can actually find. Do not invent songs.
 Keep "whyItFits" to 1-2 short sentences.`;
 
-  await streamGenerate(req, res, prompt, 3000, "songs");
+  type RawSong = {
+    title?: unknown;
+    artist?: unknown;
+    style?: unknown;
+    themes?: unknown;
+    whyItFits?: unknown;
+  };
+  type RawResult = { theme?: unknown; songs?: unknown };
+
+  await streamGenerate<RawResult>(
+    req,
+    res,
+    prompt,
+    3000,
+    "songs",
+    undefined,
+    (raw) => {
+      const rawSongs: RawSong[] = Array.isArray(raw?.songs)
+        ? (raw.songs as RawSong[])
+        : [];
+      const cleaned = rawSongs.flatMap((s) => {
+        if (
+          !s ||
+          typeof s.title !== "string" ||
+          typeof s.artist !== "string" ||
+          typeof s.whyItFits !== "string"
+        ) {
+          return [];
+        }
+        const inRepertoire = titleSet.has(normalizeTitle(s.title));
+        // Strict mode is the contract: never let an AI-invented title leak
+        // through, no matter what the prompt says.
+        if (effectiveMode === "strict" && !inRepertoire) return [];
+        return [
+          {
+            title: s.title,
+            artist: s.artist,
+            whyItFits: s.whyItFits,
+            ...(typeof s.style === "string" ? { style: s.style } : {}),
+            ...(Array.isArray(s.themes)
+              ? {
+                  themes: (s.themes as unknown[]).filter(
+                    (t): t is string => typeof t === "string",
+                  ),
+                }
+              : {}),
+            inRepertoire,
+          },
+        ];
+      });
+
+      const result: {
+        theme: string;
+        songs: typeof cleaned;
+        notice?: string;
+      } = {
+        theme:
+          typeof raw?.theme === "string" && raw.theme.trim().length > 0
+            ? raw.theme
+            : data.theme,
+        songs: cleaned,
+      };
+
+      if (effectiveMode === "strict") {
+        if (cleaned.length === 0) {
+          result.notice =
+            "No songs in your repertoire matched this theme. Add more songs to your repertoire, or switch to Prefer or Off for broader suggestions.";
+        } else if (cleaned.length < requestedCount) {
+          result.notice = `Only ${cleaned.length} song${cleaned.length === 1 ? "" : "s"} from your repertoire fit this theme. Add more to your repertoire for richer Strict-mode results.`;
+        }
+      } else if (requestedMode !== "off" && repertoire.length === 0) {
+        result.notice =
+          "Your repertoire is empty, so suggestions come from general worship knowledge. Add songs in Library → Our Repertoire to make future picks feel familiar.";
+      }
+
+      return result as unknown as RawResult;
+    },
+  );
 });
 
 router.post("/generate/speaking-moment", requireAuth, async (req, res) => {

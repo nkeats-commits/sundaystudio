@@ -20,6 +20,10 @@ import {
 import { requireAuth } from "../middlewares/requireAuth";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
 import { streamGenerate } from "../lib/sseStream";
+import {
+  loadRepertoireSongs,
+  repertoirePromptBlock,
+} from "../lib/repertoire";
 
 const router: IRouter = Router();
 
@@ -448,6 +452,10 @@ router.post("/generate/sermon-to-service", requireAuth, async (req, res) => {
   };
   await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
+  // Always run worship integration in "prefer" mode so song picks lean on
+  // the team's actual repertoire when one exists.
+  const repertoire = await loadRepertoireSongs(req.userId!);
+  const repBlock = repertoirePromptBlock(repertoire, "prefer");
   const prompt = `From this sermon, generate worship-integration ideas that connect the sermon to a Sunday service, as JSON.
 
 ${SERMON_GROUND_RULES}
@@ -459,7 +467,7 @@ ${sermonContextBlurb(d)}
 
 Church context:
 ${churchContextBlurb(ctx)}
-
+${repBlock ? `\n${repBlock}\n` : ""}
 ${d.bigIdea ? `Big idea: ${d.bigIdea}` : ""}
 ${d.outline ? `Outline:\n${JSON.stringify(d.outline, null, 2)}` : ""}
 ${d.applications ? `Applications:\n${JSON.stringify(d.applications, null, 2)}` : ""}

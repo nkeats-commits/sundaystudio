@@ -33,14 +33,20 @@ function writeSseEvent(res: Response, event: string, data: unknown): void {
  *
  * SSE keeps a steady byte stream flowing so the deployment proxy
  * (autoscale, ~30s idle limit) does not abort long Anthropic responses.
+ *
+ * `transform` runs after JSON parse and (optional) schema validation, and
+ * lets the caller normalize / filter the result before it goes out as the
+ * `done` event. Useful for Strict-mode filtering or annotating fields the
+ * model didn't fill in.
  */
-export async function streamGenerate(
+export async function streamGenerate<T = unknown>(
   req: Request,
   res: Response,
   prompt: string,
   maxTokens: number,
   label: string,
-  responseSchema?: SafeParseable<unknown>,
+  responseSchema?: SafeParseable<T>,
+  transform?: (parsed: T) => T | Promise<T>,
 ): Promise<void> {
   res.status(200);
   res.setHeader("Content-Type", "text/event-stream");
@@ -93,9 +99,9 @@ export async function streamGenerate(
 
   if (!canWrite(res)) return;
 
-  let parsed: unknown;
+  let parsed: T;
   try {
-    parsed = JSON.parse(extractJson(fullText));
+    parsed = JSON.parse(extractJson(fullText)) as T;
   } catch (err) {
     req.log.error(
       { err, sample: fullText.slice(0, 500) },
@@ -128,6 +134,20 @@ export async function streamGenerate(
       return;
     }
     parsed = check.data;
+  }
+
+  if (transform) {
+    try {
+      parsed = await transform(parsed);
+    } catch (err) {
+      req.log.error({ err }, `${label} response transform failed`);
+      writeSseEvent(res, "error", {
+        message:
+          "We received a response from the model but couldn't process it. Please try again.",
+      });
+      safeEnd();
+      return;
+    }
   }
 
   writeSseEvent(res, "done", parsed);

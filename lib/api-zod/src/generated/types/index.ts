@@ -7,6 +7,8 @@
  */
 
 export * from "./apiError";
+export * from "./bulkImportRepertoireBody";
+export * from "./bulkImportRepertoireResult";
 export * from "./churchProfile";
 export * from "./createLibraryItemBody";
 export * from "./createLibraryItemBodyContent";
@@ -51,6 +53,7 @@ export * from "./generateSermonToServiceBody";
 export * from "./generateServicePlan400";
 export * from "./generateServicePlanBody";
 export * from "./generateSongsBody";
+export * from "./generateSongsBodyRepertoireMode";
 export * from "./generateSongSuggestions400";
 export * from "./generateSpeakingMoment400";
 export * from "./generateSpeakingMomentBody";
@@ -64,6 +67,7 @@ export * from "./listLibraryItemsKind";
 export * from "./listLibraryItemsParams";
 export * from "./meResponse";
 export * from "./notFoundResponse";
+export * from "./repertoireImportSong";
 export * from "./sermon";
 export * from "./sermonApplicationItem";
 export * from "./sermonApplicationsOutput";
@@ -93,6 +97,7 @@ export * from "./servicePlanExport";
 export * from "./servicePlanItem";
 export * from "./servicePlanItemKind";
 export * from "./servicePlanItemLinkedKind";
+export * from "./setRepertoireBody";
 export * from "./songSuggestion";
 export * from "./unauthorizedResponse";
 export * from "./updateSermonBody";

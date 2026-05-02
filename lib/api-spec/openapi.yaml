@@ -221,6 +221,12 @@ paths:
           schema:
             type: string
             enum: [liturgy, song, speaking_moment, devotional]
+        - name: repertoire
+          in: query
+          required: false
+          description: When true, only return items the user has marked as part of their repertoire.
+          schema:
+            type: boolean
       responses:
         "200":
           description: List of library items
@@ -262,6 +268,52 @@ paths:
       responses:
         "204":
           description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /library/{id}/repertoire:
+    patch:
+      operationId: setLibraryItemRepertoire
+      tags: [library]
+      summary: Toggle whether a library item is part of the user's repertoire.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetRepertoireBody"
+      responses:
+        "200":
+          description: Updated library item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /library/repertoire/bulk-import:
+    post:
+      operationId: bulkImportRepertoire
+      tags: [library]
+      summary: Bulk-add songs to the user's repertoire from a parsed list.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkImportRepertoireBody"
+      responses:
+        "200":
+          description: Import summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkImportRepertoireResult"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1367,10 +1419,13 @@ components:
           type: array
           items:
             type: string
+        isRepertoire:
+          type: boolean
+          description: True when this song is part of the user's personal repertoire that worship-song generators will prefer.
         createdAt:
           type: string
           format: date-time
-      required: [id, userId, kind, title, content, tags, createdAt]
+      required: [id, userId, kind, title, content, tags, isRepertoire, createdAt]
 
     CreateLibraryItemBody:
       type: object
@@ -1388,7 +1443,57 @@ components:
           type: array
           items:
             type: string
+        isRepertoire:
+          type: boolean
+          description: When true, also marks the saved song as part of the user's repertoire.
       required: [kind, title, content]
+
+    SetRepertoireBody:
+      type: object
+      properties:
+        isRepertoire:
+          type: boolean
+      required: [isRepertoire]
+
+    RepertoireImportSong:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        artist:
+          type: string
+        style:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required: [title]
+
+    BulkImportRepertoireBody:
+      type: object
+      properties:
+        songs:
+          type: array
+          items:
+            $ref: "#/components/schemas/RepertoireImportSong"
+          minItems: 1
+      required: [songs]
+
+    BulkImportRepertoireResult:
+      type: object
+      properties:
+        added:
+          type: integer
+          description: Number of new repertoire songs created.
+        skippedDuplicates:
+          type: integer
+          description: Number of submitted titles that matched an existing repertoire song (case-insensitive title match).
+        invalidLines:
+          type: integer
+          description: Number of submitted entries dropped because they lacked a usable title.
+      required: [added, skippedDuplicates, invalidLines]
 
     DashboardStat:
       type: object
@@ -1511,6 +1616,14 @@ components:
           description: e.g. "hymn", "modern worship", "gospel", "acoustic"
         count:
           type: integer
+        repertoireMode:
+          type: string
+          enum: [off, prefer, strict]
+          description: |
+            How to use the user's saved repertoire when suggesting songs.
+            - `off`: ignore the repertoire entirely.
+            - `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.
+            - `strict`: only suggest songs from the user's repertoire; never invent new titles.
       required: [theme]
 
     SongSuggestion:
@@ -1528,6 +1641,9 @@ components:
             type: string
         whyItFits:
           type: string
+        inRepertoire:
+          type: boolean
+          description: Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match).
       required: [title, artist, whyItFits]
 
     GeneratedSongs:
@@ -1539,6 +1655,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SongSuggestion"
+        notice:
+          type: string
+          description: Optional explanatory note from the server, e.g. when Strict mode produced fewer songs than requested.
       required: [theme, songs]
 
     GenerateSpeakingMomentBody:

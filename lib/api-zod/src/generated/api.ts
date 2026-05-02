@@ -489,6 +489,12 @@ export const ListLibraryItemsQueryParams = zod.object({
   kind: zod
     .enum(["liturgy", "song", "speaking_moment", "devotional"])
     .optional(),
+  repertoire: zod.coerce
+    .boolean()
+    .optional()
+    .describe(
+      "When true, only return items the user has marked as part of their repertoire.",
+    ),
 });
 
 export const ListLibraryItemsResponseItem = zod.object({
@@ -498,6 +504,11 @@ export const ListLibraryItemsResponseItem = zod.object({
   title: zod.string(),
   content: zod.record(zod.string(), zod.unknown()),
   tags: zod.array(zod.string()),
+  isRepertoire: zod
+    .boolean()
+    .describe(
+      "True when this song is part of the user's personal repertoire that worship-song generators will prefer.",
+    ),
   createdAt: zod.coerce.date(),
 });
 export const ListLibraryItemsResponse = zod.array(ListLibraryItemsResponseItem);
@@ -511,6 +522,12 @@ export const CreateLibraryItemBody = zod.object({
   title: zod.string().min(1),
   content: zod.record(zod.string(), zod.unknown()),
   tags: zod.array(zod.string()).optional(),
+  isRepertoire: zod
+    .boolean()
+    .optional()
+    .describe(
+      "When true, also marks the saved song as part of the user's repertoire.",
+    ),
 });
 
 /**
@@ -518,6 +535,63 @@ export const CreateLibraryItemBody = zod.object({
  */
 export const DeleteLibraryItemParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Toggle whether a library item is part of the user's repertoire.
+ */
+export const SetLibraryItemRepertoireParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SetLibraryItemRepertoireBody = zod.object({
+  isRepertoire: zod.boolean(),
+});
+
+export const SetLibraryItemRepertoireResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  kind: zod.enum(["liturgy", "song", "speaking_moment", "devotional"]),
+  title: zod.string(),
+  content: zod.record(zod.string(), zod.unknown()),
+  tags: zod.array(zod.string()),
+  isRepertoire: zod
+    .boolean()
+    .describe(
+      "True when this song is part of the user's personal repertoire that worship-song generators will prefer.",
+    ),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Bulk-add songs to the user's repertoire from a parsed list.
+ */
+
+export const BulkImportRepertoireBody = zod.object({
+  songs: zod
+    .array(
+      zod.object({
+        title: zod.string().min(1),
+        artist: zod.string().optional(),
+        style: zod.string().optional(),
+        tags: zod.array(zod.string()).optional(),
+      }),
+    )
+    .min(1),
+});
+
+export const BulkImportRepertoireResponse = zod.object({
+  added: zod.number().describe("Number of new repertoire songs created."),
+  skippedDuplicates: zod
+    .number()
+    .describe(
+      "Number of submitted titles that matched an existing repertoire song (case-insensitive title match).",
+    ),
+  invalidLines: zod
+    .number()
+    .describe(
+      "Number of submitted entries dropped because they lacked a usable title.",
+    ),
 });
 
 /**
@@ -665,6 +739,12 @@ export const GenerateSongSuggestionsBody = zod.object({
     .optional()
     .describe('e.g. \"hymn\", \"modern worship\", \"gospel\", \"acoustic\"'),
   count: zod.number().optional(),
+  repertoireMode: zod
+    .enum(["off", "prefer", "strict"])
+    .optional()
+    .describe(
+      "How to use the user's saved repertoire when suggesting songs.\n- `off`: ignore the repertoire entirely.\n- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.\n- `strict`: only suggest songs from the user's repertoire; never invent new titles.\n",
+    ),
 });
 
 export const GenerateSongSuggestionsResponse = zod.object({
@@ -676,8 +756,20 @@ export const GenerateSongSuggestionsResponse = zod.object({
       style: zod.string().optional(),
       themes: zod.array(zod.string()).optional(),
       whyItFits: zod.string(),
+      inRepertoire: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match).",
+        ),
     }),
   ),
+  notice: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional explanatory note from the server, e.g. when Strict mode produced fewer songs than requested.",
+    ),
 });
 
 /**
