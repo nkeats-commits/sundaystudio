@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Component, useEffect, type ReactNode } from 'react';
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
@@ -237,12 +237,48 @@ function ClerkProviderWithRoutes() {
   );
 }
 
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: { componentStack?: string | null }) {
+    console.error("[WorshipFlow ErrorBoundary]", error, info?.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, fontFamily: 'monospace', background: '#FFFDF8', color: '#1F2A44', minHeight: '100vh' }}>
+          <h1 style={{ fontSize: 24, marginBottom: 16 }}>Something went wrong rendering this page.</h1>
+          <pre style={{ background: '#F8F4EA', padding: 16, borderRadius: 8, whiteSpace: 'pre-wrap', overflow: 'auto' }}>
+            {this.state.error.message}
+            {'\n\n'}
+            {this.state.error.stack}
+          </pre>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.href = basePath || '/'; }}
+            style={{ marginTop: 16, padding: '8px 16px', background: '#1F2A44', color: 'white', border: 0, borderRadius: 8, cursor: 'pointer' }}
+          >
+            Go home
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <WouterRouter base={basePath}>
-      <ClerkProviderWithRoutes />
-      <Toaster position="top-center" />
-    </WouterRouter>
+    <ErrorBoundary>
+      <WouterRouter base={basePath}>
+        <ClerkProviderWithRoutes />
+        <Toaster position="top-center" />
+      </WouterRouter>
+    </ErrorBoundary>
   );
 }
 
