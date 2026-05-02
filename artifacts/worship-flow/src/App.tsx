@@ -179,17 +179,23 @@ function ClerkAuthBootstrap() {
   useEffect(() => {
     if (!isLoaded) return;
 
-    // Always (re-)install the token getter once Clerk has loaded.  We
-    // intentionally re-key on `isSignedIn` so that signing back in after a
-    // forced sign-out re-installs a fresh getter, even if Clerk's
-    // `getToken` reference is stable across the auth transition.
-    setAuthTokenGetter(async () => {
-      try {
-        return await getToken();
-      } catch {
-        return null;
-      }
-    });
+    // Install (or remove) the token getter based on auth state.  We re-key
+    // on `isSignedIn` so that signing back in after a forced sign-out
+    // re-installs a fresh getter, even if Clerk's `getToken` reference is
+    // stable across the transition.  When signed out we clear the getter
+    // entirely so subsequent calls don't even bother asking Clerk for a
+    // token they cannot obtain.
+    if (isSignedIn) {
+      setAuthTokenGetter(async () => {
+        try {
+          return await getToken();
+        } catch {
+          return null;
+        }
+      });
+    } else {
+      setAuthTokenGetter(null);
+    }
 
     const handleUnauthorized = () => {
       if (handlingUnauthorizedRef.current) return;
