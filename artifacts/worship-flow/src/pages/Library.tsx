@@ -193,25 +193,38 @@ function PasteListModal({
 function AddSongForm({ onAdded }: { onAdded: () => void }) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
+  const [style, setStyle] = useState('');
+  const [tagsInput, setTagsInput] = useState('');
   const create = useCreateLibraryItem();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const t = title.trim();
     if (!t) return;
+    const a = artist.trim();
+    const s = style.trim();
+    const content: Record<string, string> = {};
+    if (a) content.artist = a;
+    if (s) content.style = s;
+    const tags = tagsInput
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
     try {
       await create.mutateAsync({
         data: {
           kind: 'song',
           title: t,
-          content: artist.trim() ? { artist: artist.trim() } : {},
-          tags: [],
+          content,
+          tags,
           isRepertoire: true,
         },
       });
       toast.success(`"${t}" added to your repertoire`);
       setTitle('');
       setArtist('');
+      setStyle('');
+      setTagsInput('');
       onAdded();
     } catch (err) {
       toast.error(
@@ -223,13 +236,13 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col sm:flex-row gap-2 p-4 bg-white rounded-xl border border-[var(--worship-border)]"
+      className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-4 bg-white rounded-xl border border-[var(--worship-border)]"
     >
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Song title"
-        className="flex-1 px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
+        className="px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
         required
         data-testid="input-add-song-title"
       />
@@ -237,13 +250,27 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
         value={artist}
         onChange={(e) => setArtist(e.target.value)}
         placeholder="Artist (optional)"
-        className="flex-1 sm:max-w-[220px] px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
+        className="px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
         data-testid="input-add-song-artist"
+      />
+      <input
+        value={style}
+        onChange={(e) => setStyle(e.target.value)}
+        placeholder="Style — e.g. Hymn, Modern (optional)"
+        className="px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
+        data-testid="input-add-song-style"
+      />
+      <input
+        value={tagsInput}
+        onChange={(e) => setTagsInput(e.target.value)}
+        placeholder="Tags, comma-separated (optional)"
+        className="px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
+        data-testid="input-add-song-tags"
       />
       <button
         type="submit"
         disabled={create.isPending || !title.trim()}
-        className="px-4 py-2 rounded-lg text-sm font-medium text-white worship-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+        className="sm:col-span-2 px-4 py-2 rounded-lg text-sm font-medium text-white worship-btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
         data-testid="button-add-song"
       >
         {create.isPending ? (
@@ -251,7 +278,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
         ) : (
           <Plus className="w-4 h-4" />
         )}
-        Add
+        Add to repertoire
       </button>
     </form>
   );
@@ -500,10 +527,26 @@ export default function Library() {
                 </h3>
 
                 <div className="text-sm text-[var(--worship-slate)] line-clamp-3 mb-4 flex-1">
-                  {item.kind === 'song' && item.content.artist ? (
-                    <span className="italic">
-                      {String(item.content.artist)}
-                    </span>
+                  {item.kind === 'song' ? (
+                    item.content.artist || item.content.style ? (
+                      <>
+                        {item.content.artist && (
+                          <span className="italic">
+                            {String(item.content.artist)}
+                          </span>
+                        )}
+                        {item.content.artist && item.content.style && (
+                          <span className="text-[var(--worship-muted-slate)]">
+                            {' · '}
+                          </span>
+                        )}
+                        {item.content.style && (
+                          <span>{String(item.content.style)}</span>
+                        )}
+                      </>
+                    ) : (
+                      'No preview available'
+                    )
                   ) : item.content.body ? (
                     String(item.content.body)
                   ) : item.content.reflection ? (
