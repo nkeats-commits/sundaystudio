@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node", "express", "express-serve-static-core"]
   },
   "include": ["src"],
   "references": [
@@ -12,6 +12,9 @@
     },
     {
       "path": "../../lib/api-zod"
+    },
+    {
+      "path": "../../lib/integrations-anthropic-ai"
     }
   ]
 }

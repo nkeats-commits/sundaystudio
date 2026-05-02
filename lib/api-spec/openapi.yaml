@@ -3,20 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: WorshipFlow API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: profile
+    description: Church profile operations
+  - name: services
+    description: Service plan operations
+  - name: library
+    description: Saved library items
+  - name: dashboard
+    description: Dashboard summaries
+  - name: generate
+    description: AI generation endpoints
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +33,825 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [profile]
+      summary: Get current user and church profile
+      responses:
+        "200":
+          description: Current user with profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me/church:
+    put:
+      operationId: updateChurchProfile
+      tags: [profile]
+      summary: Create or update the church profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertChurchProfileBody"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChurchProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Dashboard summary with recent services, stats, and suggestions
+      responses:
+        "200":
+          description: Dashboard payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /service-plans:
+    get:
+      operationId: listServicePlans
+      tags: [services]
+      summary: List all service plans for the current user
+      responses:
+        "200":
+          description: List of service plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServicePlan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createServicePlan
+      tags: [services]
+      summary: Create a new service plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServicePlanBody"
+      responses:
+        "201":
+          description: Created service plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicePlan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /service-plans/{id}:
+    get:
+      operationId: getServicePlan
+      tags: [services]
+      summary: Get a service plan by id
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Service plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicePlan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateServicePlan
+      tags: [services]
+      summary: Update a service plan
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServicePlanBody"
+      responses:
+        "200":
+          description: Updated service plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicePlan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteServicePlan
+      tags: [services]
+      summary: Delete a service plan
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /library:
+    get:
+      operationId: listLibraryItems
+      tags: [library]
+      summary: List saved library items
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [liturgy, song, speaking_moment, devotional]
+      responses:
+        "200":
+          description: List of library items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LibraryItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createLibraryItem
+      tags: [library]
+      summary: Save an item to the library
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLibraryItemBody"
+      responses:
+        "201":
+          description: Created library item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /library/{id}:
+    delete:
+      operationId: deleteLibraryItem
+      tags: [library]
+      summary: Delete a library item
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /generate/service-plan:
+    post:
+      operationId: generateServicePlan
+      tags: [generate]
+      summary: AI-generate a full service plan outline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateServicePlanBody"
+      responses:
+        "200":
+          description: Generated service plan content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedServicePlan"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/liturgy:
+    post:
+      operationId: generateLiturgy
+      tags: [generate]
+      summary: AI-generate a liturgy (call to worship, prayer, benediction, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateLiturgyBody"
+      responses:
+        "200":
+          description: Generated liturgy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedLiturgy"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/songs:
+    post:
+      operationId: generateSongSuggestions
+      tags: [generate]
+      summary: AI-suggest worship songs for a theme or scripture
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSongsBody"
+      responses:
+        "200":
+          description: Song suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedSongs"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/speaking-moment:
+    post:
+      operationId: generateSpeakingMoment
+      tags: [generate]
+      summary: AI-generate a speaking moment (welcome, transition, communion invitation, benediction)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSpeakingMomentBody"
+      responses:
+        "200":
+          description: Generated speaking moment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedSpeakingMoment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/devotional:
+    post:
+      operationId: generateDevotional
+      tags: [generate]
+      summary: AI-generate a team devotional for rehearsal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateDevotionalBody"
+      responses:
+        "200":
+          description: Generated devotional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedDevotional"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    ChurchProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        churchName:
+          type: string
+        denomination:
+          type: string
+        theology:
+          type: string
+        location:
+          type: string
+        averageAttendance:
+          type: integer
+          nullable: true
+        musicStyle:
+          type: string
+        traditions:
+          type: string
+        leaderName:
+          type: string
+        leaderRole:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - churchName
+        - denomination
+        - theology
+        - location
+        - musicStyle
+        - traditions
+        - leaderName
+        - leaderRole
+        - createdAt
+        - updatedAt
+
+    UpsertChurchProfileBody:
+      type: object
+      properties:
+        churchName:
+          type: string
+          minLength: 1
+        denomination:
+          type: string
+        theology:
+          type: string
+        location:
+          type: string
+        averageAttendance:
+          type: integer
+          nullable: true
+        musicStyle:
+          type: string
+        traditions:
+          type: string
+        leaderName:
+          type: string
+          minLength: 1
+        leaderRole:
+          type: string
+      required:
+        - churchName
+        - leaderName
+
+    MeResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+          nullable: true
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        profile:
+          allOf:
+            - $ref: "#/components/schemas/ChurchProfile"
+          nullable: true
+      required: [userId]
+
+    ServicePlanContent:
+      type: object
+      description: Structured content for a service plan
+      properties:
+        callToWorship:
+          type: string
+          nullable: true
+        openingPrayer:
+          type: string
+          nullable: true
+        scriptureReading:
+          type: string
+          nullable: true
+        sermonNotes:
+          type: string
+          nullable: true
+        confession:
+          type: string
+          nullable: true
+        assurance:
+          type: string
+          nullable: true
+        benediction:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        order:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServicePlanItem"
+      required: [order]
+
+    ServicePlanItem:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [song, scripture, prayer, sermon, communion, offering, welcome, benediction, transition, custom]
+        title:
+          type: string
+        body:
+          type: string
+        durationMinutes:
+          type: integer
+          nullable: true
+      required: [id, kind, title, body]
+
+    ServicePlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        title:
+          type: string
+        scripture:
+          type: string
+        theme:
+          type: string
+        season:
+          type: string
+        serviceDate:
+          type: string
+          format: date-time
+          nullable: true
+        content:
+          $ref: "#/components/schemas/ServicePlanContent"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - title
+        - scripture
+        - theme
+        - season
+        - content
+        - createdAt
+        - updatedAt
+
+    CreateServicePlanBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        scripture:
+          type: string
+        theme:
+          type: string
+        season:
+          type: string
+        serviceDate:
+          type: string
+          format: date-time
+          nullable: true
+        content:
+          $ref: "#/components/schemas/ServicePlanContent"
+      required: [title, content]
+
+    UpdateServicePlanBody:
+      type: object
+      properties:
+        title:
+          type: string
+        scripture:
+          type: string
+        theme:
+          type: string
+        season:
+          type: string
+        serviceDate:
+          type: string
+          format: date-time
+          nullable: true
+        content:
+          $ref: "#/components/schemas/ServicePlanContent"
+
+    LibraryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        kind:
+          type: string
+          enum: [liturgy, song, speaking_moment, devotional]
+        title:
+          type: string
+        content:
+          type: object
+          additionalProperties: true
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, kind, title, content, tags, createdAt]
+
+    CreateLibraryItemBody:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [liturgy, song, speaking_moment, devotional]
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: object
+          additionalProperties: true
+        tags:
+          type: array
+          items:
+            type: string
+      required: [kind, title, content]
+
+    DashboardStat:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: integer
+      required: [label, value]
+
+    DashboardSuggestion:
+      type: object
+      properties:
+        id:
+          type: string
+        prompt:
+          type: string
+        kind:
+          type: string
+          enum: [service, liturgy, songs, speaking_moment, devotional]
+      required: [id, prompt, kind]
+
+    DashboardResponse:
+      type: object
+      properties:
+        verseOfDay:
+          type: object
+          properties:
+            text:
+              type: string
+            reference:
+              type: string
+          required: [text, reference]
+        recentServices:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServicePlan"
+        servicesThisMonth:
+          type: integer
+        librarySize:
+          type: integer
+        totalServices:
+          type: integer
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardSuggestion"
+      required: [verseOfDay, recentServices, servicesThisMonth, librarySize, totalServices, suggestions]
+
+    GenerateServicePlanBody:
+      type: object
+      properties:
+        theme:
+          type: string
+        scripture:
+          type: string
+        season:
+          type: string
+        serviceLength:
+          type: string
+          description: e.g. "60 minutes", "75 minutes"
+        notes:
+          type: string
+      required: [theme]
+
+    GeneratedServicePlan:
+      type: object
+      properties:
+        title:
+          type: string
+        scripture:
+          type: string
+        theme:
+          type: string
+        season:
+          type: string
+        content:
+          $ref: "#/components/schemas/ServicePlanContent"
+      required: [title, scripture, theme, season, content]
+
+    GenerateLiturgyBody:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [call_to_worship, opening_prayer, confession, assurance, communion, benediction, prayer_of_the_people]
+        theme:
+          type: string
+        scripture:
+          type: string
+        season:
+          type: string
+        tone:
+          type: string
+          description: e.g. "contemplative", "celebratory"
+      required: [kind, theme]
+
+    GeneratedLiturgy:
+      type: object
+      properties:
+        kind:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        notes:
+          type: string
+      required: [kind, title, body]
+
+    GenerateSongsBody:
+      type: object
+      properties:
+        theme:
+          type: string
+        scripture:
+          type: string
+        style:
+          type: string
+          description: e.g. "hymn", "modern worship", "gospel", "acoustic"
+        count:
+          type: integer
+      required: [theme]
+
+    SongSuggestion:
+      type: object
+      properties:
+        title:
+          type: string
+        artist:
+          type: string
+        style:
+          type: string
+        themes:
+          type: array
+          items:
+            type: string
+        whyItFits:
+          type: string
+      required: [title, artist, whyItFits]
+
+    GeneratedSongs:
+      type: object
+      properties:
+        theme:
+          type: string
+        songs:
+          type: array
+          items:
+            $ref: "#/components/schemas/SongSuggestion"
+      required: [theme, songs]
+
+    GenerateSpeakingMomentBody:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [welcome, transition, communion_invitation, offering, benediction, announcement]
+        topic:
+          type: string
+        scripture:
+          type: string
+        durationSeconds:
+          type: integer
+        tone:
+          type: string
+      required: [kind]
+
+    GeneratedSpeakingMoment:
+      type: object
+      properties:
+        kind:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        deliveryNotes:
+          type: string
+      required: [kind, title, body]
+
+    GenerateDevotionalBody:
+      type: object
+      properties:
+        theme:
+          type: string
+        scripture:
+          type: string
+        durationMinutes:
+          type: integer
+        audience:
+          type: string
+          description: e.g. "worship team", "tech volunteers"
+      required: [theme]
+
+    GeneratedDevotional:
+      type: object
+      properties:
+        title:
+          type: string
+        scripture:
+          type: string
+        opening:
+          type: string
+        body:
+          type: string
+        discussionQuestions:
+          type: array
+          items:
+            type: string
+        closingPrayer:
+          type: string
+      required: [title, scripture, opening, body, discussionQuestions, closingPrayer]

@@ -1,0 +1,105 @@
+import React from 'react';
+import {
+  LayoutDashboard,
+  ListVideo,
+  BookOpen,
+  Music,
+  Mic,
+  Users,
+  FolderOpen,
+  Settings,
+  Building,
+  Flame
+} from 'lucide-react';
+import { Link, useLocation } from 'wouter';
+import { useUser } from '@clerk/react';
+
+export function Sidebar() {
+  const [location] = useLocation();
+  const { user } = useUser();
+
+  const navItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+    { icon: ListVideo, label: 'Service Builder', href: '/service-builder' },
+    { icon: BookOpen, label: 'Liturgy Generator', href: '/generators/liturgy' },
+    { icon: Music, label: 'Song Assistant', href: '/generators/songs' },
+    { icon: Mic, label: 'Speaking Moments', href: '/generators/speaking-moment' },
+    { icon: Users, label: 'Team Devotionals', href: '/generators/devotional' },
+    { icon: FolderOpen, label: 'Saved Services', href: '/services' },
+  ];
+
+  const bottomItems = [
+    { icon: FolderOpen, label: 'Library', href: '/library' },
+    { icon: Building, label: 'Church Profile', href: '/church' },
+    { icon: Settings, label: 'Settings', href: '/settings' },
+  ];
+
+  const firstName = user?.firstName || '';
+  const lastName = user?.lastName || '';
+  const email = user?.primaryEmailAddress?.emailAddress || '';
+  const initials = (firstName?.[0] || '') + (lastName?.[0] || '') || email?.[0]?.toUpperCase() || 'U';
+  const fullName = firstName || lastName ? `${firstName} ${lastName}`.trim() : email;
+
+  return (
+    <div className="w-64 shrink-0 flex flex-col h-screen sticky top-0" style={{ backgroundColor: 'var(--worship-navy)', color: 'white' }}>
+      <div className="p-6 flex items-center gap-3">
+        <Flame className="w-6 h-6" style={{ color: 'var(--worship-gold)' }} />
+        <span className="text-xl font-semibold tracking-tight" style={{ color: 'var(--worship-gold)', fontFamily: 'var(--font-serif)' }}>
+          WorshipFlow
+        </span>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-3">
+        {navItems.map((item, i) => {
+          const active = location === item.href;
+          return (
+            <Link
+              key={i}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                active 
+                  ? 'bg-white/10 text-white' 
+                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
+              {item.label}
+            </Link>
+          )
+        })}
+        
+        <div className="my-4 mx-3 h-px bg-white/10" />
+        
+        {bottomItems.map((item, i) => {
+          const active = location === item.href || location.startsWith(item.href + '/');
+          return (
+            <Link
+              key={i}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                active 
+                  ? 'bg-white/10 text-white' 
+                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
+              {item.label}
+            </Link>
+          )
+        })}
+      </div>
+      
+      <div className="p-4 border-t border-white/10">
+        <div className="flex items-center gap-3 px-2 overflow-hidden">
+          <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--worship-gold)] flex items-center justify-center text-[var(--worship-navy)] font-bold text-sm">
+            {initials}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium text-white truncate">{fullName}</span>
+            <span className="text-xs text-slate-400 truncate">{email}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

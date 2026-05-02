@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "WorshipFlow"
+version = "1.0.0"
+id = "artifacts/worship-flow"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23590
+
+[services.development]
+run = "pnpm --filter @workspace/worship-flow run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/worship-flow", "run", "build" ]
+publicDir = "artifacts/worship-flow/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23590"
+BASE_PATH = "/"

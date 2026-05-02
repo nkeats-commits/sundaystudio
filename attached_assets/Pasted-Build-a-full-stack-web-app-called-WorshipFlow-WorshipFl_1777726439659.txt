@@ -1,0 +1,868 @@
+Build a full-stack web app called WorshipFlow.
+
+WorshipFlow is an AI-powered planning assistant for worship pastors, worship leaders, and church creative teams. The app helps users create thoughtful, biblically grounded worship services by generating worship service flows, song recommendations, liturgy ideas, worship leader speaking moments, and team devotionals based on themes, sermon passages, denomination/tradition, liturgical season, worship style, and church context.
+
+The app should feel clean, warm, pastoral, modern, and professional. It should not feel overly “techy.” The tone should be trustworthy, creative, and ministry-minded.
+
+Core tagline:
+“Plan worship with depth, not panic.”
+
+Primary users:
+- Worship pastors
+- Worship leaders
+- Creative arts pastors
+- Music directors
+- Church planters
+- Small church pastors
+- Volunteer worship leaders
+
+Primary problem:
+Worship leaders often have to plan worship services every week while juggling songs, sermon themes, Scripture, transitions, prayers, volunteer teams, denominational expectations, and pastoral tone. Most tools help with scheduling, but few tools help with the actual pastoral and theological planning of the service.
+
+Primary solution:
+WorshipFlow helps worship leaders generate cohesive, biblically thoughtful worship planning content quickly, while still allowing them to edit and personalize everything.
+
+Use React for the frontend, Node/Express for the backend, and a relational database such as PostgreSQL or Supabase if available. Use a clean component-based architecture. Make the app mobile-responsive and desktop-friendly.
+
+Include authentication with email/password. Users should be able to sign up, log in, log out, and have their own saved data.
+
+Use a modern dashboard layout with:
+- Sidebar navigation on desktop
+- Bottom navigation or collapsible menu on mobile
+- Clean cards
+- Rounded corners
+- Soft shadows
+- Large readable typography
+- Warm neutral color palette
+- Accent colors suitable for a ministry/worship app, such as deep navy, warm gold, soft cream, slate, and muted green
+
+Main navigation:
+1. Dashboard
+2. Service Builder
+3. Liturgy Generator
+4. Song Assistant
+5. Team Devotionals
+6. Saved Services
+7. Church Profile
+8. Settings
+9. Billing/Upgrade
+
+APP STRUCTURE
+
+1. Landing Page
+
+Create a public landing page before login.
+
+Sections:
+- Hero section
+- Problem section
+- Solution section
+- Feature cards
+- How it works
+- Pricing preview
+- Testimonial placeholders
+- Final CTA
+
+Hero copy:
+Headline:
+“Plan worship with depth, not panic.”
+
+Subheadline:
+“WorshipFlow helps worship pastors and leaders build biblically rich, congregation-ready worship services with AI-powered tools for songs, liturgy, devotionals, and service flow.”
+
+Primary CTA:
+“Start Planning”
+
+Secondary CTA:
+“See How It Works”
+
+Problem section:
+“Every week, worship leaders are asked to be musicians, pastors, theologians, liturgists, team leaders, and event producers. WorshipFlow helps you stop starting from scratch.”
+
+Feature cards:
+- Worship Service Builder
+- Song Selection Assistant
+- Liturgy Generator
+- Worship Leader Speaking Moments
+- Team Devotionals
+- Seasonal Planning
+- Denomination-Aware Outputs
+- Saved Church Profile
+
+How it works:
+Step 1: Enter your sermon passage, theme, season, and church context.
+Step 2: Choose what you need: service flow, songs, liturgy, devotional, or spoken moment.
+Step 3: Review, edit, save, and export your plan.
+
+2. User Dashboard
+
+After login, users land on a dashboard.
+
+Dashboard should include:
+- Welcome message
+- Quick action buttons:
+  - Build a Service
+  - Generate Liturgy
+  - Find Songs
+  - Write Team Devotional
+- Recent saved services
+- Upcoming seasonal prompts
+- Usage/generation count
+- Suggested ideas based on current church calendar season
+
+Example dashboard prompt cards:
+- “Plan an Advent service”
+- “Create a communion invitation”
+- “Find songs about surrender”
+- “Write a 5-minute rehearsal devotional”
+- “Build a Good Friday service flow”
+- “Create a call to worship from Psalm 95”
+
+3. Church Profile
+
+Users should create a saved church profile. This profile should influence AI generations.
+
+Fields:
+- Church name
+- Denomination/tradition
+- Worship style
+- Preferred Bible translation
+- Typical service length
+- Typical number of songs
+- Common service structure
+- Primary congregation demographics
+- Theological notes
+- Sacramental/ordinance language preference
+- Tone preference
+- Words or phrases to avoid
+- Preferred song sources
+- CCLI top songs preference
+- Hymn usage preference
+- Charismatic/spontaneous worship preference
+- Liturgical formality preference
+
+Denomination/tradition options:
+- Non-denominational evangelical
+- Baptist
+- Presbyterian
+- Anglican
+- Methodist/Wesleyan
+- Lutheran
+- Pentecostal/Charismatic
+- Reformed
+- Contemporary evangelical
+- Blended/traditional
+- Catholic-inspired liturgical
+- Other
+
+Worship style options:
+- Contemporary
+- Traditional
+- Blended
+- Gospel
+- Modern hymn-based
+- Liturgical
+- Charismatic
+- Acoustic
+- Multi-generational
+- Multi-ethnic
+- Other
+
+Bible translation options:
+- ESV
+- NIV
+- NLT
+- CSB
+- NASB
+- NKJV
+- KJV
+- NRSV
+- Other
+
+Tone options:
+- Warm and pastoral
+- Reverent
+- Joyful
+- Reflective
+- Evangelistic
+- Theologically rich
+- Simple and accessible
+- Charismatic
+- Traditional
+- Casual
+- Formal liturgical
+
+4. Worship Service Builder
+
+This is the main feature.
+
+Create a form where the user can enter:
+- Service date
+- Sermon title
+- Sermon passage
+- Main theme
+- Secondary themes
+- Liturgical season
+- Denomination/tradition
+- Worship style
+- Desired emotional tone
+- Service length
+- Number of songs
+- Include communion? yes/no
+- Include baptism? yes/no
+- Include offering moment? yes/no
+- Include confession/assurance? yes/no
+- Include responsive reading? yes/no
+- Include pastoral prayer? yes/no
+- Include benediction? yes/no
+- Any songs already chosen
+- Any songs to avoid
+- Notes about the congregation
+- Special event notes
+
+Liturgical season options:
+- Ordinary Time
+- Advent
+- Christmas
+- Epiphany
+- Lent
+- Palm Sunday
+- Holy Week
+- Maundy Thursday
+- Good Friday
+- Easter
+- Pentecost
+- Reformation Sunday
+- Thanksgiving
+- New Year
+- Vision Sunday
+- Missions Sunday
+- Baptism Sunday
+- Communion Sunday
+- Prayer Night
+- Worship Night
+- Other
+
+When the user clicks “Generate Service Plan,” the app should generate a structured worship service plan.
+
+Output should include:
+- Service overview
+- Suggested service arc
+- Opening call to worship
+- Song suggestions with placement
+- Scripture readings
+- Prayers
+- Transitions between elements
+- Optional confession and assurance
+- Communion or baptism language if selected
+- Offering moment if selected
+- Response moment after sermon
+- Benediction
+- Notes for worship leader
+- Notes for band/team
+- Theological/pastoral rationale
+
+The generated service plan should be editable. Users should be able to save it.
+
+5. Liturgy Generator
+
+Create a dedicated tool for generating liturgical elements.
+
+Input fields:
+- Liturgy type
+- Scripture passage
+- Theme
+- Season
+- Denomination/tradition
+- Tone
+- Length
+- Audience/context notes
+
+Liturgy types:
+- Call to worship
+- Opening prayer
+- Prayer of confession
+- Assurance of pardon
+- Pastoral prayer
+- Communion invitation
+- Communion prayer
+- Baptism introduction
+- Offering prayer
+- Responsive reading
+- Scripture reading introduction
+- Benediction
+- Prayer night prompt
+- Worship night exhortation
+- Moment of silence/reflection
+- Invitation to respond
+
+Tone options:
+- Reverent
+- Warm
+- Joyful
+- Reflective
+- Evangelistic
+- Theologically rich
+- Simple and accessible
+- Formal liturgical
+- Contemporary
+- Charismatic
+- Pastoral
+
+Length options:
+- Very short, 30 seconds
+- Short, 1 minute
+- Medium, 2 minutes
+- Long, 3-5 minutes
+
+Generated output should be editable, copyable, savable, and exportable.
+
+6. Song Selection Assistant
+
+Create a tool that recommends worship songs.
+
+Input fields:
+- Theme
+- Scripture passage
+- Liturgical season
+- Denomination/tradition
+- Worship style
+- Desired energy level
+- Song placement
+- Preferred song type
+- Familiarity level
+- Include hymns? yes/no
+- Include modern worship songs? yes/no
+- Songs already selected
+- Songs to avoid
+
+Energy level options:
+- High energy
+- Mid-tempo
+- Reflective
+- Prayerful
+- Anthemic
+- Intimate
+- Celebratory
+
+Song placement options:
+- Opener
+- Second song
+- Before sermon
+- Response song
+- Communion
+- Baptism
+- Closing
+- Worship night
+- General setlist
+
+Preferred song type:
+- Modern worship
+- Hymn
+- Modern hymn
+- Gospel
+- Liturgical
+- Simple chorus
+- Congregational anthem
+- Scripture song
+
+Familiarity level:
+- Very familiar
+- Moderately familiar
+- Fresh/new
+- Mix of familiar and new
+
+Generated recommendations should include:
+- Song title
+- Artist/writer
+- Suggested placement
+- Theme fit
+- Why it works
+- Energy level
+- Pastoral notes
+- Possible transition line
+- Theological caution if needed
+- Suggested pairing with other songs
+
+Important:
+If the AI is unsure whether a song exists or who wrote it, it should clearly say so and avoid inventing details. Do not hallucinate song metadata. Prefer generally known worship songs and hymns when possible.
+
+7. Worship Leader Speaking Moments
+
+Create a tool for generating short spoken moments.
+
+Input fields:
+- Moment type
+- Theme
+- Scripture passage
+- Song before
+- Song after
+- Tone
+- Length
+- Context notes
+
+Moment types:
+- Welcome/opening exhortation
+- Song setup
+- Transition between songs
+- Prayer before a song
+- Prayer after a song
+- Invitation to sing
+- Communion transition
+- Baptism transition
+- Response after sermon
+- Closing encouragement
+- Worship night moment
+- Prayer night moment
+
+Output should sound natural, pastoral, and not overly polished. Avoid cheesy, cliché worship leader language. Avoid saying “just” too much. Avoid filler language. Make it sound like something a real worship leader could say from stage.
+
+8. Team Devotionals
+
+Create a tool for generating devotionals for worship teams.
+
+Input fields:
+- Devotional topic
+- Scripture passage
+- Song set
+- Team context
+- Length
+- Format
+- Tone
+
+Devotional topics:
+- Worship as whole-life surrender
+- Leading with humility
+- Serving the congregation
+- Unity
+- Spiritual preparation
+- Prayer
+- Excellence without performance
+- Dependence on the Holy Spirit
+- Encouraging one another
+- The heart of worship
+- Seasonal theme
+- Custom topic
+
+Formats:
+- 5-minute rehearsal devotional
+- 10-minute team devotional
+- Email devotional
+- Group discussion guide
+- Pre-service prayer guide
+- Volunteer encouragement
+
+Output should include:
+- Title
+- Scripture
+- Main devotional reflection
+- Application to worship ministry
+- Prayer
+- 2-3 discussion/reflection questions if relevant
+
+9. Saved Services
+
+Users should be able to save service plans.
+
+Saved service fields:
+- User ID
+- Church profile ID
+- Service date
+- Sermon title
+- Sermon passage
+- Theme
+- Season
+- Full generated plan
+- Songs
+- Liturgy
+- Notes
+- Created date
+- Updated date
+
+Saved services page should include:
+- List of saved services
+- Search
+- Filter by season
+- Filter by theme
+- Filter by date
+- Duplicate service
+- Edit service
+- Delete service
+- Export service
+- Copy service
+
+10. Saved Generations Library
+
+In addition to full services, users should be able to save individual generated items:
+- Liturgy
+- Prayers
+- Calls to worship
+- Devotionals
+- Song lists
+- Speaking moments
+
+Library fields:
+- User ID
+- Type
+- Title
+- Theme
+- Scripture
+- Season
+- Content
+- Created date
+- Updated date
+
+11. AI Generation Behavior
+
+Use an AI API integration placeholder if no API key is available. Structure the app so an OpenAI API key can be added later through environment variables.
+
+Environment variable:
+OPENAI_API_KEY
+
+Create backend endpoints for AI generation:
+- POST /api/generate/service-plan
+- POST /api/generate/liturgy
+- POST /api/generate/songs
+- POST /api/generate/speaking-moment
+- POST /api/generate/devotional
+
+Each endpoint should:
+- Validate user authentication
+- Pull the user’s church profile if available
+- Combine church profile with form inputs
+- Build a clear system prompt and user prompt
+- Return structured JSON
+- Save generation history
+- Handle errors gracefully
+
+AI system behavior:
+The AI should act as a thoughtful worship pastor, liturgist, and theological assistant. It should be helpful, pastoral, biblically grounded, and sensitive to denominational differences. It should not replace human discernment. It should avoid making up song metadata. It should clearly indicate when something should be reviewed by church leadership. It should generate content that is editable and practical.
+
+AI should avoid:
+- Cheesy worship clichés
+- Overly dramatic language
+- Theologically vague language
+- Manipulative emotional language
+- Overly academic language unless requested
+- Assuming all denominations use the same sacramental language
+- Inventing song titles, authors, or CCLI information
+- Giving copyrighted lyrics
+
+Important copyright rule:
+The app should not generate or reproduce copyrighted song lyrics. It may recommend songs by title and artist/writer, but it should not display full copyrighted lyrics.
+
+12. Database Tables
+
+Create the following database schema:
+
+USERS
+- id
+- email
+- password_hash
+- first_name
+- last_name
+- subscription_plan
+- subscription_status
+- created_at
+- updated_at
+
+CHURCH_PROFILES
+- id
+- user_id
+- church_name
+- denomination
+- worship_style
+- preferred_bible_translation
+- typical_service_length
+- typical_number_of_songs
+- common_service_structure
+- congregation_demographics
+- theological_notes
+- sacramental_language
+- tone_preference
+- phrases_to_avoid
+- preferred_song_sources
+- hymn_usage_preference
+- charismatic_preference
+- liturgical_formality
+- created_at
+- updated_at
+
+SERVICE_PLANS
+- id
+- user_id
+- church_profile_id
+- service_date
+- sermon_title
+- sermon_passage
+- main_theme
+- secondary_themes
+- liturgical_season
+- denomination
+- worship_style
+- emotional_tone
+- service_length
+- number_of_songs
+- includes_communion
+- includes_baptism
+- includes_offering
+- includes_confession_assurance
+- includes_responsive_reading
+- includes_pastoral_prayer
+- includes_benediction
+- songs_already_chosen
+- songs_to_avoid
+- congregation_notes
+- special_event_notes
+- generated_content
+- editable_content
+- created_at
+- updated_at
+
+GENERATED_ITEMS
+- id
+- user_id
+- church_profile_id
+- type
+- title
+- theme
+- scripture_passage
+- liturgical_season
+- tone
+- input_data
+- generated_content
+- editable_content
+- created_at
+- updated_at
+
+GENERATION_HISTORY
+- id
+- user_id
+- generation_type
+- input_data
+- output_data
+- token_estimate
+- created_at
+
+USAGE_LIMITS
+- id
+- user_id
+- month
+- generation_count
+- generation_limit
+- created_at
+- updated_at
+
+SUBSCRIPTIONS
+- id
+- user_id
+- plan_name
+- status
+- stripe_customer_id
+- stripe_subscription_id
+- current_period_start
+- current_period_end
+- created_at
+- updated_at
+
+13. Pricing and Subscription
+
+Create a pricing page with three tiers:
+
+Free Plan:
+- 5 AI generations per month
+- Basic service builder
+- Basic liturgy generator
+- Save up to 3 service plans
+
+Pro Plan:
+Price: $15/month or $120/year
+- More or unlimited generations
+- Full service builder
+- Song selection assistant
+- Team devotionals
+- Saved church profile
+- Unlimited saved services
+- Export tools
+
+Church Plan:
+Price: $39/month or $300/year
+- Everything in Pro
+- Multi-user church workspace placeholder
+- Shared church profile placeholder
+- Shared service library placeholder
+- Team devotional library
+- Admin controls placeholder
+
+Build subscription logic in a way that can later integrate with Stripe. For now, include placeholder subscription status and usage limits.
+
+14. Export and Copy Features
+
+Users should be able to:
+- Copy generated content to clipboard
+- Export service plans as PDF if possible
+- Download as .txt or .md
+- Print-friendly view
+- Save generated content to their library
+
+15. Settings Page
+
+Settings should include:
+- Account info
+- Church profile shortcut
+- Subscription status
+- Default generation preferences
+- AI tone preference
+- Data export placeholder
+- Delete account placeholder
+
+16. Error Handling and Empty States
+
+Create helpful empty states.
+
+Examples:
+Saved Services empty state:
+“You haven’t saved any services yet. Build your first worship plan and save it here.”
+
+Church Profile empty state:
+“Create your church profile so WorshipFlow can tailor songs, prayers, liturgy, and service plans to your context.”
+
+Generation error:
+“Something went wrong while generating your content. Try again, or simplify your inputs.”
+
+17. Security
+
+Implement:
+- Password hashing
+- Auth-protected routes
+- User-specific database queries
+- Input validation
+- Server-side checks for usage limits
+- Environment variables for secrets
+- Basic rate limiting if possible
+
+18. Design Direction
+
+Use a warm, modern design system.
+
+Suggested colors:
+- Deep navy: #1F2A44
+- Warm gold: #C99A3D
+- Soft cream: #F8F4EA
+- Slate: #475569
+- Muted green: #6E8B74
+- White: #FFFFFF
+
+Use typography that feels readable and professional.
+
+Design feel:
+- Calm
+- Pastoral
+- Clean
+- Trustworthy
+- Modern
+- Not corporate
+- Not cheesy church stock-photo energy
+
+19. Example AI Prompt Templates
+
+For service plan generation, use this structure internally:
+
+System prompt:
+“You are a thoughtful worship pastor, liturgist, and theological planning assistant. You help worship leaders create biblically grounded, congregation-aware worship services. You are sensitive to denominational traditions, liturgical seasons, theological language, and pastoral tone. You do not reproduce copyrighted song lyrics. You do not invent song metadata. You create practical, editable content that worship leaders can adapt.”
+
+User prompt:
+“Create a worship service plan using the following details:
+Church profile:
+[insert church profile]
+
+Service details:
+[insert service builder form data]
+
+Return a structured plan with:
+- Service overview
+- Worship arc
+- Service order
+- Song recommendations and placements
+- Scripture readings
+- Calls to worship
+- Prayers
+- Transitions
+- Communion/baptism/offering/confession elements if selected
+- Response moment
+- Benediction
+- Notes for the worship leader
+- Notes for the team
+- Theological and pastoral rationale.”
+
+For liturgy generation:
+“Generate a [liturgy type] for a [denomination/tradition] church. Theme: [theme]. Scripture: [passage]. Season: [season]. Tone: [tone]. Length: [length]. Make it biblically grounded, natural to speak aloud, and appropriate for the congregation. Avoid clichés and overly dramatic language.”
+
+For song recommendations:
+“Recommend worship songs for the following theme and context. Do not include copyrighted lyrics. Do not invent song details. If unsure, say so. For each song, include title, writer/artist if known, suggested placement, why it fits, energy level, pastoral notes, possible transition line, and any theological cautions.”
+
+For worship leader speaking moments:
+“Write a short spoken moment for a worship leader. Make it natural, pastoral, and stage-ready. Avoid filler words, clichés, and overly polished language. It should sound like something a real worship leader could say.”
+
+For team devotionals:
+“Write a devotional for a worship team based on the following topic, passage, and service context. Include title, Scripture, reflection, application to worship ministry, prayer, and optional discussion questions.”
+
+20. Seed Data
+
+Add sample dashboard prompts:
+- Create a call to worship from Psalm 95
+- Build an Advent service around hope
+- Find songs about surrender
+- Write a team devotional on humility
+- Create a Good Friday service flow
+- Generate a communion invitation
+- Write a transition between two songs
+- Build a worship night around repentance and renewal
+
+Add sample service plan:
+Title: “Christ Our Hope”
+Passage: Colossians 1:15-20
+Theme: The supremacy of Christ
+Season: Ordinary Time
+Style: Contemporary evangelical
+Tone: Reverent and joyful
+
+21. Final Requirements
+
+The finished app should be usable as an MVP.
+
+Users should be able to:
+- Sign up
+- Log in
+- Create a church profile
+- Generate a worship service plan
+- Generate liturgy
+- Get song recommendations
+- Generate speaking moments
+- Generate team devotionals
+- Save generated content
+- View saved services
+- Edit saved content
+- Copy/export content
+- See subscription tiers and usage limits
+
+Make the UI polished enough to demo to worship pastors.
+
+Prioritize usability, clean design, and practical outputs over unnecessary complexity.
+
+Do not include copyrighted lyrics.
+
+Do not hallucinate song metadata.
+
+Make all generated content editable before saving/exporting.
+
+Build the app in a scalable way so future features can include:
+- Planning Center integration
+- Team collaboration
+- Multi-campus workspaces
+- Shared song library
+- Calendar planning
+- Approval workflows
+- Worship team training library
+- Sermon series planning
+- AI brand/style memory per church
