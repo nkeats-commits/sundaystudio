@@ -3,3 +3,4 @@ export * from "./churchProfiles";
 export * from "./servicePlans";
 export * from "./libraryItems";
 export * from "./sermons";
+export * from "./serviceTemplates";

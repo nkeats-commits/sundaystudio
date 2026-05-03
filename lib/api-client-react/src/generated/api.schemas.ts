@@ -277,6 +277,34 @@ export interface DashboardResponse {
   suggestions: DashboardSuggestion[];
 }
 
+export type ServiceFlowStepKind =
+  (typeof ServiceFlowStepKind)[keyof typeof ServiceFlowStepKind];
+
+export const ServiceFlowStepKind = {
+  song: "song",
+  scripture: "scripture",
+  prayer: "prayer",
+  sermon: "sermon",
+  communion: "communion",
+  offering: "offering",
+  welcome: "welcome",
+  benediction: "benediction",
+  transition: "transition",
+  custom: "custom",
+} as const;
+
+/**
+ * One step in a user-defined service flow.
+ */
+export interface ServiceFlowStep {
+  /**
+   * The display name for this step (e.g. "Prayer of Confession").
+   * @minLength 1
+   */
+  stepName: string;
+  kind: ServiceFlowStepKind;
+}
+
 export interface GenerateServicePlanBody {
   theme: string;
   scripture?: string;
@@ -284,6 +312,38 @@ export interface GenerateServicePlanBody {
   /** e.g. "60 minutes", "75 minutes" */
   serviceLength?: string;
   notes?: string;
+  /** Optional ordered service flow defined by the user. When present,
+the generator MUST return `content.order` with exactly these
+entries in this order, preserving each step's kind and the
+supplied `stepName` as the slot's title.
+ */
+  flow?: ServiceFlowStep[];
+}
+
+export interface ServiceTemplate {
+  id: number;
+  userId: string;
+  name: string;
+  description: string;
+  flow: ServiceFlowStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateServiceTemplateBody {
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  /** @minItems 1 */
+  flow: ServiceFlowStep[];
+}
+
+export interface UpdateServiceTemplateBody {
+  /** @minLength 1 */
+  name?: string;
+  description?: string;
+  /** @minItems 1 */
+  flow?: ServiceFlowStep[];
 }
 
 export interface GeneratedServicePlan {
@@ -852,6 +912,22 @@ export const ListLibraryItemsKind = {
 } as const;
 
 export type UpdateLibraryItem400 = {
+  error?: string;
+};
+
+export type CreateServiceTemplate400 = {
+  error?: string;
+};
+
+export type CreateServiceTemplate409 = {
+  error?: string;
+};
+
+export type UpdateServiceTemplate400 = {
+  error?: string;
+};
+
+export type UpdateServiceTemplate409 = {
   error?: string;
 };
 

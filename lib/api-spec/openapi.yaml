@@ -28,6 +28,8 @@ tags:
     description: Exported sermon documents
   - name: sermon-series
     description: Multi-week sermon series (shared big idea + ordered sermons)
+  - name: service-templates
+    description: Saved reusable service flows (the ordered skeleton of a service)
 paths:
   /healthz:
     get:
@@ -365,6 +367,116 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/LinkedServiceRef"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /service-templates:
+    get:
+      operationId: listServiceTemplates
+      tags: [service-templates]
+      summary: List the user's saved service flow templates
+      responses:
+        "200":
+          description: List of service templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceTemplate"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createServiceTemplate
+      tags: [service-templates]
+      summary: Save a new service flow template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceTemplateBody"
+      responses:
+        "201":
+          description: Created service template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceTemplate"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: A template with this name already exists for this user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /service-templates/{id}:
+    patch:
+      operationId: updateServiceTemplate
+      tags: [service-templates]
+      summary: Rename or update a saved service flow template
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServiceTemplateBody"
+      responses:
+        "200":
+          description: Updated service template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceTemplate"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: A template with this name already exists for this user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+    delete:
+      operationId: deleteServiceTemplate
+      tags: [service-templates]
+      summary: Delete a saved service flow template
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1604,7 +1716,81 @@ components:
           description: e.g. "60 minutes", "75 minutes"
         notes:
           type: string
+        flow:
+          type: array
+          description: |
+            Optional ordered service flow defined by the user. When present,
+            the generator MUST return `content.order` with exactly these
+            entries in this order, preserving each step's kind and the
+            supplied `stepName` as the slot's title.
+          items:
+            $ref: "#/components/schemas/ServiceFlowStep"
       required: [theme]
+
+    ServiceFlowStep:
+      type: object
+      description: One step in a user-defined service flow.
+      properties:
+        stepName:
+          type: string
+          minLength: 1
+          description: The display name for this step (e.g. "Prayer of Confession").
+        kind:
+          type: string
+          enum: [song, scripture, prayer, sermon, communion, offering, welcome, benediction, transition, custom]
+      required: [stepName, kind]
+
+    ServiceTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        flow:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceFlowStep"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, name, description, flow, createdAt, updatedAt]
+
+    CreateServiceTemplateBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        flow:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ServiceFlowStep"
+      required: [name, flow]
+
+    UpdateServiceTemplateBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        flow:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ServiceFlowStep"
 
     GeneratedServicePlan:
       type: object

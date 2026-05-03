@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, churchProfilesTable } from "@workspace/db";
 import {
   GenerateServicePlanBody,
+  GenerateServicePlanResponse,
   GenerateLiturgyBody,
   GenerateSongSuggestionsBody,
   GenerateSpeakingMomentBody,
@@ -20,6 +21,75 @@ import {
   type RepertoireMode,
 } from "../lib/repertoire";
 
+type GeneratedServicePlan = ReturnType<
+  typeof GenerateServicePlanResponse.parse
+>;
+type GeneratedOrderItem = GeneratedServicePlan["content"]["order"][number];
+type FlowStep = NonNullable<
+  ReturnType<typeof GenerateServicePlanBody.parse>["flow"]
+>[number];
+
+/**
+ * Enforce the user-defined service flow on the model output.
+ *
+ * The prompt asks the model to use the supplied flow exactly, but a prompt
+ * is probabilistic — the model can still drop, add, reorder, or rename
+ * slots. This post-transform makes the contract deterministic:
+ *
+ *  - The output `content.order` array is rebuilt to have exactly the same
+ *    length as the requested flow, in the same order.
+ *  - Each slot's `kind` and `title` are forced to the user-supplied values.
+ *  - The model's generated `body` / `durationMinutes` are kept on a
+ *    best-effort basis: we match each requested step to the closest model
+ *    slot of the same kind that hasn't been claimed yet, falling back to
+ *    positional pairing. If nothing matches, `body` becomes an empty
+ *    string so the user can fill it in or regenerate.
+ */
+function enforceFlow(
+  plan: GeneratedServicePlan,
+  flow: FlowStep[],
+): GeneratedServicePlan {
+  if (flow.length === 0) return plan;
+  const original = plan.content.order ?? [];
+  const used = new Set<number>();
+  const enforced = flow.map((step, i) => {
+    // Prefer a same-kind unused slot at the same position; else any
+    // same-kind unused slot; else fall back to the original positional
+    // slot so we don't lose the model's body text entirely.
+    let matchIdx = -1;
+    if (
+      original[i] &&
+      original[i]!.kind === step.kind &&
+      !used.has(i)
+    ) {
+      matchIdx = i;
+    } else {
+      matchIdx = original.findIndex(
+        (s: GeneratedOrderItem, idx: number) =>
+          !used.has(idx) && s.kind === step.kind,
+      );
+      if (matchIdx === -1 && original[i] && !used.has(i)) {
+        matchIdx = i;
+      }
+    }
+    const source = matchIdx >= 0 ? original[matchIdx]! : null;
+    if (matchIdx >= 0) used.add(matchIdx);
+    return {
+      id: source?.id ?? `step-${i + 1}`,
+      kind: step.kind,
+      title: step.stepName,
+      body: source?.body ?? "",
+      durationMinutes: source?.durationMinutes ?? null,
+      linkedKind: null,
+      linkedId: null,
+      linkedTitle: null,
+    };
+  });
+  return {
+    ...plan,
+    content: { ...plan.content, order: enforced },
+  };
+}
 const router: IRouter = Router();
 
 async function getChurchContext(userId: string): Promise<ChurchContext | null> {
@@ -51,6 +121,23 @@ router.post("/generate/service-plan", requireAuth, async (req, res) => {
   // user has no repertoire, the block silently disappears.
   const repertoire = await loadRepertoireSongs(req.userId!);
   const repBlock = repertoirePromptBlock(repertoire, "prefer");
+  const flow = data.flow ?? [];
+  const flowBlock =
+    flow.length > 0
+      ? `User-defined service flow (you MUST follow this EXACTLY):
+The "content.order" array MUST contain EXACTLY ${flow.length} items, in EXACTLY this order, one per row below. For each row use the given "kind" verbatim and use the given "stepName" as the slot's "title" verbatim. Do NOT add, remove, reorder, rename, or merge slots. Only fill in "body" (and optionally "durationMinutes") for each slot.
+${flow
+  .map(
+    (s, i) =>
+      `${i + 1}. kind="${s.kind}", title="${s.stepName.replace(/"/g, '\\"')}"`,
+  )
+  .join("\n")}
+`
+      : "";
+  const orderGuideline =
+    flow.length > 0
+      ? `- "content.order" MUST have EXACTLY ${flow.length} items matching the user-defined flow above (same order, same kinds, same titles). Fill in body for each.`
+      : `- Order should have 8-12 items in a thoughtful arc that fits the requested length.`;
   const prompt = `Generate a complete worship service plan as JSON.
 
 Theme: ${data.theme}
@@ -61,7 +148,7 @@ Notes: ${data.notes ?? "(none)"}
 
 Church context:
 ${churchContextBlurb(ctx)}
-${repBlock ? `\n${repBlock}\n` : ""}
+${repBlock ? `\n${repBlock}\n` : ""}${flowBlock ? `\n${flowBlock}\n` : ""}
 Return JSON matching exactly this shape (no extra fields, no missing required fields):
 {
   "title": "string — a beautiful service title",
@@ -90,12 +177,22 @@ Return JSON matching exactly this shape (no extra fields, no missing required fi
 }
 
 Guidelines:
-- Order should have 8-12 items in a thoughtful arc that fits the requested length.
+${orderGuideline}
 - Every order item must include id, kind, title, body. durationMinutes is optional.
 - Liturgical text should be theologically rich and singable/speakable aloud.
 - Be concise. Each body field should be the minimum text needed; do not pad.`;
 
-  runJob(req, res, prompt, 6000, "service plan");
+  runJob(
+    req,
+    res,
+    prompt,
+    6000,
+    "service plan",
+    GenerateServicePlanResponse,
+    flow.length > 0
+      ? (parsed: GeneratedServicePlan) => enforceFlow(parsed, flow)
+      : undefined,
+  );
 });
 
 router.post("/generate/liturgy", requireAuth, async (req, res) => {

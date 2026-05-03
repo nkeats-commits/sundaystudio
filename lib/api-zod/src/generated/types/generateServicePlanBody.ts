@@ -5,6 +5,7 @@
  * WorshipFlow API
  * OpenAPI spec version: 0.1.0
  */
+import type { ServiceFlowStep } from "./serviceFlowStep";
 
 export interface GenerateServicePlanBody {
   theme: string;
@@ -13,4 +14,10 @@ export interface GenerateServicePlanBody {
   /** e.g. "60 minutes", "75 minutes" */
   serviceLength?: string;
   notes?: string;
+  /** Optional ordered service flow defined by the user. When present,
+the generator MUST return `content.order` with exactly these
+entries in this order, preserving each step's kind and the
+supplied `stepName` as the slot's title.
+ */
+  flow?: ServiceFlowStep[];
 }

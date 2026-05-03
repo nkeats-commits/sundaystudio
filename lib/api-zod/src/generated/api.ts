@@ -645,6 +645,160 @@ export const ListServicesLinkedToLibraryItemResponse = zod.array(
 );
 
 /**
+ * @summary List the user's saved service flow templates
+ */
+
+export const ListServiceTemplatesResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  name: zod.string(),
+  description: zod.string(),
+  flow: zod.array(
+    zod
+      .object({
+        stepName: zod
+          .string()
+          .min(1)
+          .describe(
+            'The display name for this step (e.g. \"Prayer of Confession\").',
+          ),
+        kind: zod.enum([
+          "song",
+          "scripture",
+          "prayer",
+          "sermon",
+          "communion",
+          "offering",
+          "welcome",
+          "benediction",
+          "transition",
+          "custom",
+        ]),
+      })
+      .describe("One step in a user-defined service flow."),
+  ),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListServiceTemplatesResponse = zod.array(
+  ListServiceTemplatesResponseItem,
+);
+
+/**
+ * @summary Save a new service flow template
+ */
+
+export const CreateServiceTemplateBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().optional(),
+  flow: zod
+    .array(
+      zod
+        .object({
+          stepName: zod
+            .string()
+            .min(1)
+            .describe(
+              'The display name for this step (e.g. \"Prayer of Confession\").',
+            ),
+          kind: zod.enum([
+            "song",
+            "scripture",
+            "prayer",
+            "sermon",
+            "communion",
+            "offering",
+            "welcome",
+            "benediction",
+            "transition",
+            "custom",
+          ]),
+        })
+        .describe("One step in a user-defined service flow."),
+    )
+    .min(1),
+});
+
+/**
+ * @summary Rename or update a saved service flow template
+ */
+export const UpdateServiceTemplateParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateServiceTemplateBody = zod.object({
+  name: zod.string().min(1).optional(),
+  description: zod.string().optional(),
+  flow: zod
+    .array(
+      zod
+        .object({
+          stepName: zod
+            .string()
+            .min(1)
+            .describe(
+              'The display name for this step (e.g. \"Prayer of Confession\").',
+            ),
+          kind: zod.enum([
+            "song",
+            "scripture",
+            "prayer",
+            "sermon",
+            "communion",
+            "offering",
+            "welcome",
+            "benediction",
+            "transition",
+            "custom",
+          ]),
+        })
+        .describe("One step in a user-defined service flow."),
+    )
+    .min(1)
+    .optional(),
+});
+
+export const UpdateServiceTemplateResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  name: zod.string(),
+  description: zod.string(),
+  flow: zod.array(
+    zod
+      .object({
+        stepName: zod
+          .string()
+          .min(1)
+          .describe(
+            'The display name for this step (e.g. \"Prayer of Confession\").',
+          ),
+        kind: zod.enum([
+          "song",
+          "scripture",
+          "prayer",
+          "sermon",
+          "communion",
+          "offering",
+          "welcome",
+          "benediction",
+          "transition",
+          "custom",
+        ]),
+      })
+      .describe("One step in a user-defined service flow."),
+  ),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a saved service flow template
+ */
+export const DeleteServiceTemplateParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * Streams the model output back as Server-Sent Events to avoid the
 autoscale proxy's 30s idle timeout. The Zod request schema is
 validated first; on success the response switches to SSE.
@@ -660,6 +814,7 @@ body with status `400`.
 
  * @summary AI-generate a full service plan outline (streamed over SSE)
  */
+
 export const GenerateServicePlanBody = zod.object({
   theme: zod.string(),
   scripture: zod.string().optional(),
@@ -669,6 +824,35 @@ export const GenerateServicePlanBody = zod.object({
     .optional()
     .describe('e.g. \"60 minutes\", \"75 minutes\"'),
   notes: zod.string().optional(),
+  flow: zod
+    .array(
+      zod
+        .object({
+          stepName: zod
+            .string()
+            .min(1)
+            .describe(
+              'The display name for this step (e.g. \"Prayer of Confession\").',
+            ),
+          kind: zod.enum([
+            "song",
+            "scripture",
+            "prayer",
+            "sermon",
+            "communion",
+            "offering",
+            "welcome",
+            "benediction",
+            "transition",
+            "custom",
+          ]),
+        })
+        .describe("One step in a user-defined service flow."),
+    )
+    .optional()
+    .describe(
+      "Optional ordered service flow defined by the user. When present,\nthe generator MUST return `content.order` with exactly these\nentries in this order, preserving each step's kind and the\nsupplied `stepName` as the slot's title.\n",
+    ),
 });
 
 export const GenerateServicePlanResponse = zod.object({

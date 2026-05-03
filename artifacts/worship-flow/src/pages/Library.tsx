@@ -8,6 +8,11 @@ import {
   useBulkImportRepertoire,
   useUpdateLibraryItem,
   getListLibraryItemsQueryKey,
+  useListServiceTemplates,
+  useUpdateServiceTemplate,
+  useDeleteServiceTemplate,
+  getListServiceTemplatesQueryKey,
+  type ServiceTemplate,
 } from '@workspace/api-client-react';
 import {
   BookOpen,
@@ -60,7 +65,8 @@ type TabType =
   | 'liturgy'
   | 'song'
   | 'speaking_moment'
-  | 'devotional';
+  | 'devotional'
+  | 'flows';
 
 /**
  * Parse a free-text paste of song titles into structured rows.
@@ -303,7 +309,7 @@ export default function Library() {
   // Translate the active tab into a query for the list endpoint. The
   // Repertoire tab is just a Songs-with-flag filter under the hood.
   const listQuery =
-    activeTab === 'all'
+    activeTab === 'all' || activeTab === 'flows'
       ? undefined
       : activeTab === 'repertoire'
         ? { kind: 'song' as const, repertoire: true }
@@ -374,6 +380,7 @@ export default function Library() {
     { id: 'song', label: 'Songs' },
     { id: 'speaking_moment', label: 'Speaking Moments' },
     { id: 'devotional', label: 'Devotionals' },
+    { id: 'flows', label: 'Service Flows' },
   ];
 
   const getIcon = (kind: string) => {
@@ -398,6 +405,7 @@ export default function Library() {
       .join(' ');
 
   const isRepertoireTab = activeTab === 'repertoire';
+  const isFlowsTab = activeTab === 'flows';
 
   return (
     <AppLayout title="Library">
@@ -459,7 +467,9 @@ export default function Library() {
           </div>
         )}
 
-        {isLoading ? (
+        {isFlowsTab ? (
+          <SavedFlowsPanel />
+        ) : isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C99A3D]"></div>
           </div>
@@ -638,6 +648,165 @@ export default function Library() {
         formatKind={formatKind}
       />
     </AppLayout>
+  );
+}
+
+function SavedFlowsPanel() {
+  const queryClient = useQueryClient();
+  const { data: flows, isLoading } = useListServiceTemplates();
+  const updateTemplate = useUpdateServiceTemplate();
+  const deleteTemplate = useDeleteServiceTemplate();
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [draftName, setDraftName] = useState('');
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: getListServiceTemplatesQueryKey(),
+    });
+
+  const startRename = (flow: ServiceTemplate) => {
+    setRenamingId(flow.id);
+    setDraftName(flow.name);
+  };
+
+  const commitRename = (flow: ServiceTemplate) => {
+    const trimmed = draftName.trim();
+    if (!trimmed || trimmed === flow.name) {
+      setRenamingId(null);
+      return;
+    }
+    updateTemplate.mutate(
+      { id: flow.id, data: { name: trimmed } },
+      {
+        onSuccess: () => {
+          toast.success('Renamed');
+          setRenamingId(null);
+          invalidate();
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || 'Could not rename that flow');
+        },
+      },
+    );
+  };
+
+  const handleDelete = (flow: ServiceTemplate) => {
+    if (
+      !confirm(
+        `Delete "${flow.name}"? This won't affect service plans you've already saved.`,
+      )
+    )
+      return;
+    deleteTemplate.mutate(
+      { id: flow.id },
+      {
+        onSuccess: () => {
+          toast.success('Service flow deleted');
+          invalidate();
+        },
+        onError: () => toast.error('Could not delete that flow'),
+      },
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C99A3D]"></div>
+      </div>
+    );
+  }
+
+  if (!flows || flows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-16 h-16 rounded-full bg-[var(--worship-cream)] flex items-center justify-center mb-4 text-[var(--worship-gold)]">
+          <ClipboardList className="w-8 h-8" />
+        </div>
+        <h3 className="text-lg font-serif text-[var(--worship-navy)] mb-2">
+          No saved service flows yet
+        </h3>
+        <p className="text-[var(--worship-slate)] max-w-sm">
+          Build a service in the Service Builder, then save the order as a
+          reusable template you can apply with one click.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+      {flows.map((flow) => (
+        <div
+          key={flow.id}
+          className="worship-card p-5 flex flex-col"
+          data-testid={`flow-card-${flow.id}`}
+        >
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex-1 min-w-0">
+              {renamingId === flow.id ? (
+                <input
+                  autoFocus
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onBlur={() => commitRename(flow)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename(flow);
+                    if (e.key === 'Escape') setRenamingId(null);
+                  }}
+                  className="w-full px-2 py-1 rounded border text-base font-serif text-[var(--worship-navy)] focus:outline-none focus:ring-2 ring-[var(--worship-gold)]"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                  data-testid={`input-rename-flow-${flow.id}`}
+                />
+              ) : (
+                <h3 className="font-serif text-lg text-[var(--worship-navy)] truncate">
+                  {flow.name}
+                </h3>
+              )}
+              {flow.description && (
+                <p className="text-xs text-[var(--worship-slate)] mt-1 line-clamp-2">
+                  {flow.description}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => startRename(flow)}
+                className="p-1.5 rounded text-slate-400 hover:text-[var(--worship-navy)] hover:bg-[var(--worship-cream)]"
+                title="Rename"
+                data-testid={`button-rename-flow-${flow.id}`}
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(flow)}
+                className="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50"
+                title="Delete"
+                data-testid={`button-delete-flow-${flow.id}`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <ol className="space-y-1 text-sm text-[var(--worship-charcoal)] list-decimal list-inside">
+            {flow.flow.map((step, i) => (
+              <li key={i} className="truncate">
+                <span className="text-[var(--worship-navy)]">
+                  {step.stepName}
+                </span>
+                <span className="text-[var(--worship-muted-slate)] text-xs ml-2 uppercase tracking-wide">
+                  {step.kind}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-3 pt-3 border-t border-[var(--worship-border)] text-xs text-[var(--worship-muted-slate)]">
+            {flow.flow.length} step{flow.flow.length === 1 ? '' : 's'} ·
+            updated {new Date(flow.updatedAt).toLocaleDateString()}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

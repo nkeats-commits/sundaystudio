@@ -25,6 +25,9 @@ import type {
   CreateSermonResourceBody,
   CreateSermonSeriesBody,
   CreateServicePlanBody,
+  CreateServiceTemplate400,
+  CreateServiceTemplate409,
+  CreateServiceTemplateBody,
   DashboardResponse,
   ExportSermonBody,
   ExportServicePlanBody,
@@ -77,6 +80,7 @@ import type {
   SermonWorshipIntegrationOutput,
   ServicePlan,
   ServicePlanExport,
+  ServiceTemplate,
   SetRepertoireBody,
   UnauthorizedResponse,
   UpdateLibraryItem400,
@@ -85,6 +89,9 @@ import type {
   UpdateSermonResourceBody,
   UpdateSermonSeriesBody,
   UpdateServicePlanBody,
+  UpdateServiceTemplate400,
+  UpdateServiceTemplate409,
+  UpdateServiceTemplateBody,
   UpsertChurchProfileBody,
 } from "./api.schemas";
 
@@ -1542,6 +1549,363 @@ export function useListServicesLinkedToLibraryItem<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List the user's saved service flow templates
+ */
+export const getListServiceTemplatesUrl = () => {
+  return `/api/service-templates`;
+};
+
+export const listServiceTemplates = async (
+  options?: RequestInit,
+): Promise<ServiceTemplate[]> => {
+  return customFetch<ServiceTemplate[]>(getListServiceTemplatesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListServiceTemplatesQueryKey = () => {
+  return [`/api/service-templates`] as const;
+};
+
+export const getListServiceTemplatesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listServiceTemplates>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listServiceTemplates>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListServiceTemplatesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listServiceTemplates>>
+  > = ({ signal }) => listServiceTemplates({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listServiceTemplates>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListServiceTemplatesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listServiceTemplates>>
+>;
+export type ListServiceTemplatesQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List the user's saved service flow templates
+ */
+
+export function useListServiceTemplates<
+  TData = Awaited<ReturnType<typeof listServiceTemplates>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listServiceTemplates>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListServiceTemplatesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save a new service flow template
+ */
+export const getCreateServiceTemplateUrl = () => {
+  return `/api/service-templates`;
+};
+
+export const createServiceTemplate = async (
+  createServiceTemplateBody: CreateServiceTemplateBody,
+  options?: RequestInit,
+): Promise<ServiceTemplate> => {
+  return customFetch<ServiceTemplate>(getCreateServiceTemplateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createServiceTemplateBody),
+  });
+};
+
+export const getCreateServiceTemplateMutationOptions = <
+  TError = ErrorType<
+    CreateServiceTemplate400 | UnauthorizedResponse | CreateServiceTemplate409
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createServiceTemplate>>,
+    TError,
+    { data: BodyType<CreateServiceTemplateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createServiceTemplate>>,
+  TError,
+  { data: BodyType<CreateServiceTemplateBody> },
+  TContext
+> => {
+  const mutationKey = ["createServiceTemplate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createServiceTemplate>>,
+    { data: BodyType<CreateServiceTemplateBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createServiceTemplate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateServiceTemplateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createServiceTemplate>>
+>;
+export type CreateServiceTemplateMutationBody =
+  BodyType<CreateServiceTemplateBody>;
+export type CreateServiceTemplateMutationError = ErrorType<
+  CreateServiceTemplate400 | UnauthorizedResponse | CreateServiceTemplate409
+>;
+
+/**
+ * @summary Save a new service flow template
+ */
+export const useCreateServiceTemplate = <
+  TError = ErrorType<
+    CreateServiceTemplate400 | UnauthorizedResponse | CreateServiceTemplate409
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createServiceTemplate>>,
+    TError,
+    { data: BodyType<CreateServiceTemplateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createServiceTemplate>>,
+  TError,
+  { data: BodyType<CreateServiceTemplateBody> },
+  TContext
+> => {
+  return useMutation(getCreateServiceTemplateMutationOptions(options));
+};
+
+/**
+ * @summary Rename or update a saved service flow template
+ */
+export const getUpdateServiceTemplateUrl = (id: number) => {
+  return `/api/service-templates/${id}`;
+};
+
+export const updateServiceTemplate = async (
+  id: number,
+  updateServiceTemplateBody: UpdateServiceTemplateBody,
+  options?: RequestInit,
+): Promise<ServiceTemplate> => {
+  return customFetch<ServiceTemplate>(getUpdateServiceTemplateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateServiceTemplateBody),
+  });
+};
+
+export const getUpdateServiceTemplateMutationOptions = <
+  TError = ErrorType<
+    | UpdateServiceTemplate400
+    | UnauthorizedResponse
+    | NotFoundResponse
+    | UpdateServiceTemplate409
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateServiceTemplate>>,
+    TError,
+    { id: number; data: BodyType<UpdateServiceTemplateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateServiceTemplate>>,
+  TError,
+  { id: number; data: BodyType<UpdateServiceTemplateBody> },
+  TContext
+> => {
+  const mutationKey = ["updateServiceTemplate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateServiceTemplate>>,
+    { id: number; data: BodyType<UpdateServiceTemplateBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateServiceTemplate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateServiceTemplateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateServiceTemplate>>
+>;
+export type UpdateServiceTemplateMutationBody =
+  BodyType<UpdateServiceTemplateBody>;
+export type UpdateServiceTemplateMutationError = ErrorType<
+  | UpdateServiceTemplate400
+  | UnauthorizedResponse
+  | NotFoundResponse
+  | UpdateServiceTemplate409
+>;
+
+/**
+ * @summary Rename or update a saved service flow template
+ */
+export const useUpdateServiceTemplate = <
+  TError = ErrorType<
+    | UpdateServiceTemplate400
+    | UnauthorizedResponse
+    | NotFoundResponse
+    | UpdateServiceTemplate409
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateServiceTemplate>>,
+    TError,
+    { id: number; data: BodyType<UpdateServiceTemplateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateServiceTemplate>>,
+  TError,
+  { id: number; data: BodyType<UpdateServiceTemplateBody> },
+  TContext
+> => {
+  return useMutation(getUpdateServiceTemplateMutationOptions(options));
+};
+
+/**
+ * @summary Delete a saved service flow template
+ */
+export const getDeleteServiceTemplateUrl = (id: number) => {
+  return `/api/service-templates/${id}`;
+};
+
+export const deleteServiceTemplate = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteServiceTemplateUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteServiceTemplateMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteServiceTemplate>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteServiceTemplate>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteServiceTemplate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteServiceTemplate>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteServiceTemplate(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteServiceTemplateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteServiceTemplate>>
+>;
+
+export type DeleteServiceTemplateMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Delete a saved service flow template
+ */
+export const useDeleteServiceTemplate = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteServiceTemplate>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteServiceTemplate>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteServiceTemplateMutationOptions(options));
+};
 
 /**
  * Streams the model output back as Server-Sent Events to avoid the
