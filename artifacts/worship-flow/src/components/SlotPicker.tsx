@@ -7,7 +7,7 @@ import {
   type ServicePlanItem,
   type LibraryItem,
 } from '@workspace/api-client-react';
-import { X, Search, BookOpen, Music, Mic, Users, ScrollText, Link2 } from 'lucide-react';
+import { X, Search, BookOpen, Music, Mic, Users, Sprout, ScrollText, Link2 } from 'lucide-react';
 import { libraryKindsForSlot, libraryItemBodyPreview } from '../lib/slotMatching';
 
 /**
@@ -51,6 +51,8 @@ function libraryIcon(kind: string) {
       return <Mic className={cls} />;
     case 'devotional':
       return <Users className={cls} />;
+    case 'soul_care':
+      return <Sprout className={cls} />;
     default:
       return <BookOpen className={cls} />;
   }
@@ -81,7 +83,7 @@ export function SlotPicker({ slot, onApply, onClose }: SlotPickerProps) {
   // grab the unfiltered list and filter client-side; the API only accepts
   // a single kind filter at a time.
   const libraryParams = librarySingleKind
-    ? { kind: librarySingleKind as 'liturgy' | 'song' | 'speaking_moment' | 'devotional' }
+    ? { kind: librarySingleKind as 'liturgy' | 'song' | 'speaking_moment' | 'devotional' | 'soul_care' }
     : undefined;
   const libraryQuery = useListLibraryItems(libraryParams, {
     query: { enabled: !isSermon, queryKey: getListLibraryItemsQueryKey(libraryParams) },

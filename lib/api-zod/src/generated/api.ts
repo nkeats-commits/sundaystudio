@@ -153,6 +153,7 @@ export const GetDashboardResponse = zod.object({
         "songs",
         "speaking_moment",
         "devotional",
+        "soul_care",
       ]),
     }),
   ),
@@ -487,7 +488,7 @@ export const ExportServicePlanResponse = zod.object({
  */
 export const ListLibraryItemsQueryParams = zod.object({
   kind: zod
-    .enum(["liturgy", "song", "speaking_moment", "devotional"])
+    .enum(["liturgy", "song", "speaking_moment", "devotional", "soul_care"])
     .optional(),
   repertoire: zod.coerce
     .boolean()
@@ -500,7 +501,13 @@ export const ListLibraryItemsQueryParams = zod.object({
 export const ListLibraryItemsResponseItem = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  kind: zod.enum(["liturgy", "song", "speaking_moment", "devotional"]),
+  kind: zod.enum([
+    "liturgy",
+    "song",
+    "speaking_moment",
+    "devotional",
+    "soul_care",
+  ]),
   title: zod.string(),
   content: zod.record(zod.string(), zod.unknown()),
   tags: zod.array(zod.string()),
@@ -518,7 +525,13 @@ export const ListLibraryItemsResponse = zod.array(ListLibraryItemsResponseItem);
  */
 
 export const CreateLibraryItemBody = zod.object({
-  kind: zod.enum(["liturgy", "song", "speaking_moment", "devotional"]),
+  kind: zod.enum([
+    "liturgy",
+    "song",
+    "speaking_moment",
+    "devotional",
+    "soul_care",
+  ]),
   title: zod.string().min(1),
   content: zod.record(zod.string(), zod.unknown()),
   tags: zod.array(zod.string()).optional(),
@@ -550,7 +563,13 @@ export const UpdateLibraryItemBody = zod
 export const UpdateLibraryItemResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  kind: zod.enum(["liturgy", "song", "speaking_moment", "devotional"]),
+  kind: zod.enum([
+    "liturgy",
+    "song",
+    "speaking_moment",
+    "devotional",
+    "soul_care",
+  ]),
   title: zod.string(),
   content: zod.record(zod.string(), zod.unknown()),
   tags: zod.array(zod.string()),
@@ -583,7 +602,13 @@ export const SetLibraryItemRepertoireBody = zod.object({
 export const SetLibraryItemRepertoireResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  kind: zod.enum(["liturgy", "song", "speaking_moment", "devotional"]),
+  kind: zod.enum([
+    "liturgy",
+    "song",
+    "speaking_moment",
+    "devotional",
+    "soul_care",
+  ]),
   title: zod.string(),
   content: zod.record(zod.string(), zod.unknown()),
   tags: zod.array(zod.string()),
@@ -1262,6 +1287,66 @@ export const GenerateDevotionalResponse = zod.object({
     .describe(
       "Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.",
     ),
+});
+
+/**
+ * Starts a background job that generates a complete soul-care session
+(centering, scripture+reflection, 2-4 guided practices, journaling
+prompts, closing, take-home practice). Returns `{ jobId }` immediately;
+poll `/generate/jobs/{jobId}` for the result, which conforms to
+`GeneratedSoulCare`.
+
+ * @summary AI-generate a guided soul-care session for a leader or team
+ */
+export const generateSoulCareBodyIntentMax = 4000;
+
+export const generateSoulCareBodyDurationMinutesMin = 10;
+export const generateSoulCareBodyDurationMinutesMax = 60;
+
+export const GenerateSoulCareBody = zod.object({
+  audience: zod
+    .enum(["self", "team"])
+    .describe(
+      'Who the session is for. \"self\" speaks in the second person to a leader doing personal soul care; \"team\" guides a leader walking a group through the practice.',
+    ),
+  intent: zod
+    .string()
+    .max(generateSoulCareBodyIntentMax)
+    .optional()
+    .describe(
+      "Free-text \"what's on your heart\" — the user's current state, longings, or concerns.",
+    ),
+  season: zod
+    .string()
+    .optional()
+    .describe(
+      'Season or state — e.g. \"burnout\", \"grief\", \"anticipation\",\n\"ordinary time\", \"post-Easter\", \"Advent waiting\",\n\"Lenten dryness\", \"celebration\".\n',
+    ),
+  practiceTemplate: zod
+    .enum([
+      "auto",
+      "examen",
+      "lectio_divina",
+      "centering_prayer",
+      "silence_solitude",
+      "gratitude",
+      "lament",
+      "sabbath",
+      "breath_prayer",
+    ])
+    .optional()
+    .describe(
+      'Spiritual practice tradition to base the session on, or \"auto\"\nto let the AI choose what fits the season and intent.\n',
+    ),
+  durationMinutes: zod
+    .number()
+    .min(generateSoulCareBodyDurationMinutesMin)
+    .max(generateSoulCareBodyDurationMinutesMax)
+    .optional(),
+});
+
+export const GenerateSoulCareResponse = zod.object({
+  jobId: zod.string(),
 });
 
 /**

@@ -58,6 +58,9 @@ import type {
   GenerateServicePlanBody,
   GenerateSongSuggestions400,
   GenerateSongsBody,
+  GenerateSoulCare200,
+  GenerateSoulCare400,
+  GenerateSoulCareBody,
   GenerateSpeakingMoment400,
   GenerateSpeakingMomentBody,
   GenerateStepContent400,
@@ -2669,6 +2672,100 @@ export const useGenerateDevotional = <
   TContext
 > => {
   return useMutation(getGenerateDevotionalMutationOptions(options));
+};
+
+/**
+ * Starts a background job that generates a complete soul-care session
+(centering, scripture+reflection, 2-4 guided practices, journaling
+prompts, closing, take-home practice). Returns `{ jobId }` immediately;
+poll `/generate/jobs/{jobId}` for the result, which conforms to
+`GeneratedSoulCare`.
+
+ * @summary AI-generate a guided soul-care session for a leader or team
+ */
+export const getGenerateSoulCareUrl = () => {
+  return `/api/generate/soul-care`;
+};
+
+export const generateSoulCare = async (
+  generateSoulCareBody: GenerateSoulCareBody,
+  options?: RequestInit,
+): Promise<GenerateSoulCare200> => {
+  return customFetch<GenerateSoulCare200>(getGenerateSoulCareUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(generateSoulCareBody),
+  });
+};
+
+export const getGenerateSoulCareMutationOptions = <
+  TError = ErrorType<GenerateSoulCare400 | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateSoulCare>>,
+    TError,
+    { data: BodyType<GenerateSoulCareBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateSoulCare>>,
+  TError,
+  { data: BodyType<GenerateSoulCareBody> },
+  TContext
+> => {
+  const mutationKey = ["generateSoulCare"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateSoulCare>>,
+    { data: BodyType<GenerateSoulCareBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateSoulCare(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateSoulCareMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateSoulCare>>
+>;
+export type GenerateSoulCareMutationBody = BodyType<GenerateSoulCareBody>;
+export type GenerateSoulCareMutationError = ErrorType<
+  GenerateSoulCare400 | UnauthorizedResponse
+>;
+
+/**
+ * @summary AI-generate a guided soul-care session for a leader or team
+ */
+export const useGenerateSoulCare = <
+  TError = ErrorType<GenerateSoulCare400 | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateSoulCare>>,
+    TError,
+    { data: BodyType<GenerateSoulCareBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateSoulCare>>,
+  TError,
+  { data: BodyType<GenerateSoulCareBody> },
+  TContext
+> => {
+  return useMutation(getGenerateSoulCareMutationOptions(options));
 };
 
 /**

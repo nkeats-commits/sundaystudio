@@ -9,6 +9,7 @@ import {
   GenerateSpeakingMomentBody,
   GenerateStepContentBody,
   GenerateDevotionalBody,
+  GenerateSoulCareBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
@@ -709,6 +710,109 @@ Aim for content that fits in the ${minutes}-minute window when read aloud.`;
         out.alignmentNotes = trimmedAlignmentDv;
       } else {
         delete out.alignmentNotes;
+      }
+      return out;
+    },
+  );
+});
+
+router.post("/generate/soul-care", requireAuth, async (req, res) => {
+  const parsed = GenerateSoulCareBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const data = parsed.data;
+  const ctx = await getChurchContext(req.userId!);
+  const minutes = data.durationMinutes ?? 25;
+  const trimmedIntent = (data.intent ?? "").trim();
+  const hasIntent = trimmedIntent.length > 0;
+  const audience = data.audience;
+  const season = (data.season ?? "").trim() || "ordinary time";
+
+  const practiceMap: Record<string, string> = {
+    examen: "the Ignatian Examen — review the day for consolations and desolations, where God was present, where you turned away.",
+    lectio_divina: "Lectio Divina — slow, prayerful, four-movement reading of scripture (lectio, meditatio, oratio, contemplatio).",
+    centering_prayer: "Centering Prayer — sitting in silence with a single sacred word as consent to God's presence (Thomas Keating tradition).",
+    silence_solitude: "Silence and Solitude — sustained, structured silence in God's presence (the desert tradition, Henri Nouwen, Dallas Willard).",
+    gratitude: "Gratitude — naming and savoring specific gifts as a posture of worship and resistance to scarcity.",
+    lament: "Lament — biblical lament patterned on the Psalms (address, complaint, request, trust, praise).",
+    sabbath: "Sabbath — ceasing, resting, embracing, feasting (Marva Dawn) as practice of trust.",
+    breath_prayer: "Breath Prayer — a short scriptural phrase prayed on the inhale and exhale (Jesus Prayer tradition).",
+  };
+  const practiceTemplate = data.practiceTemplate ?? "auto";
+  const practiceLine =
+    practiceTemplate === "auto" || !practiceMap[practiceTemplate]
+      ? "Choose ONE well-established Christian spiritual practice that fits the season and intent above (Examen, Lectio Divina, Centering Prayer, Silence and Solitude, Gratitude, Lament, Sabbath, or Breath Prayer). Name it explicitly in `practiceTradition`."
+      : `Base this session on ${practiceMap[practiceTemplate]} Name it explicitly in \`practiceTradition\`.`;
+
+  const audienceLine =
+    audience === "team"
+      ? `This session is for a leader walking a TEAM (worship team, staff, small group) through soul care together. Speak to "the leader" with cues like "invite the team to…", "ask the room…". Practices should work in a shared room with 3-15 people.`
+      : `This session is for a leader practicing soul care PERSONALLY. Speak directly in the second person ("you"), gently and pastorally. Practices should be doable alone with a journal.`;
+
+  const intentBlock = hasIntent
+    ? `
+
+What's on the participant's heart (treat as confidential, do not quote back verbatim, but let it shape every section):
+"""
+${trimmedIntent}
+"""`
+    : "";
+
+  const prompt = `You are an experienced spiritual director writing a guided soul-care session as JSON.
+
+Audience: ${audience}
+${audienceLine}
+
+Season / state: ${season}
+Approximate length: ${minutes} minutes total
+Practice tradition: ${practiceTemplate}
+${practiceLine}
+
+Church context:
+${churchContextBlurb(ctx)}${intentBlock}
+
+Honor the historic Christian contemplative tradition. Be specific and concrete — not generic platitudes. Avoid therapeutic jargon. Quote scripture from NIV or ESV. Pace the section durations so they SUM to roughly ${minutes} minutes.
+
+Return JSON exactly in this shape:
+{
+  "title": "string — short, evocative, e.g. 'Stilling the Striving Heart'",
+  "durationMinutes": ${minutes},
+  "practiceTradition": "string — the named practice (e.g. 'Lectio Divina', 'Examen')",
+  "leaderNotes": "string — 2-3 sentences of pacing and posture notes for whoever leads this",
+  "opening": "string — a centering moment or breath prayer to open the time (1-2 short paragraphs)",
+  "scripture": {
+    "reference": "string — passage reference, e.g. 'Psalm 131'",
+    "text": "string — the actual passage text",
+    "reflection": "string — 2-4 sentences inviting the participant into the passage"
+  },
+  "practices": [
+    {
+      "name": "string — short name for this guided movement",
+      "instructions": "string — step-by-step guidance, 2-5 short paragraphs. Use \\n\\n between paragraphs.",
+      "durationMinutes": 8
+    }
+    // 2 to 4 practice movements total. They should follow a coherent arc.
+  ],
+  "journalingPrompts": ["string", "string", "string"],
+  "closing": "string — a short closing prayer or blessing",
+  "takeHomePractice": "string — one simple practice to carry into the rest of the day or week"
+}`;
+
+  runJob<Record<string, unknown>>(
+    req,
+    res,
+    prompt,
+    4000,
+    "soul-care session",
+    undefined,
+    (result) => {
+      const out: Record<string, unknown> = { ...result };
+      if (hasIntent) {
+        out.intent = trimmedIntent;
+      } else {
+        delete out.intent;
       }
       return out;
     },

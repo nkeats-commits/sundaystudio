@@ -14,4 +14,5 @@ export const CreateLibraryItemBodyKind = {
   song: "song",
   speaking_moment: "speaking_moment",
   devotional: "devotional",
+  soul_care: "soul_care",
 } as const;

@@ -23,7 +23,7 @@ export function libraryKindsForSlot(
     case 'transition':
       return ['liturgy'];
     case 'custom':
-      return ['speaking_moment', 'devotional'];
+      return ['speaking_moment', 'devotional', 'soul_care'];
     default:
       return null;
   }
@@ -50,6 +50,7 @@ export function slotKindsForLibraryKind(
       ];
     case 'speaking_moment':
     case 'devotional':
+    case 'soul_care':
       return ['custom'];
     default:
       return [];
@@ -70,6 +71,7 @@ export function defaultNewSlotKindForLibraryKind(
       return 'prayer';
     case 'speaking_moment':
     case 'devotional':
+    case 'soul_care':
       return 'custom';
     default:
       return 'custom';
@@ -83,6 +85,7 @@ export function defaultNewSlotKindForLibraryKind(
 export function libraryItemBodyPreview(item: LibraryItem): string {
   const c = item.content as Record<string, unknown>;
   if (typeof c.body === 'string' && c.body) return c.body;
+  if (typeof c.opening === 'string' && c.opening) return c.opening;
   if (typeof c.reflection === 'string' && c.reflection) return c.reflection;
   if (typeof c.lyrics === 'string' && c.lyrics) return c.lyrics;
   if (typeof c.text === 'string' && c.text) return c.text;

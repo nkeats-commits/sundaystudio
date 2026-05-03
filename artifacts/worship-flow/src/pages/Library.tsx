@@ -19,6 +19,7 @@ import {
   Music,
   Mic,
   Users,
+  Sprout,
   Trash2,
   Link2,
   Star,
@@ -67,6 +68,7 @@ type TabType =
   | 'song'
   | 'speaking_moment'
   | 'devotional'
+  | 'soul_care'
   | 'flows';
 
 /**
@@ -430,6 +432,7 @@ export default function Library() {
     { id: 'song', label: 'Songs' },
     { id: 'speaking_moment', label: 'Speaking Moments' },
     { id: 'devotional', label: 'Devotionals' },
+    { id: 'soul_care', label: 'Soul Care' },
     { id: 'flows', label: 'Service Flows' },
   ];
 
@@ -443,6 +446,8 @@ export default function Library() {
         return <Mic className="w-4 h-4" />;
       case 'devotional':
         return <Users className="w-4 h-4" />;
+      case 'soul_care':
+        return <Sprout className="w-4 h-4" />;
       default:
         return <BookOpen className="w-4 h-4" />;
     }
@@ -910,6 +915,48 @@ function buildCopyText(item: LibraryItem): string {
       .filter(Boolean)
       .join('\n\n');
   }
+  if (item.kind === 'soul_care') {
+    const tradition = str('practiceTradition');
+    const minsRaw = c.durationMinutes;
+    const mins = typeof minsRaw === 'number' ? `${minsRaw} min` : '';
+    const headerBits = [tradition, mins].filter(Boolean).join(' · ');
+    const leaderNotes = str('leaderNotes');
+    const opening = str('opening');
+    const sc = (c.scripture as Record<string, unknown> | undefined) ?? {};
+    const scRef = typeof sc.reference === 'string' ? sc.reference : '';
+    const scText = typeof sc.text === 'string' ? sc.text : '';
+    const scRefl = typeof sc.reflection === 'string' ? sc.reflection : '';
+    const practices = (Array.isArray(c.practices) ? c.practices : [])
+      .map((p, i) => {
+        const pp = p as Record<string, unknown>;
+        const name = typeof pp.name === 'string' ? pp.name : `Practice ${i + 1}`;
+        const dur =
+          typeof pp.durationMinutes === 'number' ? ` (${pp.durationMinutes} min)` : '';
+        const ins = typeof pp.instructions === 'string' ? pp.instructions : '';
+        return `${i + 1}. ${name}${dur}\n${ins}`;
+      })
+      .join('\n\n');
+    const prompts = arr('journalingPrompts')
+      .map((q, i) => `${i + 1}. ${String(q)}`)
+      .join('\n');
+    const closing = str('closing');
+    const takeHome = str('takeHomePractice');
+    return [
+      item.title,
+      headerBits ? `(${headerBits})` : '',
+      leaderNotes ? `Leader notes:\n${leaderNotes}` : '',
+      opening ? `Opening:\n${opening}` : '',
+      scRef
+        ? `Scripture — ${scRef}\n${scText}${scRefl ? `\n\n${scRefl}` : ''}`
+        : '',
+      practices,
+      prompts ? `Journaling Prompts:\n${prompts}` : '',
+      closing ? `Closing:\n${closing}` : '',
+      takeHome ? `Take-home practice:\n${takeHome}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
   // song
   const artist = str('artist');
   const style = str('style');
@@ -945,6 +992,10 @@ type EditDraft = {
   scripture: string;
   discussionQuestions: string[];
   closingPrayer: string;
+  // soul_care (opening is shared with devotional)
+  leaderNotes: string;
+  closing: string;
+  takeHomePractice: string;
   // song
   artist: string;
   style: string;
@@ -963,6 +1014,9 @@ function emptyDraft(): EditDraft {
     scripture: '',
     discussionQuestions: [],
     closingPrayer: '',
+    leaderNotes: '',
+    closing: '',
+    takeHomePractice: '',
     artist: '',
     style: '',
     bpm: '',
@@ -994,6 +1048,9 @@ function draftFromItem(item: LibraryItem): EditDraft {
     scripture: str('scripture'),
     discussionQuestions: arr('discussionQuestions'),
     closingPrayer: str('closingPrayer'),
+    leaderNotes: str('leaderNotes'),
+    closing: str('closing'),
+    takeHomePractice: str('takeHomePractice'),
     artist: str('artist'),
     style: str('style'),
     bpm:
@@ -1038,6 +1095,11 @@ function contentFromDraft(
       .filter(Boolean);
     if (qs.length > 0) next.discussionQuestions = qs;
     else delete next.discussionQuestions;
+  } else if (item.kind === 'soul_care') {
+    setOrDelete('leaderNotes', draft.leaderNotes);
+    setOrDelete('opening', draft.opening);
+    setOrDelete('closing', draft.closing);
+    setOrDelete('takeHomePractice', draft.takeHomePractice);
   } else if (item.kind === 'song') {
     setOrDelete('artist', draft.artist);
     setOrDelete('style', draft.style);
@@ -1480,6 +1542,61 @@ function ItemEditBody({
     );
   }
 
+  if (item.kind === 'soul_care') {
+    return (
+      <div className="space-y-5">
+        <p className="text-xs italic text-[var(--worship-muted-slate)]">
+          Scripture, practices, and journaling prompts are preserved as the AI
+          generated them. Edit the framing fields below.
+        </p>
+        <div>
+          <label className={labelClass}>Leader Notes</label>
+          <textarea
+            value={draft.leaderNotes}
+            onChange={(e) =>
+              setDraft({ ...draft, leaderNotes: e.target.value })
+            }
+            rows={3}
+            className={textareaClass}
+            data-testid="input-edit-leader-notes"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Opening</label>
+          <textarea
+            value={draft.opening}
+            onChange={(e) => setDraft({ ...draft, opening: e.target.value })}
+            rows={4}
+            className={textareaClass}
+            data-testid="input-edit-opening"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Closing</label>
+          <textarea
+            value={draft.closing}
+            onChange={(e) => setDraft({ ...draft, closing: e.target.value })}
+            rows={4}
+            className={textareaClass}
+            data-testid="input-edit-closing"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Take-home Practice</label>
+          <textarea
+            value={draft.takeHomePractice}
+            onChange={(e) =>
+              setDraft({ ...draft, takeHomePractice: e.target.value })
+            }
+            rows={3}
+            className={textareaClass}
+            data-testid="input-edit-take-home"
+          />
+        </div>
+      </div>
+    );
+  }
+
   // song
   return (
     <div className="space-y-5">
@@ -1661,6 +1778,152 @@ function ItemDetailBody({ item }: { item: LibraryItem }) {
             </h3>
             <p className="font-serif italic leading-relaxed">{prayer}</p>
           </div>
+        )}
+      </div>
+    );
+  }
+
+  if (item.kind === 'soul_care') {
+    const tradition = str('practiceTradition');
+    const minsRaw = c.durationMinutes;
+    const mins = typeof minsRaw === 'number' ? minsRaw : null;
+    const leaderNotes = str('leaderNotes');
+    const opening = str('opening');
+    const sc = (c.scripture as Record<string, unknown> | undefined) ?? {};
+    const scRef = typeof sc.reference === 'string' ? sc.reference : '';
+    const scText = typeof sc.text === 'string' ? sc.text : '';
+    const scRefl = typeof sc.reflection === 'string' ? sc.reflection : '';
+    const practices = Array.isArray(c.practices)
+      ? (c.practices as Record<string, unknown>[])
+      : [];
+    const prompts = arr('journalingPrompts');
+    const closing = str('closing');
+    const takeHome = str('takeHomePractice');
+    const hasAny =
+      tradition || opening || scRef || practices.length > 0 || closing;
+    if (!hasAny) {
+      return (
+        <p className="text-sm italic text-[var(--worship-muted-slate)]">
+          No soul-care session content saved.
+        </p>
+      );
+    }
+    return (
+      <div className="space-y-8 text-[var(--worship-charcoal)]">
+        {(tradition || mins !== null) && (
+          <div className="flex flex-wrap gap-2">
+            {tradition && (
+              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] font-bold">
+                {tradition}
+              </span>
+            )}
+            {mins !== null && (
+              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--worship-cream)] text-[var(--worship-slate)] font-bold border border-[var(--worship-border)]">
+                {mins} min
+              </span>
+            )}
+          </div>
+        )}
+        {leaderNotes && (
+          <div className="text-xs italic text-[var(--worship-slate)] bg-[var(--worship-cream)]/60 border-l-2 border-[var(--worship-gold)] pl-3 py-2">
+            {leaderNotes}
+          </div>
+        )}
+        {opening && (
+          <section>
+            <h3 className="font-serif text-xs uppercase tracking-widest text-[var(--worship-slate)] mb-2">
+              Opening
+            </h3>
+            <div className="space-y-3 text-base leading-relaxed">
+              {opening.split('\n\n').map((p, i) => (
+                <p key={i}>{p}</p>
+              ))}
+            </div>
+          </section>
+        )}
+        {scRef && (
+          <section className="p-5 bg-[var(--worship-cream)] rounded-xl border-l-2 border-[var(--worship-gold)]">
+            <p className="text-xs uppercase tracking-widest text-[var(--worship-slate)] font-semibold mb-2">
+              Scripture — {scRef}
+            </p>
+            {scText && (
+              <p className="font-serif italic text-lg leading-relaxed text-[var(--worship-navy)] mb-3">
+                "{scText}"
+              </p>
+            )}
+            {scRefl && (
+              <p className="text-sm leading-relaxed">{scRefl}</p>
+            )}
+          </section>
+        )}
+        {practices.length > 0 && (
+          <section className="space-y-6">
+            <h3 className="font-serif text-xs uppercase tracking-widest text-[var(--worship-slate)]">
+              Guided Practice
+            </h3>
+            {practices.map((p, idx) => {
+              const name =
+                typeof p.name === 'string' ? p.name : `Practice ${idx + 1}`;
+              const ins =
+                typeof p.instructions === 'string' ? p.instructions : '';
+              const dur =
+                typeof p.durationMinutes === 'number'
+                  ? p.durationMinutes
+                  : null;
+              return (
+                <div
+                  key={idx}
+                  className="border-l-2 border-[var(--worship-navy)]/20 pl-4"
+                >
+                  <div className="flex items-baseline justify-between mb-2 gap-3">
+                    <h4 className="font-serif text-lg text-[var(--worship-navy)]">
+                      {idx + 1}. {name}
+                    </h4>
+                    {dur !== null && (
+                      <span className="text-xs text-[var(--worship-gold)] font-medium shrink-0">
+                        {dur} min
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-3 text-base leading-relaxed">
+                    {ins.split('\n\n').map((para, i) => (
+                      <p key={i}>{para}</p>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        )}
+        {prompts.length > 0 && (
+          <section className="pt-6 border-t border-[var(--worship-border)]">
+            <h3 className="font-serif text-xl text-[var(--worship-navy)] mb-4">
+              Journaling Prompts
+            </h3>
+            <ol className="list-decimal pl-5 space-y-3 marker:text-[var(--worship-gold)] marker:font-medium">
+              {prompts.map((q, i) => (
+                <li key={i} className="pl-2">
+                  {String(q)}
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+        {closing && (
+          <section className="p-6 bg-[var(--worship-navy)] text-white rounded-xl">
+            <h3 className="font-serif text-lg text-[var(--worship-pale-gold)] mb-3">
+              Closing
+            </h3>
+            <p className="font-serif italic leading-relaxed">{closing}</p>
+          </section>
+        )}
+        {takeHome && (
+          <section>
+            <h3 className="font-serif text-xs uppercase tracking-widest text-[var(--worship-slate)] mb-2">
+              Take-home practice
+            </h3>
+            <p className="text-base leading-relaxed">{takeHome}</p>
+          </section>
         )}
       </div>
     );

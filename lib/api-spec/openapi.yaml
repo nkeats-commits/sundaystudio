@@ -224,7 +224,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [liturgy, song, speaking_moment, devotional]
+            enum: [liturgy, song, speaking_moment, devotional, soul_care]
         - name: repertoire
           in: query
           required: false
@@ -753,6 +753,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GeneratedDevotional"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/soul-care:
+    post:
+      operationId: generateSoulCare
+      tags: [generate]
+      summary: AI-generate a guided soul-care session for a leader or team
+      description: |
+        Starts a background job that generates a complete soul-care session
+        (centering, scripture+reflection, 2-4 guided practices, journaling
+        prompts, closing, take-home practice). Returns `{ jobId }` immediately;
+        poll `/generate/jobs/{jobId}` for the result, which conforms to
+        `GeneratedSoulCare`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSoulCareBody"
+      responses:
+        "200":
+          description: Job started; poll for the result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                required: [jobId]
         "400":
           description: Invalid request body
           content:
@@ -1792,7 +1832,7 @@ components:
           type: string
         kind:
           type: string
-          enum: [liturgy, song, speaking_moment, devotional]
+          enum: [liturgy, song, speaking_moment, devotional, soul_care]
         title:
           type: string
         content:
@@ -1815,7 +1855,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [liturgy, song, speaking_moment, devotional]
+          enum: [liturgy, song, speaking_moment, devotional, soul_care]
         title:
           type: string
           minLength: 1
@@ -1916,7 +1956,7 @@ components:
           type: string
         kind:
           type: string
-          enum: [service, liturgy, songs, speaking_moment, devotional]
+          enum: [service, liturgy, songs, speaking_moment, devotional, soul_care]
       required: [id, prompt, kind]
 
     DashboardResponse:
@@ -2339,6 +2379,110 @@ components:
           type: string
           description: Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.
       required: [title, scripture, opening, body, discussionQuestions, closingPrayer]
+
+    GenerateSoulCareBody:
+      type: object
+      properties:
+        audience:
+          type: string
+          enum: [self, team]
+          description: Who the session is for. "self" speaks in the second person to a leader doing personal soul care; "team" guides a leader walking a group through the practice.
+        intent:
+          type: string
+          maxLength: 4000
+          description: Free-text "what's on your heart" — the user's current state, longings, or concerns.
+        season:
+          type: string
+          description: |
+            Season or state — e.g. "burnout", "grief", "anticipation",
+            "ordinary time", "post-Easter", "Advent waiting",
+            "Lenten dryness", "celebration".
+        practiceTemplate:
+          type: string
+          enum:
+            - auto
+            - examen
+            - lectio_divina
+            - centering_prayer
+            - silence_solitude
+            - gratitude
+            - lament
+            - sabbath
+            - breath_prayer
+          description: |
+            Spiritual practice tradition to base the session on, or "auto"
+            to let the AI choose what fits the season and intent.
+        durationMinutes:
+          type: integer
+          minimum: 10
+          maximum: 60
+      required: [audience]
+
+    SoulCareScripture:
+      type: object
+      properties:
+        reference:
+          type: string
+        text:
+          type: string
+          description: The actual passage text (NIV or ESV).
+        reflection:
+          type: string
+          description: 2-4 sentences inviting the participant into the passage.
+      required: [reference, text, reflection]
+
+    SoulCarePractice:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Short name for this guided practice, e.g. "Examen — Consolations".
+        instructions:
+          type: string
+          description: Step-by-step guidance for leading or doing this practice.
+        durationMinutes:
+          type: integer
+          minimum: 1
+      required: [name, instructions]
+
+    GeneratedSoulCare:
+      type: object
+      properties:
+        title:
+          type: string
+        durationMinutes:
+          type: integer
+        practiceTradition:
+          type: string
+          description: The named spiritual practice this session draws from (e.g. "Lectio Divina").
+        leaderNotes:
+          type: string
+          description: Pacing and posture notes for the person leading themselves or the team through this session.
+        opening:
+          type: string
+          description: A centering moment or breath prayer to open the time.
+        scripture:
+          $ref: "#/components/schemas/SoulCareScripture"
+        practices:
+          type: array
+          minItems: 2
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/SoulCarePractice"
+        journalingPrompts:
+          type: array
+          items:
+            type: string
+        closing:
+          type: string
+          description: A closing prayer or blessing.
+        takeHomePractice:
+          type: string
+          description: A simple practice to carry into the rest of the day or week.
+        intent:
+          type: string
+          description: Echoes the "what's on your heart" intent the user supplied (if any), so the saved item retains its provenance.
+      required: [title, durationMinutes, practiceTradition, opening, scripture, practices, journalingPrompts, closing, takeHomePractice]
 
     SermonStudyOutput:
       type: object

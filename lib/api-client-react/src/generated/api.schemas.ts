@@ -191,6 +191,7 @@ export const LibraryItemKind = {
   song: "song",
   speaking_moment: "speaking_moment",
   devotional: "devotional",
+  soul_care: "soul_care",
 } as const;
 
 export type LibraryItemContent = { [key: string]: unknown };
@@ -215,6 +216,7 @@ export const CreateLibraryItemBodyKind = {
   song: "song",
   speaking_moment: "speaking_moment",
   devotional: "devotional",
+  soul_care: "soul_care",
 } as const;
 
 export type CreateLibraryItemBodyContent = { [key: string]: unknown };
@@ -287,6 +289,7 @@ export const DashboardSuggestionKind = {
   songs: "songs",
   speaking_moment: "speaking_moment",
   devotional: "devotional",
+  soul_care: "soul_care",
 } as const;
 
 export interface DashboardSuggestion {
@@ -669,6 +672,102 @@ export interface GeneratedDevotional {
   closingPrayer: string;
   /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
   alignmentNotes?: string;
+}
+
+/**
+ * Who the session is for. "self" speaks in the second person to a leader doing personal soul care; "team" guides a leader walking a group through the practice.
+ */
+export type GenerateSoulCareBodyAudience =
+  (typeof GenerateSoulCareBodyAudience)[keyof typeof GenerateSoulCareBodyAudience];
+
+export const GenerateSoulCareBodyAudience = {
+  self: "self",
+  team: "team",
+} as const;
+
+/**
+ * Spiritual practice tradition to base the session on, or "auto"
+to let the AI choose what fits the season and intent.
+
+ */
+export type GenerateSoulCareBodyPracticeTemplate =
+  (typeof GenerateSoulCareBodyPracticeTemplate)[keyof typeof GenerateSoulCareBodyPracticeTemplate];
+
+export const GenerateSoulCareBodyPracticeTemplate = {
+  auto: "auto",
+  examen: "examen",
+  lectio_divina: "lectio_divina",
+  centering_prayer: "centering_prayer",
+  silence_solitude: "silence_solitude",
+  gratitude: "gratitude",
+  lament: "lament",
+  sabbath: "sabbath",
+  breath_prayer: "breath_prayer",
+} as const;
+
+export interface GenerateSoulCareBody {
+  /** Who the session is for. "self" speaks in the second person to a leader doing personal soul care; "team" guides a leader walking a group through the practice. */
+  audience: GenerateSoulCareBodyAudience;
+  /**
+   * Free-text "what's on your heart" — the user's current state, longings, or concerns.
+   * @maxLength 4000
+   */
+  intent?: string;
+  /** Season or state — e.g. "burnout", "grief", "anticipation",
+"ordinary time", "post-Easter", "Advent waiting",
+"Lenten dryness", "celebration".
+ */
+  season?: string;
+  /** Spiritual practice tradition to base the session on, or "auto"
+to let the AI choose what fits the season and intent.
+ */
+  practiceTemplate?: GenerateSoulCareBodyPracticeTemplate;
+  /**
+   * @minimum 10
+   * @maximum 60
+   */
+  durationMinutes?: number;
+}
+
+export interface SoulCareScripture {
+  reference: string;
+  /** The actual passage text (NIV or ESV). */
+  text: string;
+  /** 2-4 sentences inviting the participant into the passage. */
+  reflection: string;
+}
+
+export interface SoulCarePractice {
+  /** Short name for this guided practice, e.g. "Examen — Consolations". */
+  name: string;
+  /** Step-by-step guidance for leading or doing this practice. */
+  instructions: string;
+  /** @minimum 1 */
+  durationMinutes?: number;
+}
+
+export interface GeneratedSoulCare {
+  title: string;
+  durationMinutes: number;
+  /** The named spiritual practice this session draws from (e.g. "Lectio Divina"). */
+  practiceTradition: string;
+  /** Pacing and posture notes for the person leading themselves or the team through this session. */
+  leaderNotes?: string;
+  /** A centering moment or breath prayer to open the time. */
+  opening: string;
+  scripture: SoulCareScripture;
+  /**
+   * @minItems 2
+   * @maxItems 4
+   */
+  practices: SoulCarePractice[];
+  journalingPrompts: string[];
+  /** A closing prayer or blessing. */
+  closing: string;
+  /** A simple practice to carry into the rest of the day or week. */
+  takeHomePractice: string;
+  /** Echoes the "what's on your heart" intent the user supplied (if any), so the saved item retains its provenance. */
+  intent?: string;
 }
 
 export interface SermonStudyOutput {
@@ -1148,6 +1247,7 @@ export const ListLibraryItemsKind = {
   song: "song",
   speaking_moment: "speaking_moment",
   devotional: "devotional",
+  soul_care: "soul_care",
 } as const;
 
 export type UpdateLibraryItem400 = {
@@ -1191,6 +1291,14 @@ export type GenerateStepContent400 = {
 };
 
 export type GenerateDevotional400 = {
+  error?: string;
+};
+
+export type GenerateSoulCare200 = {
+  jobId: string;
+};
+
+export type GenerateSoulCare400 = {
   error?: string;
 };
 

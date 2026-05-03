@@ -6,6 +6,7 @@ import {
   Music,
   Mic,
   Users,
+  Sprout,
   FolderOpen,
   Settings,
   Building,
@@ -37,6 +38,7 @@ export function Sidebar() {
     { icon: Music, label: 'Song Assistant', href: '/generators/songs' },
     { icon: Mic, label: 'Speaking Moments', href: '/generators/speaking-moment' },
     { icon: Users, label: 'Team Devotionals', href: '/generators/devotional' },
+    { icon: Sprout, label: 'Soul Care', href: '/generators/soul-care' },
     { icon: FolderOpen, label: 'Saved Services', href: '/services' },
   ];
 

@@ -20,6 +20,7 @@ import LiturgyGenerator from "./pages/LiturgyGenerator";
 import SongGenerator from "./pages/SongGenerator";
 import SpeakingMomentGenerator from "./pages/SpeakingMomentGenerator";
 import DevotionalGenerator from "./pages/DevotionalGenerator";
+import SoulCareGenerator from "./pages/SoulCareGenerator";
 import Library from "./pages/Library";
 import ChurchProfile from "./pages/ChurchProfile";
 import Settings from "./pages/Settings";
@@ -309,6 +310,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/generators/songs">{() => <Protected component={SongGenerator} />}</Route>
           <Route path="/generators/speaking-moment">{() => <Protected component={SpeakingMomentGenerator} />}</Route>
           <Route path="/generators/devotional">{() => <Protected component={DevotionalGenerator} />}</Route>
+          <Route path="/generators/soul-care">{() => <Protected component={SoulCareGenerator} />}</Route>
           <Route path="/library">{() => <Protected component={Library} />}</Route>
           <Route path="/sermons">{() => <Protected component={SermonArchive} />}</Route>
           <Route path="/sermons/series">{() => <Protected component={SermonSeriesArchive} />}</Route>

@@ -125,6 +125,7 @@ export default function Dashboard() {
                 if (suggestion.kind === "songs") href = "/generators/songs";
                 if (suggestion.kind === "speaking_moment") href = "/generators/speaking-moment";
                 if (suggestion.kind === "devotional") href = "/generators/devotional";
+                if (suggestion.kind === "soul_care") href = "/generators/soul-care";
                 
                 return (
                   <Link 
