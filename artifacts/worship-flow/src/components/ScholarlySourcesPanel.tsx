@@ -6,12 +6,14 @@ import {
   getListScholarlySourcesQueryKey,
   type SourcesResponse,
 } from '@workspace/api-client-react';
-import { BookOpen, Loader2, Check } from 'lucide-react';
+import { Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
- * Settings panel: per-user toggles for which bundled public-domain
- * commentaries the Sermon Builder should consult automatically.
+ * Toggle list of bundled public-domain commentaries the Sermon Builder
+ * may consult automatically. Rendered inside the Resource Library page
+ * under its own section header, so this component does not repeat the
+ * section title — it only shows the active-count summary and the rows.
  *
  * Mutation is fire-and-forget with optimistic UI: clicking a row flips
  * the chip immediately and writes to the server in the background;
@@ -95,23 +97,11 @@ export function ScholarlySourcesPanel() {
 
   const enabledCount = enabled.size;
   return (
-    <div className="worship-card space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[var(--worship-cream)] flex items-center justify-center text-[var(--worship-navy)] shrink-0">
-          <BookOpen className="w-5 h-5" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-lg font-medium text-[var(--worship-navy)]">
-            Scholarly Sources
-          </h2>
-          <p className="text-sm text-[var(--worship-slate)] mt-0.5">
-            Public-domain commentaries the Sermon Builder may quietly consult
-            on your behalf. Toggle any source off to keep it out of generated
-            content. {enabledCount} of {data.sources.length} sources active.
-            More commentaries will appear here as we add them.
-          </p>
-        </div>
-      </div>
+    <div className="worship-card space-y-3">
+      <p className="text-xs text-[var(--worship-slate)]">
+        {enabledCount} of {data.sources.length} sources active. More
+        commentaries will appear here as we add them.
+      </p>
 
       <ul className="divide-y border-t border-[var(--worship-border)]">
         {data.sources.map((s) => {

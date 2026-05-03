@@ -81,7 +81,7 @@ export default function Settings() {
           </div>
         </div>
 
-        <Link
+        <a
           href="/resources#commentaries"
           className="worship-card flex items-center justify-between gap-4 hover:bg-[var(--worship-cream)] transition-colors"
         >
@@ -97,7 +97,7 @@ export default function Settings() {
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-[var(--worship-slate)] shrink-0" />
-        </Link>
+        </a>
 
         <div className="pt-4 flex">
           <button 
