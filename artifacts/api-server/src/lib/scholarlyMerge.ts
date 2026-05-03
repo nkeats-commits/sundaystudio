@@ -332,13 +332,24 @@ export async function previewSermonResources(
   const sourceMeta = new Map(
     listRegisteredSources().map((s) => [s.id, s] as const),
   );
-  const publicDomain: PreviewPublicDomainHit[] = pdHits.map((h) => ({
-    sourceId: h.sourceId,
-    sourceTitle: h.sourceTitle,
-    sourceAuthor: h.sourceAuthor || sourceMeta.get(h.sourceId)?.author || undefined,
-    bookCanonical: h.bookCanonical,
-    chapter: h.chapter,
-  }));
+  // The preview surface answers "which sources will the AI hear from",
+  // not "how many chapter excerpts will be passed". Collapse multiple
+  // (book, chapter) hits per source into one row so the panel doesn't
+  // overcount when a sermon spans several chapters of the same commentary.
+  // The merge itself still passes one excerpt per chapter to the prompt.
+  const publicDomain: PreviewPublicDomainHit[] = [];
+  const seenPdSources = new Set<string>();
+  for (const h of pdHits) {
+    if (seenPdSources.has(h.sourceId)) continue;
+    seenPdSources.add(h.sourceId);
+    publicDomain.push({
+      sourceId: h.sourceId,
+      sourceTitle: h.sourceTitle,
+      sourceAuthor: h.sourceAuthor || sourceMeta.get(h.sourceId)?.author || undefined,
+      bookCanonical: h.bookCanonical,
+      chapter: h.chapter,
+    });
+  }
 
   // ---- Library ----
   let libraryRows: Array<typeof sermonResourcesTable.$inferSelect>;

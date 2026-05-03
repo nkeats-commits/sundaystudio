@@ -1482,8 +1482,9 @@ export const GetSermonSeriesResponse = zod
                     author: zod.string().nullish(),
                     kind: zod
                       .enum(["public-domain", "library"])
+                      .optional()
                       .describe(
-                        "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                        "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
                       ),
                   }),
                 )
@@ -1729,8 +1730,9 @@ export const ListSermonsResponseItem = zod.object({
             author: zod.string().nullish(),
             kind: zod
               .enum(["public-domain", "library"])
+              .optional()
               .describe(
-                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
               ),
           }),
         )
@@ -2029,8 +2031,9 @@ export const GetSermonResponse = zod.object({
             author: zod.string().nullish(),
             kind: zod
               .enum(["public-domain", "library"])
+              .optional()
               .describe(
-                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
               ),
           }),
         )
@@ -2235,8 +2238,9 @@ export const UpdateSermonBody = zod.object({
             author: zod.string().nullish(),
             kind: zod
               .enum(["public-domain", "library"])
+              .optional()
               .describe(
-                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
               ),
           }),
         )
@@ -2421,8 +2425,9 @@ export const UpdateSermonResponse = zod.object({
             author: zod.string().nullish(),
             kind: zod
               .enum(["public-domain", "library"])
+              .optional()
               .describe(
-                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
               ),
           }),
         )
@@ -2836,8 +2841,9 @@ export const GenerateSermonStudyBody = zod
                 author: zod.string().nullish(),
                 kind: zod
                   .enum(["public-domain", "library"])
+                  .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
                   ),
               }),
             )
@@ -2870,8 +2876,9 @@ export const GenerateSermonStudyResponse = zod.object({
         author: zod.string().nullish(),
         kind: zod
           .enum(["public-domain", "library"])
+          .optional()
           .describe(
-            "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+            "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
           ),
       }),
     )
@@ -2974,8 +2981,9 @@ export const GenerateSermonBigIdeaBody = zod
                 author: zod.string().nullish(),
                 kind: zod
                   .enum(["public-domain", "library"])
+                  .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
                   ),
               }),
             )
@@ -3092,8 +3100,9 @@ export const GenerateSermonOutlineBody = zod
                 author: zod.string().nullish(),
                 kind: zod
                   .enum(["public-domain", "library"])
+                  .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
                   ),
               }),
             )
@@ -3236,8 +3245,9 @@ export const GenerateSermonManuscriptBody = zod
                 author: zod.string().nullish(),
                 kind: zod
                   .enum(["public-domain", "library"])
+                  .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
                   ),
               }),
             )
@@ -3373,8 +3383,9 @@ export const GenerateSermonApplicationsBody = zod
                 author: zod.string().nullish(),
                 kind: zod
                   .enum(["public-domain", "library"])
+                  .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
                   ),
               }),
             )

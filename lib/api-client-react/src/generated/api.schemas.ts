@@ -918,7 +918,7 @@ export interface GeneratedSoulCare {
 }
 
 /**
- * Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.
+ * Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).
  */
 export type ConsultedScholarlySourceKind =
   (typeof ConsultedScholarlySourceKind)[keyof typeof ConsultedScholarlySourceKind];
@@ -933,8 +933,8 @@ export interface ConsultedScholarlySource {
   id: string;
   title: string;
   author?: string | null;
-  /** Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. */
-  kind: ConsultedScholarlySourceKind;
+  /** Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`). */
+  kind?: ConsultedScholarlySourceKind;
 }
 
 export interface SermonStudyOutput {
