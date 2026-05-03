@@ -740,6 +740,7 @@ export default function SermonBuilder() {
           pastorNotes: form.pastorNotes,
           attachedResourceIds: form.attachedResourceIds,
           excludedResourceIds: form.excludedResourceIds,
+          excludedSourceIds: form.excludedSourceIds,
           tags: form.tags,
         },
       });
