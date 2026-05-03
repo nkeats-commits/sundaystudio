@@ -37,6 +37,7 @@ import {
 } from '../lib/sermonStaleness';
 import { AppLayout } from '../components/layout/AppLayout';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
+import { ScholarlySourcesChip } from '../components/ScholarlySourcesChip';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import {
@@ -791,7 +792,10 @@ export default function SermonBuilder() {
           {/* LEFT: form */}
           <div className="w-full xl:w-[36%] xl:max-w-md flex flex-col worship-card !p-0 overflow-hidden self-start xl:sticky xl:top-8 xl:max-h-[calc(100vh-4rem)]">
             <div className="p-5 border-b bg-white" style={{ borderColor: 'var(--worship-border)' }}>
-              <div className="text-[10px] uppercase tracking-widest text-[var(--worship-gold)] font-bold mb-1">Sermon context</div>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <div className="text-[10px] uppercase tracking-widest text-[var(--worship-gold)] font-bold">Sermon context</div>
+                <ScholarlySourcesChip />
+              </div>
               <input
                 className="w-full text-2xl font-serif text-[var(--worship-navy)] bg-transparent outline-none border-b border-transparent focus:border-[var(--worship-gold)]"
                 value={form.title}

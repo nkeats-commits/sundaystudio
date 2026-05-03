@@ -35,7 +35,7 @@ Signed-in (wrapped in `RequireSignedIn`):
 - `/resources` — Resource Library (commentary excerpts attachable to sermons; the AI sees `{ title, author, excerpt }` only).
 - `/library` — saved AI outputs by kind
 - `/church` — pastor's church profile (used as Anthropic context)
-- `/settings` — sign out
+- `/settings` — account info, billing link, **Scholarly Sources** panel (per-source toggles), sign out
 
 ### Cross-feature linking (Task #9)
 
@@ -53,6 +53,17 @@ Each `ServicePlanItem` may carry `linkedKind` (`'sermon' | 'library_item'`), `li
 - Song Assistant has a 3-state "Use my repertoire" segmented control: **Prefer** (default — bias toward repertoire, fill gaps from elsewhere), **Strict** (only repertoire titles; disabled when 0), **Off**. Strict is downgraded to Prefer on submit when the repertoire is empty so the server can emit its informative notice.
 - Repertoire helper lives in `artifacts/api-server/src/lib/repertoire.ts`. `/generate/songs` injects mode-specific prompt blocks and a server-side transform on `streamGenerate` filters Strict-mode results to repertoire titles only and annotates `inRepertoire` on every kept song; `notice` is emitted when Strict is short or Prefer was requested with an empty repertoire. `/generate/service-plan` and `/generate/sermon-to-service` always inject Prefer-mode context (no UI control).
 - `streamGenerate` (`lib/sseStream.ts`) gained a generic `T` parameter and an optional `transform(parsed)` hook that runs after schema validation, before the `done` event.
+
+### Scholarly Sources (Task #56)
+
+Per-user opt-in registry of bundled public-domain commentaries that the Sermon Builder consults silently to ground its output.
+
+- **Schema**: `user_source_preferences` (`user_id` PK, `enabled_source_ids` text[], timestamps). Migration `lib/db/drizzle/0002_add_user_source_preferences.sql` is idempotent.
+- **Registry**: `artifacts/api-server/src/lib/scholarlySources.ts` loads `data/commentaries/<id>/MANIFEST.json` for each of: matthew-henry-concise, jamieson-fausset-brown, barnes-notes, keil-delitzsch, pulpit-commentary, john-gill, adam-clarke. Default enabled set is `[matthew-henry-concise, barnes-notes, keil-delitzsch]`. Only Matthew Henry ships with populated book JSONs in v1; other manifests are toggleable but contribute no excerpts until their corpora are seeded.
+- **Lookup**: `parsePassageRef` accepts `"Romans 8:28"`, `"1 John 4"`, `"John 3:16-21"`, `"Ps 23"`, `"Romans 8:28-9:3"` and uses `BOOK_ALIASES`. `lookupCommentary` returns up to a 1500-char excerpt per source per chapter.
+- **Merge**: `lib/scholarlyMerge.ts.mergeScholarlyResources(userId, ctx)` runs after every `hydrateSeriesContext` call in `routes/generateSermon.ts`. It prepends synthetic resources tagged `[Public-Domain Source] <Source title> — <Book> <Chapter>` to `ctx.resources[]`, so the existing `resourceBlurb` channel + `SERMON_GROUND_RULES` automatically prevent fabrication. Task #7 ("My Library") will reuse this same mechanism for user-uploaded content.
+- **Endpoints**: `GET /api/sources` returns `{ sources, enabledSourceIds, defaults }`; `PUT /api/sources/preferences` validates ids against the registry. Both Clerk-authed. Defined in `routes/sources.ts`.
+- **UI**: Settings page renders `<ScholarlySourcesPanel/>` (per-source toggle pills, optimistic with monotonic-token race protection). Sermon Builder header renders `<ScholarlySourcesChip/>` showing "X of Y scholarly sources active" linked to /settings.
 
 ### Sermon AI safety
 

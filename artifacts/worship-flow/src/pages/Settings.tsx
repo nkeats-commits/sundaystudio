@@ -4,6 +4,7 @@ import { useUser, useClerk } from '@clerk/react';
 import { LogOut, User, CreditCard, ArrowRight } from 'lucide-react';
 import { useGetMe } from '@workspace/api-client-react';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { ScholarlySourcesPanel } from '../components/ScholarlySourcesPanel';
 
 function formatBillingStatus(
   state: ReturnType<typeof useSubscriptionStatus>['state'],
@@ -80,6 +81,8 @@ export default function Settings() {
             </div>
           </div>
         </div>
+
+        <ScholarlySourcesPanel />
 
         <div className="pt-4 flex">
           <button 

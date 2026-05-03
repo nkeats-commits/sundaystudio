@@ -27,6 +27,7 @@ import {
   loadRepertoireSongs,
   repertoirePromptBlock,
 } from "../lib/repertoire";
+import { mergeScholarlyResources } from "../lib/scholarlyMerge";
 
 const router: IRouter = Router();
 
@@ -95,7 +96,7 @@ Hard rules for sermon content:
 - When asked to return JSON, return ONLY valid JSON — no markdown fences, no preamble.
 `.trim();
 
-interface SermonContext {
+export interface SermonContext {
   title?: string;
   passage: string;
   secondaryPassages?: string[];
@@ -178,6 +179,7 @@ router.post("/generate/sermon-study", requireAuth, requireActiveAccess, async (r
     existingContent?: unknown;
   };
   await hydrateSeriesContext(req.userId!, d);
+  await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Produce a passage study for this sermon as JSON.
 
@@ -217,6 +219,7 @@ router.post("/generate/sermon-big-idea", requireAuth, requireActiveAccess, async
     refineInstruction?: string;
   };
   await hydrateSeriesContext(req.userId!, d);
+  await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Propose 3-5 candidate "big idea" statements for this sermon as JSON.
 
@@ -259,6 +262,7 @@ router.post("/generate/sermon-outline", requireAuth, requireActiveAccess, async 
     existingContent?: unknown;
   };
   await hydrateSeriesContext(req.userId!, d);
+  await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Propose exactly 3 distinct sermon outline options as JSON.
 
@@ -310,6 +314,7 @@ router.post("/generate/sermon-manuscript", requireAuth, requireActiveAccess, asy
     existingContent?: unknown;
   };
   await hydrateSeriesContext(req.userId!, d);
+  await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const format = d.outputFormat === "notes" || d.outputFormat === "outline" ? d.outputFormat : "manuscript";
   const audience =
@@ -363,6 +368,7 @@ router.post("/generate/sermon-applications", requireAuth, requireActiveAccess, a
     refineInstruction?: string;
   };
   await hydrateSeriesContext(req.userId!, d);
+  await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Generate concrete sermon application ideas tailored to many congregational segments, returned as JSON.
 
@@ -407,6 +413,7 @@ router.post("/generate/sermon-small-group-questions", requireAuth, requireActive
     refineInstruction?: string;
   };
   await hydrateSeriesContext(req.userId!, d);
+  await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Generate small-group / Bible-study discussion questions tied to this sermon, returned as JSON.
 
@@ -451,6 +458,7 @@ router.post("/generate/sermon-illustrations", requireAuth, requireActiveAccess, 
     refineInstruction?: string;
   };
   await hydrateSeriesContext(req.userId!, d);
+  await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Suggest 3-6 candidate sermon illustrations as JSON.
 
@@ -499,6 +507,7 @@ router.post("/generate/sermon-to-service", requireAuth, requireActiveAccess, asy
     refineInstruction?: string;
   };
   await hydrateSeriesContext(req.userId!, d);
+  await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   // Always run worship integration in "prefer" mode so song picks lean on
   // the team's actual repertoire when one exists.

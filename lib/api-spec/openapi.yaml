@@ -1743,6 +1743,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /sources:
+    get:
+      operationId: listScholarlySources
+      summary: List bundled public-domain commentary sources and the user's enabled set
+      tags: [sources]
+      responses:
+        "200":
+          description: Registry + per-user preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourcesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sources/preferences:
+    put:
+      operationId: updateScholarlySourcePreferences
+      summary: Update which scholarly sources the Sermon Builder consults for this user
+      tags: [sources]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSourcePreferencesBody"
+      responses:
+        "200":
+          description: Updated preferences (echoes the same shape as GET /sources)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourcesResponse"
+        "400":
+          description: Validation error (e.g. unknown source id)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
   parameters:
     IdParam:
@@ -3912,3 +3954,57 @@ components:
               $ref: "#/components/schemas/SermonApplicationsOutput"
             refineInstruction:
               type: string
+
+    ScholarlySourceManifest:
+      type: object
+      description: Metadata for a single bundled public-domain commentary source.
+      required: [id, title, author, year, license, sourceUrl, description]
+      properties:
+        id:
+          type: string
+          description: Stable opaque identifier (also the directory name on disk).
+        title:
+          type: string
+        author:
+          type: string
+        year:
+          type: string
+          description: Publication year or year range (free-form text).
+        license:
+          type: string
+          description: Always "Public Domain" for v1; reserved for future expansion.
+        sourceUrl:
+          type: string
+          description: Canonical URL where the underlying public-domain text lives.
+        description:
+          type: string
+
+    SourcesResponse:
+      type: object
+      required: [sources, enabledSourceIds, defaults]
+      properties:
+        sources:
+          type: array
+          description: All registered sources, alphabetical by title.
+          items:
+            $ref: "#/components/schemas/ScholarlySourceManifest"
+        enabledSourceIds:
+          type: array
+          description: Source ids the user currently has enabled (post-defaults fallback).
+          items:
+            type: string
+        defaults:
+          type: array
+          description: Curated default selection used when the user has no saved preferences.
+          items:
+            type: string
+
+    UpdateSourcePreferencesBody:
+      type: object
+      required: [enabledSourceIds]
+      properties:
+        enabledSourceIds:
+          type: array
+          description: Full replacement list of enabled source ids. Empty array disables all sources.
+          items:
+            type: string

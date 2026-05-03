@@ -3588,3 +3588,105 @@ export const CompAdminUserSubscriptionResponse = zod.object({
     ),
   couponId: zod.string().nullish(),
 });
+
+/**
+ * @summary List bundled public-domain commentary sources and the user's enabled set
+ */
+export const ListScholarlySourcesResponse = zod.object({
+  sources: zod
+    .array(
+      zod
+        .object({
+          id: zod
+            .string()
+            .describe(
+              "Stable opaque identifier (also the directory name on disk).",
+            ),
+          title: zod.string(),
+          author: zod.string(),
+          year: zod
+            .string()
+            .describe("Publication year or year range (free-form text)."),
+          license: zod
+            .string()
+            .describe(
+              'Always \"Public Domain\" for v1; reserved for future expansion.',
+            ),
+          sourceUrl: zod
+            .string()
+            .describe(
+              "Canonical URL where the underlying public-domain text lives.",
+            ),
+          description: zod.string(),
+        })
+        .describe(
+          "Metadata for a single bundled public-domain commentary source.",
+        ),
+    )
+    .describe("All registered sources, alphabetical by title."),
+  enabledSourceIds: zod
+    .array(zod.string())
+    .describe(
+      "Source ids the user currently has enabled (post-defaults fallback).",
+    ),
+  defaults: zod
+    .array(zod.string())
+    .describe(
+      "Curated default selection used when the user has no saved preferences.",
+    ),
+});
+
+/**
+ * @summary Update which scholarly sources the Sermon Builder consults for this user
+ */
+export const UpdateScholarlySourcePreferencesBody = zod.object({
+  enabledSourceIds: zod
+    .array(zod.string())
+    .describe(
+      "Full replacement list of enabled source ids. Empty array disables all sources.",
+    ),
+});
+
+export const UpdateScholarlySourcePreferencesResponse = zod.object({
+  sources: zod
+    .array(
+      zod
+        .object({
+          id: zod
+            .string()
+            .describe(
+              "Stable opaque identifier (also the directory name on disk).",
+            ),
+          title: zod.string(),
+          author: zod.string(),
+          year: zod
+            .string()
+            .describe("Publication year or year range (free-form text)."),
+          license: zod
+            .string()
+            .describe(
+              'Always \"Public Domain\" for v1; reserved for future expansion.',
+            ),
+          sourceUrl: zod
+            .string()
+            .describe(
+              "Canonical URL where the underlying public-domain text lives.",
+            ),
+          description: zod.string(),
+        })
+        .describe(
+          "Metadata for a single bundled public-domain commentary source.",
+        ),
+    )
+    .describe("All registered sources, alphabetical by title."),
+  enabledSourceIds: zod
+    .array(zod.string())
+    .describe(
+      "Source ids the user currently has enabled (post-defaults fallback).",
+    ),
+  defaults: zod
+    .array(zod.string())
+    .describe(
+      "Curated default selection used when the user has no saved preferences.",
+    ),
+});

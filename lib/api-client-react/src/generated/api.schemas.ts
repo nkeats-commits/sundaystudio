@@ -1356,6 +1356,37 @@ export type GenerateSermonSmallGroupQuestionsBody = SermonContextBlurb & {
 };
 
 /**
+ * Metadata for a single bundled public-domain commentary source.
+ */
+export interface ScholarlySourceManifest {
+  /** Stable opaque identifier (also the directory name on disk). */
+  id: string;
+  title: string;
+  author: string;
+  /** Publication year or year range (free-form text). */
+  year: string;
+  /** Always "Public Domain" for v1; reserved for future expansion. */
+  license: string;
+  /** Canonical URL where the underlying public-domain text lives. */
+  sourceUrl: string;
+  description: string;
+}
+
+export interface SourcesResponse {
+  /** All registered sources, alphabetical by title. */
+  sources: ScholarlySourceManifest[];
+  /** Source ids the user currently has enabled (post-defaults fallback). */
+  enabledSourceIds: string[];
+  /** Curated default selection used when the user has no saved preferences. */
+  defaults: string[];
+}
+
+export interface UpdateSourcePreferencesBody {
+  /** Full replacement list of enabled source ids. Empty array disables all sources. */
+  enabledSourceIds: string[];
+}
+
+/**
  * Unauthorized
  */
 export type UnauthorizedResponse = ApiError;

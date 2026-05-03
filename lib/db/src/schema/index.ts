@@ -7,3 +7,4 @@ export * from "./serviceTemplates";
 export * from "./crowdsourceBpm";
 export * from "./pcsConnections";
 export * from "./externalSongLinks";
+export * from "./userSourcePreferences";

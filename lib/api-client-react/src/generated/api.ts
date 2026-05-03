@@ -106,6 +106,7 @@ import type {
   ServicePlanExport,
   ServiceTemplate,
   SetRepertoireBody,
+  SourcesResponse,
   UnauthorizedResponse,
   UpdateLibraryItem400,
   UpdateLibraryItemBody,
@@ -116,6 +117,7 @@ import type {
   UpdateServiceTemplate400,
   UpdateServiceTemplate409,
   UpdateServiceTemplateBody,
+  UpdateSourcePreferencesBody,
   UpsertChurchProfileBody,
 } from "./api.schemas";
 
@@ -6220,4 +6222,173 @@ export const useCompAdminUserSubscription = <
   TContext
 > => {
   return useMutation(getCompAdminUserSubscriptionMutationOptions(options));
+};
+
+/**
+ * @summary List bundled public-domain commentary sources and the user's enabled set
+ */
+export const getListScholarlySourcesUrl = () => {
+  return `/api/sources`;
+};
+
+export const listScholarlySources = async (
+  options?: RequestInit,
+): Promise<SourcesResponse> => {
+  return customFetch<SourcesResponse>(getListScholarlySourcesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListScholarlySourcesQueryKey = () => {
+  return [`/api/sources`] as const;
+};
+
+export const getListScholarlySourcesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listScholarlySources>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listScholarlySources>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListScholarlySourcesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listScholarlySources>>
+  > = ({ signal }) => listScholarlySources({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listScholarlySources>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListScholarlySourcesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listScholarlySources>>
+>;
+export type ListScholarlySourcesQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List bundled public-domain commentary sources and the user's enabled set
+ */
+
+export function useListScholarlySources<
+  TData = Awaited<ReturnType<typeof listScholarlySources>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listScholarlySources>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListScholarlySourcesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update which scholarly sources the Sermon Builder consults for this user
+ */
+export const getUpdateScholarlySourcePreferencesUrl = () => {
+  return `/api/sources/preferences`;
+};
+
+export const updateScholarlySourcePreferences = async (
+  updateSourcePreferencesBody: UpdateSourcePreferencesBody,
+  options?: RequestInit,
+): Promise<SourcesResponse> => {
+  return customFetch<SourcesResponse>(
+    getUpdateScholarlySourcePreferencesUrl(),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateSourcePreferencesBody),
+    },
+  );
+};
+
+export const getUpdateScholarlySourcePreferencesMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateScholarlySourcePreferences>>,
+    TError,
+    { data: BodyType<UpdateSourcePreferencesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateScholarlySourcePreferences>>,
+  TError,
+  { data: BodyType<UpdateSourcePreferencesBody> },
+  TContext
+> => {
+  const mutationKey = ["updateScholarlySourcePreferences"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateScholarlySourcePreferences>>,
+    { data: BodyType<UpdateSourcePreferencesBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateScholarlySourcePreferences(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateScholarlySourcePreferencesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateScholarlySourcePreferences>>
+>;
+export type UpdateScholarlySourcePreferencesMutationBody =
+  BodyType<UpdateSourcePreferencesBody>;
+export type UpdateScholarlySourcePreferencesMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Update which scholarly sources the Sermon Builder consults for this user
+ */
+export const useUpdateScholarlySourcePreferences = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateScholarlySourcePreferences>>,
+    TError,
+    { data: BodyType<UpdateSourcePreferencesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateScholarlySourcePreferences>>,
+  TError,
+  { data: BodyType<UpdateSourcePreferencesBody> },
+  TContext
+> => {
+  return useMutation(
+    getUpdateScholarlySourcePreferencesMutationOptions(options),
+  );
 };
