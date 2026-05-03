@@ -118,6 +118,14 @@ export interface SermonContext {
    * this list; the client only ever sends opt-outs, never opt-ins.
    */
   excludedResourceIds?: number[];
+  /** Public-domain commentary source ids opted out for THIS sermon only. */
+  excludedSourceIds?: string[];
+  /**
+   * Legacy allow-list. Pre-task-71 sermons saved hand-attached library
+   * row ids here; the server uses them as the inclusion list when
+   * non-empty so old sermons still show their original resources.
+   */
+  attachedResourceIds?: number[];
   /**
    * @deprecated Server now derives this from the user's Resource Library.
    * `mergeScholarlyResources` overwrites whatever the client sent.

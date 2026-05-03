@@ -1631,6 +1631,12 @@ export const GetSermonSeriesResponse = zod
             .describe(
               "Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.",
             ),
+          excludedSourceIds: zod
+            .array(zod.string())
+            .optional()
+            .describe(
+              'Public-domain commentary source ids the pastor opted out of for THIS sermon only (e.g. \"matthew-henry-concise\"). Layered on top of the user\'s global enabled-sources preference — opting out here does not change the global preference.',
+            ),
           tags: zod.array(zod.string()),
           status: zod.string(),
           createdAt: zod.coerce.date(),
@@ -1872,6 +1878,12 @@ export const ListSermonsResponseItem = zod.object({
     .describe(
       "Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.",
     ),
+  excludedSourceIds: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      'Public-domain commentary source ids the pastor opted out of for THIS sermon only (e.g. \"matthew-henry-concise\"). Layered on top of the user\'s global enabled-sources preference — opting out here does not change the global preference.',
+    ),
   tags: zod.array(zod.string()),
   status: zod.string(),
   createdAt: zod.coerce.date(),
@@ -1902,8 +1914,72 @@ export const CreateSermonBody = zod.object({
   pastorNotes: zod.string().optional(),
   attachedResourceIds: zod.array(zod.number()).optional(),
   excludedResourceIds: zod.array(zod.number()).optional(),
+  excludedSourceIds: zod.array(zod.string()).optional(),
   tags: zod.array(zod.string()).optional(),
   status: zod.string().optional(),
+});
+
+/**
+ * @summary Preview the deterministic resource merge the server will use for a
+sermon, given the current passages + per-sermon exclusions. Lets the
+Sermon Builder show a "Drawing on N resources" panel that's exactly
+what the AI will see — eliminates client/server matcher drift.
+
+ */
+export const PreviewSermonResourcesBody = zod.object({
+  passage: zod.string(),
+  secondaryPassages: zod.array(zod.string()).optional(),
+  excludedResourceIds: zod
+    .array(zod.number())
+    .optional()
+    .describe(
+      'Pre-applied so the response only contains items that are still candidates after exclusion. Lets the UI render a single \"Drawing on\" list.',
+    ),
+  excludedSourceIds: zod.array(zod.string()).optional(),
+  attachedResourceIds: zod
+    .array(zod.number())
+    .optional()
+    .describe(
+      "Legacy allow-list. When non-empty, only those library rows are considered (intersected with ownership), bypassing passage matching.",
+    ),
+});
+
+export const PreviewSermonResourcesResponse = zod.object({
+  publicDomain: zod
+    .array(
+      zod.object({
+        sourceId: zod.string(),
+        sourceTitle: zod.string(),
+        sourceAuthor: zod.string().nullish(),
+        bookCanonical: zod.string(),
+        chapter: zod.number(),
+      }),
+    )
+    .describe(
+      "Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. Each entry = one source × one (book, chapter) hit.",
+    ),
+  library: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        title: zod.string(),
+        author: zod.string().nullish(),
+        relatedPassage: zod.string(),
+        alwaysRelevant: zod
+          .boolean()
+          .describe(
+            "True when this row matched because relatedPassage is empty (pastor-flagged as broadly relevant), false when it matched on (book, chapter) overlap.",
+          ),
+      }),
+    )
+    .describe(
+      "Resource Library rows that will be auto-included, after applying excludedResourceIds (or, in legacy mode, the rows in attachedResourceIds).",
+    ),
+  legacyMode: zod
+    .boolean()
+    .describe(
+      'True when the sermon still has a non-empty attachedResourceIds list and is using legacy (allow-list) library semantics. UI should surface a \"Switch to auto-include\" affordance.',
+    ),
 });
 
 /**
@@ -2102,6 +2178,12 @@ export const GetSermonResponse = zod.object({
     .describe(
       "Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.",
     ),
+  excludedSourceIds: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      'Public-domain commentary source ids the pastor opted out of for THIS sermon only (e.g. \"matthew-henry-concise\"). Layered on top of the user\'s global enabled-sources preference — opting out here does not change the global preference.',
+    ),
   tags: zod.array(zod.string()),
   status: zod.string(),
   createdAt: zod.coerce.date(),
@@ -2294,6 +2376,7 @@ export const UpdateSermonBody = zod.object({
     ),
   attachedResourceIds: zod.array(zod.number()).optional(),
   excludedResourceIds: zod.array(zod.number()).optional(),
+  excludedSourceIds: zod.array(zod.string()).optional(),
   tags: zod.array(zod.string()).optional(),
   status: zod.string().optional(),
 });
@@ -2486,6 +2569,12 @@ export const UpdateSermonResponse = zod.object({
     .array(zod.number())
     .describe(
       "Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.",
+    ),
+  excludedSourceIds: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      'Public-domain commentary source ids the pastor opted out of for THIS sermon only (e.g. \"matthew-henry-concise\"). Layered on top of the user\'s global enabled-sources preference — opting out here does not change the global preference.',
     ),
   tags: zod.array(zod.string()),
   status: zod.string(),
@@ -2707,6 +2796,18 @@ export const GenerateSermonStudyBody = zod
       .describe(
         "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
       ),
+    excludedSourceIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Public-domain commentary source ids the pastor opted out of for this sermon only.",
+      ),
+    attachedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -2834,6 +2935,18 @@ export const GenerateSermonBigIdeaBody = zod
       .describe(
         "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
       ),
+    excludedSourceIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Public-domain commentary source ids the pastor opted out of for this sermon only.",
+      ),
+    attachedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -2939,6 +3052,18 @@ export const GenerateSermonOutlineBody = zod
       .optional()
       .describe(
         "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
+    excludedSourceIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Public-domain commentary source ids the pastor opted out of for this sermon only.",
+      ),
+    attachedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
       ),
   })
   .describe(
@@ -3072,6 +3197,18 @@ export const GenerateSermonManuscriptBody = zod
       .describe(
         "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
       ),
+    excludedSourceIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Public-domain commentary source ids the pastor opted out of for this sermon only.",
+      ),
+    attachedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3197,6 +3334,18 @@ export const GenerateSermonApplicationsBody = zod
       .describe(
         "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
       ),
+    excludedSourceIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Public-domain commentary source ids the pastor opted out of for this sermon only.",
+      ),
+    attachedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3304,6 +3453,18 @@ export const GenerateSermonIllustrationsBody = zod
       .describe(
         "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
       ),
+    excludedSourceIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Public-domain commentary source ids the pastor opted out of for this sermon only.",
+      ),
+    attachedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3401,6 +3562,18 @@ export const GenerateSermonSmallGroupQuestionsBody = zod
       .describe(
         "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
       ),
+    excludedSourceIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Public-domain commentary source ids the pastor opted out of for this sermon only.",
+      ),
+    attachedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3497,6 +3670,18 @@ export const GenerateSermonToServiceBody = zod
       .optional()
       .describe(
         "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
+    excludedSourceIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Public-domain commentary source ids the pastor opted out of for this sermon only.",
+      ),
+    attachedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
       ),
   })
   .describe(

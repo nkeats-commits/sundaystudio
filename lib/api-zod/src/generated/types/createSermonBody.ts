@@ -26,6 +26,7 @@ export interface CreateSermonBody {
   pastorNotes?: string;
   attachedResourceIds?: number[];
   excludedResourceIds?: number[];
+  excludedSourceIds?: string[];
   tags?: string[];
   status?: string;
 }

@@ -49,6 +49,8 @@ export interface Sermon {
   attachedResourceIds: number[];
   /** Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list. */
   excludedResourceIds: number[];
+  /** Public-domain commentary source ids the pastor opted out of for THIS sermon only (e.g. "matthew-henry-concise"). Layered on top of the user's global enabled-sources preference — opting out here does not change the global preference. */
+  excludedSourceIds?: string[];
   tags: string[];
   status: string;
   createdAt: Date;

@@ -89,6 +89,8 @@ import type {
   PcsConnectUrl,
   PcsStatus,
   PcsSyncResult,
+  PreviewSermonResourcesBody,
+  PreviewSermonResourcesResponse,
   Sermon,
   SermonApplicationsOutput,
   SermonBigIdeaOutput,
@@ -3362,6 +3364,105 @@ export const useCreateSermon = <
   TContext
 > => {
   return useMutation(getCreateSermonMutationOptions(options));
+};
+
+/**
+ * @summary Preview the deterministic resource merge the server will use for a
+sermon, given the current passages + per-sermon exclusions. Lets the
+Sermon Builder show a "Drawing on N resources" panel that's exactly
+what the AI will see — eliminates client/server matcher drift.
+
+ */
+export const getPreviewSermonResourcesUrl = () => {
+  return `/api/sermons/preview-resources`;
+};
+
+export const previewSermonResources = async (
+  previewSermonResourcesBody: PreviewSermonResourcesBody,
+  options?: RequestInit,
+): Promise<PreviewSermonResourcesResponse> => {
+  return customFetch<PreviewSermonResourcesResponse>(
+    getPreviewSermonResourcesUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(previewSermonResourcesBody),
+    },
+  );
+};
+
+export const getPreviewSermonResourcesMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof previewSermonResources>>,
+    TError,
+    { data: BodyType<PreviewSermonResourcesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof previewSermonResources>>,
+  TError,
+  { data: BodyType<PreviewSermonResourcesBody> },
+  TContext
+> => {
+  const mutationKey = ["previewSermonResources"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof previewSermonResources>>,
+    { data: BodyType<PreviewSermonResourcesBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return previewSermonResources(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PreviewSermonResourcesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof previewSermonResources>>
+>;
+export type PreviewSermonResourcesMutationBody =
+  BodyType<PreviewSermonResourcesBody>;
+export type PreviewSermonResourcesMutationError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Preview the deterministic resource merge the server will use for a
+sermon, given the current passages + per-sermon exclusions. Lets the
+Sermon Builder show a "Drawing on N resources" panel that's exactly
+what the AI will see — eliminates client/server matcher drift.
+
+ */
+export const usePreviewSermonResources = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof previewSermonResources>>,
+    TError,
+    { data: BodyType<PreviewSermonResourcesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof previewSermonResources>>,
+  TError,
+  { data: BodyType<PreviewSermonResourcesBody> },
+  TContext
+> => {
+  return useMutation(getPreviewSermonResourcesMutationOptions(options));
 };
 
 /**

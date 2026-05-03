@@ -45,6 +45,7 @@ export interface UpdateSermonBody {
   sectionHashes?: SermonSectionHashes;
   attachedResourceIds?: number[];
   excludedResourceIds?: number[];
+  excludedSourceIds?: string[];
   tags?: string[];
   status?: string;
 }

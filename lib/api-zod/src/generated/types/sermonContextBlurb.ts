@@ -36,4 +36,8 @@ export interface SermonContextBlurb {
   resources?: SermonResourceRef[];
   /** Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list. */
   excludedResourceIds?: number[];
+  /** Public-domain commentary source ids the pastor opted out of for this sermon only. */
+  excludedSourceIds?: string[];
+  /** Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them. */
+  attachedResourceIds?: number[];
 }

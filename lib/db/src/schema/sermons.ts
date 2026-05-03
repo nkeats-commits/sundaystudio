@@ -166,6 +166,7 @@ export const sermonsTable = pgTable("sermons", {
   sectionHashes: jsonb("section_hashes").$type<SermonSectionHashes>().notNull().default({}),
   attachedResourceIds: jsonb("attached_resource_ids").$type<number[]>().notNull().default([]),
   excludedResourceIds: jsonb("excluded_resource_ids").$type<number[]>().notNull().default([]),
+  excludedSourceIds: jsonb("excluded_source_ids").$type<string[]>().notNull().default([]),
   tags: text("tags").array().notNull().default([]),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

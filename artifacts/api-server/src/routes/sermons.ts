@@ -14,6 +14,7 @@ import {
   CreateSermonBody,
   UpdateSermonBody,
   ExportSermonBody,
+  PreviewSermonResourcesBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireActiveAccess } from "../middlewares/requireActiveAccess";
@@ -23,6 +24,8 @@ import {
   renderSmallGroupHandoutEmail,
   renderSmallGroupHandoutMarkdown,
 } from "../lib/sermonExport";
+import { previewSermonResources } from "../lib/scholarlyMerge";
+import { isRegisteredSource } from "../lib/scholarlySources";
 
 /**
  * Compose a fresh service plan around a sermon. We pull what we can from
@@ -188,6 +191,20 @@ async function validateResourceOwnership(
 }
 
 /**
+ * Validate that every id in `excludedSourceIds` references a known
+ * public-domain commentary source. Without this a malicious or buggy
+ * client could push arbitrary strings into the column.
+ */
+function validateExcludedSourceIds(ids: string[] | undefined): string | null {
+  if (!ids || ids.length === 0) return null;
+  const bad = ids.filter((id) => typeof id !== "string" || !isRegisteredSource(id));
+  if (bad.length > 0) {
+    return `Unknown excludedSourceIds: ${bad.join(", ")}`;
+  }
+  return null;
+}
+
+/**
  * Verify that `seriesId` belongs to `userId`. Returns null when valid (or when
  * id is null/undefined — meaning "unlink from any series"), or an error string.
  * Without this a user could attach their sermon to another tenant's series row.
@@ -249,6 +266,11 @@ router.post("/sermons", requireAuth, requireActiveAccess, async (req, res) => {
     res.status(400).json({ error: excludeError });
     return;
   }
+  const excludeSourceError = validateExcludedSourceIds(d.excludedSourceIds);
+  if (excludeSourceError) {
+    res.status(400).json({ error: excludeSourceError });
+    return;
+  }
   const seriesError = await validateSeriesOwnership(req.userId!, d.seriesId);
   if (seriesError) {
     res.status(400).json({ error: seriesError });
@@ -276,11 +298,32 @@ router.post("/sermons", requireAuth, requireActiveAccess, async (req, res) => {
       pastorNotes: d.pastorNotes ?? "",
       attachedResourceIds: d.attachedResourceIds ?? [],
       excludedResourceIds: d.excludedResourceIds ?? [],
+      excludedSourceIds: d.excludedSourceIds ?? [],
       tags: d.tags ?? [],
       status: d.status ?? "draft",
     })
     .returning();
   res.status(201).json(row);
+});
+
+/**
+ * Predict what the server-side scholarly-resource merge will inject for
+ * a given (passage, exclusion-set) tuple. The Sermon Builder calls this
+ * on every form change so the "Drawing on N resources" panel mirrors what
+ * the prompt will see — see `previewSermonResources` for the matching
+ * rules.
+ *
+ * Mounted BEFORE `/sermons/:id` so the literal path takes priority over
+ * the param route.
+ */
+router.post("/sermons/preview-resources", requireAuth, async (req, res) => {
+  const parsed = PreviewSermonResourcesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const result = await previewSermonResources(req.userId!, parsed.data);
+  res.json(result);
 });
 
 router.get("/sermons/:id", requireAuth, async (req, res) => {
@@ -334,6 +377,13 @@ router.patch("/sermons/:id", requireAuth, requireActiveAccess, async (req, res) 
       return;
     }
   }
+  if (d.excludedSourceIds !== undefined) {
+    const excludeSourceError = validateExcludedSourceIds(d.excludedSourceIds);
+    if (excludeSourceError) {
+      res.status(400).json({ error: excludeSourceError });
+      return;
+    }
+  }
   if (d.seriesId !== undefined) {
     const seriesError = await validateSeriesOwnership(req.userId!, d.seriesId);
     if (seriesError) {
@@ -371,6 +421,7 @@ router.patch("/sermons/:id", requireAuth, requireActiveAccess, async (req, res) 
     "sectionHashes",
     "attachedResourceIds",
     "excludedResourceIds",
+    "excludedSourceIds",
     "tags",
     "status",
   ] as const) {

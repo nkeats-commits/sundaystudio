@@ -1114,6 +1114,8 @@ export interface Sermon {
   attachedResourceIds: number[];
   /** Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list. */
   excludedResourceIds: number[];
+  /** Public-domain commentary source ids the pastor opted out of for THIS sermon only (e.g. "matthew-henry-concise"). Layered on top of the user's global enabled-sources preference — opting out here does not change the global preference. */
+  excludedSourceIds?: string[];
   tags: string[];
   status: string;
   createdAt: string;
@@ -1140,6 +1142,7 @@ export interface CreateSermonBody {
   pastorNotes?: string;
   attachedResourceIds?: number[];
   excludedResourceIds?: number[];
+  excludedSourceIds?: string[];
   tags?: string[];
   status?: string;
 }
@@ -1173,8 +1176,45 @@ export interface UpdateSermonBody {
   sectionHashes?: SermonSectionHashes;
   attachedResourceIds?: number[];
   excludedResourceIds?: number[];
+  excludedSourceIds?: string[];
   tags?: string[];
   status?: string;
+}
+
+export interface PreviewSermonResourcesBody {
+  passage: string;
+  secondaryPassages?: string[];
+  /** Pre-applied so the response only contains items that are still candidates after exclusion. Lets the UI render a single "Drawing on" list. */
+  excludedResourceIds?: number[];
+  excludedSourceIds?: string[];
+  /** Legacy allow-list. When non-empty, only those library rows are considered (intersected with ownership), bypassing passage matching. */
+  attachedResourceIds?: number[];
+}
+
+export interface PreviewPublicDomainHit {
+  sourceId: string;
+  sourceTitle: string;
+  sourceAuthor?: string | null;
+  bookCanonical: string;
+  chapter: number;
+}
+
+export interface PreviewLibraryHit {
+  id: number;
+  title: string;
+  author?: string | null;
+  relatedPassage: string;
+  /** True when this row matched because relatedPassage is empty (pastor-flagged as broadly relevant), false when it matched on (book, chapter) overlap. */
+  alwaysRelevant: boolean;
+}
+
+export interface PreviewSermonResourcesResponse {
+  /** Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. Each entry = one source × one (book, chapter) hit. */
+  publicDomain: PreviewPublicDomainHit[];
+  /** Resource Library rows that will be auto-included, after applying excludedResourceIds (or, in legacy mode, the rows in attachedResourceIds). */
+  library: PreviewLibraryHit[];
+  /** True when the sermon still has a non-empty attachedResourceIds list and is using legacy (allow-list) library semantics. UI should surface a "Switch to auto-include" affordance. */
+  legacyMode: boolean;
 }
 
 export interface SermonResource {
@@ -1345,6 +1385,10 @@ export interface SermonContextBlurb {
   resources?: SermonResourceRef[];
   /** Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list. */
   excludedResourceIds?: number[];
+  /** Public-domain commentary source ids the pastor opted out of for this sermon only. */
+  excludedSourceIds?: string[];
+  /** Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them. */
+  attachedResourceIds?: number[];
 }
 
 export type GenerateSermonStudyBody = SermonContextBlurb & {

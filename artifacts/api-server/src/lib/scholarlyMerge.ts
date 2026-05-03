@@ -6,13 +6,21 @@
  * Two channels are merged here, both keyed by the sermon's primary +
  * secondary passages:
  *   1. Public-domain commentaries the user has enabled in Settings.
- *      Every chapter that matches a sermon passage is auto-injected.
+ *      Every chapter that matches a sermon passage is auto-injected,
+ *      MINUS any source ids the pastor opted out of for THIS sermon
+ *      (`excludedSourceIds`).
  *   2. Rows from the user's Resource Library (`sermon_resources`).
  *      A row is auto-included when its `relatedPassage` is empty (the
  *      pastor flagged it as "always relevant") OR when its parsed
  *      (book, chapter) overlaps the sermon's passages. Rows whose id
- *      appears in `excludedResourceIds` are skipped — that's how the
- *      pastor opts a single Library row out of a single sermon.
+ *      appears in `excludedResourceIds` are skipped.
+ *
+ *      LEGACY back-compat: if a sermon was saved before task #71 it has
+ *      a non-empty `attachedResourceIds` allow-list. To avoid quietly
+ *      changing what those sermons see, when `attachedResourceIds` is
+ *      non-empty we use those exact rows as the library inclusion set
+ *      instead of passage matching. The UI surfaces a "Switch to
+ *      auto-include" affordance for those sermons.
  *
  * Reusing the existing channel means SERMON_GROUND_RULES (no fabricated
  * commentary, attribute by title/author) automatically apply.
@@ -25,6 +33,7 @@ import { and, eq, inArray, not } from "drizzle-orm";
 import {
   DEFAULT_ENABLED_SOURCE_IDS,
   isRegisteredSource,
+  listRegisteredSources,
   lookupCommentary,
   parsePassageRef,
 } from "./scholarlySources";
@@ -34,6 +43,15 @@ export interface MergeableSermonContext {
   secondaryPassages?: string[];
   /** Resource Library row ids the pastor opted out of for this sermon. */
   excludedResourceIds?: number[];
+  /** Public-domain commentary source ids the pastor opted out of for this sermon. */
+  excludedSourceIds?: string[];
+  /**
+   * LEGACY allow-list. Pre-task-71 sermons hand-attached library rows
+   * via this field. When non-empty, the merge uses these exact ids as
+   * the library channel instead of passage-matching the user's whole
+   * Resource Library.
+   */
+  attachedResourceIds?: number[];
   resources?: { title: string; author?: string; excerpt: string }[];
 }
 
@@ -80,10 +98,20 @@ export async function getEnabledSourceIds(userId: string): Promise<string[]> {
 }
 
 /**
- * True if `relatedPassage` references at least one (book, chapter) pair
- * that also appears in the sermon's passages. Empty `relatedPassage` is
- * treated as "always relevant" — the pastor saved a general note, so we
- * surface it to every sermon (still subject to per-sermon exclude).
+ * True iff `relatedPassage` references at least one (book, chapter) pair
+ * that also appears in the sermon's passages.
+ *
+ * Match rule (must stay in sync with the OpenAPI doc on
+ * `SermonResource.relatedPassage` and the client preview):
+ *   - empty `relatedPassage`              → matches every sermon (the
+ *                                           pastor saved a general note)
+ *   - non-empty but unparseable           → DOES NOT match (the row is
+ *                                           free-text-tagged like
+ *                                           "Christmas Eve" — surfacing
+ *                                           it on every sermon would
+ *                                           dilute the prompt)
+ *   - parseable                           → matches only on
+ *                                           (book, chapter) overlap
  */
 function libraryRowMatches(
   relatedPassage: string,
@@ -92,11 +120,7 @@ function libraryRowMatches(
   const trimmed = relatedPassage.trim();
   if (!trimmed) return true;
   const rowPairs = parsePassageRef(trimmed);
-  if (!rowPairs.length) {
-    // Unparseable but non-empty — fall back to always-include so a
-    // pastor's hand-written tag like "Christmas Eve" still surfaces.
-    return true;
-  }
+  if (!rowPairs.length) return false;
   for (const a of rowPairs) {
     for (const b of sermonPairs) {
       if (a.book === b.book && a.chapter === b.chapter) return true;
@@ -106,15 +130,18 @@ function libraryRowMatches(
 }
 
 /**
+ * True iff this sermon is in legacy mode — it was saved before task #71
+ * and still has a hand-attached resource list. The UI uses this to show
+ * a "Switch to auto-include" banner.
+ */
+function isLegacyMode(ctx: MergeableSermonContext): boolean {
+  return (ctx.attachedResourceIds?.length ?? 0) > 0;
+}
+
+/**
  * Mutates `ctx.resources` in place: REPLACES whatever the client sent
  * with the server-derived merge of public-domain commentaries + Resource
  * Library rows that match the sermon's passages.
- *
- * This is intentionally destructive — pre-task #71 the client could
- * inline arbitrary `resources[]` and the server trusted them. Now the
- * server is the sole authority on what the model sees, with the pastor's
- * only lever being `excludedResourceIds` (per-sermon opt-out of a
- * specific Library row).
  *
  * Returns metadata (count + consulted sources) the caller can surface
  * to the UI as a transparency footer.
@@ -131,10 +158,17 @@ export async function mergeScholarlyResources(
     (p): p is string => typeof p === "string" && p.trim().length > 0,
   );
   const sermonPairs = passages.flatMap((p) => parsePassageRef(p));
-  const excludedSet = new Set((ctx.excludedResourceIds ?? []).filter(Number.isInteger));
+  const excludedResources = new Set(
+    (ctx.excludedResourceIds ?? []).filter(Number.isInteger),
+  );
+  const excludedSources = new Set(
+    (ctx.excludedSourceIds ?? []).filter((id) => typeof id === "string"),
+  );
 
   // ---------------- Public-domain channel ----------------
-  const enabled = await getEnabledSourceIds(userId);
+  const enabledRaw = await getEnabledSourceIds(userId);
+  // Layer per-sermon source opt-outs ON TOP of the global preferences.
+  const enabled = enabledRaw.filter((id) => !excludedSources.has(id));
   const pdHits = enabled.length ? lookupCommentary(enabled, passages) : [];
   const pdInjected = pdHits.map((h) => {
     const bookDisplay = h.bookCanonical
@@ -148,24 +182,50 @@ export async function mergeScholarlyResources(
   });
 
   // ---------------- Library channel ----------------
-  // Pull every Library row for this user (excluding ids the pastor opted
-  // out of for this sermon), then filter by passage match in JS — the
-  // matcher needs to canonicalize book aliases and that's already on the
-  // server side.
-  const libraryWhereClauses = [eq(sermonResourcesTable.userId, userId)];
-  if (excludedSet.size > 0) {
-    libraryWhereClauses.push(
-      not(inArray(sermonResourcesTable.id, Array.from(excludedSet))),
+  // Two modes:
+  //   - LEGACY (attachedResourceIds non-empty): include ONLY those rows
+  //     (still skip ones the pastor explicitly excluded after the fact).
+  //   - NEW (attachedResourceIds empty): passage-match against the user's
+  //     entire Resource Library, minus excluded ids.
+  const legacy = isLegacyMode(ctx);
+  let libraryRows: Awaited<ReturnType<typeof db.select>> extends infer _T
+    ? Array<typeof sermonResourcesTable.$inferSelect>
+    : never;
+  if (legacy) {
+    const allowed = (ctx.attachedResourceIds ?? []).filter(
+      (id) => Number.isInteger(id) && !excludedResources.has(id),
     );
+    if (allowed.length === 0) {
+      libraryRows = [];
+    } else {
+      libraryRows = await db
+        .select()
+        .from(sermonResourcesTable)
+        .where(
+          and(
+            eq(sermonResourcesTable.userId, userId),
+            inArray(sermonResourcesTable.id, allowed),
+          ),
+        );
+    }
+  } else {
+    const where = [eq(sermonResourcesTable.userId, userId)];
+    if (excludedResources.size > 0) {
+      where.push(
+        not(inArray(sermonResourcesTable.id, Array.from(excludedResources))),
+      );
+    }
+    libraryRows = await db
+      .select()
+      .from(sermonResourcesTable)
+      .where(and(...where));
   }
-  const libraryRows = await db
-    .select()
-    .from(sermonResourcesTable)
-    .where(and(...libraryWhereClauses));
 
-  const matchedLibrary = libraryRows.filter(
-    (r) => r.excerpt.trim() && libraryRowMatches(r.relatedPassage, sermonPairs),
-  );
+  const matchedLibrary = libraryRows.filter((r) => {
+    if (!r.excerpt.trim()) return false;
+    if (legacy) return true; // legacy: explicit allow-list bypasses passage match
+    return libraryRowMatches(r.relatedPassage, sermonPairs);
+  });
 
   const libInjected = matchedLibrary.map((r) => ({
     title: `[Library] ${r.title}`,
@@ -201,4 +261,132 @@ export async function mergeScholarlyResources(
     count: pdInjected.length + libInjected.length,
     consultedSources,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Preview                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export interface PreviewPublicDomainHit {
+  sourceId: string;
+  sourceTitle: string;
+  sourceAuthor?: string;
+  bookCanonical: string;
+  chapter: number;
+}
+
+export interface PreviewLibraryHit {
+  id: number;
+  title: string;
+  author?: string;
+  relatedPassage: string;
+  /** True when matched because relatedPassage is empty (pastor-flagged broadly relevant). */
+  alwaysRelevant: boolean;
+}
+
+export interface PreviewResult {
+  publicDomain: PreviewPublicDomainHit[];
+  library: PreviewLibraryHit[];
+  legacyMode: boolean;
+}
+
+/**
+ * Predict what `mergeScholarlyResources` will inject for the given context
+ * WITHOUT touching the prompt or running a generation. Lets the Sermon
+ * Builder render a "Drawing on N resources" panel that's exactly what the
+ * AI will see — eliminating the previous client/server matcher drift.
+ *
+ * Note: the PD list returns one entry per (source, book, chapter) chapter
+ * hit, mirroring the entry count `mergeScholarlyResources` injects.
+ */
+export async function previewSermonResources(
+  userId: string,
+  ctx: MergeableSermonContext,
+): Promise<PreviewResult> {
+  const passages = [ctx.passage, ...(ctx.secondaryPassages ?? [])].filter(
+    (p): p is string => typeof p === "string" && p.trim().length > 0,
+  );
+  const sermonPairs = passages.flatMap((p) => parsePassageRef(p));
+  const excludedResources = new Set(
+    (ctx.excludedResourceIds ?? []).filter(Number.isInteger),
+  );
+  const excludedSources = new Set(
+    (ctx.excludedSourceIds ?? []).filter((id) => typeof id === "string"),
+  );
+  const legacy = isLegacyMode(ctx);
+
+  // ---- Public-domain ----
+  const enabledRaw = await getEnabledSourceIds(userId);
+  const enabled = enabledRaw.filter((id) => !excludedSources.has(id));
+  // Use a generous maxHits — preview should reflect the full set the merge
+  // would inject (the merge itself uses lookupCommentary's default cap of 8,
+  // so this matches behavior 1:1).
+  const pdHits = enabled.length ? lookupCommentary(enabled, passages) : [];
+  const sourceMeta = new Map(
+    listRegisteredSources().map((s) => [s.id, s] as const),
+  );
+  const publicDomain: PreviewPublicDomainHit[] = pdHits.map((h) => ({
+    sourceId: h.sourceId,
+    sourceTitle: h.sourceTitle,
+    sourceAuthor: h.sourceAuthor || sourceMeta.get(h.sourceId)?.author || undefined,
+    bookCanonical: h.bookCanonical,
+    chapter: h.chapter,
+  }));
+
+  // ---- Library ----
+  let libraryRows: Array<typeof sermonResourcesTable.$inferSelect>;
+  if (legacy) {
+    const allowed = (ctx.attachedResourceIds ?? []).filter(
+      (id) => Number.isInteger(id) && !excludedResources.has(id),
+    );
+    libraryRows = allowed.length === 0
+      ? []
+      : await db
+          .select()
+          .from(sermonResourcesTable)
+          .where(
+            and(
+              eq(sermonResourcesTable.userId, userId),
+              inArray(sermonResourcesTable.id, allowed),
+            ),
+          );
+  } else {
+    const where = [eq(sermonResourcesTable.userId, userId)];
+    if (excludedResources.size > 0) {
+      where.push(
+        not(inArray(sermonResourcesTable.id, Array.from(excludedResources))),
+      );
+    }
+    libraryRows = await db
+      .select()
+      .from(sermonResourcesTable)
+      .where(and(...where));
+  }
+
+  const library: PreviewLibraryHit[] = [];
+  for (const r of libraryRows) {
+    if (!r.excerpt.trim()) continue;
+    const trimmed = r.relatedPassage.trim();
+    let matched: boolean;
+    let alwaysRelevant = false;
+    if (legacy) {
+      matched = true;
+      alwaysRelevant = trimmed === "";
+    } else if (trimmed === "") {
+      matched = true;
+      alwaysRelevant = true;
+    } else {
+      matched = libraryRowMatches(r.relatedPassage, sermonPairs);
+    }
+    if (!matched) continue;
+    library.push({
+      id: r.id,
+      title: r.title,
+      author: r.author || undefined,
+      relatedPassage: r.relatedPassage,
+      alwaysRelevant,
+    });
+  }
+
+  return { publicDomain, library, legacyMode: legacy };
 }
