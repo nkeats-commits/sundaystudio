@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Save, Loader2, Mic, Copy, AlertCircle } from 'lucide-react';
-import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedSpeakingMoment } from '@workspace/api-client-react';
+import { Save, Loader2, Mic, Copy, AlertCircle, CalendarPlus } from 'lucide-react';
+import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedSpeakingMoment, type LibraryItem } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 export default function SpeakingMomentGenerator() {
   const [formData, setFormData] = useState({
@@ -22,6 +23,10 @@ export default function SpeakingMomentGenerator() {
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
   const { ready: profileReady } = useChurchProfileReady();
+  const [savedItem, setSavedItem] = useState<LibraryItem | null>(null);
+  const [addToServiceOpen, setAddToServiceOpen] = useState(false);
+  // Shared in-flight save promise so Save + Add-to-service can't double-create.
+  const savePromiseRef = useRef<Promise<LibraryItem> | null>(null);
 
   const runGeneration = (body?: typeof formData) => {
     if (!profileReady) {
@@ -32,9 +37,36 @@ export default function SpeakingMomentGenerator() {
     }
     const payload = body ?? lastSubmittedRef.current ?? formData;
     lastSubmittedRef.current = payload;
+    setSavedItem(null);
+    savePromiseRef.current = null;
     generate.mutate(payload).catch((err: Error) => {
       toast.error(err.message || "Generation failed. Please try again.");
     });
+  };
+
+  const buildLibraryPayload = () => ({
+    kind: 'speaking_moment' as const,
+    title: generate.data!.title,
+    content: generate.data as any,
+    tags: [formData.kind.replace(/_/g, ' ')],
+  });
+
+  const ensureSaved = (): Promise<LibraryItem> => {
+    if (savedItem) return Promise.resolve(savedItem);
+    if (savePromiseRef.current) return savePromiseRef.current;
+    if (!generate.data) return Promise.reject(new Error('Nothing to save yet'));
+    const promise = (async () => {
+      try {
+        const item = await createLibraryItem.mutateAsync({ data: buildLibraryPayload() });
+        queryClient.invalidateQueries({ queryKey: getListLibraryItemsQueryKey() });
+        setSavedItem(item);
+        return item;
+      } finally {
+        savePromiseRef.current = null;
+      }
+    })();
+    savePromiseRef.current = promise;
+    return promise;
   };
 
   const handleGenerate = (e: React.FormEvent) => {
@@ -43,20 +75,10 @@ export default function SpeakingMomentGenerator() {
   };
 
   const handleSave = () => {
-    if (!generate.data) return;
-    createLibraryItem.mutate({
-      data: {
-        kind: 'speaking_moment',
-        title: generate.data.title,
-        content: generate.data as any,
-        tags: [formData.kind.replace(/_/g, ' ')]
-      }
-    }, {
-      onSuccess: () => {
-        toast.success("Saved to Library");
-        queryClient.invalidateQueries({ queryKey: getListLibraryItemsQueryKey() });
-      }
-    });
+    if (!generate.data || savedItem) return;
+    ensureSaved()
+      .then(() => toast.success("Saved to Library"))
+      .catch((err: Error) => toast.error(err.message || "Could not save"));
   };
 
   const handleCopy = () => {
@@ -202,8 +224,11 @@ export default function SpeakingMomentGenerator() {
                   <button onClick={handleCopy} className="p-2 rounded-lg border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-slate-50 transition-colors" title="Copy">
                     <Copy className="w-4 h-4" />
                   </button>
-                  <button onClick={handleSave} disabled={createLibraryItem.isPending} className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50">
-                    <Save className="w-4 h-4" /> {createLibraryItem.isPending ? "Saving..." : "Save"}
+                  <button onClick={handleSave} disabled={createLibraryItem.isPending || !!savedItem} className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50">
+                    <Save className="w-4 h-4" /> {createLibraryItem.isPending ? "Saving..." : savedItem ? "Saved" : "Save"}
+                  </button>
+                  <button onClick={() => setAddToServiceOpen(true)} className="px-4 py-2 rounded-lg font-medium text-sm border border-[var(--worship-border)] text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] flex items-center gap-2" data-testid="button-add-to-service">
+                    <CalendarPlus className="w-4 h-4" /> Add to service
                   </button>
                 </div>
               </div>
@@ -225,6 +250,14 @@ export default function SpeakingMomentGenerator() {
         </div>
 
       </div>
+      {generate.data && (
+        <AddToServiceDialog
+          open={addToServiceOpen}
+          onClose={() => setAddToServiceOpen(false)}
+          kind="speaking_moment"
+          ensureSaved={ensureSaved}
+        />
+      )}
     </AppLayout>
   );
 }

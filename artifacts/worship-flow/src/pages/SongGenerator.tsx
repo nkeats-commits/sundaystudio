@@ -1,19 +1,21 @@
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Loader2, Music, AlertCircle, Star, Info } from 'lucide-react';
+import { Loader2, Music, AlertCircle, Star, Info, CalendarPlus } from 'lucide-react';
 import {
   useCreateLibraryItem,
   useListLibraryItems,
   getListLibraryItemsQueryKey,
   type GeneratedSongs,
   type SongSuggestion,
+  type LibraryItem,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 type RepertoireMode = 'off' | 'prefer' | 'strict';
 
@@ -53,6 +55,13 @@ export default function SongGenerator() {
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
   const { ready: profileReady } = useChurchProfileReady();
+  // Per-row save tracking, keyed by song index in the current generation.
+  // Reset on each fresh generation so we never reuse a stale id.
+  const [savedSongs, setSavedSongs] = useState<Record<number, LibraryItem>>({});
+  const [addToServiceIndex, setAddToServiceIndex] = useState<number | null>(null);
+  // Per-row in-flight save promise so a quick Save + Add-to-service can't
+  // create two library items for the same generated song.
+  const songSavePromisesRef = useRef<Record<number, Promise<LibraryItem>>>({});
 
   // Drives the segmented control. Strict mode is meaningless without a
   // repertoire, so we disable it and downgrade to Prefer if the user picked
@@ -82,9 +91,37 @@ export default function SongGenerator() {
         : payload.repertoireMode;
     const safePayload = { ...payload, repertoireMode: safeMode };
     lastSubmittedRef.current = safePayload;
+    setSavedSongs({});
+    songSavePromisesRef.current = {};
     generate.mutate(safePayload).catch((err: Error) => {
       toast.error(err.message || 'Generation failed. Please try again.');
     });
+  };
+
+  const buildSongPayload = (song: SongSuggestion) => ({
+    kind: 'song' as const,
+    title: song.title,
+    content: { ...song },
+    tags: [song.style ?? 'Song', ...(song.themes ?? [])],
+  });
+
+  const ensureSongSaved = (index: number, song: SongSuggestion) => (): Promise<LibraryItem> => {
+    const existing = savedSongs[index];
+    if (existing) return Promise.resolve(existing);
+    const inFlight = songSavePromisesRef.current[index];
+    if (inFlight) return inFlight;
+    const promise = (async () => {
+      try {
+        const item = await createLibraryItem.mutateAsync({ data: buildSongPayload(song) });
+        queryClient.invalidateQueries({ queryKey: getListLibraryItemsQueryKey() });
+        setSavedSongs((prev) => ({ ...prev, [index]: item }));
+        return item;
+      } finally {
+        delete songSavePromisesRef.current[index];
+      }
+    })();
+    songSavePromisesRef.current[index] = promise;
+    return promise;
   };
 
   const handleGenerate = (e: React.FormEvent) => {
@@ -96,25 +133,11 @@ export default function SongGenerator() {
     runGeneration({ ...formData });
   };
 
-  const handleSaveSingle = (song: SongSuggestion) => {
-    createLibraryItem.mutate(
-      {
-        data: {
-          kind: 'song',
-          title: song.title,
-          content: { ...song },
-          tags: [song.style ?? 'Song', ...(song.themes ?? [])],
-        },
-      },
-      {
-        onSuccess: () => {
-          toast.success(`"${song.title}" saved to Library`);
-          queryClient.invalidateQueries({
-            queryKey: getListLibraryItemsQueryKey(),
-          });
-        },
-      },
-    );
+  const handleSaveSingle = (index: number, song: SongSuggestion) => {
+    if (savedSongs[index]) return;
+    ensureSongSaved(index, song)()
+      .then(() => toast.success(`"${song.title}" saved to Library`))
+      .catch((err: Error) => toast.error(err.message || "Could not save"));
   };
 
   return (
@@ -436,13 +459,23 @@ export default function SongGenerator() {
                         </p>
                       </div>
 
-                      <button
-                        onClick={() => handleSaveSingle(song)}
-                        className="shrink-0 px-3 py-1.5 text-xs font-medium border border-[var(--worship-border)] rounded-lg text-[var(--worship-charcoal)] hover:bg-[var(--worship-cream)] hover:text-[var(--worship-navy)] transition-colors"
-                        data-testid={`button-save-song-${i}`}
-                      >
-                        Save
-                      </button>
+                      <div className="shrink-0 flex flex-col gap-1.5">
+                        <button
+                          onClick={() => handleSaveSingle(i, song)}
+                          disabled={!!savedSongs[i]}
+                          className="px-3 py-1.5 text-xs font-medium border border-[var(--worship-border)] rounded-lg text-[var(--worship-charcoal)] hover:bg-[var(--worship-cream)] hover:text-[var(--worship-navy)] transition-colors disabled:opacity-60"
+                          data-testid={`button-save-song-${i}`}
+                        >
+                          {savedSongs[i] ? 'Saved' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => setAddToServiceIndex(i)}
+                          className="px-3 py-1.5 text-xs font-medium border border-[var(--worship-border)] rounded-lg text-[var(--worship-charcoal)] hover:bg-[var(--worship-cream)] hover:text-[var(--worship-navy)] transition-colors flex items-center gap-1"
+                          data-testid={`button-add-song-to-service-${i}`}
+                        >
+                          <CalendarPlus className="w-3 h-3" /> Add to service
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -451,6 +484,17 @@ export default function SongGenerator() {
           )}
         </div>
       </div>
+      {addToServiceIndex !== null && generate.data?.songs[addToServiceIndex] && (
+        <AddToServiceDialog
+          open={addToServiceIndex !== null}
+          onClose={() => setAddToServiceIndex(null)}
+          kind="song"
+          ensureSaved={ensureSongSaved(
+            addToServiceIndex,
+            generate.data.songs[addToServiceIndex]!,
+          )}
+        />
+      )}
     </AppLayout>
   );
 }

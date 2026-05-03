@@ -8,6 +8,7 @@ import {
   type LibraryItem,
 } from '@workspace/api-client-react';
 import { X, Search, BookOpen, Music, Mic, Users, ScrollText, Link2 } from 'lucide-react';
+import { libraryKindsForSlot, libraryItemBodyPreview } from '../lib/slotMatching';
 
 /**
  * SlotPicker — pick a saved sermon or library item to link into a service
@@ -30,25 +31,6 @@ type SlotPickerProps = {
   onClose: () => void;
 };
 
-function libraryKindsForSlot(kind: ServicePlanItem['kind']): string[] | null {
-  switch (kind) {
-    case 'song':
-      return ['song'];
-    case 'prayer':
-    case 'welcome':
-    case 'benediction':
-    case 'communion':
-    case 'scripture':
-    case 'transition':
-      return ['liturgy'];
-    case 'custom':
-      return ['speaking_moment', 'devotional'];
-    default:
-      // Slot kinds with no sensible saved source (e.g. 'offering').
-      return null;
-  }
-}
-
 /**
  * Returns true when the SlotPicker has a sensible source list for this slot
  * kind. Parents should hide the "Use saved" button when this is false so we
@@ -56,16 +38,6 @@ function libraryKindsForSlot(kind: ServicePlanItem['kind']): string[] | null {
  */
 export function slotPickerSupported(kind: ServicePlanItem['kind']): boolean {
   return kind === 'sermon' || libraryKindsForSlot(kind) !== null;
-}
-
-function libraryItemPreview(item: LibraryItem): string {
-  const c = item.content as Record<string, unknown>;
-  if (typeof c.body === 'string' && c.body) return c.body;
-  if (typeof c.reflection === 'string' && c.reflection) return c.reflection;
-  if (typeof c.lyrics === 'string' && c.lyrics) return c.lyrics;
-  if (typeof c.text === 'string' && c.text) return c.text;
-  if (typeof c.artist === 'string' && c.artist) return c.artist;
-  return '';
 }
 
 function libraryIcon(kind: string) {
@@ -234,7 +206,7 @@ export function SlotPicker({ slot, onApply, onClose }: SlotPickerProps) {
                   })
                 : items.map((l) => {
                     const item = l as LibraryItem;
-                    const preview = libraryItemPreview(item);
+                    const preview = libraryItemBodyPreview(item);
                     return (
                       <li key={item.id}>
                         <button
