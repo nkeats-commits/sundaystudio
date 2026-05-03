@@ -16,6 +16,8 @@ import {
   GenerateSermonIllustrationsResponse,
   GenerateSermonToServiceBody,
   GenerateSermonToServiceResponse,
+  GenerateSermonSmallGroupQuestionsBody,
+  GenerateSermonSmallGroupQuestionsResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
@@ -389,6 +391,51 @@ Return JSON exactly in this shape:
   "smallGroupQuestions": ["question", ...]
 }`;
   runJob(req, res, prompt, 3500, "sermon applications", GenerateSermonApplicationsResponse);
+});
+
+router.post("/generate/sermon-small-group-questions", requireAuth, async (req, res) => {
+  const parsed = GenerateSermonSmallGroupQuestionsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const d = parsed.data as SermonContext & {
+    bigIdea?: string;
+    outline?: unknown;
+    applications?: unknown;
+    refineInstruction?: string;
+  };
+  await hydrateSeriesContext(req.userId!, d);
+  const ctx = await getChurchContext(req.userId!);
+  const prompt = `Generate small-group / Bible-study discussion questions tied to this sermon, returned as JSON.
+
+${SERMON_GROUND_RULES}
+
+Group the questions in the classic inductive Bible-study arc: observation (what does the text say?), interpretation (what does it mean?), and application (how does it shape my life?). Aim for 3-5 questions per group. Open with a single warm icebreaker (NOT a trivia question — a personal-experience opener that ties to the theme). Close with one prayer prompt the group can pray together. Questions should be open-ended (avoid yes/no), pastoral, and answerable by an ordinary group member without seminary training.
+
+Sermon context:
+${sermonContextBlurb(d)}
+
+Church context:
+${churchContextBlurb(ctx)}
+
+${d.bigIdea ? `Big idea: ${d.bigIdea}` : ""}
+${d.outline ? `Outline:\n${JSON.stringify(d.outline, null, 2)}` : ""}
+${d.applications ? `Sermon applications:\n${JSON.stringify(d.applications, null, 2)}` : ""}
+
+${resourceBlurb(d)}
+
+${refineBlurb(d.refineInstruction)}
+
+Return JSON exactly in this shape:
+{
+  "openingIcebreaker": "string | null — one warm, personal opener tied to the theme",
+  "observationQuestions": ["question", ...],
+  "interpretationQuestions": ["question", ...],
+  "applicationQuestions": ["question", ...],
+  "prayerPrompt": "string | null — one prompt the group can pray together"
+}`;
+  runJob(req, res, prompt, 2500, "sermon small group questions", GenerateSermonSmallGroupQuestionsResponse);
 });
 
 router.post("/generate/sermon-illustrations", requireAuth, async (req, res) => {

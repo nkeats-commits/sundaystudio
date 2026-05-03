@@ -1274,6 +1274,15 @@ export const GetSermonSeriesResponse = zod
               emailSummary: zod.string().nullish(),
             })
             .nullish(),
+          smallGroupQuestions: zod
+            .object({
+              openingIcebreaker: zod.string().nullish(),
+              observationQuestions: zod.array(zod.string()),
+              interpretationQuestions: zod.array(zod.string()),
+              applicationQuestions: zod.array(zod.string()),
+              prayerPrompt: zod.string().nullish(),
+            })
+            .nullish(),
           sectionHashes: zod
             .object({
               study: zod.string().optional(),
@@ -1283,6 +1292,7 @@ export const GetSermonSeriesResponse = zod
               applications: zod.string().optional(),
               illustrations: zod.string().optional(),
               worshipIntegration: zod.string().optional(),
+              smallGroupQuestions: zod.string().optional(),
             })
             .optional()
             .describe(
@@ -1469,6 +1479,15 @@ export const ListSermonsResponseItem = zod.object({
       emailSummary: zod.string().nullish(),
     })
     .nullish(),
+  smallGroupQuestions: zod
+    .object({
+      openingIcebreaker: zod.string().nullish(),
+      observationQuestions: zod.array(zod.string()),
+      interpretationQuestions: zod.array(zod.string()),
+      applicationQuestions: zod.array(zod.string()),
+      prayerPrompt: zod.string().nullish(),
+    })
+    .nullish(),
   sectionHashes: zod
     .object({
       study: zod.string().optional(),
@@ -1478,6 +1497,7 @@ export const ListSermonsResponseItem = zod.object({
       applications: zod.string().optional(),
       illustrations: zod.string().optional(),
       worshipIntegration: zod.string().optional(),
+      smallGroupQuestions: zod.string().optional(),
     })
     .optional()
     .describe(
@@ -1652,6 +1672,15 @@ export const GetSermonResponse = zod.object({
       emailSummary: zod.string().nullish(),
     })
     .nullish(),
+  smallGroupQuestions: zod
+    .object({
+      openingIcebreaker: zod.string().nullish(),
+      observationQuestions: zod.array(zod.string()),
+      interpretationQuestions: zod.array(zod.string()),
+      applicationQuestions: zod.array(zod.string()),
+      prayerPrompt: zod.string().nullish(),
+    })
+    .nullish(),
   sectionHashes: zod
     .object({
       study: zod.string().optional(),
@@ -1661,6 +1690,7 @@ export const GetSermonResponse = zod.object({
       applications: zod.string().optional(),
       illustrations: zod.string().optional(),
       worshipIntegration: zod.string().optional(),
+      smallGroupQuestions: zod.string().optional(),
     })
     .optional()
     .describe(
@@ -1806,6 +1836,15 @@ export const UpdateSermonBody = zod.object({
       emailSummary: zod.string().nullish(),
     })
     .nullish(),
+  smallGroupQuestions: zod
+    .object({
+      openingIcebreaker: zod.string().nullish(),
+      observationQuestions: zod.array(zod.string()),
+      interpretationQuestions: zod.array(zod.string()),
+      applicationQuestions: zod.array(zod.string()),
+      prayerPrompt: zod.string().nullish(),
+    })
+    .nullish(),
   sectionHashes: zod
     .object({
       study: zod.string().optional(),
@@ -1815,6 +1854,7 @@ export const UpdateSermonBody = zod.object({
       applications: zod.string().optional(),
       illustrations: zod.string().optional(),
       worshipIntegration: zod.string().optional(),
+      smallGroupQuestions: zod.string().optional(),
     })
     .optional()
     .describe(
@@ -1953,6 +1993,15 @@ export const UpdateSermonResponse = zod.object({
       emailSummary: zod.string().nullish(),
     })
     .nullish(),
+  smallGroupQuestions: zod
+    .object({
+      openingIcebreaker: zod.string().nullish(),
+      observationQuestions: zod.array(zod.string()),
+      interpretationQuestions: zod.array(zod.string()),
+      applicationQuestions: zod.array(zod.string()),
+      prayerPrompt: zod.string().nullish(),
+    })
+    .nullish(),
   sectionHashes: zod
     .object({
       study: zod.string().optional(),
@@ -1962,6 +2011,7 @@ export const UpdateSermonResponse = zod.object({
       applications: zod.string().optional(),
       illustrations: zod.string().optional(),
       worshipIntegration: zod.string().optional(),
+      smallGroupQuestions: zod.string().optional(),
     })
     .optional()
     .describe(
@@ -2641,6 +2691,94 @@ export const GenerateSermonIllustrationsResponse = zod.object({
       notes: zod.string().nullish(),
     }),
   ),
+});
+
+/**
+ * @summary AI-generate small-group / Bible-study discussion questions — streamed over SSE
+ */
+export const GenerateSermonSmallGroupQuestionsBody = zod
+  .object({
+    title: zod.string().optional(),
+    passage: zod.string(),
+    secondaryPassages: zod.array(zod.string()).optional(),
+    theme: zod.string().optional(),
+    series: zod.string().optional(),
+    seriesId: zod
+      .number()
+      .nullish()
+      .describe(
+        "Parent sermon series id. When provided, the server hydrates the parent series' big idea and summary into the prompt context.",
+      ),
+    seriesBigIdea: zod
+      .string()
+      .optional()
+      .describe(
+        "Big idea of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    seriesSummary: zod
+      .string()
+      .optional()
+      .describe(
+        "Short summary of the parent sermon series, if any. Server hydrates this from `seriesId` — clients should leave this blank.",
+      ),
+    occasion: zod.string().optional(),
+    audience: zod.string().optional(),
+    length: zod.string().optional(),
+    tone: zod.string().optional(),
+    style: zod.string().optional(),
+    depth: zod.string().optional(),
+    outputFormat: zod.string().optional(),
+    pastorNotes: zod.string().optional(),
+    resources: zod
+      .array(
+        zod.object({
+          title: zod.string(),
+          author: zod.string().optional(),
+          excerpt: zod.string(),
+        }),
+      )
+      .optional(),
+  })
+  .describe(
+    "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
+  )
+  .and(
+    zod.object({
+      bigIdea: zod.string().optional(),
+      outline: zod
+        .object({
+          title: zod.string(),
+          approach: zod.string().nullish(),
+          points: zod.array(
+            zod.object({
+              heading: zod.string(),
+              summary: zod.string().nullish(),
+              scriptureSupport: zod.array(zod.string()).nullish(),
+            }),
+          ),
+        })
+        .optional(),
+      applications: zod
+        .object({
+          groups: zod.array(
+            zod.object({
+              audience: zod.string(),
+              application: zod.string(),
+            }),
+          ),
+          smallGroupQuestions: zod.array(zod.string()).nullish(),
+        })
+        .optional(),
+      refineInstruction: zod.string().optional(),
+    }),
+  );
+
+export const GenerateSermonSmallGroupQuestionsResponse = zod.object({
+  openingIcebreaker: zod.string().nullish(),
+  observationQuestions: zod.array(zod.string()),
+  interpretationQuestions: zod.array(zod.string()),
+  applicationQuestions: zod.array(zod.string()),
+  prayerPrompt: zod.string().nullish(),
 });
 
 /**

@@ -45,6 +45,8 @@ import type {
   GenerateSermonManuscriptBody,
   GenerateSermonOutline400,
   GenerateSermonOutlineBody,
+  GenerateSermonSmallGroupQuestions400,
+  GenerateSermonSmallGroupQuestionsBody,
   GenerateSermonStudy400,
   GenerateSermonStudyBody,
   GenerateSermonToService400,
@@ -79,6 +81,7 @@ import type {
   SermonResource,
   SermonSeries,
   SermonSeriesWithSermons,
+  SermonSmallGroupQuestionsOutput,
   SermonStudyOutput,
   SermonWorshipIntegrationOutput,
   ServicePlan,
@@ -4569,6 +4572,104 @@ export const useGenerateSermonIllustrations = <
   TContext
 > => {
   return useMutation(getGenerateSermonIllustrationsMutationOptions(options));
+};
+
+/**
+ * @summary AI-generate small-group / Bible-study discussion questions — streamed over SSE
+ */
+export const getGenerateSermonSmallGroupQuestionsUrl = () => {
+  return `/api/generate/sermon-small-group-questions`;
+};
+
+export const generateSermonSmallGroupQuestions = async (
+  generateSermonSmallGroupQuestionsBody: GenerateSermonSmallGroupQuestionsBody,
+  options?: RequestInit,
+): Promise<string | SermonSmallGroupQuestionsOutput> => {
+  return customFetch<string | SermonSmallGroupQuestionsOutput>(
+    getGenerateSermonSmallGroupQuestionsUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(generateSermonSmallGroupQuestionsBody),
+    },
+  );
+};
+
+export const getGenerateSermonSmallGroupQuestionsMutationOptions = <
+  TError = ErrorType<
+    GenerateSermonSmallGroupQuestions400 | UnauthorizedResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateSermonSmallGroupQuestions>>,
+    TError,
+    { data: BodyType<GenerateSermonSmallGroupQuestionsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateSermonSmallGroupQuestions>>,
+  TError,
+  { data: BodyType<GenerateSermonSmallGroupQuestionsBody> },
+  TContext
+> => {
+  const mutationKey = ["generateSermonSmallGroupQuestions"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateSermonSmallGroupQuestions>>,
+    { data: BodyType<GenerateSermonSmallGroupQuestionsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateSermonSmallGroupQuestions(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateSermonSmallGroupQuestionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateSermonSmallGroupQuestions>>
+>;
+export type GenerateSermonSmallGroupQuestionsMutationBody =
+  BodyType<GenerateSermonSmallGroupQuestionsBody>;
+export type GenerateSermonSmallGroupQuestionsMutationError = ErrorType<
+  GenerateSermonSmallGroupQuestions400 | UnauthorizedResponse
+>;
+
+/**
+ * @summary AI-generate small-group / Bible-study discussion questions — streamed over SSE
+ */
+export const useGenerateSermonSmallGroupQuestions = <
+  TError = ErrorType<
+    GenerateSermonSmallGroupQuestions400 | UnauthorizedResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateSermonSmallGroupQuestions>>,
+    TError,
+    { data: BodyType<GenerateSermonSmallGroupQuestionsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateSermonSmallGroupQuestions>>,
+  TError,
+  { data: BodyType<GenerateSermonSmallGroupQuestionsBody> },
+  TContext
+> => {
+  return useMutation(
+    getGenerateSermonSmallGroupQuestionsMutationOptions(options),
+  );
 };
 
 /**

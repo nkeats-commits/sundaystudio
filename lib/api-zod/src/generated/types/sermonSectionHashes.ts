@@ -22,4 +22,5 @@ export interface SermonSectionHashes {
   applications?: string;
   illustrations?: string;
   worshipIntegration?: string;
+  smallGroupQuestions?: string;
 }

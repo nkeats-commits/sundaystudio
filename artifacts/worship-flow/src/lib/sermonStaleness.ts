@@ -41,6 +41,7 @@ export const SECTION_KEYS = [
   'applications',
   'illustrations',
   'worshipIntegration',
+  'smallGroupQuestions',
 ] as const;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -149,6 +150,13 @@ function sectionInputs(section: SectionKey, s: SectionInputSnapshot): unknown {
         outline: s.selectedOutline,
       };
     case 'worshipIntegration':
+      return {
+        passage: s.passage,
+        bigIdea: s.selectedBigIdea,
+        outline: s.selectedOutline,
+        applications: s.applications,
+      };
+    case 'smallGroupQuestions':
       return {
         passage: s.passage,
         bigIdea: s.selectedBigIdea,

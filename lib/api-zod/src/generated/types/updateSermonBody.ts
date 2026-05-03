@@ -12,6 +12,7 @@ import type { SermonIllustrationsOutput } from "./sermonIllustrationsOutput";
 import type { SermonManuscriptOutput } from "./sermonManuscriptOutput";
 import type { SermonOutlineOutput } from "./sermonOutlineOutput";
 import type { SermonSectionHashes } from "./sermonSectionHashes";
+import type { SermonSmallGroupQuestionsOutput } from "./sermonSmallGroupQuestionsOutput";
 import type { SermonStudyOutput } from "./sermonStudyOutput";
 import type { SermonWorshipIntegrationOutput } from "./sermonWorshipIntegrationOutput";
 
@@ -40,6 +41,7 @@ export interface UpdateSermonBody {
   illustrations?: SermonIllustrationsOutput | null;
   conclusion?: SermonConclusionOutput | null;
   worshipIntegration?: SermonWorshipIntegrationOutput | null;
+  smallGroupQuestions?: SermonSmallGroupQuestionsOutput | null;
   sectionHashes?: SermonSectionHashes;
   attachedResourceIds?: number[];
   tags?: string[];

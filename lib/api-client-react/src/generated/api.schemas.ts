@@ -607,6 +607,14 @@ export interface SermonConclusionOutput {
   closingPrayer?: string | null;
 }
 
+export interface SermonSmallGroupQuestionsOutput {
+  openingIcebreaker?: string | null;
+  observationQuestions: string[];
+  interpretationQuestions: string[];
+  applicationQuestions: string[];
+  prayerPrompt?: string | null;
+}
+
 export interface SermonWorshipSongSuggestion {
   title: string;
   artist?: string | null;
@@ -643,6 +651,7 @@ export interface SermonSectionHashes {
   applications?: string;
   illustrations?: string;
   worshipIntegration?: string;
+  smallGroupQuestions?: string;
 }
 
 export interface Sermon {
@@ -672,6 +681,7 @@ export interface Sermon {
   illustrations?: SermonIllustrationsOutput | null;
   conclusion?: SermonConclusionOutput | null;
   worshipIntegration?: SermonWorshipIntegrationOutput | null;
+  smallGroupQuestions?: SermonSmallGroupQuestionsOutput | null;
   sectionHashes?: SermonSectionHashes;
   attachedResourceIds: number[];
   tags: string[];
@@ -728,6 +738,7 @@ export interface UpdateSermonBody {
   illustrations?: SermonIllustrationsOutput | null;
   conclusion?: SermonConclusionOutput | null;
   worshipIntegration?: SermonWorshipIntegrationOutput | null;
+  smallGroupQuestions?: SermonSmallGroupQuestionsOutput | null;
   sectionHashes?: SermonSectionHashes;
   attachedResourceIds?: number[];
   tags?: string[];
@@ -943,6 +954,13 @@ export type GenerateSermonToServiceBody = SermonContextBlurb & {
   refineInstruction?: string;
 };
 
+export type GenerateSermonSmallGroupQuestionsBody = SermonContextBlurb & {
+  bigIdea?: string;
+  outline?: SermonOutlineOption;
+  applications?: SermonApplicationsOutput;
+  refineInstruction?: string;
+};
+
 /**
  * Unauthorized
  */
@@ -1036,6 +1054,10 @@ export type GenerateSermonApplications400 = {
 };
 
 export type GenerateSermonIllustrations400 = {
+  error?: string;
+};
+
+export type GenerateSermonSmallGroupQuestions400 = {
   error?: string;
 };
 

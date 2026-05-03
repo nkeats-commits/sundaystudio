@@ -24,6 +24,7 @@ import {
   type SermonApplicationsOutput,
   type SermonIllustrationsOutput,
   type SermonWorshipIntegrationOutput,
+  type SermonSmallGroupQuestionsOutput,
   type SermonResource,
   type SermonSectionHashes,
 } from '@workspace/api-client-react';
@@ -45,6 +46,7 @@ import {
   Users,
   Sparkles,
   Music,
+  MessageCircleQuestion,
   Loader2,
   Save,
   Download,
@@ -147,7 +149,7 @@ function buildResourcePayload(
     .map((r) => ({ title: r.title, author: r.author || undefined, excerpt: r.excerpt }));
 }
 
-type TabKey = 'study' | 'bigIdea' | 'outline' | 'manuscript' | 'applications' | 'illustrations' | 'worship';
+type TabKey = 'study' | 'bigIdea' | 'outline' | 'manuscript' | 'applications' | 'illustrations' | 'worship' | 'smallGroupQuestions';
 
 interface StepDef {
   key: TabKey;
@@ -172,6 +174,7 @@ const ADDON_STEPS: StepDef[] = [
   { key: 'applications', section: 'applications', label: 'Applications', icon: Users, prereq: { section: 'bigIdea', label: 'Big Idea' } },
   { key: 'illustrations', section: 'illustrations', label: 'Illustrations', icon: Sparkles, prereq: { section: 'bigIdea', label: 'Big Idea' } },
   { key: 'worship', section: 'worshipIntegration', label: 'Worship Integration', icon: Music, prereq: { section: 'bigIdea', label: 'Big Idea' } },
+  { key: 'smallGroupQuestions', section: 'smallGroupQuestions', label: 'Small Group Questions', icon: MessageCircleQuestion, prereq: { section: 'bigIdea', label: 'Big Idea' } },
 ];
 
 export default function SermonBuilder() {
@@ -216,6 +219,7 @@ export default function SermonBuilder() {
   const applicationsGen = useJobGenerate<SermonApplicationsOutput>('/api/generate/sermon-applications');
   const illustrationsGen = useJobGenerate<SermonIllustrationsOutput>('/api/generate/sermon-illustrations');
   const worshipGen = useJobGenerate<SermonWorshipIntegrationOutput>('/api/generate/sermon-to-service');
+  const smallGroupGen = useJobGenerate<SermonSmallGroupQuestionsOutput>('/api/generate/sermon-small-group-questions');
 
   // Each tab keeps its own refine instruction
   const [refine, setRefine] = useState<Record<string, string>>({});
@@ -473,6 +477,21 @@ export default function SermonBuilder() {
     if (out) await persistSection('worshipIntegration', 'worshipIntegration', out);
   };
 
+  const handleSmallGroupQuestions = async () => {
+    if (!requirePassage()) return;
+    const big = (sermon?.bigIdea ?? bigIdeaGen.data) as SermonBigIdeaOutput | undefined;
+    const outlineDataLocal = (sermon?.outline ?? outlineGen.data) as SermonOutlineOutput | undefined;
+    const chosen: SermonOutlineOption | undefined = outlineDataLocal?.options?.[outlineDataLocal?.selectedIndex ?? 0];
+    const out = await smallGroupGen.mutate({
+      ...baseContext,
+      bigIdea: big?.selected ?? big?.options?.[0]?.bigIdea ?? undefined,
+      outline: chosen,
+      applications: (sermon?.applications ?? applicationsGen.data) ?? undefined,
+      refineInstruction: refine.smallGroupQuestions,
+    });
+    if (out) await persistSection('smallGroupQuestions', 'smallGroupQuestions', out);
+  };
+
   const saveContext = async () => {
     const id = await ensureSermonId();
     if (!id) return;
@@ -555,6 +574,7 @@ export default function SermonBuilder() {
   const applicationsData: SermonApplicationsOutput | null = (sermon?.applications ?? applicationsGen.data) ?? null;
   const illustrationsData: SermonIllustrationsOutput | null = (sermon?.illustrations ?? illustrationsGen.data) ?? null;
   const worshipData: SermonWorshipIntegrationOutput | null = (sermon?.worshipIntegration ?? worshipGen.data) ?? null;
+  const smallGroupData: SermonSmallGroupQuestionsOutput | null = (sermon?.smallGroupQuestions ?? smallGroupGen.data) ?? null;
 
   /**
    * Per-section presence map and the set of sections whose stored input
@@ -570,8 +590,9 @@ export default function SermonBuilder() {
       applications: !!applicationsData,
       illustrations: !!illustrationsData,
       worshipIntegration: !!worshipData,
+      smallGroupQuestions: !!smallGroupData,
     }),
-    [studyData, bigIdeaData, outlineData, manuscriptData, applicationsData, illustrationsData, worshipData],
+    [studyData, bigIdeaData, outlineData, manuscriptData, applicationsData, illustrationsData, worshipData, smallGroupData],
   );
 
   const staleSet: Set<SectionKey> = useMemo(() => {
@@ -607,6 +628,7 @@ export default function SermonBuilder() {
     applications: applicationsGen.isPending,
     illustrations: illustrationsGen.isPending,
     worshipIntegration: worshipGen.isPending,
+    smallGroupQuestions: smallGroupGen.isPending,
   };
 
   function statusFor(section: SectionKey): 'pending' | 'stale' | 'done' | 'empty' {
@@ -977,7 +999,7 @@ export default function SermonBuilder() {
                           </div>
                         ))}
                       </div>
-                      {applicationsData.smallGroupQuestions && applicationsData.smallGroupQuestions.length > 0 && (
+                      {!smallGroupData && applicationsData.smallGroupQuestions && applicationsData.smallGroupQuestions.length > 0 && (
                         <div>
                           <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Small group questions</h4>
                           <ul className="space-y-2">
@@ -987,6 +1009,9 @@ export default function SermonBuilder() {
                               </li>
                             ))}
                           </ul>
+                          <p className="text-[10px] text-[var(--worship-muted-slate)] mt-2 italic">
+                            Tip: open the Small Group Questions add-on for a fuller, grouped Bible-study set.
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1033,6 +1058,24 @@ export default function SermonBuilder() {
                   )}
                 </SectionPanel>
               )}
+              {tab === 'smallGroupQuestions' && (
+                <SectionPanel
+                  title="Small Group Questions"
+                  subtitle="Bible-study discussion questions in the classic observation / interpretation / application arc — plus an icebreaker and a closing prayer prompt."
+                  pending={smallGroupGen.isPending}
+                  partial={smallGroupGen.partialText}
+                  error={smallGroupGen.error}
+                  hasContent={!!smallGroupData}
+                  stale={staleSet.has('smallGroupQuestions')}
+                  prereqHint={!bigIdeaData ? 'Tip: pick a Big Idea first so the discussion stays anchored in the sermon.' : null}
+                  refineValue={refine.smallGroupQuestions ?? ''}
+                  onRefineChange={(v) => setRefine({ ...refine, smallGroupQuestions: v })}
+                  onGenerate={handleSmallGroupQuestions}
+                  onRegenerate={handleSmallGroupQuestions}
+                >
+                  {smallGroupData && <SmallGroupQuestionsView data={smallGroupData} />}
+                </SectionPanel>
+              )}
               {tab === 'worship' && (
                 <SectionPanel
                   title="Worship Integration"
@@ -1048,7 +1091,7 @@ export default function SermonBuilder() {
                   onGenerate={handleWorship}
                   onRegenerate={handleWorship}
                 >
-                  {worshipData && <WorshipView data={worshipData} />}
+                  {worshipData && <WorshipView data={worshipData} hideSmallGroupQuestions={!!smallGroupData} />}
                   {worshipData && (
                     <div className="mt-4 p-5 rounded-xl border bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
                       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1414,7 +1457,7 @@ function StudyView({ data }: { data: SermonStudyOutput }) {
   );
 }
 
-function WorshipView({ data }: { data: SermonWorshipIntegrationOutput }) {
+function WorshipView({ data, hideSmallGroupQuestions = false }: { data: SermonWorshipIntegrationOutput; hideSmallGroupQuestions?: boolean }) {
   return (
     <div className="space-y-5">
       {data.themes && data.themes.length > 0 && (
@@ -1445,7 +1488,7 @@ function WorshipView({ data }: { data: SermonWorshipIntegrationOutput }) {
           <ul className="space-y-1">{data.prayerPrompts.map((p, i) => <li key={i} className="text-sm text-[var(--worship-charcoal)] flex items-start gap-2"><ChevronRight className="w-4 h-4 text-[var(--worship-gold)] shrink-0 mt-0.5" />{p}</li>)}</ul>
         </div>
       )}
-      {data.smallGroupQuestions && data.smallGroupQuestions.length > 0 && (
+      {!hideSmallGroupQuestions && data.smallGroupQuestions && data.smallGroupQuestions.length > 0 && (
         <div>
           <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Small group questions</h4>
           <ul className="space-y-1">{data.smallGroupQuestions.map((p, i) => <li key={i} className="text-sm text-[var(--worship-charcoal)] flex items-start gap-2"><ChevronRight className="w-4 h-4 text-[var(--worship-gold)] shrink-0 mt-0.5" />{p}</li>)}</ul>
@@ -1456,6 +1499,53 @@ function WorshipView({ data }: { data: SermonWorshipIntegrationOutput }) {
         {data.socialSummary && <BlockSection title="Social summary">{data.socialSummary}</BlockSection>}
         {data.emailSummary && <BlockSection title="Email summary">{data.emailSummary}</BlockSection>}
       </div>
+    </div>
+  );
+}
+
+function SmallGroupQuestionsView({ data }: { data: SermonSmallGroupQuestionsOutput }) {
+  const QuestionList = ({ items }: { items: string[] }) => (
+    <ol className="space-y-2 ml-5 list-decimal list-outside marker:text-[var(--worship-gold)] marker:font-bold">
+      {items.map((q, i) => (
+        <li key={i} className="text-sm text-[var(--worship-charcoal)] leading-relaxed pl-1">{q}</li>
+      ))}
+    </ol>
+  );
+  return (
+    <div className="space-y-5">
+      {data.openingIcebreaker && (
+        <div className="p-4 rounded-xl border bg-[var(--worship-pale-gold)]/40" style={{ borderColor: 'var(--worship-border)' }}>
+          <h4 className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-1">Opening icebreaker</h4>
+          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.openingIcebreaker}</p>
+        </div>
+      )}
+      {data.observationQuestions.length > 0 && (
+        <div>
+          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Observation</h4>
+          <p className="text-xs text-[var(--worship-slate)] mb-2 italic">What does the text actually say?</p>
+          <QuestionList items={data.observationQuestions} />
+        </div>
+      )}
+      {data.interpretationQuestions.length > 0 && (
+        <div>
+          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Interpretation</h4>
+          <p className="text-xs text-[var(--worship-slate)] mb-2 italic">What does it mean?</p>
+          <QuestionList items={data.interpretationQuestions} />
+        </div>
+      )}
+      {data.applicationQuestions.length > 0 && (
+        <div>
+          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Application</h4>
+          <p className="text-xs text-[var(--worship-slate)] mb-2 italic">How does it shape my life this week?</p>
+          <QuestionList items={data.applicationQuestions} />
+        </div>
+      )}
+      {data.prayerPrompt && (
+        <div className="p-4 rounded-xl border bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
+          <h4 className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-1">Prayer prompt</h4>
+          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.prayerPrompt}</p>
+        </div>
+      )}
     </div>
   );
 }

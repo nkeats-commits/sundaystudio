@@ -342,6 +342,7 @@ router.patch("/sermons/:id", requireAuth, async (req, res) => {
     "illustrations",
     "conclusion",
     "worshipIntegration",
+    "smallGroupQuestions",
     "sectionHashes",
     "attachedResourceIds",
     "tags",

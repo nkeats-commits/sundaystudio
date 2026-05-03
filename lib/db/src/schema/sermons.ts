@@ -92,6 +92,14 @@ export type SermonConclusionOutput = {
   closingPrayer?: string | null;
 };
 
+export type SermonSmallGroupQuestionsOutput = {
+  openingIcebreaker?: string | null;
+  observationQuestions: string[];
+  interpretationQuestions: string[];
+  applicationQuestions: string[];
+  prayerPrompt?: string | null;
+};
+
 /**
  * Per-section fingerprints used by the Sermon Builder to detect when a
  * downstream section was generated against now-stale upstream values
@@ -110,6 +118,7 @@ export type SermonSectionHashes = {
   applications?: string;
   illustrations?: string;
   worshipIntegration?: string;
+  smallGroupQuestions?: string;
 };
 
 export type SermonWorshipIntegrationOutput = {
@@ -153,6 +162,7 @@ export const sermonsTable = pgTable("sermons", {
   illustrations: jsonb("illustrations").$type<SermonIllustrationsOutput | null>(),
   conclusion: jsonb("conclusion").$type<SermonConclusionOutput | null>(),
   worshipIntegration: jsonb("worship_integration").$type<SermonWorshipIntegrationOutput | null>(),
+  smallGroupQuestions: jsonb("small_group_questions").$type<SermonSmallGroupQuestionsOutput | null>(),
   sectionHashes: jsonb("section_hashes").$type<SermonSectionHashes>().notNull().default({}),
   attachedResourceIds: jsonb("attached_resource_ids").$type<number[]>().notNull().default([]),
   tags: text("tags").array().notNull().default([]),

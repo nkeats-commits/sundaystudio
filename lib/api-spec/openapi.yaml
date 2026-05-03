@@ -1255,6 +1255,39 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /generate/sermon-small-group-questions:
+    post:
+      operationId: generateSermonSmallGroupQuestions
+      tags: [generate]
+      summary: AI-generate small-group / Bible-study discussion questions — streamed over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateSermonSmallGroupQuestionsBody"
+      responses:
+        "200":
+          description: SSE stream; final `done` event is a `SermonSmallGroupQuestionsOutput`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonSmallGroupQuestionsOutput"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /generate/sermon-to-service:
     post:
       operationId: generateSermonToService
@@ -2197,6 +2230,29 @@ components:
           nullable: true
       required: [conclusion]
 
+    SermonSmallGroupQuestionsOutput:
+      type: object
+      properties:
+        openingIcebreaker:
+          type: string
+          nullable: true
+        observationQuestions:
+          type: array
+          items:
+            type: string
+        interpretationQuestions:
+          type: array
+          items:
+            type: string
+        applicationQuestions:
+          type: array
+          items:
+            type: string
+        prayerPrompt:
+          type: string
+          nullable: true
+      required: [observationQuestions, interpretationQuestions, applicationQuestions]
+
     SermonWorshipSongSuggestion:
       type: object
       properties:
@@ -2331,6 +2387,10 @@ components:
         worshipIntegration:
           allOf:
             - $ref: "#/components/schemas/SermonWorshipIntegrationOutput"
+          nullable: true
+        smallGroupQuestions:
+          allOf:
+            - $ref: "#/components/schemas/SermonSmallGroupQuestionsOutput"
           nullable: true
         sectionHashes:
           $ref: "#/components/schemas/SermonSectionHashes"
@@ -2499,6 +2559,10 @@ components:
           allOf:
             - $ref: "#/components/schemas/SermonWorshipIntegrationOutput"
           nullable: true
+        smallGroupQuestions:
+          allOf:
+            - $ref: "#/components/schemas/SermonSmallGroupQuestionsOutput"
+          nullable: true
         sectionHashes:
           $ref: "#/components/schemas/SermonSectionHashes"
         attachedResourceIds:
@@ -2534,6 +2598,8 @@ components:
         illustrations:
           type: string
         worshipIntegration:
+          type: string
+        smallGroupQuestions:
           type: string
 
     SermonResource:
@@ -2950,6 +3016,20 @@ components:
               type: string
 
     GenerateSermonToServiceBody:
+      allOf:
+        - $ref: "#/components/schemas/SermonContextBlurb"
+        - type: object
+          properties:
+            bigIdea:
+              type: string
+            outline:
+              $ref: "#/components/schemas/SermonOutlineOption"
+            applications:
+              $ref: "#/components/schemas/SermonApplicationsOutput"
+            refineInstruction:
+              type: string
+
+    GenerateSermonSmallGroupQuestionsBody:
       allOf:
         - $ref: "#/components/schemas/SermonContextBlurb"
         - type: object
