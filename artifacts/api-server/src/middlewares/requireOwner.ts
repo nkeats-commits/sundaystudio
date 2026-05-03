@@ -96,6 +96,19 @@ export const requireOwner: RequestHandler = async (
     const email = await resolveCurrentEmailFromClerk(userId, req.log);
     const normalized = email?.trim().toLowerCase();
     if (!normalized || normalized !== ownerEmail) {
+      // TEMPORARY diagnostic — logs the comparison so the operator can
+      // see exactly which Clerk email is being checked vs the configured
+      // owner email. Logged at info so it shows up without DEBUG. Remove
+      // once the owner is verified working.
+      req.log.info(
+        {
+          userId,
+          clerkPrimaryEmail: normalized ?? null,
+          configuredOwnerEmail: ownerEmail,
+          matched: false,
+        },
+        "requireOwner: email mismatch (diagnostic)",
+      );
       res.status(404).json({ error: "Not found" });
       return;
     }
