@@ -642,6 +642,36 @@ export const BulkImportRepertoireBody = zod.object({
           .describe(
             "Optional tempo in beats per minute. Helps the AI pick fast songs for upbeat slots and slower songs for reflective ones.",
           ),
+        key: zod
+          .string()
+          .optional()
+          .describe(
+            'Optional musical key (e.g. \"G\", \"Db\"). Pulled from CSV imports; stored on `content.key`.',
+          ),
+        ccli: zod
+          .string()
+          .optional()
+          .describe(
+            "Optional CCLI license number. Stored on `content.ccli` for traceability; not currently surfaced in the UI.",
+          ),
+        notes: zod
+          .string()
+          .optional()
+          .describe(
+            "Optional free-text notes from a CSV import. Stored on `content.notes`.",
+          ),
+        arrangementNotes: zod
+          .string()
+          .optional()
+          .describe(
+            "Optional free-text notes for the chosen arrangement (BPM\/key\/length). Stored on `content.arrangementNotes`.",
+          ),
+        lastScheduledDate: zod
+          .string()
+          .optional()
+          .describe(
+            "Optional date the song was last scheduled (any parseable date string; the server stores it as-is on `content.lastScheduledDate`). Useful for ranking under-used songs later.",
+          ),
         tags: zod.array(zod.string()).optional(),
       }),
     )

@@ -189,6 +189,16 @@ router.post("/library/repertoire/bulk-import", requireAuth, requireActiveAccess,
     if (typeof song.bpm === "number" && Number.isFinite(song.bpm)) {
       content.bpm = Math.round(song.bpm);
     }
+    // Optional CSV-import-only fields. All flow into the open jsonb `content`
+    // column; no DB migration needed. Trim & drop empties so we don't store
+    // whitespace junk that would later look like real data.
+    if (song.key?.trim()) content.key = song.key.trim();
+    if (song.ccli?.trim()) content.ccli = song.ccli.trim();
+    if (song.notes?.trim()) content.notes = song.notes.trim();
+    if (song.arrangementNotes?.trim())
+      content.arrangementNotes = song.arrangementNotes.trim();
+    if (song.lastScheduledDate?.trim())
+      content.lastScheduledDate = song.lastScheduledDate.trim();
     valuesToInsert.push({
       userId: req.userId!,
       kind: "song",

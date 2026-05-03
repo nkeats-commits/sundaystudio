@@ -2392,6 +2392,21 @@ components:
           minimum: 30
           maximum: 300
           description: Optional tempo in beats per minute. Helps the AI pick fast songs for upbeat slots and slower songs for reflective ones.
+        key:
+          type: string
+          description: Optional musical key (e.g. "G", "Db"). Pulled from CSV imports; stored on `content.key`.
+        ccli:
+          type: string
+          description: Optional CCLI license number. Stored on `content.ccli` for traceability; not currently surfaced in the UI.
+        notes:
+          type: string
+          description: Optional free-text notes from a CSV import. Stored on `content.notes`.
+        arrangementNotes:
+          type: string
+          description: Optional free-text notes for the chosen arrangement (BPM/key/length). Stored on `content.arrangementNotes`.
+        lastScheduledDate:
+          type: string
+          description: Optional date the song was last scheduled (any parseable date string; the server stores it as-is on `content.lastScheduledDate`). Useful for ranking under-used songs later.
         tags:
           type: array
           items:

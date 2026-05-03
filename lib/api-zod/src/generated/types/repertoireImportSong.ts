@@ -17,5 +17,15 @@ export interface RepertoireImportSong {
    * @maximum 300
    */
   bpm?: number;
+  /** Optional musical key (e.g. "G", "Db"). Pulled from CSV imports; stored on `content.key`. */
+  key?: string;
+  /** Optional CCLI license number. Stored on `content.ccli` for traceability; not currently surfaced in the UI. */
+  ccli?: string;
+  /** Optional free-text notes from a CSV import. Stored on `content.notes`. */
+  notes?: string;
+  /** Optional free-text notes for the chosen arrangement (BPM/key/length). Stored on `content.arrangementNotes`. */
+  arrangementNotes?: string;
+  /** Optional date the song was last scheduled (any parseable date string; the server stores it as-is on `content.lastScheduledDate`). Useful for ranking under-used songs later. */
+  lastScheduledDate?: string;
   tags?: string[];
 }

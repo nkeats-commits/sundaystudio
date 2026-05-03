@@ -25,12 +25,14 @@ import {
   Star,
   Plus,
   ClipboardList,
+  FileUp,
   X,
   Loader2,
   Copy,
   Pencil,
   Check,
 } from 'lucide-react';
+import { CsvImportModal } from '../components/library/CsvImportModal';
 import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
@@ -356,6 +358,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
 export default function Library() {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [showPasteModal, setShowPasteModal] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
   const [viewingItem, setViewingItem] = useState<LibraryItem | null>(null);
 
   // Translate the active tab into a query for the list endpoint. The
@@ -509,14 +512,24 @@ export default function Library() {
                   songs, so suggestions feel familiar to your worship team.
                 </p>
               </div>
-              <button
-                onClick={() => setShowPasteModal(true)}
-                className="self-start inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
-                data-testid="button-open-paste-modal"
-              >
-                <ClipboardList className="w-4 h-4" />
-                Paste a list
-              </button>
+              <div className="self-start flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowPasteModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
+                  data-testid="button-open-paste-modal"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  Paste a list
+                </button>
+                <button
+                  onClick={() => setShowCsvModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
+                  data-testid="button-open-csv-modal"
+                >
+                  <FileUp className="w-4 h-4" />
+                  Import from CSV
+                </button>
+              </div>
             </div>
             <AddSongForm onAdded={invalidateLibrary} />
           </div>
@@ -694,6 +707,13 @@ export default function Library() {
       {showPasteModal && (
         <PasteListModal
           onClose={() => setShowPasteModal(false)}
+          onImported={invalidateLibrary}
+        />
+      )}
+
+      {showCsvModal && (
+        <CsvImportModal
+          onClose={() => setShowCsvModal(false)}
           onImported={invalidateLibrary}
         />
       )}
