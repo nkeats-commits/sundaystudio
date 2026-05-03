@@ -61,6 +61,7 @@ import {
   Mail,
   Printer,
   Pencil,
+  Undo2,
   Trash2,
 } from 'lucide-react';
 
@@ -264,6 +265,19 @@ export default function SermonBuilder() {
   const [editingSection, setEditingSection] = useState<SectionKey | null>(null);
   const [editDraft, setEditDraft] = useState<unknown>(null);
   const [editSaving, setEditSaving] = useState(false);
+  // Per-section single-level undo. After Save, we stash the value that was
+  // persisted just *before* the save so the user can one-click revert.
+  // Cleared on undo or overwritten by the next save to the same section.
+  const [previousEdits, setPreviousEdits] = useState<Partial<Record<SectionKey, unknown>>>({});
+  const [undoingSection, setUndoingSection] = useState<SectionKey | null>(null);
+  // The undo stash is per-sermon — clear it whenever the active sermon changes
+  // so an Undo button from sermon A can never appear (and overwrite) sermon B.
+  useEffect(() => {
+    setPreviousEdits({});
+    setUndoingSection(null);
+    setEditingSection(null);
+    setEditDraft(null);
+  }, [sermonId]);
   const hydratedRef = useRef(false);
 
   // Hydrate form when an existing sermon is loaded
@@ -396,12 +410,40 @@ export default function SermonBuilder() {
     }
     setEditSaving(true);
     try {
+      // Snapshot the value that's about to be replaced — read fresh from the
+      // cache (it may include another sibling section's update) and fall back
+      // to the in-memory sermon. Deep-clone so a later cache mutation can't
+      // poison our undo stash.
+      const fresh = sermonId
+        ? (queryClient.getQueryData(getGetSermonQueryKey(sermonId)) as Sermon | undefined)
+        : undefined;
+      const previous = (fresh?.[field] ?? sermon?.[field]) as Sermon[typeof field] | undefined;
       await persistField(field, editDraft as Sermon[typeof field]);
+      const sectionKey = field as SectionKey;
+      if (previous !== undefined && previous !== null) {
+        setPreviousEdits((p) => ({ ...p, [sectionKey]: structuredClone(previous) }));
+      }
       toast.success('Saved');
       setEditingSection(null);
       setEditDraft(null);
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  const undoEdit = async (section: SectionKey) => {
+    const prev = previousEdits[section];
+    if (prev === undefined) return;
+    setUndoingSection(section);
+    try {
+      await persistField(section as keyof Sermon, prev as Sermon[keyof Sermon]);
+      setPreviousEdits((p) => {
+        const { [section]: _discard, ...rest } = p;
+        return rest;
+      });
+      toast.success('Reverted to previous version');
+    } finally {
+      setUndoingSection(null);
     }
   };
 
@@ -961,6 +1003,9 @@ export default function SermonBuilder() {
                   onSave={() => saveEdit('study')}
                   onCancel={cancelEdit}
                   saving={editSaving}
+                  canUndo={previousEdits.study !== undefined}
+                  onUndo={() => undoEdit('study')}
+                  undoing={undoingSection === 'study'}
                 >
                   {studyData && (editingSection === 'study'
                     ? <StudyView data={editDraft as SermonStudyOutput} editing onChange={setEditDraft} />
@@ -996,6 +1041,9 @@ export default function SermonBuilder() {
                   onSave={() => saveEdit('bigIdea')}
                   onCancel={cancelEdit}
                   saving={editSaving}
+                  canUndo={previousEdits.bigIdea !== undefined}
+                  onUndo={() => undoEdit('bigIdea')}
+                  undoing={undoingSection === 'bigIdea'}
                 >
                   {bigIdeaData && (editingSection === 'bigIdea'
                     ? <BigIdeaView data={editDraft as SermonBigIdeaOutput} editing onChange={setEditDraft} />
@@ -1031,6 +1079,9 @@ export default function SermonBuilder() {
                   onSave={() => saveEdit('outline')}
                   onCancel={cancelEdit}
                   saving={editSaving}
+                  canUndo={previousEdits.outline !== undefined}
+                  onUndo={() => undoEdit('outline')}
+                  undoing={undoingSection === 'outline'}
                 >
                   {outlineData && (editingSection === 'outline'
                     ? <OutlineView data={editDraft as SermonOutlineOutput} editing onChange={setEditDraft} />
@@ -1066,6 +1117,9 @@ export default function SermonBuilder() {
                   onSave={() => saveEdit('manuscript')}
                   onCancel={cancelEdit}
                   saving={editSaving}
+                  canUndo={previousEdits.manuscript !== undefined}
+                  onUndo={() => undoEdit('manuscript')}
+                  undoing={undoingSection === 'manuscript'}
                 >
                   {manuscriptData && (editingSection === 'manuscript'
                     ? <ManuscriptView data={editDraft as SermonManuscriptOutput} editing onChange={setEditDraft} />
@@ -1101,6 +1155,9 @@ export default function SermonBuilder() {
                   onSave={() => saveEdit('applications')}
                   onCancel={cancelEdit}
                   saving={editSaving}
+                  canUndo={previousEdits.applications !== undefined}
+                  onUndo={() => undoEdit('applications')}
+                  undoing={undoingSection === 'applications'}
                 >
                   {applicationsData && (editingSection === 'applications'
                     ? <ApplicationsView data={editDraft as SermonApplicationsOutput} editing onChange={setEditDraft} />
@@ -1136,6 +1193,9 @@ export default function SermonBuilder() {
                   onSave={() => saveEdit('illustrations')}
                   onCancel={cancelEdit}
                   saving={editSaving}
+                  canUndo={previousEdits.illustrations !== undefined}
+                  onUndo={() => undoEdit('illustrations')}
+                  undoing={undoingSection === 'illustrations'}
                 >
                   {illustrationsData && (editingSection === 'illustrations'
                     ? <IllustrationsView data={editDraft as SermonIllustrationsOutput} editing onChange={setEditDraft} />
@@ -1171,6 +1231,9 @@ export default function SermonBuilder() {
                   onSave={() => saveEdit('smallGroupQuestions')}
                   onCancel={cancelEdit}
                   saving={editSaving}
+                  canUndo={previousEdits.smallGroupQuestions !== undefined}
+                  onUndo={() => undoEdit('smallGroupQuestions')}
+                  undoing={undoingSection === 'smallGroupQuestions'}
                 >
                   {smallGroupData && (editingSection === 'smallGroupQuestions'
                     ? <SmallGroupQuestionsView data={editDraft as SermonSmallGroupQuestionsOutput} editing onChange={setEditDraft} />
@@ -1245,6 +1308,9 @@ export default function SermonBuilder() {
                   onSave={() => saveEdit('worshipIntegration')}
                   onCancel={cancelEdit}
                   saving={editSaving}
+                  canUndo={previousEdits.worshipIntegration !== undefined}
+                  onUndo={() => undoEdit('worshipIntegration')}
+                  undoing={undoingSection === 'worshipIntegration'}
                 >
                   {worshipData && (editingSection === 'worshipIntegration'
                     ? <WorshipView data={editDraft as SermonWorshipIntegrationOutput} hideSmallGroupQuestions={!!smallGroupData} editing onChange={setEditDraft} />
@@ -1340,6 +1406,9 @@ function SectionPanel({
   onSave,
   onCancel,
   saving = false,
+  canUndo = false,
+  onUndo,
+  undoing = false,
   children,
 }: {
   title: string;
@@ -1364,6 +1433,10 @@ function SectionPanel({
   onSave?: () => void;
   onCancel?: () => void;
   saving?: boolean;
+  /** When true, show an "Undo edit" button to restore the version before the most recent save. */
+  canUndo?: boolean;
+  onUndo?: () => void;
+  undoing?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -1395,8 +1468,19 @@ function SectionPanel({
           ) : (
             <>
               {hasContent && canEdit && onEdit && (
-                <button onClick={onEdit} disabled={pending} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                <button onClick={onEdit} disabled={pending || undoing} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
                   <Pencil className="w-3.5 h-3.5" /> Edit
+                </button>
+              )}
+              {hasContent && canUndo && onUndo && (
+                <button
+                  onClick={onUndo}
+                  disabled={pending || undoing}
+                  title="Restore the version from before your last save"
+                  className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                >
+                  {undoing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Undo2 className="w-3.5 h-3.5" />} Undo edit
                 </button>
               )}
               {hasContent && (
