@@ -52,8 +52,9 @@ export default function Billing() {
         toast.error("Could not start checkout");
         setBusy(false);
       }
-    } catch (err: any) {
-      toast.error(err?.data?.error ?? "Could not start checkout");
+    } catch (err: unknown) {
+      const data = (err as { data?: { error?: unknown } } | undefined)?.data;
+      toast.error(typeof data?.error === "string" ? data.error : "Could not start checkout");
       setBusy(false);
     }
   };
@@ -67,8 +68,9 @@ export default function Billing() {
         toast.error("Could not open billing portal");
         setBusy(false);
       }
-    } catch (err: any) {
-      toast.error(err?.data?.error ?? "Could not open billing portal");
+    } catch (err: unknown) {
+      const data = (err as { data?: { error?: unknown } } | undefined)?.data;
+      toast.error(typeof data?.error === "string" ? data.error : "Could not open billing portal");
       setBusy(false);
     }
   };

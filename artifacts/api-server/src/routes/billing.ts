@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
@@ -11,6 +13,26 @@ import { getAccessState, TRIAL_DAYS } from "../lib/getAccessState";
 const router: IRouter = Router();
 
 const PRODUCT_NAME = "WorshipFlow Pro";
+
+/**
+ * Cached read of `.local/billing-config.json`, written by the seed script.
+ * Reading once on first call is enough — the seed only runs out-of-band so
+ * the value is stable for the life of the server process.
+ */
+let _cachedConfigPriceId: string | null | undefined;
+function getPriceIdFromConfigFile(): string | null {
+  if (_cachedConfigPriceId !== undefined) return _cachedConfigPriceId;
+  try {
+    const configPath = resolve(process.cwd(), "../../.local/billing-config.json");
+    const raw = readFileSync(configPath, "utf-8");
+    const parsed = JSON.parse(raw) as { priceId?: unknown };
+    _cachedConfigPriceId =
+      typeof parsed.priceId === "string" ? parsed.priceId : null;
+  } catch {
+    _cachedConfigPriceId = null;
+  }
+  return _cachedConfigPriceId;
+}
 
 function originFromReq(req: import("express").Request): string {
   // Prefer the public Replit domain in production; fall back to the request
@@ -37,6 +59,8 @@ function originFromReq(req: import("express").Request): string {
 async function getMonthlyPriceId(): Promise<string | null> {
   const fromEnv = process.env["STRIPE_PRICE_ID"]?.trim();
   if (fromEnv) return fromEnv;
+  const fromFile = getPriceIdFromConfigFile();
+  if (fromFile) return fromFile;
   try {
     const result = await db.execute(sql`
       SELECT pr.id AS price_id

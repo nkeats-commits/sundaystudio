@@ -20,8 +20,9 @@ export default function Pricing() {
         toast.error("Checkout could not be started.");
         setLoading(false);
       }
-    } catch (err: any) {
-      const msg = err?.data?.error ?? "Could not start checkout.";
+    } catch (err: unknown) {
+      const data = (err as { data?: { error?: unknown } } | undefined)?.data;
+      const msg = typeof data?.error === "string" ? data.error : "Could not start checkout.";
       toast.error(msg);
       setLoading(false);
     }

@@ -1,11 +1,21 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { getUncachableStripeClient } from "./stripeClient";
 
 /**
  * Idempotent seed for the single WorshipFlow Pro product + $9.99/mo price.
  *
- * Run with: pnpm --filter @workspace/scripts exec tsx src/seed-billing.ts
+ * Run with: pnpm --filter @workspace/scripts run seed-billing
  *
  * Safe to run multiple times — it searches Stripe by name first.
+ *
+ * After resolving the price id this script writes it to
+ * `.local/billing-config.json` (relative to the repo root). The API
+ * server reads this file as a deterministic source of truth so that
+ * `/api/billing/checkout-session` no longer has to wait on the
+ * stripe-replit-sync mirror to populate. The file is also a convenient
+ * place for an operator to copy the value from when setting the
+ * production `STRIPE_PRICE_ID` environment variable.
  */
 const PRODUCT_NAME = "WorshipFlow Pro";
 const MONTHLY_AMOUNT_CENTS = 999;
@@ -32,8 +42,12 @@ async function main() {
   }
 
   // 2) Find or create the $9.99/month recurring price
-  const prices = await stripe.prices.list({ product: product.id, active: true, limit: 100 });
-  const monthly = prices.data.find(
+  const prices = await stripe.prices.list({
+    product: product.id,
+    active: true,
+    limit: 100,
+  });
+  let monthly = prices.data.find(
     (p) =>
       p.recurring?.interval === "month" &&
       p.unit_amount === MONTHLY_AMOUNT_CENTS &&
@@ -42,16 +56,33 @@ async function main() {
   if (monthly) {
     console.log(`Monthly price already exists: ${monthly.id}`);
   } else {
-    const created = await stripe.prices.create({
+    monthly = await stripe.prices.create({
       product: product.id,
       unit_amount: MONTHLY_AMOUNT_CENTS,
       currency: "usd",
       recurring: { interval: "month" },
     });
-    console.log(`Created monthly price ${created.id}`);
+    console.log(`Created monthly price ${monthly.id}`);
   }
 
-  console.log("Done. Webhooks will sync this to your local stripe schema.");
+  // 3) Persist the resolved ids to a config file the API server reads.
+  // Path is relative to the repo root (where pnpm runs from), not this
+  // script's __dirname, so it lands in the workspace's `.local/`.
+  const configPath = resolve(process.cwd(), "../.local/billing-config.json");
+  mkdirSync(dirname(configPath), { recursive: true });
+  writeFileSync(
+    configPath,
+    JSON.stringify(
+      { productId: product.id, priceId: monthly.id, amountCents: MONTHLY_AMOUNT_CENTS, currency: "usd" },
+      null,
+      2,
+    ) + "\n",
+  );
+  console.log(`Wrote ${configPath}`);
+  console.log(
+    "For production, also set the STRIPE_PRICE_ID environment variable to:",
+    monthly.id,
+  );
 }
 
 main().catch((err) => {
