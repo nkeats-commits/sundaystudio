@@ -10,7 +10,11 @@ import {
   setOnUnauthorized,
   setOnPaymentRequired,
 } from "@workspace/api-client-react";
-import { setJobGenerateOnUnauthorized } from "./hooks/useJobGenerate";
+import {
+  setJobGenerateOnUnauthorized,
+  setJobGenerateOnPaymentRequired,
+} from "./hooks/useJobGenerate";
+import Paywalled from "./components/Paywalled";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import ServiceBuilder from "./pages/ServiceBuilder";
@@ -230,7 +234,7 @@ function ClerkAuthBootstrap() {
     // per burst, like 401 handling above, since a page can fire several
     // gated calls at the same time).
     const paymentRedirectingRef = { current: false };
-    setOnPaymentRequired(({ url }) => {
+    const handlePaymentRequired = ({ url }: { url: string }) => {
       // Don't bounce when the failing request *is* one of the billing
       // endpoints — the page already renders the appropriate state.
       if (url.includes("/api/billing/")) return;
@@ -242,13 +246,16 @@ function ClerkAuthBootstrap() {
       setTimeout(() => {
         paymentRedirectingRef.current = false;
       }, 1500);
-    });
+    };
+    setOnPaymentRequired(handlePaymentRequired);
+    setJobGenerateOnPaymentRequired(handlePaymentRequired);
 
     return () => {
       setAuthTokenGetter(null);
       setOnUnauthorized(null);
       setOnPaymentRequired(null);
       setJobGenerateOnUnauthorized(null);
+      setJobGenerateOnPaymentRequired(null);
     };
   }, [isLoaded, isSignedIn, getToken, signOut, setLocation]);
 
@@ -324,22 +331,22 @@ function ClerkProviderWithRoutes() {
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
           <Route path="/dashboard">{() => <Protected component={Dashboard} />}</Route>
-          <Route path="/service-builder">{() => <Protected component={ServiceBuilder} />}</Route>
+          <Route path="/service-builder">{() => <Protected component={() => <Paywalled component={ServiceBuilder} />} />}</Route>
           <Route path="/services">{() => <Protected component={Services} />}</Route>
           <Route path="/services/:id/print">{() => <Protected component={ServicePlanPrint} />}</Route>
-          <Route path="/services/:id">{() => <Protected component={ServiceDetail} />}</Route>
-          <Route path="/generators/liturgy">{() => <Protected component={LiturgyGenerator} />}</Route>
-          <Route path="/generators/songs">{() => <Protected component={SongGenerator} />}</Route>
-          <Route path="/generators/speaking-moment">{() => <Protected component={SpeakingMomentGenerator} />}</Route>
-          <Route path="/generators/devotional">{() => <Protected component={DevotionalGenerator} />}</Route>
-          <Route path="/generators/soul-care">{() => <Protected component={SoulCareGenerator} />}</Route>
+          <Route path="/services/:id">{() => <Protected component={() => <Paywalled component={ServiceDetail} />} />}</Route>
+          <Route path="/generators/liturgy">{() => <Protected component={() => <Paywalled component={LiturgyGenerator} />} />}</Route>
+          <Route path="/generators/songs">{() => <Protected component={() => <Paywalled component={SongGenerator} />} />}</Route>
+          <Route path="/generators/speaking-moment">{() => <Protected component={() => <Paywalled component={SpeakingMomentGenerator} />} />}</Route>
+          <Route path="/generators/devotional">{() => <Protected component={() => <Paywalled component={DevotionalGenerator} />} />}</Route>
+          <Route path="/generators/soul-care">{() => <Protected component={() => <Paywalled component={SoulCareGenerator} />} />}</Route>
           <Route path="/library">{() => <Protected component={Library} />}</Route>
           <Route path="/sermons">{() => <Protected component={SermonArchive} />}</Route>
           <Route path="/sermons/series">{() => <Protected component={SermonSeriesArchive} />}</Route>
-          <Route path="/sermons/series/:id">{() => <Protected component={SermonSeriesDetail} />}</Route>
-          <Route path="/sermons/new">{() => <Protected component={SermonBuilder} />}</Route>
-          <Route path="/sermons/:id">{() => <Protected component={SermonBuilder} />}</Route>
-          <Route path="/resources">{() => <Protected component={ResourceLibrary} />}</Route>
+          <Route path="/sermons/series/:id">{() => <Protected component={() => <Paywalled component={SermonSeriesDetail} />} />}</Route>
+          <Route path="/sermons/new">{() => <Protected component={() => <Paywalled component={SermonBuilder} />} />}</Route>
+          <Route path="/sermons/:id">{() => <Protected component={() => <Paywalled component={SermonBuilder} />} />}</Route>
+          <Route path="/resources">{() => <Protected component={() => <Paywalled component={ResourceLibrary} />} />}</Route>
           <Route path="/church">{() => <Protected component={ChurchProfile} />}</Route>
           <Route path="/settings/integrations">{() => <Protected component={Integrations} />}</Route>
           <Route path="/settings">{() => <Protected component={Settings} />}</Route>

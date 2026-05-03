@@ -53,6 +53,15 @@ export function setJobGenerateOnUnauthorized(
   _onUnauthorized = handler;
 }
 
+type PaymentRequiredHandler = (info: { url: string }) => void;
+let _onPaymentRequired: PaymentRequiredHandler | null = null;
+
+export function setJobGenerateOnPaymentRequired(
+  handler: PaymentRequiredHandler | null,
+): void {
+  _onPaymentRequired = handler;
+}
+
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -232,6 +241,13 @@ export function useJobGenerate<TData>(
               /* ignore */
             }
           }
+          if (startRes.status === 402 && _onPaymentRequired) {
+            try {
+              _onPaymentRequired({ url: startPath });
+            } catch {
+              /* ignore */
+            }
+          }
           throw new Error(await readErrorMessage(startRes));
         }
 
@@ -263,6 +279,13 @@ export function useJobGenerate<TData>(
             if (pollRes.status === 401 && _onUnauthorized) {
               try {
                 _onUnauthorized();
+              } catch {
+                /* ignore */
+              }
+            }
+            if (pollRes.status === 402 && _onPaymentRequired) {
+              try {
+                _onPaymentRequired({ url: `${POLL_BASE_PATH}/${jobId}` });
               } catch {
                 /* ignore */
               }
