@@ -3329,6 +3329,12 @@ export const GetAdminMetricsResponse = zod.object({
     conversions30d: zod.number(),
     conversions90d: zod.number(),
     churn30d: zod.number(),
+    conversionRate30d: zod
+      .number()
+      .describe("Trial → paid conversion rate (%) over last 30 days."),
+    conversionRate90d: zod
+      .number()
+      .describe("Trial → paid conversion rate (%) over last 90 days."),
   }),
   series: zod.object({
     signups: zod.array(

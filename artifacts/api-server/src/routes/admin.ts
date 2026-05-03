@@ -81,13 +81,8 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
     const sevenAgo = new Date(now.getTime() - ms7d);
     const thirtyAgo = new Date(now.getTime() - ms30d);
     const ninetyAgo = new Date(now.getTime() - ms90d);
-    const trialMs = TRIAL_DAYS * 24 * 60 * 60 * 1000;
-    const trialEndsSoon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-    const trialStartCutoff = new Date(now.getTime() - trialMs);
-    const trialEndsSoonCutoff = new Date(
-      trialEndsSoon.getTime() - trialMs,
-    );
 
+    // Signup totals — straight from users table.
     const [{ value: totalUsers = 0 } = {}] = await db
       .select({ value: count() })
       .from(usersTable);
@@ -99,90 +94,69 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
       .select({ value: count() })
       .from(usersTable)
       .where(gte(usersTable.createdAt, thirtyAgo));
+    const [{ value: signups90 = 0 } = {}] = await db
+      .select({ value: count() })
+      .from(usersTable)
+      .where(gte(usersTable.createdAt, ninetyAgo));
 
-    // Stripe-mirrored subscription counts (best effort — empty if schema missing).
-    type CountRow = { count: number | string };
-    const subCounts: Record<string, number> = {
-      active: 0,
-      trialing: 0,
-      past_due: 0,
-      canceled: 0,
-    };
-    let mrrCents = 0;
+    // ----- Canonical bucket counts -----
+    // Both trial buckets AND subscription buckets are derived from the same
+    // getAccessState that powers the user-facing billing flow, so the admin
+    // dashboard cannot diverge from what users actually see. We pull every
+    // user (capped) and compute their access state in parallel.
+    const METRICS_USER_CAP = 50000;
+    const allUsers = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .limit(METRICS_USER_CAP);
+    const states = await Promise.all(
+      allUsers.map((u) => getAccessState(u.id)),
+    );
+
+    let activeSubs = 0;
+    let trialingSubs = 0;
+    let pastDueSubs = 0;
+    let canceledSubs = 0;
+    let activeTrials = 0;
+    let trialsEndingSoon = 0;
+    let expiredTrials = 0;
+    for (const s of states) {
+      switch (s.kind) {
+        case "active":
+          activeSubs++;
+          break;
+        case "trialing":
+          trialingSubs++;
+          break;
+        case "past_due":
+          pastDueSubs++;
+          break;
+        case "canceled":
+          canceledSubs++;
+          break;
+        case "trial":
+          activeTrials++;
+          if (s.daysLeft <= 3) trialsEndingSoon++;
+          break;
+        case "expired":
+          expiredTrials++;
+          break;
+      }
+    }
+    const mrrCents = activeSubs * MONTHLY_AMOUNT_CENTS;
+
+    // ----- Stripe-mirror-derived series & conversions -----
+    // For conversions, churn, and the daily series we still read the Stripe
+    // mirror, but we collapse to the *first* qualifying subscription per
+    // customer so a customer with multiple historical rows is counted once.
     let conversions30 = 0;
     let conversions90 = 0;
     let churn30 = 0;
     let stripeAvailable = false;
+    let signupSeries: Array<{ day: string; count: number }> = [];
+    let subSeries: Array<{ day: string; count: number }> = [];
 
-    try {
-      const r = await db.execute(sql`
-        SELECT status, COUNT(*)::int AS count
-        FROM stripe.subscriptions
-        GROUP BY status
-      `);
-      stripeAvailable = true;
-      for (const row of r.rows as Array<{ status: string; count: number | string }>) {
-        const n = typeof row.count === "string" ? parseInt(row.count, 10) : row.count;
-        subCounts[row.status] = n;
-      }
-      // MRR = active monthly subs * $9.99 (we only sell one price).
-      mrrCents = (subCounts["active"] ?? 0) * MONTHLY_AMOUNT_CENTS;
-
-      const conv = await db.execute(sql`
-        SELECT
-          COUNT(*) FILTER (WHERE created >= ${Math.floor(thirtyAgo.getTime() / 1000)})::int AS c30,
-          COUNT(*) FILTER (WHERE created >= ${Math.floor(ninetyAgo.getTime() / 1000)})::int AS c90
-        FROM stripe.subscriptions
-        WHERE status IN ('active', 'trialing')
-      `);
-      const cRow = conv.rows[0] as { c30?: number | string; c90?: number | string };
-      conversions30 = Number(cRow?.c30 ?? 0);
-      conversions90 = Number(cRow?.c90 ?? 0);
-
-      const churn = await db.execute(sql`
-        SELECT COUNT(*)::int AS c
-        FROM stripe.subscriptions
-        WHERE status = 'canceled'
-          AND COALESCE(canceled_at, ended_at, created) >= ${Math.floor(thirtyAgo.getTime() / 1000)}
-      `);
-      churn30 = Number((churn.rows[0] as CountRow | undefined)?.count ?? 0);
-    } catch {
-      stripeAvailable = false;
-    }
-
-    // Trial buckets — derived from local users table.
-    // A user is "on trial" if they have no Stripe customer yet (or their sub
-    // isn't active/trialing) AND trial_started_at is within the trial window.
-    const [{ value: activeTrials = 0 } = {}] = await db
-      .select({ value: count() })
-      .from(usersTable)
-      .where(
-        and(
-          gte(usersTable.trialStartedAt, trialStartCutoff),
-          sql`${usersTable.stripeCustomerId} IS NULL`,
-        ),
-      );
-    const [{ value: trialsEndingSoon = 0 } = {}] = await db
-      .select({ value: count() })
-      .from(usersTable)
-      .where(
-        and(
-          gte(usersTable.trialStartedAt, trialStartCutoff),
-          sql`${usersTable.trialStartedAt} <= ${trialEndsSoonCutoff}`,
-          sql`${usersTable.stripeCustomerId} IS NULL`,
-        ),
-      );
-    const [{ value: expiredTrials = 0 } = {}] = await db
-      .select({ value: count() })
-      .from(usersTable)
-      .where(
-        and(
-          sql`${usersTable.trialStartedAt} < ${trialStartCutoff}`,
-          sql`${usersTable.stripeCustomerId} IS NULL`,
-        ),
-      );
-
-    // 30-day signup series — one bucket per day, oldest first.
+    // Signup series — always available.
     const signupSeriesRows = await db.execute(sql`
       SELECT date_trunc('day', created_at AT TIME ZONE 'UTC')::date AS day,
              COUNT(*)::int AS count
@@ -191,38 +165,95 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
       GROUP BY day
       ORDER BY day ASC
     `);
-    const signupSeries = (
-      signupSeriesRows.rows as Array<{ day: string | Date; count: number | string }>
+    signupSeries = (
+      signupSeriesRows.rows as Array<{
+        day: string | Date;
+        count: number | string;
+      }>
     ).map((r) => ({
-      day: typeof r.day === "string" ? r.day : r.day.toISOString().slice(0, 10),
+      day:
+        typeof r.day === "string" ? r.day : r.day.toISOString().slice(0, 10),
       count: Number(r.count),
     }));
 
-    let subSeries: Array<{ day: string; count: number }> = [];
-    if (stripeAvailable) {
-      try {
-        const r = await db.execute(sql`
-          SELECT date_trunc('day', to_timestamp(created) AT TIME ZONE 'UTC')::date AS day,
-                 COUNT(*)::int AS count
+    try {
+      // Use DISTINCT ON (customer) ordered by (customer, created ASC) to keep
+      // each customer's earliest active/trialing subscription — that's the
+      // "trial → paid" conversion event. Counting all rows would double-count
+      // customers who cycle subscriptions.
+      const conv = await db.execute(sql`
+        WITH first_paid AS (
+          SELECT DISTINCT ON (customer) customer, created
           FROM stripe.subscriptions
-          WHERE created >= ${Math.floor(thirtyAgo.getTime() / 1000)}
-            AND status IN ('active', 'trialing')
-          GROUP BY day
-          ORDER BY day ASC
-        `);
-        subSeries = (
-          r.rows as Array<{ day: string | Date; count: number | string }>
-        ).map((row) => ({
-          day:
-            typeof row.day === "string"
-              ? row.day
-              : row.day.toISOString().slice(0, 10),
-          count: Number(row.count),
-        }));
-      } catch {
-        subSeries = [];
-      }
+          WHERE status IN ('active', 'trialing') AND customer IS NOT NULL
+          ORDER BY customer, created ASC
+        )
+        SELECT
+          COUNT(*) FILTER (WHERE created >= ${Math.floor(thirtyAgo.getTime() / 1000)})::int AS c30,
+          COUNT(*) FILTER (WHERE created >= ${Math.floor(ninetyAgo.getTime() / 1000)})::int AS c90
+        FROM first_paid
+      `);
+      stripeAvailable = true;
+      const cRow = conv.rows[0] as {
+        c30?: number | string;
+        c90?: number | string;
+      };
+      conversions30 = Number(cRow?.c30 ?? 0);
+      conversions90 = Number(cRow?.c90 ?? 0);
+
+      // Churn: distinct customers whose *latest* subscription is canceled and
+      // whose cancellation landed in the last 30 days.
+      const churn = await db.execute(sql`
+        WITH latest AS (
+          SELECT DISTINCT ON (customer) customer, status,
+                 COALESCE(canceled_at, ended_at, created) AS terminated_at
+          FROM stripe.subscriptions
+          WHERE customer IS NOT NULL
+          ORDER BY customer, created DESC
+        )
+        SELECT COUNT(*)::int AS c
+        FROM latest
+        WHERE status = 'canceled'
+          AND terminated_at >= ${Math.floor(thirtyAgo.getTime() / 1000)}
+      `);
+      churn30 = Number(
+        (churn.rows[0] as { c?: number | string } | undefined)?.c ?? 0,
+      );
+
+      // Subscription series: first paid sub per customer, bucketed by day.
+      const subSeriesRows = await db.execute(sql`
+        WITH first_paid AS (
+          SELECT DISTINCT ON (customer) customer, created
+          FROM stripe.subscriptions
+          WHERE status IN ('active', 'trialing') AND customer IS NOT NULL
+          ORDER BY customer, created ASC
+        )
+        SELECT date_trunc('day', to_timestamp(created) AT TIME ZONE 'UTC')::date AS day,
+               COUNT(*)::int AS count
+        FROM first_paid
+        WHERE created >= ${Math.floor(thirtyAgo.getTime() / 1000)}
+        GROUP BY day
+        ORDER BY day ASC
+      `);
+      subSeries = (
+        subSeriesRows.rows as Array<{
+          day: string | Date;
+          count: number | string;
+        }>
+      ).map((row) => ({
+        day:
+          typeof row.day === "string"
+            ? row.day
+            : row.day.toISOString().slice(0, 10),
+        count: Number(row.count),
+      }));
+    } catch {
+      stripeAvailable = false;
     }
+
+    // Conversion *rates* — % of signups in the window that became paid subs.
+    const pct = (num: number, den: number): number =>
+      den > 0 ? Math.round((num / den) * 1000) / 10 : 0;
 
     res.json({
       totals: {
@@ -231,38 +262,23 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
         signups30d: Number(signups30),
       },
       trials: {
-        active: Number(activeTrials),
-        endingSoon: Number(trialsEndingSoon),
-        expired: Number(expiredTrials),
+        active: activeTrials,
+        endingSoon: trialsEndingSoon,
+        expired: expiredTrials,
       },
       subscriptions: {
-        active: subCounts["active"] ?? 0,
-        trialing: subCounts["trialing"] ?? 0,
-        pastDue: subCounts["past_due"] ?? 0,
-        canceled: subCounts["canceled"] ?? 0,
+        active: activeSubs,
+        trialing: trialingSubs,
+        pastDue: pastDueSubs,
+        canceled: canceledSubs,
       },
       revenue: {
         mrrCents,
         conversions30d: conversions30,
         conversions90d: conversions90,
         churn30d: churn30,
-        // Trial → paid conversion rate over the same trailing window:
-        // (new paid subs in window) / (signups in window). We clamp the
-        // signup denominator to >= 1 to avoid division-by-zero spikes.
-        conversionRate30d:
-          Number(signups30) > 0
-            ? Math.round((conversions30 / Number(signups30)) * 1000) / 10
-            : 0,
-        conversionRate90d:
-          (await (async () => {
-            const [{ value: signups90 = 0 } = {}] = await db
-              .select({ value: count() })
-              .from(usersTable)
-              .where(gte(usersTable.createdAt, ninetyAgo));
-            return Number(signups90) > 0
-              ? Math.round((conversions90 / Number(signups90)) * 1000) / 10
-              : 0;
-          })()),
+        conversionRate30d: pct(conversions30, Number(signups30)),
+        conversionRate90d: pct(conversions90, Number(signups90)),
       },
       series: { signups: signupSeries, subscriptions: subSeries },
       stripeAvailable,

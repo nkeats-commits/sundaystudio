@@ -84,6 +84,10 @@ export type AdminMetricsRevenue = {
   conversions30d: number;
   conversions90d: number;
   churn30d: number;
+  /** Trial → paid conversion rate (%) over last 30 days. */
+  conversionRate30d: number;
+  /** Trial → paid conversion rate (%) over last 90 days. */
+  conversionRate90d: number;
 };
 
 export interface AdminSeriesPoint {

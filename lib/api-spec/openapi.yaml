@@ -1868,12 +1868,26 @@ components:
             canceled: { type: integer }
         revenue:
           type: object
-          required: [mrrCents, conversions30d, conversions90d, churn30d]
+          required:
+            [
+              mrrCents,
+              conversions30d,
+              conversions90d,
+              churn30d,
+              conversionRate30d,
+              conversionRate90d,
+            ]
           properties:
             mrrCents: { type: integer }
             conversions30d: { type: integer }
             conversions90d: { type: integer }
             churn30d: { type: integer }
+            conversionRate30d:
+              type: number
+              description: Trial → paid conversion rate (%) over last 30 days.
+            conversionRate90d:
+              type: number
+              description: Trial → paid conversion rate (%) over last 90 days.
         series:
           type: object
           required: [signups, subscriptions]

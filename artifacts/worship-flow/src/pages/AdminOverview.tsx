@@ -156,6 +156,23 @@ export default function AdminOverview() {
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <StatCard
+                label="Trial → paid (30d)"
+                value={`${data.revenue.conversionRate30d.toFixed(1)}%`}
+                hint={`${data.revenue.conversions30d} of ${data.totals.signups30d} signups converted`}
+                icon={TrendingUp}
+                tone={data.revenue.conversionRate30d > 0 ? "good" : "default"}
+              />
+              <StatCard
+                label="Trial → paid (90d)"
+                value={`${data.revenue.conversionRate90d.toFixed(1)}%`}
+                hint={`${data.revenue.conversions90d} conversions in last 90 days`}
+                icon={TrendingUp}
+                tone={data.revenue.conversionRate90d > 0 ? "good" : "default"}
+              />
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="worship-card">
                 <h3 className="font-medium text-[var(--worship-navy)] mb-1">
