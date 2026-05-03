@@ -57,8 +57,18 @@ export async function getEnabledSourceIds(userId: string): Promise<string[]> {
     .from(userSourcePreferencesTable)
     .where(eq(userSourcePreferencesTable.userId, userId))
     .limit(1);
-  const raw = row ? row.enabledSourceIds : DEFAULT_ENABLED_SOURCE_IDS;
-  return raw.filter(isRegisteredSource);
+  if (row) return row.enabledSourceIds.filter(isRegisteredSource);
+
+  // First read for this user — seed a stable row of the curated defaults so
+  // their enabled set is persisted (not just an in-memory fallback) and
+  // visible in audits/admin tools. Idempotent via ON CONFLICT DO NOTHING:
+  // a concurrent first-read race won't error.
+  const seeded = DEFAULT_ENABLED_SOURCE_IDS.filter(isRegisteredSource);
+  await db
+    .insert(userSourcePreferencesTable)
+    .values({ userId, enabledSourceIds: seeded })
+    .onConflictDoNothing({ target: userSourcePreferencesTable.userId });
+  return seeded;
 }
 
 /**

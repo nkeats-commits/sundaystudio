@@ -221,7 +221,15 @@ export function parsePassageRef(
   const segments = text.split(/[;,]+/).map((s) => s.trim()).filter(Boolean);
 
   let lastBook: string | null = null;
+  let lastSegHadVerse = false;
   for (const seg of segments) {
+    // Verse continuation: the previous segment specified verses (had a colon),
+    // and this segment is a bare number (e.g. "Romans 8:28, 29" → segments
+    // ["Romans 8:28", "29"]). Skip — the chapter is unchanged and we already
+    // recorded it.
+    if (lastSegHadVerse && /^\d+\s*(?:-\s*\d+)?$/.test(seg)) {
+      continue;
+    }
     // Match a leading book token: optional digit prefix + word(s).
     // Book name may be "1 John", "Song of Songs", "Romans", "Ps".
     // We greedily grab the alphabetic prefix, then look up.
@@ -293,6 +301,7 @@ export function parsePassageRef(
       seen.add(key);
       out.push({ book, chapter: c });
     }
+    lastSegHadVerse = rest.includes(":");
   }
   return out;
 }

@@ -39,6 +39,23 @@ test("parsePassageRef: numbered book", () => {
   ]);
 });
 
+test("parsePassageRef: comma-separated verse continuation stays in same chapter", () => {
+  // Regression: "Romans 8:28, 29" used to read "29" as chapter 29.
+  assert.deepEqual(parsePassageRef("Romans 8:28, 29"), [
+    { book: "romans", chapter: 8 },
+  ]);
+  // Multi-segment verse continuation.
+  assert.deepEqual(parsePassageRef("John 3:16, 17, 18"), [
+    { book: "john", chapter: 3 },
+  ]);
+  // A bare number after a SEMICOLON-separated chapter ref is still treated
+  // as a verse continuation of that chapter (consistent behaviour).
+  assert.deepEqual(parsePassageRef("Romans 8:28; 12:1, 2"), [
+    { book: "romans", chapter: 8 },
+    { book: "romans", chapter: 12 },
+  ]);
+});
+
 test("parsePassageRef: numbered book without space", () => {
   assert.deepEqual(parsePassageRef("1Cor 13"), [
     { book: "1 corinthians", chapter: 13 },
