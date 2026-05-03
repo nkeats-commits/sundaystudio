@@ -2080,6 +2080,10 @@ components:
             - `off`: ignore the repertoire entirely.
             - `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.
             - `strict`: only suggest songs from the user's repertoire; never invent new titles.
+        alignmentNotes:
+          type: string
+          maxLength: 4000
+          description: Optional sermon notes, source text, or other material the song picks should echo in theme and imagery.
       required: [theme]
 
     SongSuggestion:
@@ -2114,6 +2118,9 @@ components:
         notice:
           type: string
           description: Optional explanatory note from the server, e.g. when Strict mode produced fewer songs than requested.
+        alignmentNotes:
+          type: string
+          description: Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.
       required: [theme, songs]
 
     GenerateSpeakingMomentBody:
@@ -2130,6 +2137,10 @@ components:
           type: integer
         tone:
           type: string
+        alignmentNotes:
+          type: string
+          maxLength: 4000
+          description: Optional sermon notes, source text, or other material the speaking moment should echo in language and imagery.
       required: [kind]
 
     GeneratedSpeakingMoment:
@@ -2143,6 +2154,9 @@ components:
           type: string
         deliveryNotes:
           type: string
+        alignmentNotes:
+          type: string
+          description: Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.
       required: [kind, title, body]
 
     GenerateDevotionalBody:
@@ -2157,6 +2171,10 @@ components:
         audience:
           type: string
           description: e.g. "worship team", "tech volunteers"
+        alignmentNotes:
+          type: string
+          maxLength: 4000
+          description: Optional sermon notes, source text, or other material the devotional should echo in language and imagery.
       required: [theme]
 
     GeneratedDevotional:
@@ -2176,6 +2194,9 @@ components:
             type: string
         closingPrayer:
           type: string
+        alignmentNotes:
+          type: string
+          description: Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.
       required: [title, scripture, opening, body, discussionQuestions, closingPrayer]
 
     SermonStudyOutput:

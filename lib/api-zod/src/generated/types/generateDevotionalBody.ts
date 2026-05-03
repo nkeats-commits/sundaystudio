@@ -12,4 +12,9 @@ export interface GenerateDevotionalBody {
   durationMinutes?: number;
   /** e.g. "worship team", "tech volunteers" */
   audience?: string;
+  /**
+   * Optional sermon notes, source text, or other material the devotional should echo in language and imagery.
+   * @maxLength 4000
+   */
+  alignmentNotes?: string;
 }

@@ -985,6 +985,8 @@ the wire protocol. The final `done` event payload conforms to
 
  * @summary AI-suggest worship songs for a theme or scripture — streamed over SSE
  */
+export const generateSongSuggestionsBodyAlignmentNotesMax = 4000;
+
 export const GenerateSongSuggestionsBody = zod.object({
   theme: zod.string(),
   scripture: zod.string().optional(),
@@ -998,6 +1000,13 @@ export const GenerateSongSuggestionsBody = zod.object({
     .optional()
     .describe(
       "How to use the user's saved repertoire when suggesting songs.\n- `off`: ignore the repertoire entirely.\n- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.\n- `strict`: only suggest songs from the user's repertoire; never invent new titles.\n",
+    ),
+  alignmentNotes: zod
+    .string()
+    .max(generateSongSuggestionsBodyAlignmentNotesMax)
+    .optional()
+    .describe(
+      "Optional sermon notes, source text, or other material the song picks should echo in theme and imagery.",
     ),
 });
 
@@ -1024,6 +1033,12 @@ export const GenerateSongSuggestionsResponse = zod.object({
     .describe(
       "Optional explanatory note from the server, e.g. when Strict mode produced fewer songs than requested.",
     ),
+  alignmentNotes: zod
+    .string()
+    .optional()
+    .describe(
+      "Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.",
+    ),
 });
 
 /**
@@ -1033,6 +1048,8 @@ the wire protocol. The final `done` event payload conforms to
 
  * @summary AI-generate a speaking moment — streamed over SSE
  */
+export const generateSpeakingMomentBodyAlignmentNotesMax = 4000;
+
 export const GenerateSpeakingMomentBody = zod.object({
   kind: zod.enum([
     "welcome",
@@ -1046,6 +1063,13 @@ export const GenerateSpeakingMomentBody = zod.object({
   scripture: zod.string().optional(),
   durationSeconds: zod.number().optional(),
   tone: zod.string().optional(),
+  alignmentNotes: zod
+    .string()
+    .max(generateSpeakingMomentBodyAlignmentNotesMax)
+    .optional()
+    .describe(
+      "Optional sermon notes, source text, or other material the speaking moment should echo in language and imagery.",
+    ),
 });
 
 export const GenerateSpeakingMomentResponse = zod.object({
@@ -1053,6 +1077,12 @@ export const GenerateSpeakingMomentResponse = zod.object({
   title: zod.string(),
   body: zod.string(),
   deliveryNotes: zod.string().optional(),
+  alignmentNotes: zod
+    .string()
+    .optional()
+    .describe(
+      "Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.",
+    ),
 });
 
 /**
@@ -1161,6 +1191,8 @@ the wire protocol. The final `done` event payload conforms to
 
  * @summary AI-generate a team devotional for rehearsal — streamed over SSE
  */
+export const generateDevotionalBodyAlignmentNotesMax = 4000;
+
 export const GenerateDevotionalBody = zod.object({
   theme: zod.string(),
   scripture: zod.string().optional(),
@@ -1169,6 +1201,13 @@ export const GenerateDevotionalBody = zod.object({
     .string()
     .optional()
     .describe('e.g. \"worship team\", \"tech volunteers\"'),
+  alignmentNotes: zod
+    .string()
+    .max(generateDevotionalBodyAlignmentNotesMax)
+    .optional()
+    .describe(
+      "Optional sermon notes, source text, or other material the devotional should echo in language and imagery.",
+    ),
 });
 
 export const GenerateDevotionalResponse = zod.object({
@@ -1178,6 +1217,12 @@ export const GenerateDevotionalResponse = zod.object({
   body: zod.string(),
   discussionQuestions: zod.array(zod.string()),
   closingPrayer: zod.string(),
+  alignmentNotes: zod
+    .string()
+    .optional()
+    .describe(
+      "Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.",
+    ),
 });
 
 /**

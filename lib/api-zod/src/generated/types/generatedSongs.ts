@@ -12,4 +12,6 @@ export interface GeneratedSongs {
   songs: SongSuggestion[];
   /** Optional explanatory note from the server, e.g. when Strict mode produced fewer songs than requested. */
   notice?: string;
+  /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
+  alignmentNotes?: string;
 }

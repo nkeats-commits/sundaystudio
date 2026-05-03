@@ -19,4 +19,9 @@ export interface GenerateSongsBody {
 - `strict`: only suggest songs from the user's repertoire; never invent new titles.
  */
   repertoireMode?: GenerateSongsBodyRepertoireMode;
+  /**
+   * Optional sermon notes, source text, or other material the song picks should echo in theme and imagery.
+   * @maxLength 4000
+   */
+  alignmentNotes?: string;
 }

@@ -541,6 +541,11 @@ export interface GenerateSongsBody {
 - `strict`: only suggest songs from the user's repertoire; never invent new titles.
  */
   repertoireMode?: GenerateSongsBodyRepertoireMode;
+  /**
+   * Optional sermon notes, source text, or other material the song picks should echo in theme and imagery.
+   * @maxLength 4000
+   */
+  alignmentNotes?: string;
 }
 
 export interface SongSuggestion {
@@ -558,6 +563,8 @@ export interface GeneratedSongs {
   songs: SongSuggestion[];
   /** Optional explanatory note from the server, e.g. when Strict mode produced fewer songs than requested. */
   notice?: string;
+  /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
+  alignmentNotes?: string;
 }
 
 export type GenerateSpeakingMomentBodyKind =
@@ -578,6 +585,11 @@ export interface GenerateSpeakingMomentBody {
   scripture?: string;
   durationSeconds?: number;
   tone?: string;
+  /**
+   * Optional sermon notes, source text, or other material the speaking moment should echo in language and imagery.
+   * @maxLength 4000
+   */
+  alignmentNotes?: string;
 }
 
 export interface GeneratedSpeakingMoment {
@@ -585,6 +597,8 @@ export interface GeneratedSpeakingMoment {
   title: string;
   body: string;
   deliveryNotes?: string;
+  /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
+  alignmentNotes?: string;
 }
 
 export interface GenerateDevotionalBody {
@@ -593,6 +607,11 @@ export interface GenerateDevotionalBody {
   durationMinutes?: number;
   /** e.g. "worship team", "tech volunteers" */
   audience?: string;
+  /**
+   * Optional sermon notes, source text, or other material the devotional should echo in language and imagery.
+   * @maxLength 4000
+   */
+  alignmentNotes?: string;
 }
 
 export interface GeneratedDevotional {
@@ -602,6 +621,8 @@ export interface GeneratedDevotional {
   body: string;
   discussionQuestions: string[];
   closingPrayer: string;
+  /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
+  alignmentNotes?: string;
 }
 
 export interface SermonStudyOutput {

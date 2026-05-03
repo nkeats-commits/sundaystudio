@@ -15,8 +15,10 @@ export default function SpeakingMomentGenerator() {
     topic: '',
     scripture: '',
     durationSeconds: 60,
-    tone: 'warm, pastoral, inviting'
+    tone: 'warm, pastoral, inviting',
+    alignmentNotes: '',
   });
+  const ALIGNMENT_MAX = 4000;
   
   const generate = useJobGenerate<GeneratedSpeakingMoment>('/api/generate/speaking-moment');
   const createLibraryItem = useCreateLibraryItem();
@@ -39,7 +41,16 @@ export default function SpeakingMomentGenerator() {
     lastSubmittedRef.current = payload;
     setSavedItem(null);
     savePromiseRef.current = null;
-    generate.mutate(payload).catch((err: Error) => {
+    const trimmedAlignment = payload.alignmentNotes.trim();
+    const requestBody = {
+      kind: payload.kind,
+      topic: payload.topic || undefined,
+      scripture: payload.scripture || undefined,
+      durationSeconds: payload.durationSeconds,
+      tone: payload.tone,
+      ...(trimmedAlignment ? { alignmentNotes: trimmedAlignment.slice(0, ALIGNMENT_MAX) } : {}),
+    };
+    generate.mutate(requestBody).catch((err: Error) => {
       toast.error(err.message || "Generation failed. Please try again.");
     });
   };
@@ -160,6 +171,26 @@ export default function SpeakingMomentGenerator() {
                 onChange={e => setFormData({...formData, tone: e.target.value})}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)]"
               />
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-1">
+                <label className="block text-xs font-semibold text-[var(--worship-slate)]">ALIGNMENT NOTES (OPTIONAL)</label>
+                <span className={`text-[10px] ${formData.alignmentNotes.length > ALIGNMENT_MAX ? 'text-red-600' : 'text-[var(--worship-muted-slate)]'}`}>
+                  {formData.alignmentNotes.length}/{ALIGNMENT_MAX}
+                </span>
+              </div>
+              <textarea
+                value={formData.alignmentNotes}
+                onChange={e => setFormData({ ...formData, alignmentNotes: e.target.value.slice(0, ALIGNMENT_MAX) })}
+                placeholder="Paste sermon notes, source text, or other material this moment should echo."
+                rows={4}
+                data-testid="input-alignment-notes"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm leading-relaxed resize-y"
+              />
+              <p className="text-[10px] text-[var(--worship-muted-slate)] mt-1 italic">
+                Song lyrics will be paraphrased, not copied verbatim, to honor copyright.
+              </p>
             </div>
 
             <button 

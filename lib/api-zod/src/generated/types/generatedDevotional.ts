@@ -13,4 +13,6 @@ export interface GeneratedDevotional {
   body: string;
   discussionQuestions: string[];
   closingPrayer: string;
+  /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
+  alignmentNotes?: string;
 }

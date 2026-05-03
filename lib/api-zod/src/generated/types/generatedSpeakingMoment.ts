@@ -11,4 +11,6 @@ export interface GeneratedSpeakingMoment {
   title: string;
   body: string;
   deliveryNotes?: string;
+  /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
+  alignmentNotes?: string;
 }

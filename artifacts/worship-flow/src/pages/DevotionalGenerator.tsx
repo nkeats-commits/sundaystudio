@@ -14,8 +14,10 @@ export default function DevotionalGenerator() {
     theme: '',
     scripture: '',
     audience: 'worship team',
-    durationMinutes: 10
+    durationMinutes: 10,
+    alignmentNotes: '',
   });
+  const ALIGNMENT_MAX = 4000;
   
   const generate = useJobGenerate<GeneratedDevotional>('/api/generate/devotional');
   const createLibraryItem = useCreateLibraryItem();
@@ -38,7 +40,15 @@ export default function DevotionalGenerator() {
     lastSubmittedRef.current = payload;
     setSavedItem(null);
     savePromiseRef.current = null;
-    generate.mutate(payload).catch((err: Error) => {
+    const trimmedAlignment = payload.alignmentNotes.trim();
+    const requestBody = {
+      theme: payload.theme,
+      scripture: payload.scripture || undefined,
+      audience: payload.audience,
+      durationMinutes: payload.durationMinutes,
+      ...(trimmedAlignment ? { alignmentNotes: trimmedAlignment.slice(0, ALIGNMENT_MAX) } : {}),
+    };
+    generate.mutate(requestBody).catch((err: Error) => {
       toast.error(err.message || "Generation failed. Please try again.");
     });
   };
@@ -150,6 +160,26 @@ export default function DevotionalGenerator() {
                 onChange={e => setFormData({...formData, durationMinutes: parseInt(e.target.value)})}
                 className="w-full accent-[var(--worship-gold)]"
               />
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-1">
+                <label className="block text-xs font-semibold text-[var(--worship-slate)]">ALIGNMENT NOTES (OPTIONAL)</label>
+                <span className={`text-[10px] ${formData.alignmentNotes.length > ALIGNMENT_MAX ? 'text-red-600' : 'text-[var(--worship-muted-slate)]'}`}>
+                  {formData.alignmentNotes.length}/{ALIGNMENT_MAX}
+                </span>
+              </div>
+              <textarea
+                value={formData.alignmentNotes}
+                onChange={e => setFormData({ ...formData, alignmentNotes: e.target.value.slice(0, ALIGNMENT_MAX) })}
+                placeholder="Paste sermon notes, source text, or other material this devotional should echo."
+                rows={4}
+                data-testid="input-alignment-notes"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm leading-relaxed resize-y"
+              />
+              <p className="text-[10px] text-[var(--worship-muted-slate)] mt-1 italic">
+                Song lyrics will be paraphrased, not copied verbatim, to honor copyright.
+              </p>
             </div>
 
             <button 

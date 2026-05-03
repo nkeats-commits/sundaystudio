@@ -13,4 +13,9 @@ export interface GenerateSpeakingMomentBody {
   scripture?: string;
   durationSeconds?: number;
   tone?: string;
+  /**
+   * Optional sermon notes, source text, or other material the speaking moment should echo in language and imagery.
+   * @maxLength 4000
+   */
+  alignmentNotes?: string;
 }

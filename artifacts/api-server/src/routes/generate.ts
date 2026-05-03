@@ -338,6 +338,17 @@ router.post("/generate/songs", requireAuth, async (req, res) => {
     effectiveMode === "strict"
       ? Math.max(1, Math.min(requestedCount, repertoire.length))
       : requestedCount;
+  const trimmedAlignment = (data.alignmentNotes ?? "").trim();
+  const hasAlignment = trimmedAlignment.length > 0;
+  const alignmentBlock = hasAlignment
+    ? `
+Alignment notes from the pastor (sermon notes, source text, or other material the song picks should echo):
+"""
+${trimmedAlignment}
+"""
+Choose songs whose themes, refrains, and theological language echo these notes. Reflect that fit in "whyItFits". Do NOT quote song lyrics from the notes verbatim — paraphrase to honor copyright. If the notes contradict the theme/style above, the theme/style wins.
+`
+    : "";
 
   const prompt = `Suggest ${promptCount} worship songs that fit this theme.
 
@@ -347,7 +358,7 @@ Style preference: ${data.style ?? "mixed (modern worship and hymns)"}
 
 Church context:
 ${churchContextBlurb(ctx)}
-${repBlock ? `\n${repBlock}\n` : ""}
+${repBlock ? `\n${repBlock}\n` : ""}${alignmentBlock}
 Return JSON exactly in this shape:
 {
   "theme": "string",
@@ -440,7 +451,12 @@ Keep "whyItFits" to 1-2 short sentences.`;
           "Your repertoire is empty, so suggestions come from general worship knowledge. Add songs in Library → Our Repertoire to make future picks feel familiar.";
       }
 
-      return result as unknown as RawResult;
+      const finalResult = result as typeof result & { alignmentNotes?: string };
+      if (hasAlignment) {
+        finalResult.alignmentNotes = trimmedAlignment;
+      }
+
+      return finalResult as unknown as RawResult;
     },
   );
 });
@@ -454,6 +470,18 @@ router.post("/generate/speaking-moment", requireAuth, async (req, res) => {
   const data = parsed.data;
   const ctx = await getChurchContext(req.userId!);
   const seconds = data.durationSeconds ?? 60;
+  const trimmedAlignmentSm = (data.alignmentNotes ?? "").trim();
+  const hasAlignmentSm = trimmedAlignmentSm.length > 0;
+  const alignmentBlockSm = hasAlignmentSm
+    ? `
+
+Alignment notes from the pastor (sermon notes, source text, or other material this moment should echo):
+"""
+${trimmedAlignmentSm}
+"""
+Echo the imagery, refrains, and theological language from these notes in your speaking moment. Do NOT quote song lyrics verbatim — paraphrase to honor copyright. If the notes contradict the kind/topic above, the kind/topic wins.`
+    : "";
+
   const prompt = `Write a short worship speaking moment as JSON.
 
 Kind: ${data.kind}
@@ -463,7 +491,7 @@ Approximate spoken length: ${seconds} seconds
 Tone: ${data.tone ?? "warm, pastoral, inviting"}
 
 Church context:
-${churchContextBlurb(ctx)}
+${churchContextBlurb(ctx)}${alignmentBlockSm}
 
 Return JSON exactly in this shape:
 {
@@ -475,7 +503,23 @@ Return JSON exactly in this shape:
 
 Match the requested duration. Don't exceed the spoken length budget.`;
 
-  runJob(req, res, prompt, 1500, "speaking moment");
+  runJob<Record<string, unknown>>(
+    req,
+    res,
+    prompt,
+    1500,
+    "speaking moment",
+    undefined,
+    (result) => {
+      const out: Record<string, unknown> = { ...result };
+      if (hasAlignmentSm) {
+        out.alignmentNotes = trimmedAlignmentSm;
+      } else {
+        delete out.alignmentNotes;
+      }
+      return out;
+    },
+  );
 });
 
 router.post("/generate/step-content", requireAuth, async (req, res) => {
@@ -550,6 +594,18 @@ router.post("/generate/devotional", requireAuth, async (req, res) => {
   const data = parsed.data;
   const ctx = await getChurchContext(req.userId!);
   const minutes = data.durationMinutes ?? 10;
+  const trimmedAlignmentDv = (data.alignmentNotes ?? "").trim();
+  const hasAlignmentDv = trimmedAlignmentDv.length > 0;
+  const alignmentBlockDv = hasAlignmentDv
+    ? `
+
+Alignment notes from the pastor (sermon notes, source text, or other material this devotional should echo):
+"""
+${trimmedAlignmentDv}
+"""
+Echo the imagery, refrains, and theological language from these notes in your devotional. Do NOT quote song lyrics verbatim — paraphrase to honor copyright. If the notes contradict the theme/scripture above, the theme/scripture wins.`
+    : "";
+
   const prompt = `Write a team devotional for a worship rehearsal as JSON.
 
 Theme: ${data.theme}
@@ -558,7 +614,7 @@ Audience: ${data.audience ?? "worship team"}
 Approximate length: ${minutes} minutes
 
 Church context:
-${churchContextBlurb(ctx)}
+${churchContextBlurb(ctx)}${alignmentBlockDv}
 
 Return JSON exactly in this shape:
 {
@@ -572,7 +628,23 @@ Return JSON exactly in this shape:
 
 Aim for content that fits in the ${minutes}-minute window when read aloud.`;
 
-  runJob(req, res, prompt, 3000, "devotional");
+  runJob<Record<string, unknown>>(
+    req,
+    res,
+    prompt,
+    3000,
+    "devotional",
+    undefined,
+    (result) => {
+      const out: Record<string, unknown> = { ...result };
+      if (hasAlignmentDv) {
+        out.alignmentNotes = trimmedAlignmentDv;
+      } else {
+        delete out.alignmentNotes;
+      }
+      return out;
+    },
+  );
 });
 
 // Polling endpoint for any background generation job. Returns the snapshot

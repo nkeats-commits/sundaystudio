@@ -48,7 +48,9 @@ export default function SongGenerator() {
     style: 'mixed (modern worship and hymns)',
     count: 5,
     repertoireMode: 'prefer' as RepertoireMode,
+    alignmentNotes: '',
   });
+  const ALIGNMENT_MAX = 4000;
 
   const generate = useJobGenerate<GeneratedSongs>('/api/generate/songs');
   const createLibraryItem = useCreateLibraryItem();
@@ -93,17 +95,32 @@ export default function SongGenerator() {
     lastSubmittedRef.current = safePayload;
     setSavedSongs({});
     songSavePromisesRef.current = {};
-    generate.mutate(safePayload).catch((err: Error) => {
+    const trimmedAlignment = safePayload.alignmentNotes.trim();
+    const requestBody = {
+      theme: safePayload.theme,
+      scripture: safePayload.scripture || undefined,
+      style: safePayload.style,
+      count: safePayload.count,
+      repertoireMode: safePayload.repertoireMode,
+      ...(trimmedAlignment ? { alignmentNotes: trimmedAlignment.slice(0, ALIGNMENT_MAX) } : {}),
+    };
+    generate.mutate(requestBody).catch((err: Error) => {
       toast.error(err.message || 'Generation failed. Please try again.');
     });
   };
 
-  const buildSongPayload = (song: SongSuggestion) => ({
-    kind: 'song' as const,
-    title: song.title,
-    content: { ...song },
-    tags: [song.style ?? 'Song', ...(song.themes ?? [])],
-  });
+  const buildSongPayload = (song: SongSuggestion) => {
+    const alignmentNotes = generate.data?.alignmentNotes;
+    return {
+      kind: 'song' as const,
+      title: song.title,
+      content: {
+        ...song,
+        ...(alignmentNotes ? { alignmentNotes } : {}),
+      },
+      tags: [song.style ?? 'Song', ...(song.themes ?? [])],
+    };
+  };
 
   const ensureSongSaved = (index: number, song: SongSuggestion) => (): Promise<LibraryItem> => {
     const existing = savedSongs[index];
@@ -307,6 +324,26 @@ export default function SongGenerator() {
                     (o) => o.value === formData.repertoireMode,
                   )?.description
                 )}
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-1">
+                <label className="block text-xs font-semibold text-[var(--worship-slate)]">ALIGNMENT NOTES (OPTIONAL)</label>
+                <span className={`text-[10px] ${formData.alignmentNotes.length > ALIGNMENT_MAX ? 'text-red-600' : 'text-[var(--worship-muted-slate)]'}`}>
+                  {formData.alignmentNotes.length}/{ALIGNMENT_MAX}
+                </span>
+              </div>
+              <textarea
+                value={formData.alignmentNotes}
+                onChange={e => setFormData({ ...formData, alignmentNotes: e.target.value.slice(0, ALIGNMENT_MAX) })}
+                placeholder="Paste sermon notes, source text, or other material the song picks should echo."
+                rows={4}
+                data-testid="input-alignment-notes"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm leading-relaxed resize-y"
+              />
+              <p className="text-[10px] text-[var(--worship-muted-slate)] mt-1 italic">
+                Song lyrics will be paraphrased, not copied verbatim, to honor copyright.
               </p>
             </div>
 
