@@ -597,6 +597,13 @@ export default function ServiceBuilder() {
                         <span className="text-[var(--worship-navy)] shrink-0">
                           {getMiniIcon(step.kind)}
                         </span>
+                        <span
+                          className="shrink-0 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-bold bg-[var(--worship-cream)] text-[var(--worship-muted-slate)] border border-[var(--worship-border)]"
+                          data-testid={`flow-step-kind-${i}`}
+                          title={`Slot kind: ${step.kind}`}
+                        >
+                          {step.kind}
+                        </span>
                         {renamingUid === step.uid ? (
                           <input
                             autoFocus

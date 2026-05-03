@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import type { LibraryItem } from '@workspace/api-client-react';
 import {
@@ -658,6 +659,7 @@ function SavedFlowsPanel() {
   const deleteTemplate = useDeleteServiceTemplate();
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [draftName, setDraftName] = useState('');
+  const [, setLocation] = useLocation();
 
   const invalidate = () =>
     queryClient.invalidateQueries({
@@ -726,10 +728,18 @@ function SavedFlowsPanel() {
         <h3 className="text-lg font-serif text-[var(--worship-navy)] mb-2">
           No saved service flows yet
         </h3>
-        <p className="text-[var(--worship-slate)] max-w-sm">
+        <p className="text-[var(--worship-slate)] max-w-sm mb-4">
           Build a service in the Service Builder, then save the order as a
           reusable template you can apply with one click.
         </p>
+        <button
+          type="button"
+          onClick={() => setLocation('/service-builder')}
+          className="px-4 py-2 rounded-lg text-sm worship-btn-primary text-white"
+          data-testid="button-build-a-template"
+        >
+          Build a template →
+        </button>
       </div>
     );
   }
