@@ -179,6 +179,61 @@ const ADDON_STEPS: StepDef[] = [
   { key: 'smallGroupQuestions', section: 'smallGroupQuestions', label: 'Small Group Questions', icon: MessageCircleQuestion, prereq: { section: 'bigIdea', label: 'Big Idea' } },
 ];
 
+function exportTitleFor(format: string): string {
+  if (format === 'small-group-handout') return 'Small group leader handout';
+  if (format === 'small-group-email') return 'Small group email draft';
+  if (format === 'manuscript') return 'Sermon manuscript';
+  if (format === 'notes') return 'Sermon notes';
+  if (format === 'outline') return 'Sermon outline';
+  return 'Exported sermon';
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function printExportContent(exportContent: { content: string; format: string }): void {
+  const title = exportTitleFor(exportContent.format);
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1000');
+  if (!win) {
+    toast.error('Popup blocked — allow popups for this site to print.');
+    return;
+  }
+  const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(title)}</title>
+<style>
+  @page { margin: 0.6in; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #1f2937; margin: 0; padding: 24px; }
+  h1 { font-size: 20pt; margin: 0 0 4px; }
+  .meta { font-size: 9pt; color: #6b7280; margin: 0 0 16px; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; }
+  pre { font-family: 'Courier New', Courier, monospace; font-size: 10.5pt; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; margin: 0; }
+  @media print { body { padding: 0; } .no-print { display: none; } }
+</style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <p class="meta">Printed from WorshipFlow · ${escapeHtml(new Date().toLocaleDateString())}</p>
+  <pre>${escapeHtml(exportContent.content)}</pre>
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () { window.focus(); window.print(); }, 100);
+    });
+  </script>
+</body>
+</html>`;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
 export default function SermonBuilder() {
   const [, params] = useRoute('/sermons/:id');
   const [, setLocation] = useLocation();
@@ -1263,6 +1318,7 @@ export default function SermonBuilder() {
                 <p className="text-xs text-[var(--worship-slate)]">{exportContent.format === 'small-group-handout' ? 'Print or copy this and hand it to your group leaders.' : exportContent.format === 'small-group-email' ? 'Copy and paste into your email — subject line included.' : `Format: ${exportContent.format}`}</p>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => printExportContent(exportContent)} className="px-3 py-1.5 text-xs rounded-lg border flex items-center gap-1.5 hover:bg-slate-50" style={{ borderColor: 'var(--worship-border)' }}><Printer className="w-3.5 h-3.5" /> Print</button>
                 <button onClick={() => navigator.clipboard.writeText(exportContent.content).then(() => toast.success('Copied'))} className="worship-btn-primary px-3 py-1.5 text-xs rounded-lg">Copy</button>
                 <button onClick={() => setExportContent(null)} className="p-1.5 rounded hover:bg-slate-100"><X className="w-4 h-4" /></button>
               </div>
