@@ -902,7 +902,11 @@ function ItemDetailBody({ item }: { item: LibraryItem }) {
   // song
   const artist = str('artist');
   const style = str('style');
-  const themes = arr('themes');
+  // Generated songs save themes on `content.themes`; manually added or
+  // bulk-imported repertoire songs may only have user tags. Fall back to
+  // `item.tags` so the detail panel surfaces something either way.
+  const contentThemes = arr('themes');
+  const themes = contentThemes.length > 0 ? contentThemes : (item.tags ?? []);
   const why = str('whyItFits');
   return (
     <div className="space-y-5">
