@@ -6,6 +6,7 @@ import {
   ListLibraryItemsQueryParams,
   SetLibraryItemRepertoireBody,
   BulkImportRepertoireBody,
+  UpdateLibraryItemBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { normalizeTitle } from "../lib/repertoire";
@@ -197,6 +198,61 @@ router.post("/library/repertoire/bulk-import", requireAuth, async (req, res) => 
   }
 
   res.json({ added, skippedDuplicates, invalidLines });
+});
+
+/**
+ * Edit a saved library item in place. Accepts any subset of title, content,
+ * and tags so the detail modal can persist quick fixes without re-creating
+ * the row. Returns the updated row so the client can swap it into its cache.
+ */
+router.patch("/library/:id", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const parsed = UpdateLibraryItemBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const updates: Partial<{
+    title: string;
+    content: Record<string, unknown>;
+    tags: string[];
+  }> = {};
+  if (parsed.data.title !== undefined) {
+    // Trim server-side so API callers outside the UI can't store
+    // whitespace-only or padded titles.
+    const trimmed = parsed.data.title.trim();
+    if (!trimmed) {
+      res.status(400).json({ error: "Title cannot be empty" });
+      return;
+    }
+    updates.title = trimmed;
+  }
+  if (parsed.data.content !== undefined)
+    updates.content = parsed.data.content as Record<string, unknown>;
+  if (parsed.data.tags !== undefined) updates.tags = parsed.data.tags;
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No fields to update" });
+    return;
+  }
+  const [row] = await db
+    .update(libraryItemsTable)
+    .set(updates)
+    .where(
+      and(
+        eq(libraryItemsTable.id, id),
+        eq(libraryItemsTable.userId, req.userId!),
+      ),
+    )
+    .returning();
+  if (!row) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  res.json(row);
 });
 
 router.delete("/library/:id", requireAuth, async (req, res) => {

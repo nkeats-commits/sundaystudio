@@ -79,6 +79,8 @@ import type {
   ServicePlanExport,
   SetRepertoireBody,
   UnauthorizedResponse,
+  UpdateLibraryItem400,
+  UpdateLibraryItemBody,
   UpdateSermonBody,
   UpdateSermonResourceBody,
   UpdateSermonSeriesBody,
@@ -1089,6 +1091,99 @@ export const useCreateLibraryItem = <
   TContext
 > => {
   return useMutation(getCreateLibraryItemMutationOptions(options));
+};
+
+/**
+ * @summary Update a saved library item (title, content, and/or tags).
+ */
+export const getUpdateLibraryItemUrl = (id: number) => {
+  return `/api/library/${id}`;
+};
+
+export const updateLibraryItem = async (
+  id: number,
+  updateLibraryItemBody: UpdateLibraryItemBody,
+  options?: RequestInit,
+): Promise<LibraryItem> => {
+  return customFetch<LibraryItem>(getUpdateLibraryItemUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateLibraryItemBody),
+  });
+};
+
+export const getUpdateLibraryItemMutationOptions = <
+  TError = ErrorType<
+    UpdateLibraryItem400 | UnauthorizedResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLibraryItem>>,
+    TError,
+    { id: number; data: BodyType<UpdateLibraryItemBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateLibraryItem>>,
+  TError,
+  { id: number; data: BodyType<UpdateLibraryItemBody> },
+  TContext
+> => {
+  const mutationKey = ["updateLibraryItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateLibraryItem>>,
+    { id: number; data: BodyType<UpdateLibraryItemBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateLibraryItem(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateLibraryItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateLibraryItem>>
+>;
+export type UpdateLibraryItemMutationBody = BodyType<UpdateLibraryItemBody>;
+export type UpdateLibraryItemMutationError = ErrorType<
+  UpdateLibraryItem400 | UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Update a saved library item (title, content, and/or tags).
+ */
+export const useUpdateLibraryItem = <
+  TError = ErrorType<
+    UpdateLibraryItem400 | UnauthorizedResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateLibraryItem>>,
+    TError,
+    { id: number; data: BodyType<UpdateLibraryItemBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateLibraryItem>>,
+  TError,
+  { id: number; data: BodyType<UpdateLibraryItemBody> },
+  TContext
+> => {
+  return useMutation(getUpdateLibraryItemMutationOptions(options));
 };
 
 /**

@@ -6,6 +6,7 @@ import {
   useCreateLibraryItem,
   useSetLibraryItemRepertoire,
   useBulkImportRepertoire,
+  useUpdateLibraryItem,
   getListLibraryItemsQueryKey,
 } from '@workspace/api-client-react';
 import {
@@ -21,8 +22,10 @@ import {
   X,
   Loader2,
   Copy,
+  Pencil,
+  Check,
 } from 'lucide-react';
-import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { LibraryItem } from '@workspace/api-client-react';
@@ -626,6 +629,10 @@ export default function Library() {
           setViewingItem(null);
           invalidateLibrary();
         }}
+        onUpdated={(updated) => {
+          setViewingItem(updated);
+          invalidateLibrary();
+        }}
         deleteItem={deleteItem}
         getIcon={getIcon}
         formatKind={formatKind}
@@ -680,10 +687,128 @@ function buildCopyText(item: LibraryItem): string {
     .join('\n');
 }
 
+/**
+ * Local draft model for the editor. Keeps every field as a string (or
+ * string[] for the questions list) so the inputs stay simple and we only
+ * coerce when persisting.
+ */
+type EditDraft = {
+  title: string;
+  // liturgy / speaking_moment
+  body: string;
+  notes: string;
+  deliveryNotes: string;
+  // devotional
+  opening: string;
+  scripture: string;
+  discussionQuestions: string[];
+  closingPrayer: string;
+  // song
+  artist: string;
+  style: string;
+  themes: string;
+  whyItFits: string;
+};
+
+function emptyDraft(): EditDraft {
+  return {
+    title: '',
+    body: '',
+    notes: '',
+    deliveryNotes: '',
+    opening: '',
+    scripture: '',
+    discussionQuestions: [],
+    closingPrayer: '',
+    artist: '',
+    style: '',
+    themes: '',
+    whyItFits: '',
+  };
+}
+
+function draftFromItem(item: LibraryItem): EditDraft {
+  const c = item.content as Record<string, unknown>;
+  const str = (k: string) =>
+    typeof c[k] === 'string' ? (c[k] as string) : '';
+  const arr = (k: string) =>
+    Array.isArray(c[k]) ? (c[k] as unknown[]).map(String) : [];
+  // Songs: the view body falls back to item.tags when content.themes is
+  // empty (so imported / manually-added songs surface tags as themes).
+  // Mirror that fallback here so the editor opens with what the user sees.
+  const contentThemes = arr('themes');
+  const songThemes =
+    item.kind === 'song' && contentThemes.length === 0
+      ? (item.tags ?? []).map(String)
+      : contentThemes;
+  return {
+    title: item.title,
+    body: str('body'),
+    notes: str('notes'),
+    deliveryNotes: str('deliveryNotes'),
+    opening: str('opening'),
+    scripture: str('scripture'),
+    discussionQuestions: arr('discussionQuestions'),
+    closingPrayer: str('closingPrayer'),
+    artist: str('artist'),
+    style: str('style'),
+    themes: songThemes.join(', '),
+    whyItFits: str('whyItFits'),
+  };
+}
+
+/**
+ * Build the new content blob for a kind from the editor draft, preserving
+ * any keys we don't expose so we never silently strip data the generator
+ * may have added (e.g. song scripture refs, structured metadata).
+ */
+function contentFromDraft(
+  item: LibraryItem,
+  draft: EditDraft,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = {
+    ...(item.content as Record<string, unknown>),
+  };
+  const setOrDelete = (key: string, value: string) => {
+    const trimmed = value.trim();
+    if (trimmed) next[key] = trimmed;
+    else delete next[key];
+  };
+  if (item.kind === 'liturgy') {
+    setOrDelete('body', draft.body);
+    setOrDelete('notes', draft.notes);
+  } else if (item.kind === 'speaking_moment') {
+    setOrDelete('body', draft.body);
+    setOrDelete('deliveryNotes', draft.deliveryNotes);
+  } else if (item.kind === 'devotional') {
+    setOrDelete('opening', draft.opening);
+    setOrDelete('scripture', draft.scripture);
+    setOrDelete('body', draft.body);
+    setOrDelete('closingPrayer', draft.closingPrayer);
+    const qs = draft.discussionQuestions
+      .map((q) => q.trim())
+      .filter(Boolean);
+    if (qs.length > 0) next.discussionQuestions = qs;
+    else delete next.discussionQuestions;
+  } else if (item.kind === 'song') {
+    setOrDelete('artist', draft.artist);
+    setOrDelete('style', draft.style);
+    setOrDelete('whyItFits', draft.whyItFits);
+    const themes = draft.themes
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (themes.length > 0) next.themes = themes;
+    else delete next.themes;
+  }
+  return next;
+}
+
 function LibraryItemDetailDialog({
   item,
   onClose,
   onDeleted,
+  onUpdated,
   deleteItem,
   getIcon,
   formatKind,
@@ -691,11 +816,31 @@ function LibraryItemDetailDialog({
   item: LibraryItem | null;
   onClose: () => void;
   onDeleted: () => void;
+  onUpdated: (updated: LibraryItem) => void;
   deleteItem: ReturnType<typeof useDeleteLibraryItem>;
   getIcon: (kind: string) => React.ReactNode;
   formatKind: (kind: string) => string;
 }) {
   const open = item !== null;
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<EditDraft>(emptyDraft);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const updateItem = useUpdateLibraryItem();
+
+  // Reset draft whenever a new item is opened or the dialog closes.
+  useEffect(() => {
+    if (item) {
+      setDraft(draftFromItem(item));
+      setTitleError(null);
+      setSaveError(null);
+      setIsEditing(false);
+    } else {
+      setIsEditing(false);
+      setTitleError(null);
+      setSaveError(null);
+    }
+  }, [item?.id]);
 
   const handleCopy = () => {
     if (!item) return;
@@ -720,6 +865,57 @@ function LibraryItemDetailDialog({
     );
   };
 
+  const handleStartEdit = () => {
+    if (!item) return;
+    setDraft(draftFromItem(item));
+    setTitleError(null);
+    setSaveError(null);
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    if (item) setDraft(draftFromItem(item));
+    setTitleError(null);
+    setSaveError(null);
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    if (!item) return;
+    const title = draft.title.trim();
+    if (!title) {
+      setTitleError('Title is required.');
+      return;
+    }
+    setTitleError(null);
+    setSaveError(null);
+    try {
+      // For songs, always keep tags in sync with the edited themes so the
+      // card badges and view-mode fallback render the user's latest input
+      // regardless of whether the song originally had content.themes.
+      const themesList = draft.themes
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const updated = await updateItem.mutateAsync({
+        id: item.id,
+        data: {
+          title,
+          content: contentFromDraft(item, draft),
+          ...(item.kind === 'song' ? { tags: themesList } : {}),
+        },
+      });
+      toast.success('Changes saved');
+      setIsEditing(false);
+      onUpdated(updated);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Could not save changes.';
+      setSaveError(message);
+      toast.error(message);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -735,41 +931,342 @@ function LibraryItemDetailDialog({
                 {getIcon(item.kind)}
                 {formatKind(item.kind)}
               </div>
-              <DialogTitle className="font-serif text-2xl text-[var(--worship-navy)] pr-8">
-                {item.title}
-              </DialogTitle>
+              {isEditing ? (
+                <div className="space-y-1">
+                  <input
+                    value={draft.title}
+                    onChange={(e) => {
+                      setDraft({ ...draft, title: e.target.value });
+                      if (titleError) setTitleError(null);
+                    }}
+                    className={`w-full font-serif text-2xl text-[var(--worship-navy)] px-3 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] ${
+                      titleError
+                        ? 'border-red-400'
+                        : 'border-[var(--worship-border)]'
+                    }`}
+                    placeholder="Title"
+                    data-testid="input-detail-title"
+                  />
+                  {titleError && (
+                    <p
+                      className="text-xs text-red-600"
+                      data-testid="error-detail-title"
+                    >
+                      {titleError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <DialogTitle className="font-serif text-2xl text-[var(--worship-navy)] pr-8">
+                  {item.title}
+                </DialogTitle>
+              )}
             </DialogHeader>
 
             <div
               className="flex-1 overflow-y-auto px-6 py-6"
               data-testid="library-detail-body"
             >
-              <ItemDetailBody item={item} />
+              {isEditing ? (
+                <ItemEditBody
+                  item={item}
+                  draft={draft}
+                  setDraft={setDraft}
+                />
+              ) : (
+                <ItemDetailBody item={item} />
+              )}
             </div>
 
+            {isEditing && saveError && (
+              <div
+                className="px-6 py-2 border-t border-[var(--worship-border)] bg-red-50 text-xs text-red-700"
+                data-testid="error-detail-save"
+                role="alert"
+              >
+                {saveError}
+              </div>
+            )}
             <div className="px-6 py-4 border-t border-[var(--worship-border)] flex justify-between items-center gap-2 bg-[var(--worship-cream)]/50">
-              <button
-                onClick={handleDelete}
-                disabled={deleteItem.isPending}
-                className="px-4 py-2 rounded-lg font-medium text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 disabled:opacity-50"
-                data-testid="button-detail-delete"
-              >
-                <Trash2 className="w-4 h-4" />
-                {deleteItem.isPending ? 'Deleting…' : 'Delete'}
-              </button>
-              <button
-                onClick={handleCopy}
-                className="px-4 py-2 rounded-lg font-medium text-sm border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-white transition-colors flex items-center gap-2"
-                data-testid="button-detail-copy"
-              >
-                <Copy className="w-4 h-4" />
-                Copy
-              </button>
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleCancel}
+                    disabled={updateItem.isPending}
+                    className="px-4 py-2 rounded-lg font-medium text-sm text-[var(--worship-slate)] hover:bg-white transition-colors disabled:opacity-50"
+                    data-testid="button-detail-cancel"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={updateItem.isPending}
+                    className="px-4 py-2 rounded-lg font-medium text-sm text-white worship-btn-primary disabled:opacity-50 flex items-center gap-2"
+                    data-testid="button-detail-save"
+                  >
+                    {updateItem.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    {updateItem.isPending ? 'Saving…' : 'Save'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleteItem.isPending}
+                    className="px-4 py-2 rounded-lg font-medium text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                    data-testid="button-detail-delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {deleteItem.isPending ? 'Deleting…' : 'Delete'}
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleStartEdit}
+                      className="px-4 py-2 rounded-lg font-medium text-sm border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-white transition-colors flex items-center gap-2"
+                      data-testid="button-detail-edit"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleCopy}
+                      className="px-4 py-2 rounded-lg font-medium text-sm border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-white transition-colors flex items-center gap-2"
+                      data-testid="button-detail-copy"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Editable counterpart to ItemDetailBody. Shows just the fields that are
+ * relevant to the item's kind so users can tweak wording in place.
+ */
+function ItemEditBody({
+  item,
+  draft,
+  setDraft,
+}: {
+  item: LibraryItem;
+  draft: EditDraft;
+  setDraft: (d: EditDraft) => void;
+}) {
+  const labelClass =
+    'block text-xs font-semibold uppercase tracking-wider text-[var(--worship-slate)] mb-1';
+  const inputClass =
+    'w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm';
+  const textareaClass = inputClass + ' font-serif leading-relaxed';
+
+  if (item.kind === 'liturgy') {
+    return (
+      <div className="space-y-5">
+        <div>
+          <label className={labelClass}>Body</label>
+          <textarea
+            value={draft.body}
+            onChange={(e) => setDraft({ ...draft, body: e.target.value })}
+            rows={12}
+            className={textareaClass}
+            data-testid="input-edit-body"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Pastoral Notes</label>
+          <textarea
+            value={draft.notes}
+            onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+            rows={4}
+            className={textareaClass}
+            data-testid="input-edit-notes"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (item.kind === 'speaking_moment') {
+    return (
+      <div className="space-y-5">
+        <div>
+          <label className={labelClass}>Body</label>
+          <textarea
+            value={draft.body}
+            onChange={(e) => setDraft({ ...draft, body: e.target.value })}
+            rows={12}
+            className={textareaClass}
+            data-testid="input-edit-body"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Delivery Notes</label>
+          <textarea
+            value={draft.deliveryNotes}
+            onChange={(e) =>
+              setDraft({ ...draft, deliveryNotes: e.target.value })
+            }
+            rows={4}
+            className={textareaClass}
+            data-testid="input-edit-delivery-notes"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (item.kind === 'devotional') {
+    return (
+      <div className="space-y-5">
+        <div>
+          <label className={labelClass}>Opening</label>
+          <textarea
+            value={draft.opening}
+            onChange={(e) => setDraft({ ...draft, opening: e.target.value })}
+            rows={3}
+            className={textareaClass}
+            data-testid="input-edit-opening"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Scripture</label>
+          <input
+            value={draft.scripture}
+            onChange={(e) =>
+              setDraft({ ...draft, scripture: e.target.value })
+            }
+            className={inputClass}
+            data-testid="input-edit-scripture"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Body</label>
+          <textarea
+            value={draft.body}
+            onChange={(e) => setDraft({ ...draft, body: e.target.value })}
+            rows={10}
+            className={textareaClass}
+            data-testid="input-edit-body"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Discussion Questions</label>
+          <div className="space-y-2">
+            {draft.discussionQuestions.map((q, i) => (
+              <div key={i} className="flex gap-2 items-start">
+                <span className="mt-2 text-sm text-[var(--worship-muted-slate)] w-5">
+                  {i + 1}.
+                </span>
+                <textarea
+                  value={q}
+                  onChange={(e) => {
+                    const next = [...draft.discussionQuestions];
+                    next[i] = e.target.value;
+                    setDraft({ ...draft, discussionQuestions: next });
+                  }}
+                  rows={2}
+                  className={textareaClass + ' flex-1'}
+                  data-testid={`input-edit-question-${i}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = draft.discussionQuestions.filter(
+                      (_, idx) => idx !== i,
+                    );
+                    setDraft({ ...draft, discussionQuestions: next });
+                  }}
+                  className="mt-1 p-1 text-[var(--worship-muted-slate)] hover:text-red-500"
+                  aria-label={`Remove question ${i + 1}`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setDraft({
+                  ...draft,
+                  discussionQuestions: [...draft.discussionQuestions, ''],
+                })
+              }
+              className="inline-flex items-center gap-1 text-xs text-[var(--worship-gold)] hover:text-[var(--worship-navy)]"
+              data-testid="button-add-question"
+            >
+              <Plus className="w-3 h-3" /> Add question
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className={labelClass}>Closing Prayer</label>
+          <textarea
+            value={draft.closingPrayer}
+            onChange={(e) =>
+              setDraft({ ...draft, closingPrayer: e.target.value })
+            }
+            rows={4}
+            className={textareaClass}
+            data-testid="input-edit-closing-prayer"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // song
+  return (
+    <div className="space-y-5">
+      <div>
+        <label className={labelClass}>Artist</label>
+        <input
+          value={draft.artist}
+          onChange={(e) => setDraft({ ...draft, artist: e.target.value })}
+          className={inputClass}
+          data-testid="input-edit-artist"
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Style</label>
+        <input
+          value={draft.style}
+          onChange={(e) => setDraft({ ...draft, style: e.target.value })}
+          className={inputClass}
+          data-testid="input-edit-style"
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Themes (comma-separated)</label>
+        <input
+          value={draft.themes}
+          onChange={(e) => setDraft({ ...draft, themes: e.target.value })}
+          className={inputClass}
+          placeholder="e.g. Grace, Hope, Renewal"
+          data-testid="input-edit-themes"
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Why it fits</label>
+        <textarea
+          value={draft.whyItFits}
+          onChange={(e) => setDraft({ ...draft, whyItFits: e.target.value })}
+          rows={4}
+          className={textareaClass}
+          data-testid="input-edit-why-it-fits"
+        />
+      </div>
+    </div>
   );
 }
 

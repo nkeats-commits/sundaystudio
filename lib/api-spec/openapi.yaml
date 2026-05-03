@@ -259,6 +259,38 @@ paths:
           $ref: "#/components/responses/Unauthorized"
 
   /library/{id}:
+    patch:
+      operationId: updateLibraryItem
+      tags: [library]
+      summary: Update a saved library item (title, content, and/or tags).
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLibraryItemBody"
+      responses:
+        "200":
+          description: Updated library item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryItem"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
       operationId: deleteLibraryItem
       tags: [library]
@@ -1447,6 +1479,21 @@ components:
           type: boolean
           description: When true, also marks the saved song as part of the user's repertoire.
       required: [kind, title, content]
+
+    UpdateLibraryItemBody:
+      type: object
+      description: Partial update for a saved library item. Any subset of title, content, or tags may be supplied.
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: object
+          additionalProperties: true
+        tags:
+          type: array
+          items:
+            type: string
 
     SetRepertoireBody:
       type: object

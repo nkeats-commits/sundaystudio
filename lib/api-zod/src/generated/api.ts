@@ -531,6 +531,38 @@ export const CreateLibraryItemBody = zod.object({
 });
 
 /**
+ * @summary Update a saved library item (title, content, and/or tags).
+ */
+export const UpdateLibraryItemParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateLibraryItemBody = zod
+  .object({
+    title: zod.string().min(1).optional(),
+    content: zod.record(zod.string(), zod.unknown()).optional(),
+    tags: zod.array(zod.string()).optional(),
+  })
+  .describe(
+    "Partial update for a saved library item. Any subset of title, content, or tags may be supplied.",
+  );
+
+export const UpdateLibraryItemResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  kind: zod.enum(["liturgy", "song", "speaking_moment", "devotional"]),
+  title: zod.string(),
+  content: zod.record(zod.string(), zod.unknown()),
+  tags: zod.array(zod.string()),
+  isRepertoire: zod
+    .boolean()
+    .describe(
+      "True when this song is part of the user's personal repertoire that worship-song generators will prefer.",
+    ),
+  createdAt: zod.coerce.date(),
+});
+
+/**
  * @summary Delete a library item
  */
 export const DeleteLibraryItemParams = zod.object({

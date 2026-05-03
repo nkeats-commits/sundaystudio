@@ -203,6 +203,18 @@ export interface CreateLibraryItemBody {
   isRepertoire?: boolean;
 }
 
+export type UpdateLibraryItemBodyContent = { [key: string]: unknown };
+
+/**
+ * Partial update for a saved library item. Any subset of title, content, or tags may be supplied.
+ */
+export interface UpdateLibraryItemBody {
+  /** @minLength 1 */
+  title?: string;
+  content?: UpdateLibraryItemBodyContent;
+  tags?: string[];
+}
+
 export interface SetRepertoireBody {
   isRepertoire: boolean;
 }
@@ -838,6 +850,10 @@ export const ListLibraryItemsKind = {
   speaking_moment: "speaking_moment",
   devotional: "devotional",
 } as const;
+
+export type UpdateLibraryItem400 = {
+  error?: string;
+};
 
 export type GenerateServicePlan400 = {
   error?: string;
