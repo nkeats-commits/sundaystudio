@@ -189,6 +189,44 @@ export function renderSermonAsMarkdown(s: Sermon): string {
     }
   }
 
+  if (s.smallGroupQuestions) {
+    const sg = s.smallGroupQuestions;
+    const hasContent =
+      !!sg.openingIcebreaker ||
+      (sg.observationQuestions && sg.observationQuestions.length > 0) ||
+      (sg.interpretationQuestions && sg.interpretationQuestions.length > 0) ||
+      (sg.applicationQuestions && sg.applicationQuestions.length > 0) ||
+      !!sg.prayerPrompt;
+    if (hasContent) {
+      lines.push("## Small Group Questions");
+      if (sg.openingIcebreaker) {
+        lines.push("### Opening icebreaker");
+        lines.push(sg.openingIcebreaker);
+        lines.push("");
+      }
+      if (sg.observationQuestions && sg.observationQuestions.length > 0) {
+        lines.push("### Observation");
+        for (const q of sg.observationQuestions) lines.push("- " + q);
+        lines.push("");
+      }
+      if (sg.interpretationQuestions && sg.interpretationQuestions.length > 0) {
+        lines.push("### Interpretation");
+        for (const q of sg.interpretationQuestions) lines.push("- " + q);
+        lines.push("");
+      }
+      if (sg.applicationQuestions && sg.applicationQuestions.length > 0) {
+        lines.push("### Application");
+        for (const q of sg.applicationQuestions) lines.push("- " + q);
+        lines.push("");
+      }
+      if (sg.prayerPrompt) {
+        lines.push("### Prayer prompt");
+        lines.push(sg.prayerPrompt);
+        lines.push("");
+      }
+    }
+  }
+
   if (s.pastorNotes) {
     lines.push("## Pastor notes");
     lines.push(s.pastorNotes);
