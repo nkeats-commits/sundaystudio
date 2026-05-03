@@ -9,7 +9,7 @@ import type { PreviewLibraryHit } from "./previewLibraryHit";
 import type { PreviewPublicDomainHit } from "./previewPublicDomainHit";
 
 export interface PreviewSermonResourcesResponse {
-  /** Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. Each entry = one source × one (book, chapter) hit. */
+  /** Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. De-duped to ONE entry per source (the AI prompt itself still receives one excerpt per matched chapter, but the preview surface answers "which sources will be consulted" rather than "how many excerpts"). */
   publicDomain: PreviewPublicDomainHit[];
   /** Resource Library rows that will be auto-included, after applying excludedResourceIds (or, in legacy mode, the rows in attachedResourceIds). */
   library: PreviewLibraryHit[];

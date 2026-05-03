@@ -1958,7 +1958,7 @@ export const PreviewSermonResourcesResponse = zod.object({
       }),
     )
     .describe(
-      "Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. Each entry = one source × one (book, chapter) hit.",
+      'Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. De-duped to ONE entry per source (the AI prompt itself still receives one excerpt per matched chapter, but the preview surface answers \"which sources will be consulted\" rather than \"how many excerpts\").',
     ),
   library: zod
     .array(

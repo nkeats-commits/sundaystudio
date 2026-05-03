@@ -326,6 +326,20 @@ router.post("/sermons/preview-resources", requireAuth, async (req, res) => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  // Match the validation that create/patch apply to these id arrays so
+  // preview semantics never diverge from what generation will accept.
+  const isIntArray = (arr: unknown): arr is number[] =>
+    !arr || (Array.isArray(arr) && (arr as unknown[]).every((x) => Number.isInteger(x)));
+  const isStrArray = (arr: unknown): arr is string[] =>
+    !arr || (Array.isArray(arr) && (arr as unknown[]).every((x) => typeof x === "string"));
+  if (
+    !isIntArray(parsed.data.attachedResourceIds) ||
+    !isIntArray(parsed.data.excludedResourceIds) ||
+    !isStrArray(parsed.data.excludedSourceIds)
+  ) {
+    res.status(400).json({ error: "Invalid id list" });
+    return;
+  }
   const result = await previewSermonResources(req.userId!, parsed.data);
   res.json(result);
 });
