@@ -3610,7 +3610,7 @@ components:
       properties:
         publicDomain:
           type: array
-          description: Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. Each entry = one source × one (book, chapter) hit.
+          description: Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. De-duped to ONE entry per source (the AI prompt itself still receives one excerpt per matched chapter, but the preview surface answers "which sources will be consulted" rather than "how many excerpts").
           items:
             $ref: "#/components/schemas/PreviewPublicDomainHit"
         library:

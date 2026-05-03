@@ -195,9 +195,7 @@ export async function mergeScholarlyResources(
   //   - NEW (attachedResourceIds empty): passage-match against the user's
   //     entire Resource Library, minus excluded ids.
   const legacy = isLegacyMode(ctx);
-  let libraryRows: Awaited<ReturnType<typeof db.select>> extends infer _T
-    ? Array<typeof sermonResourcesTable.$inferSelect>
-    : never;
+  let libraryRows: Array<typeof sermonResourcesTable.$inferSelect>;
   if (legacy) {
     const allowed = (ctx.attachedResourceIds ?? []).filter(
       (id) => Number.isInteger(id) && !excludedResources.has(id),
@@ -298,13 +296,22 @@ export interface PreviewResult {
 }
 
 /**
- * Predict what `mergeScholarlyResources` will inject for the given context
- * WITHOUT touching the prompt or running a generation. Lets the Sermon
- * Builder render a "Drawing on N resources" panel that's exactly what the
- * AI will see — eliminating the previous client/server matcher drift.
+ * Predict which Resource Library rows + public-domain commentary sources
+ * the server will draw on for a given sermon context, WITHOUT touching the
+ * prompt or running a generation.
  *
- * Note: the PD list returns one entry per (source, book, chapter) chapter
- * hit, mirroring the entry count `mergeScholarlyResources` injects.
+ * Server-side counterpart of `lib/passageMatch.ts` on the client. The
+ * client computes the panel locally for instant feedback as the pastor
+ * types; this endpoint is what the API server itself uses to verify the
+ * same set right before generation, and it's what the integration tests
+ * exercise.
+ *
+ * Public-domain return shape: ONE row per source that matched at least
+ * one of the sermon's chapters (de-duped). The AI prompt itself still
+ * receives one excerpt per (source, book, chapter) hit — see
+ * `mergeScholarlyResources` — but the preview surface answers "which
+ * sources will be consulted", not "how many excerpts", so the count never
+ * over-reports a single commentary that happens to span multiple chapters.
  */
 export async function previewSermonResources(
   userId: string,

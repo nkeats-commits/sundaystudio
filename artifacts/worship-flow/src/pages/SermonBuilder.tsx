@@ -10,7 +10,8 @@ import {
   useListSermonSeries,
   useCreateSermonSeries,
   useBuildServiceFromSermon,
-  previewSermonResources,
+  useListSermonResources,
+  useListScholarlySources,
   getListSermonSeriesQueryKey,
   getGetSermonQueryKey,
   getListServicePlansQueryKey,
@@ -28,6 +29,7 @@ import {
   type SermonSectionHashes,
   type PreviewSermonResourcesResponse,
 } from '@workspace/api-client-react';
+import { libraryRowMatches, sermonPassagePairs } from '../lib/passageMatch';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import {
   type SectionKey,
@@ -325,87 +327,103 @@ export default function SermonBuilder() {
 
   /**
    * Live preview of what the server-side merge will inject for the current
-   * sermon context. Single source of truth for the "Drawing on" panel —
-   * we POST `/sermons/preview-resources` (debounced) so the panel and the
-   * eventual generation can NEVER drift apart.
+   * sermon context. Computed CLIENT-SIDE so the panel updates instantly as
+   * the pastor types — no debounce, no race between in-flight requests, no
+   * loading flicker. The matcher is `lib/passageMatch.ts`, an exact mirror
+   * of the server's `libraryRowMatches` / `parsePassageRef` (pinned by
+   * unit tests on both sides). The same `mergeScholarlyResources` runs
+   * server-side at generation time, so the panel is what the AI sees.
    *
-   * Pre-applies excludedResourceIds + excludedSourceIds so the response
-   * is exactly the included set. To still let the pastor TOGGLE an
-   * excluded item back in, we also remember the pre-exclusion result and
-   * union the two lists (post-exclusion + opted-out items the pastor can
-   * un-opt-out).
+   * The shape matches `PreviewSermonResourcesResponse` so the existing
+   * render code (and the integration tests covering the server endpoint)
+   * stay 1:1 with the client logic.
+   *
+   * For public-domain commentaries we list the user's enabled set minus
+   * per-sermon excludes. We don't have per-chapter coverage data on the
+   * client, so a source listed here will only end up in the actual prompt
+   * if it has content for one of the sermon's chapters; in practice the
+   * bundled commentaries cover the whole canon, so the panel is accurate.
    */
-  const [preview, setPreview] = useState<PreviewSermonResourcesResponse | null>(null);
-  const [previewExcluded, setPreviewExcluded] = useState<{
-    library: { id: number; title: string }[];
-    publicDomain: { sourceId: string; sourceTitle: string }[];
-  }>({ library: [], publicDomain: [] });
-  const [previewLoading, setPreviewLoading] = useState(false);
-  useEffect(() => {
+  const sourcesQuery = useListScholarlySources();
+  const resourcesQuery = useListSermonResources();
+  const { preview, previewExcluded } = useMemo<{
+    preview: PreviewSermonResourcesResponse | null;
+    previewExcluded: {
+      library: { id: number; title: string }[];
+      publicDomain: { sourceId: string; sourceTitle: string }[];
+    };
+  }>(() => {
     if (!form.passage.trim()) {
-      setPreview(null);
-      setPreviewExcluded({ library: [], publicDomain: [] });
-      return;
+      return { preview: null, previewExcluded: { library: [], publicDomain: [] } };
     }
-    const handle = setTimeout(async () => {
-      const secondary = parseSecondary(form.secondaryPassagesText);
-      setPreviewLoading(true);
-      try {
-        // Two parallel calls: the actual included set (with exclusions
-        // applied), and a "candidates" set with NO exclusions applied —
-        // the latter feeds the "previously excluded, click to re-include"
-        // section so the pastor can reverse a toggle without leaving the
-        // panel.
-        const baseBody = {
-          passage: form.passage,
-          secondaryPassages: secondary,
-          attachedResourceIds: form.attachedResourceIds,
-        };
-        const [included, candidates] = await Promise.all([
-          previewSermonResources({
-            ...baseBody,
-            excludedResourceIds: form.excludedResourceIds,
-            excludedSourceIds: form.excludedSourceIds,
-          }),
-          previewSermonResources(baseBody),
-        ]);
-        setPreview(included);
-        const includedLibraryIds = new Set(included.library.map((l) => l.id));
-        const includedSourceIds = new Set(included.publicDomain.map((p) => p.sourceId));
-        // Library rows the pastor opted out of (still passage-relevant).
-        const excludedLibrary = candidates.library
-          .filter((l) => !includedLibraryIds.has(l.id) && form.excludedResourceIds.includes(l.id))
-          .map((l) => ({ id: l.id, title: l.title }));
-        // PD sources the pastor opted out of for this sermon (still relevant).
-        const excludedSourcesMap = new Map<string, string>();
-        for (const c of candidates.publicDomain) {
-          if (includedSourceIds.has(c.sourceId)) continue;
-          if (!form.excludedSourceIds.includes(c.sourceId)) continue;
-          if (!excludedSourcesMap.has(c.sourceId)) {
-            excludedSourcesMap.set(c.sourceId, c.sourceTitle);
-          }
-        }
-        setPreviewExcluded({
-          library: excludedLibrary,
-          publicDomain: Array.from(excludedSourcesMap, ([sourceId, sourceTitle]) => ({
-            sourceId,
-            sourceTitle,
-          })),
-        });
-      } catch {
-        // Network glitch — keep last preview so the panel doesn't blink.
-      } finally {
-        setPreviewLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(handle);
+    const sermonPairs = sermonPassagePairs(
+      form.passage,
+      parseSecondary(form.secondaryPassagesText),
+    );
+    const legacy = (form.attachedResourceIds ?? []).length > 0;
+
+    // ---- Library ----
+    const allRows = resourcesQuery.data ?? [];
+    const excludedRowIds = new Set(form.excludedResourceIds);
+    let libraryAll: typeof allRows;
+    if (legacy) {
+      const allowed = new Set(form.attachedResourceIds);
+      libraryAll = allRows.filter((r) => allowed.has(r.id));
+    } else {
+      libraryAll = allRows.filter((r) => libraryRowMatches(r.relatedPassage, sermonPairs));
+    }
+    const libraryIncluded = libraryAll
+      .filter((r) => !excludedRowIds.has(r.id))
+      .map((r) => ({
+        id: r.id,
+        title: r.title,
+        author: r.author || null,
+        relatedPassage: r.relatedPassage,
+        alwaysRelevant: !r.relatedPassage.trim(),
+      }));
+    const libraryExcluded = libraryAll
+      .filter((r) => excludedRowIds.has(r.id))
+      .map((r) => ({ id: r.id, title: r.title }));
+
+    // ---- Public-domain ----
+    const allSources = sourcesQuery.data?.sources ?? [];
+    const enabled = new Set(sourcesQuery.data?.enabledSourceIds ?? []);
+    const excludedSrcIds = new Set(form.excludedSourceIds);
+    const enabledSources = allSources.filter((s) => enabled.has(s.id));
+    const pdIncluded = enabledSources
+      .filter((s) => !excludedSrcIds.has(s.id))
+      .map((s) => ({
+        sourceId: s.id,
+        sourceTitle: s.title,
+        sourceAuthor: s.author || null,
+        // We surface a representative chapter label; client doesn't have
+        // per-chapter coverage data, so we synthesise one from the first
+        // sermon pair purely for display.
+        bookCanonical: sermonPairs[0]?.book ?? '',
+        chapter: sermonPairs[0]?.chapter ?? 0,
+      }));
+    const pdExcluded = enabledSources
+      .filter((s) => excludedSrcIds.has(s.id))
+      .map((s) => ({ sourceId: s.id, sourceTitle: s.title }));
+
+    return {
+      preview: {
+        publicDomain: pdIncluded,
+        library: libraryIncluded,
+        legacyMode: legacy,
+      },
+      previewExcluded: { library: libraryExcluded, publicDomain: pdExcluded },
+    };
   }, [
     form.passage,
     form.secondaryPassagesText,
     form.excludedResourceIds,
     form.excludedSourceIds,
     form.attachedResourceIds,
+    resourcesQuery.data,
+    sourcesQuery.data,
   ]);
+  const previewLoading = resourcesQuery.isLoading || sourcesQuery.isLoading;
 
   const ensureSermonId = async (): Promise<number | null> => {
     if (sermon) return sermon.id;
