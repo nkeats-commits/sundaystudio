@@ -84,6 +84,9 @@ export default function ServiceBuilder() {
   const [renamingUid, setRenamingUid] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  // Bumped after a successful save so SaveTemplateDialog remounts and
+  // discards any leftover draft name/description state.
+  const [saveDialogNonce, setSaveDialogNonce] = useState(0);
   // The currently-applied template id (built-in or saved). Cleared whenever
   // the user mutates the flow so it visually de-selects, signalling unsaved
   // changes.
@@ -292,6 +295,7 @@ export default function ServiceBuilder() {
             queryKey: getListServiceTemplatesQueryKey(),
           });
           setAppliedTemplateId(`saved-${created.id}`);
+          setSaveDialogNonce((n) => n + 1);
           setShowSaveDialog(false);
         },
         onError: (err: Error) => {
@@ -922,6 +926,7 @@ export default function ServiceBuilder() {
       )}
 
       <SaveTemplateDialog
+        key={saveDialogNonce}
         open={showSaveDialog}
         onClose={() => setShowSaveDialog(false)}
         onSave={handleSaveTemplate}

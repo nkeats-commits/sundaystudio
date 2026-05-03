@@ -122,6 +122,16 @@ router.post("/generate/service-plan", requireAuth, async (req, res) => {
   const repertoire = await loadRepertoireSongs(req.userId!);
   const repBlock = repertoirePromptBlock(repertoire, "prefer");
   const flow = data.flow ?? [];
+  // If the client explicitly sent a `flow` array, it must contain at least
+  // one step. We allow `flow` to be omitted entirely (legacy callers), but
+  // an empty array is a programming bug — the UI prevents it, and silently
+  // letting the AI invent a skeleton would violate the new flow contract.
+  if (data.flow !== undefined && flow.length === 0) {
+    res
+      .status(400)
+      .json({ error: "Service flow must contain at least one step." });
+    return;
+  }
   const flowBlock =
     flow.length > 0
       ? `User-defined service flow (you MUST follow this EXACTLY):
