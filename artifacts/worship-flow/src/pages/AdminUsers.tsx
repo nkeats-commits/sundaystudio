@@ -5,7 +5,7 @@ import {
   useGetAdminUsers,
   getGetAdminUsersQueryKey,
 } from "@workspace/api-client-react";
-import type { AccessStateKind } from "@workspace/api-client-react";
+import type { AccessState, AccessStateKind } from "@workspace/api-client-react";
 import { Search, ArrowRight } from "lucide-react";
 
 const STATUS_OPTIONS: Array<{
@@ -22,22 +22,46 @@ const STATUS_OPTIONS: Array<{
 
 const PAGE_SIZE = 50;
 
-function StateBadge({ kind }: { kind: AccessStateKind }) {
-  const map: Record<AccessStateKind, string> = {
-    trial: "bg-blue-50 text-blue-700",
-    active: "bg-emerald-50 text-emerald-700",
-    trialing: "bg-emerald-50 text-emerald-700",
-    past_due: "bg-amber-50 text-amber-700",
-    canceled: "bg-slate-100 text-slate-600",
-    expired: "bg-red-50 text-red-700",
-  };
+function Badge({ tone, children }: { tone: string; children: React.ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[kind]}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${tone}`}
     >
-      {kind}
+      {children}
     </span>
   );
+}
+
+/** Trial column: shows trial status & days left/ended (or em-dash if N/A). */
+function TrialCell({ state }: { state: AccessState }) {
+  if (state.kind === "trial") {
+    return (
+      <Badge tone="bg-blue-50 text-blue-700">
+        On trial · {state.daysLeft ?? 0}d left
+      </Badge>
+    );
+  }
+  if (state.kind === "expired") {
+    return <Badge tone="bg-red-50 text-red-700">Trial expired</Badge>;
+  }
+  // For users on a real subscription path, the trial column is N/A.
+  return <span className="text-xs text-[var(--worship-slate)]">—</span>;
+}
+
+/** Subscription column: shows Stripe subscription status (or em-dash if N/A). */
+function SubscriptionCell({ kind }: { kind: AccessStateKind }) {
+  switch (kind) {
+    case "active":
+      return <Badge tone="bg-emerald-50 text-emerald-700">Active</Badge>;
+    case "trialing":
+      return <Badge tone="bg-emerald-50 text-emerald-700">Trialing</Badge>;
+    case "past_due":
+      return <Badge tone="bg-amber-50 text-amber-700">Past due</Badge>;
+    case "canceled":
+      return <Badge tone="bg-slate-100 text-slate-600">Canceled</Badge>;
+    default:
+      return <span className="text-xs text-[var(--worship-slate)]">—</span>;
+  }
 }
 
 function fmtDate(iso: string | null | undefined): string {
@@ -148,7 +172,10 @@ export default function AdminUsers() {
               <thead className="bg-[var(--worship-cream)] text-[var(--worship-slate)]">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium">User</th>
-                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 font-medium">Trial</th>
+                  <th className="text-left px-4 py-3 font-medium">
+                    Subscription
+                  </th>
                   <th className="text-left px-4 py-3 font-medium">Joined</th>
                   <th className="text-left px-4 py-3 font-medium">
                     Last activity
@@ -173,13 +200,10 @@ export default function AdminUsers() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <StateBadge kind={u.state.kind} />
-                      {u.state.kind === "trial" &&
-                        typeof u.state.daysLeft === "number" && (
-                          <span className="ml-2 text-xs text-[var(--worship-slate)]">
-                            {u.state.daysLeft}d left
-                          </span>
-                        )}
+                      <TrialCell state={u.state} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <SubscriptionCell kind={u.state.kind} />
                     </td>
                     <td className="px-4 py-3">{fmtDate(u.createdAt)}</td>
                     <td className="px-4 py-3">

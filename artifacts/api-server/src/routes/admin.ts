@@ -14,6 +14,7 @@ import {
   isStripeConfigured,
 } from "../lib/stripeClient";
 import { getAccessState, TRIAL_DAYS } from "../lib/getAccessState";
+import { getMonthlyPriceId } from "../lib/getMonthlyPriceId";
 
 const router: IRouter = Router();
 
@@ -177,21 +178,32 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
     }));
 
     try {
-      // Use DISTINCT ON (customer) ordered by (customer, created ASC) to keep
-      // each customer's earliest active/trialing subscription — that's the
-      // "trial → paid" conversion event. Counting all rows would double-count
-      // customers who cycle subscriptions.
+      // True trial→paid cohort conversion: of users who signed up in the
+      // window, how many later got their first paid subscription (any time
+      // after signup). We join users → stripe.subscriptions on the local
+      // stripe_customer_id mirror so we don't double-count cycled subs.
       const conv = await db.execute(sql`
-        WITH first_paid AS (
-          SELECT DISTINCT ON (customer) customer, created
-          FROM stripe.subscriptions
-          WHERE status IN ('active', 'trialing') AND customer IS NOT NULL
-          ORDER BY customer, created ASC
+        WITH cohort_30 AS (
+          SELECT u.id, u.stripe_customer_id
+          FROM users u
+          WHERE u.created_at >= ${thirtyAgo}
+        ),
+        cohort_90 AS (
+          SELECT u.id, u.stripe_customer_id
+          FROM users u
+          WHERE u.created_at >= ${ninetyAgo}
         )
         SELECT
-          COUNT(*) FILTER (WHERE created >= ${Math.floor(thirtyAgo.getTime() / 1000)})::int AS c30,
-          COUNT(*) FILTER (WHERE created >= ${Math.floor(ninetyAgo.getTime() / 1000)})::int AS c90
-        FROM first_paid
+          (SELECT COUNT(DISTINCT c.id)::int
+             FROM cohort_30 c
+             JOIN stripe.subscriptions s ON s.customer = c.stripe_customer_id
+            WHERE s.status IN ('active', 'trialing')
+          ) AS c30,
+          (SELECT COUNT(DISTINCT c.id)::int
+             FROM cohort_90 c
+             JOIN stripe.subscriptions s ON s.customer = c.stripe_customer_id
+            WHERE s.status IN ('active', 'trialing')
+          ) AS c90
       `);
       stripeAvailable = true;
       const cRow = conv.rows[0] as {
@@ -552,23 +564,11 @@ router.post(
         return;
       }
 
-      // Resolve the price id we sell. Reuse billing.ts's strategy: env
-      // var → mirrored stripe.prices. We don't read the file here to keep
-      // this route self-contained and safe in tests.
-      const fromEnv = process.env["STRIPE_PRICE_ID"]?.trim();
-      let priceId: string | null = fromEnv && fromEnv.length > 0 ? fromEnv : null;
-      if (!priceId) {
-        const r = await db.execute(sql`
-          SELECT pr.id AS price_id
-          FROM stripe.prices pr
-          JOIN stripe.products p ON p.id = pr.product
-          WHERE p.active = true AND pr.active = true
-            AND pr.recurring->>'interval' = 'month'
-          ORDER BY pr.created DESC
-          LIMIT 1
-        `);
-        priceId = (r.rows[0] as { price_id?: string } | undefined)?.price_id ?? null;
-      }
+      // Reuse the same monthly price resolver the user-facing checkout
+      // flow uses, so comp-subscription works in every environment where
+      // checkout already works (env var, .local/billing-config.json, or
+      // the Stripe mirror).
+      const priceId = await getMonthlyPriceId();
       if (!priceId) {
         res
           .status(503)

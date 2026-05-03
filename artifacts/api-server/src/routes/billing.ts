@@ -1,7 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import {
@@ -9,30 +7,9 @@ import {
   isStripeConfigured,
 } from "../lib/stripeClient";
 import { getAccessState, TRIAL_DAYS } from "../lib/getAccessState";
+import { getMonthlyPriceId } from "../lib/getMonthlyPriceId";
 
 const router: IRouter = Router();
-
-const PRODUCT_NAME = "WorshipFlow Pro";
-
-/**
- * Cached read of `.local/billing-config.json`, written by the seed script.
- * Reading once on first call is enough — the seed only runs out-of-band so
- * the value is stable for the life of the server process.
- */
-let _cachedConfigPriceId: string | null | undefined;
-function getPriceIdFromConfigFile(): string | null {
-  if (_cachedConfigPriceId !== undefined) return _cachedConfigPriceId;
-  try {
-    const configPath = resolve(process.cwd(), "../../.local/billing-config.json");
-    const raw = readFileSync(configPath, "utf-8");
-    const parsed = JSON.parse(raw) as { priceId?: unknown };
-    _cachedConfigPriceId =
-      typeof parsed.priceId === "string" ? parsed.priceId : null;
-  } catch {
-    _cachedConfigPriceId = null;
-  }
-  return _cachedConfigPriceId;
-}
 
 function originFromReq(req: import("express").Request): string {
   // Prefer the public Replit domain in production; fall back to the request
@@ -44,40 +21,6 @@ function originFromReq(req: import("express").Request): string {
   }
   const host = req.get("host") ?? "localhost";
   return `${req.protocol}://${host}`;
-}
-
-/**
- * Resolve the monthly Stripe price id for our single product.
- *
- * Preferred source: the `STRIPE_PRICE_ID` environment variable, which the
- * seed script prints on success. This avoids any provisioning race against
- * the stripe-replit-sync webhook backfill.
- *
- * Fallback: query the local mirror by product name. Useful in dev right
- * after seeding, before an admin has set the env var.
- */
-async function getMonthlyPriceId(): Promise<string | null> {
-  const fromEnv = process.env["STRIPE_PRICE_ID"]?.trim();
-  if (fromEnv) return fromEnv;
-  const fromFile = getPriceIdFromConfigFile();
-  if (fromFile) return fromFile;
-  try {
-    const result = await db.execute(sql`
-      SELECT pr.id AS price_id
-      FROM stripe.prices pr
-      JOIN stripe.products p ON p.id = pr.product
-      WHERE p.active = true
-        AND pr.active = true
-        AND p.name = ${PRODUCT_NAME}
-        AND pr.recurring->>'interval' = 'month'
-      ORDER BY pr.created DESC
-      LIMIT 1
-    `);
-    const row = result.rows[0] as { price_id?: string } | undefined;
-    return row?.price_id ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /** GET /api/billing/status — used by the client `useSubscriptionStatus` hook. */
