@@ -326,21 +326,35 @@ router.post("/sermons/preview-resources", requireAuth, async (req, res) => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  // Match the validation that create/patch apply to these id arrays so
-  // preview semantics never diverge from what generation will accept.
-  const isIntArray = (arr: unknown): arr is number[] =>
-    !arr || (Array.isArray(arr) && (arr as unknown[]).every((x) => Number.isInteger(x)));
-  const isStrArray = (arr: unknown): arr is string[] =>
-    !arr || (Array.isArray(arr) && (arr as unknown[]).every((x) => typeof x === "string"));
-  if (
-    !isIntArray(parsed.data.attachedResourceIds) ||
-    !isIntArray(parsed.data.excludedResourceIds) ||
-    !isStrArray(parsed.data.excludedSourceIds)
-  ) {
-    res.status(400).json({ error: "Invalid id list" });
+  // Reuse the exact validators that create/patch apply so the preview's
+  // input semantics never diverge from what generation will accept —
+  // ownership of attached/excluded resource ids and registration of
+  // excluded source ids are all checked here too.
+  const userId = req.userId!;
+  const attachedErr = await validateResourceOwnership(
+    userId,
+    parsed.data.attachedResourceIds ?? [],
+    "attachedResourceIds",
+  );
+  if (attachedErr) {
+    res.status(400).json({ error: attachedErr });
     return;
   }
-  const result = await previewSermonResources(req.userId!, parsed.data);
+  const excludedErr = await validateResourceOwnership(
+    userId,
+    parsed.data.excludedResourceIds ?? [],
+    "excludedResourceIds",
+  );
+  if (excludedErr) {
+    res.status(400).json({ error: excludedErr });
+    return;
+  }
+  const excludedSrcErr = validateExcludedSourceIds(parsed.data.excludedSourceIds);
+  if (excludedSrcErr) {
+    res.status(400).json({ error: excludedSrcErr });
+    return;
+  }
+  const result = await previewSermonResources(userId, parsed.data);
   res.json(result);
 });
 

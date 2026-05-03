@@ -224,6 +224,48 @@ test("POST /api/sermons/preview-resources reports legacyMode for pre-task-71 att
   }
 });
 
+test("POST /api/sermons/preview-resources rejects non-owned ids and unknown source ids", async () => {
+  const uid = userId();
+  const otherUid = `${uid}-other`;
+  await cleanup(uid);
+  await cleanup(otherUid);
+  await seedTrialUser(uid);
+  await seedTrialUser(otherUid);
+
+  // Resource owned by a different user — preview must refuse to surface it.
+  const [foreign] = await db
+    .insert(sermonResourcesTable)
+    .values([{ userId: otherUid, title: "Cross-tenant", relatedPassage: "", excerpt: "x" }])
+    .returning();
+
+  const { base, close } = await startServer();
+  try {
+    const ownership = await fetch(`${base}/api/sermons/preview-resources`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-test-user-id": uid },
+      body: JSON.stringify({
+        passage: "John 3:16",
+        excludedResourceIds: [foreign.id],
+      }),
+    });
+    assert.equal(ownership.status, 400);
+
+    const unknownSource = await fetch(`${base}/api/sermons/preview-resources`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-test-user-id": uid },
+      body: JSON.stringify({
+        passage: "John 3:16",
+        excludedSourceIds: ["not-a-real-source"],
+      }),
+    });
+    assert.equal(unknownSource.status, 400);
+  } finally {
+    await close();
+    await cleanup(uid);
+    await cleanup(otherUid);
+  }
+});
+
 /* -------------------------------------------------------------------------- */
 /* /generate/sermon-study without client-supplied resources[]                 */
 /* -------------------------------------------------------------------------- */
