@@ -126,21 +126,34 @@ router.patch("/service-templates/:id", requireAuth, async (req, res) => {
     res.status(400).json({ error: "No fields to update" });
     return;
   }
-  const [row] = await db
-    .update(serviceTemplatesTable)
-    .set(updates)
-    .where(
-      and(
-        eq(serviceTemplatesTable.id, params.data.id),
-        eq(serviceTemplatesTable.userId, req.userId!),
-      ),
-    )
-    .returning();
-  if (!row) {
-    res.status(404).json({ error: "Not found" });
-    return;
+  try {
+    const [row] = await db
+      .update(serviceTemplatesTable)
+      .set(updates)
+      .where(
+        and(
+          eq(serviceTemplatesTable.id, params.data.id),
+          eq(serviceTemplatesTable.userId, req.userId!),
+        ),
+      )
+      .returning();
+    if (!row) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json(row);
+  } catch (err) {
+    // Mirror POST: catch the unique-index race during concurrent renames.
+    const code = (err as { code?: string }).code;
+    if (code === "23505") {
+      res
+        .status(409)
+        .json({ error: "You already have a service flow with that name" });
+      return;
+    }
+    req.log.error({ err }, "failed to update service template");
+    res.status(500).json({ error: "Failed to update service flow" });
   }
-  res.json(row);
 });
 
 router.delete("/service-templates/:id", requireAuth, async (req, res) => {

@@ -1034,15 +1034,17 @@ function SaveTemplateDialog({
     onSave(name, description);
   };
 
+  const closeAndReset = () => {
+    setName('');
+    setDescription('');
+    onClose();
+  };
+
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o) {
-          setName('');
-          setDescription('');
-          onClose();
-        }
+        if (!o) closeAndReset();
       }}
     >
       <DialogContent className="sm:max-w-md">
@@ -1099,7 +1101,7 @@ function SaveTemplateDialog({
           <DialogFooter>
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeAndReset}
               className="px-4 py-2 rounded-lg text-sm border bg-white text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]"
               style={{ borderColor: 'var(--worship-border)' }}
             >
