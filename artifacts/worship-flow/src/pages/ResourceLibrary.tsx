@@ -9,6 +9,7 @@ import {
 } from '@workspace/api-client-react';
 import { toast } from 'sonner';
 import { Plus, Search, BookOpen, Link as LinkIcon, X, Trash2, Pencil, Save } from 'lucide-react';
+import { ScholarlySourcesPanel } from '../components/ScholarlySourcesPanel';
 
 const RESOURCE_TYPES = [
   { value: 'commentary', label: 'Commentary' },
@@ -162,17 +163,35 @@ export default function ResourceLibrary() {
   return (
     <AppLayout title="Resource Library">
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl font-serif text-[var(--worship-navy)]">Resource Library</h1>
-            <p className="text-sm mt-1 text-[var(--worship-slate)] max-w-xl">
-              Save commentary excerpts, journal articles, and sermons that you trust. The Sermon Builder will only quote sources from this library, with attribution exactly as you saved it.
+        <div className="mb-8">
+          <h1 className="text-3xl font-serif text-[var(--worship-navy)]">Resource Library</h1>
+          <p className="text-sm mt-1 text-[var(--worship-slate)] max-w-2xl">
+            Everything the Sermon Builder is allowed to quote on your behalf, with attribution. Toggle which bundled public-domain commentaries it may consult, and save your own commentary excerpts, articles, and sermons below.
+          </p>
+        </div>
+
+        <section id="commentaries" className="mb-10 scroll-mt-24">
+          <div className="mb-3">
+            <h2 className="text-xl font-serif text-[var(--worship-navy)]">Public-domain commentaries</h2>
+            <p className="text-xs text-[var(--worship-slate)] mt-1 max-w-2xl">
+              Bundled sources the Sermon Builder may quietly consult on your behalf. Toggle any source off to keep it out of generated content.
             </p>
           </div>
-          <button onClick={openNew} className="worship-btn-gold px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 self-start md:self-auto">
-            <Plus className="w-4 h-4" /> Add resource
-          </button>
-        </div>
+          <ScholarlySourcesPanel />
+        </section>
+
+        <section id="my-resources" className="scroll-mt-24">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-3">
+            <div>
+              <h2 className="text-xl font-serif text-[var(--worship-navy)]">My resources</h2>
+              <p className="text-xs text-[var(--worship-slate)] mt-1 max-w-2xl">
+                Your own saved commentary excerpts, journal articles, and sermons. The Sermon Builder will quote these with the attribution exactly as you saved it.
+              </p>
+            </div>
+            <button onClick={openNew} className="worship-btn-gold px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 self-start md:self-auto">
+              <Plus className="w-4 h-4" /> Add resource
+            </button>
+          </div>
 
         <div className="worship-card !p-3 mb-6 flex items-center gap-3">
           <Search className="w-4 h-4 text-[var(--worship-muted-slate)] ml-2" />
@@ -242,6 +261,7 @@ export default function ResourceLibrary() {
             ))}
           </div>
         )}
+        </section>
       </div>
 
       {editorOpen && (

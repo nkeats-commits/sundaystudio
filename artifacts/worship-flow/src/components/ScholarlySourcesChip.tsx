@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { BookOpen, Settings as SettingsIcon } from 'lucide-react';
+import { BookOpen, Library as LibraryIcon } from 'lucide-react';
 import { useListScholarlySources } from '@workspace/api-client-react';
 import {
   HoverCard,
@@ -10,7 +10,8 @@ import {
 /**
  * Compact pill shown in the Sermon Builder context column to remind the
  * pastor how many scholarly sources will be consulted on every generate.
- * Hover reveals the active source titles; clicking jumps to Settings.
+ * Hover reveals the active source titles; clicking jumps to the Resource
+ * Library, anchored to the public-domain commentaries section.
  */
 export function ScholarlySourcesChip() {
   const { data } = useListScholarlySources();
@@ -24,7 +25,7 @@ export function ScholarlySourcesChip() {
     <HoverCard openDelay={120} closeDelay={80}>
       <HoverCardTrigger asChild>
         <Link
-          href="/settings"
+          href="/resources#commentaries"
           className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border bg-[var(--worship-cream)] text-[var(--worship-navy)] hover:bg-white transition-colors"
           style={{ borderColor: 'var(--worship-border)' }}
         >
@@ -64,10 +65,10 @@ export function ScholarlySourcesChip() {
           </ul>
         )}
         <Link
-          href="/settings"
+          href="/resources#commentaries"
           className="mt-3 inline-flex items-center gap-1 text-xs text-[var(--worship-navy)] underline"
         >
-          <SettingsIcon className="w-3 h-3" />
+          <LibraryIcon className="w-3 h-3" />
           Manage sources
         </Link>
       </HoverCardContent>

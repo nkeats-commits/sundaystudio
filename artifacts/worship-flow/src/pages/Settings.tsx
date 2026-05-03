@@ -1,10 +1,9 @@
 import { Link } from 'wouter';
 import { AppLayout } from '../components/layout/AppLayout';
 import { useUser, useClerk } from '@clerk/react';
-import { LogOut, User, CreditCard, ArrowRight } from 'lucide-react';
+import { LogOut, User, CreditCard, ArrowRight, BookOpen } from 'lucide-react';
 import { useGetMe } from '@workspace/api-client-react';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
-import { ScholarlySourcesPanel } from '../components/ScholarlySourcesPanel';
 
 function formatBillingStatus(
   state: ReturnType<typeof useSubscriptionStatus>['state'],
@@ -82,7 +81,23 @@ export default function Settings() {
           </div>
         </div>
 
-        <ScholarlySourcesPanel />
+        <Link
+          href="/resources#commentaries"
+          className="worship-card flex items-center justify-between gap-4 hover:bg-[var(--worship-cream)] transition-colors"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-[var(--worship-cream)] flex items-center justify-center text-[var(--worship-navy)] shrink-0">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-medium text-[var(--worship-navy)]">Scholarly Sources</h2>
+              <p className="text-sm text-[var(--worship-slate)] mt-0.5">
+                Moved to your Resource Library — manage which public-domain commentaries the Sermon Builder may consult alongside your saved resources.
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-[var(--worship-slate)] shrink-0" />
+        </Link>
 
         <div className="pt-4 flex">
           <button 
