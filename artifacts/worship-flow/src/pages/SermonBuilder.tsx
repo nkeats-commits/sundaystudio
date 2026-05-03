@@ -2170,23 +2170,45 @@ function StudyView({
               <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{data.resourceInsights}</p>
             )
           )}
-          {data.consultedSources && data.consultedSources.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[var(--worship-border)]">
-              <p className="text-[11px] uppercase tracking-wider text-[var(--worship-slate)] font-semibold mb-1.5">
-                Public-domain commentaries matched on this passage
-              </p>
+          {data.consultedSources && data.consultedSources.length > 0 && (() => {
+            // Split by kind so the footer reflects the dual-channel merge
+            // accurately. Pre-task-71 entries had no `kind` field — treat
+            // them as public-domain (the only kind that existed back then).
+            const pd = data.consultedSources.filter((s) => (s.kind ?? 'public-domain') === 'public-domain');
+            const lib = data.consultedSources.filter((s) => s.kind === 'library');
+            const renderList = (items: typeof data.consultedSources) => (
               <ul className="space-y-1">
-                {data.consultedSources.map((s) => (
+                {items.map((s) => (
                   <li key={s.id} className="text-xs text-[var(--worship-charcoal)] leading-snug">
                     <span className="font-medium text-[var(--worship-navy)]">{s.title}</span>
                     {s.author ? <span className="text-[var(--worship-slate)]"> · {s.author}</span> : null}
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
+            );
+            return (
+              <div className="mt-3 pt-3 border-t border-[var(--worship-border)] space-y-3">
+                {pd.length > 0 && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--worship-slate)] font-semibold mb-1.5">
+                      Public-domain commentaries matched on this passage
+                    </p>
+                    {renderList(pd)}
+                  </div>
+                )}
+                {lib.length > 0 && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider text-[var(--worship-slate)] font-semibold mb-1.5">
+                      Your Resource Library entries that matched
+                    </p>
+                    {renderList(lib)}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <p className="mt-2 text-[11px] text-[var(--worship-slate)]">
-            Includes any pastor-attached resources plus public-domain commentaries you've enabled in your <Link href="/resources#commentaries" className="underline">Resource Library</Link>.
+            Auto-pulled from your <Link href="/resources" className="underline">Resource Library</Link> (rows whose passage matches) plus public-domain commentaries you've enabled in <Link href="/resources#commentaries" className="underline">Settings</Link>.
           </p>
         </div>
       )}

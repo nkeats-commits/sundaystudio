@@ -133,6 +133,13 @@ function libraryRowMatches(
  * True iff this sermon is in legacy mode — it was saved before task #71
  * and still has a hand-attached resource list. The UI uses this to show
  * a "Switch to auto-include" banner.
+ *
+ * Trust model: this is a back-compat affordance, not a security boundary.
+ * A malicious client could spoof `attachedResourceIds` on the wire to
+ * force allow-list semantics, but the DB query is always scoped to the
+ * authenticated user's library rows so the worst case is they restrict
+ * THEIR OWN sermon to a subset of THEIR OWN library — exactly equivalent
+ * to clicking Exclude on every other row.
  */
 function isLegacyMode(ctx: MergeableSermonContext): boolean {
   return (ctx.attachedResourceIds?.length ?? 0) > 0;
