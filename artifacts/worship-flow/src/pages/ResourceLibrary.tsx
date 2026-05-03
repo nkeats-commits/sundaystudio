@@ -1,16 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '../components/layout/AppLayout';
 import {
   useListSermonResources,
   useCreateSermonResource,
   useUpdateSermonResource,
   useDeleteSermonResource,
+  useListScholarlySources,
+  useUpdateScholarlySourcePreferences,
+  getListScholarlySourcesQueryKey,
   type SermonResource,
+  type ScholarlySourceManifest,
+  type SourcesResponse,
 } from '@workspace/api-client-react';
 import { toast } from 'sonner';
-import { Plus, Search, BookOpen, Link as LinkIcon, X, Trash2, Pencil, Save } from 'lucide-react';
-import { ScholarlySourcesPanel } from '../components/ScholarlySourcesPanel';
+import {
+  Plus,
+  Search,
+  BookOpen,
+  Link as LinkIcon,
+  X,
+  Trash2,
+  Pencil,
+  Save,
+  ShieldCheck,
+} from 'lucide-react';
+import { AddCommentaryModal } from '../components/AddCommentaryModal';
 
 const RESOURCE_TYPES = [
   { value: 'commentary', label: 'Commentary' },
@@ -82,9 +98,14 @@ export default function ResourceLibrary() {
   const updateResource = useUpdateSermonResource();
   const deleteResource = useDeleteSermonResource();
 
+  const sources = useListScholarlySources();
+  const updateSources = useUpdateScholarlySourcePreferences();
+  const qc = useQueryClient();
+
   const [search, setSearch] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(blankDraft());
+  const [addCommentaryOpen, setAddCommentaryOpen] = useState(false);
 
   // wouter's <Link> uses pushState for navigation, which preserves any
   // `#hash` in the URL but does NOT trigger native fragment scrolling.
@@ -116,7 +137,18 @@ export default function ResourceLibrary() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const filtered = useMemo(() => {
+  // Virtual "added commentary" rows derived from the bundled-source registry
+  // intersected with the user's enabled-id list. These are rendered inside
+  // My Resources alongside real saved excerpts, but are NOT editable — the
+  // actual quoted text is fetched per-passage at sermon-generation time.
+  const addedCommentaries: ScholarlySourceManifest[] = useMemo(() => {
+    if (!sources.data) return [];
+    const enabled = new Set(sources.data.enabledSourceIds);
+    return sources.data.sources.filter((s) => enabled.has(s.id));
+  }, [sources.data]);
+  const totalCommentaries = sources.data?.sources.length ?? 0;
+
+  const filteredSaved = useMemo(() => {
     const q = search.trim().toLowerCase();
     const items = list.data ?? [];
     if (!q) return items;
@@ -125,6 +157,17 @@ export default function ResourceLibrary() {
       return hay.includes(q);
     });
   }, [list.data, search]);
+
+  const filteredCommentaries = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return addedCommentaries;
+    return addedCommentaries.filter((s) => {
+      const hay = [s.title, s.author, s.year, s.description, s.license].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }, [addedCommentaries, search]);
+
+  const totalRows = filteredSaved.length + filteredCommentaries.length;
 
   const openNew = () => {
     setDraft(blankDraft());
@@ -191,24 +234,73 @@ export default function ResourceLibrary() {
     );
   };
 
+  const removeCommentary = (s: ScholarlySourceManifest) => {
+    if (!sources.data) return;
+    if (
+      !window.confirm(
+        `Remove "${s.title}"? The Sermon Builder will stop quoting it on your behalf. You can add it back any time.`,
+      )
+    ) {
+      return;
+    }
+    const next = sources.data.enabledSourceIds.filter((id) => id !== s.id);
+    updateSources.mutate(
+      { data: { enabledSourceIds: next } },
+      {
+        onSuccess: (resp) => {
+          qc.setQueryData(
+            getListScholarlySourcesQueryKey(),
+            resp as SourcesResponse,
+          );
+          toast.success(`Removed ${s.title}`);
+        },
+        onError: (err) => {
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : 'Could not remove that commentary — please try again.',
+          );
+        },
+      },
+    );
+  };
+
   return (
     <AppLayout title="Resource Library">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-serif text-[var(--worship-navy)]">Resource Library</h1>
           <p className="text-sm mt-1 text-[var(--worship-slate)] max-w-2xl">
-            Everything the Sermon Builder is allowed to quote on your behalf, with attribution. Toggle which bundled public-domain commentaries it may consult, and save your own commentary excerpts, articles, and sermons below.
+            Everything the Sermon Builder is allowed to quote on your behalf, with attribution. Add bundled public-domain commentaries below, and save your own commentary excerpts, articles, and sermons.
           </p>
         </div>
 
         <section id="commentaries" className="mb-10 scroll-mt-24">
-          <div className="mb-3">
-            <h2 className="text-xl font-serif text-[var(--worship-navy)]">Public-domain commentaries</h2>
-            <p className="text-xs text-[var(--worship-slate)] mt-1 max-w-2xl">
-              Bundled sources the Sermon Builder may quietly consult on your behalf. Toggle any source off to keep it out of generated content.
-            </p>
+          <div className="worship-card flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <BookOpen className="w-5 h-5 text-[var(--worship-gold)] shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <h2 className="text-lg font-serif text-[var(--worship-navy)]">Public-domain commentaries</h2>
+                <p className="text-xs text-[var(--worship-slate)] mt-1 max-w-2xl">
+                  Bundled, attribution-ready works the Sermon Builder may quietly consult. Pick the ones you trust — they'll appear as rows below.
+                  {' '}
+                  {sources.data ? (
+                    <span className="text-[var(--worship-navy)] font-medium">
+                      {addedCommentaries.length} of {totalCommentaries} added.
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setAddCommentaryOpen(true)}
+              disabled={updateSources.isPending}
+              title={updateSources.isPending ? 'Saving previous change…' : undefined}
+              className="worship-btn-primary px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 self-start md:self-auto shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-4 h-4" /> Add commentary
+            </button>
           </div>
-          <ScholarlySourcesPanel />
         </section>
 
         <section id="my-resources" className="scroll-mt-24">
@@ -216,7 +308,7 @@ export default function ResourceLibrary() {
             <div>
               <h2 className="text-xl font-serif text-[var(--worship-navy)]">My resources</h2>
               <p className="text-xs text-[var(--worship-slate)] mt-1 max-w-2xl">
-                Your own saved commentary excerpts, journal articles, and sermons. The Sermon Builder will quote these with the attribution exactly as you saved it.
+                Added commentaries and your own saved excerpts, all in one place. The Sermon Builder will quote any of these with attribution.
               </p>
             </div>
             <button onClick={openNew} className="worship-btn-gold px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 self-start md:self-auto">
@@ -234,18 +326,68 @@ export default function ResourceLibrary() {
           />
         </div>
 
-        {list.isLoading ? (
+        {list.isLoading || sources.isLoading ? (
           <div className="worship-card text-sm text-[var(--worship-slate)]">Loading resources…</div>
-        ) : filtered.length === 0 ? (
+        ) : totalRows === 0 ? (
           <div className="worship-card text-center py-16">
             <BookOpen className="w-12 h-12 mx-auto mb-3 text-[var(--worship-muted-slate)] opacity-60" />
             <h3 className="font-serif text-xl text-[var(--worship-navy)]">Your library is empty</h3>
-            <p className="text-sm text-[var(--worship-slate)] mt-1 mb-5">Paste an excerpt from a commentary or article you trust to start building your reference set.</p>
+            <p className="text-sm text-[var(--worship-slate)] mt-1 mb-5 max-w-md mx-auto">
+              Add a bundled public-domain commentary above, or paste an excerpt from a commentary or article you trust to start building your reference set.
+            </p>
             <button onClick={openNew} className="worship-btn-primary px-4 py-2 rounded-lg text-sm">Add your first resource</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filtered.map((r) => (
+            {filteredCommentaries.map((s) => (
+              <div
+                key={`pd:${s.id}`}
+                className="worship-card !p-5 flex flex-col gap-3 border-l-4"
+                style={{ borderLeftColor: 'var(--worship-gold)' }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-0.5 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3 h-3" /> Public domain · auto-consulted
+                    </div>
+                    <h3 className="font-serif text-lg text-[var(--worship-navy)] leading-tight truncate">
+                      {s.title}
+                    </h3>
+                    <p className="text-xs text-[var(--worship-slate)] mt-0.5 truncate">
+                      {[s.author, s.year].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => removeCommentary(s)}
+                      disabled={updateSources.isPending}
+                      className="p-1.5 rounded hover:bg-red-50 disabled:opacity-50"
+                      title="Remove from library"
+                      aria-label={`Remove ${s.title}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">
+                  {s.description}
+                </p>
+                <p className="text-[11px] text-[var(--worship-slate)] italic">
+                  The Sermon Builder will pull the matching chapter from this work for whatever passage you're preaching, and cite it inline.
+                </p>
+                {s.sourceUrl && (
+                  <a
+                    href={s.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[var(--worship-gold)] hover:underline flex items-center gap-1"
+                  >
+                    <LinkIcon className="w-3 h-3" /> Source · {s.license}
+                  </a>
+                )}
+              </div>
+            ))}
+            {filteredSaved.map((r) => (
               <div key={r.id} className="worship-card !p-5 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -294,6 +436,11 @@ export default function ResourceLibrary() {
         )}
         </section>
       </div>
+
+      <AddCommentaryModal
+        open={addCommentaryOpen}
+        onClose={() => setAddCommentaryOpen(false)}
+      />
 
       {editorOpen && (
         <div className="fixed inset-0 z-50 flex items-stretch md:items-center justify-center bg-black/40 p-0 md:p-6" onClick={() => setEditorOpen(false)}>
