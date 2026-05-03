@@ -49,6 +49,11 @@ export default function SongGenerator() {
     count: 5,
     repertoireMode: 'prefer' as RepertoireMode,
     alignmentNotes: '',
+    // BPM range — empty strings mean "no constraint on that side". Stored
+    // as strings so the user can clear the field naturally; coerced to
+    // ints at submit time.
+    bpmMin: '',
+    bpmMax: '',
   });
   const ALIGNMENT_MAX = 4000;
 
@@ -96,6 +101,20 @@ export default function SongGenerator() {
     setSavedSongs({});
     songSavePromisesRef.current = {};
     const trimmedAlignment = safePayload.alignmentNotes.trim();
+    // Coerce the BPM bounds. Empty / non-numeric / out-of-range values
+    // simply drop the constraint on that side; the server normalizes
+    // reversed bounds.
+    const parseBpm = (raw: string): number | undefined => {
+      const t = raw.trim();
+      if (!t) return undefined;
+      const n = Number(t);
+      if (!Number.isFinite(n)) return undefined;
+      const r = Math.round(n);
+      if (r < 30 || r > 300) return undefined;
+      return r;
+    };
+    const bpmMin = parseBpm(safePayload.bpmMin);
+    const bpmMax = parseBpm(safePayload.bpmMax);
     const requestBody = {
       theme: safePayload.theme,
       scripture: safePayload.scripture || undefined,
@@ -103,6 +122,8 @@ export default function SongGenerator() {
       count: safePayload.count,
       repertoireMode: safePayload.repertoireMode,
       ...(trimmedAlignment ? { alignmentNotes: trimmedAlignment.slice(0, ALIGNMENT_MAX) } : {}),
+      ...(bpmMin !== undefined ? { bpmMin } : {}),
+      ...(bpmMax !== undefined ? { bpmMax } : {}),
     };
     generate.mutate(requestBody).catch((err: Error) => {
       toast.error(err.message || 'Generation failed. Please try again.');
@@ -252,6 +273,62 @@ export default function SongGenerator() {
                 }
                 className="w-full accent-[var(--worship-gold)]"
               />
+            </div>
+
+            {/* Optional tempo range. Either bound can be left blank; the
+                server clamps to 30-300 and swaps reversed bounds. */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-[var(--worship-slate)]">
+                  TEMPO RANGE (BPM)
+                </label>
+                {(formData.bpmMin || formData.bpmMax) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({ ...formData, bpmMin: '', bpmMax: '' })
+                    }
+                    className="text-[10px] text-[var(--worship-slate)] hover:text-[var(--worship-navy)] underline"
+                    data-testid="button-clear-bpm-range"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={30}
+                  max={300}
+                  step={1}
+                  placeholder="Min"
+                  value={formData.bpmMin}
+                  onChange={(e) =>
+                    setFormData({ ...formData, bpmMin: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
+                  data-testid="input-bpm-min"
+                />
+                <span className="text-[var(--worship-muted-slate)]">–</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={30}
+                  max={300}
+                  step={1}
+                  placeholder="Max"
+                  value={formData.bpmMax}
+                  onChange={(e) =>
+                    setFormData({ ...formData, bpmMax: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
+                  data-testid="input-bpm-max"
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] leading-snug text-[var(--worship-slate)]">
+                Optional. Leave a side blank for no limit. Range 30–300.
+              </p>
             </div>
 
             {/* Repertoire mode — only meaningful when the user has marked

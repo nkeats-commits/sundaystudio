@@ -552,6 +552,18 @@ export interface GenerateSongsBody {
    * @maxLength 4000
    */
   alignmentNotes?: string;
+  /**
+   * Optional lower bound for the suggested songs' tempo. Bounds out of order are auto-swapped.
+   * @minimum 30
+   * @maximum 300
+   */
+  bpmMin?: number;
+  /**
+   * Optional upper bound for the suggested songs' tempo. Bounds out of order are auto-swapped.
+   * @minimum 30
+   * @maximum 300
+   */
+  bpmMax?: number;
 }
 
 export interface SongSuggestion {

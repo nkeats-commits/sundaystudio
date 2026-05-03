@@ -15,8 +15,11 @@ import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
 import { runJob } from "../lib/runJob";
 import { jobManager } from "../lib/jobManager";
 import {
+  bpmInRange,
   coerceBpm,
+  describeBpmRange,
   loadRepertoireSongs,
+  normalizeBpmRange,
   normalizeTitle,
   repertoireBpmByTitle,
   repertoirePromptBlock,
@@ -334,7 +337,11 @@ router.post("/generate/songs", requireAuth, async (req, res) => {
       : requestedMode;
   const titleSet = repertoireTitleSet(repertoire);
   const bpmByTitle = repertoireBpmByTitle(repertoire);
-  const repBlock = repertoirePromptBlock(repertoire, effectiveMode);
+  const bpmRange = normalizeBpmRange(data.bpmMin, data.bpmMax);
+  const repBlock = repertoirePromptBlock(repertoire, effectiveMode, bpmRange);
+  const tempoConstraintLine = bpmRange
+    ? `Tempo constraint: only suggest songs whose tempo falls within ${describeBpmRange(bpmRange)}. If you don't know a song's BPM with confidence, prefer one whose well-known recording fits this range.\n`
+    : "";
   // In Strict mode we cap the requested count at the repertoire size — there
   // is no value in asking for 8 songs when the user only knows 3.
   const promptCount =
@@ -361,7 +368,7 @@ Style preference: ${data.style ?? "mixed (modern worship and hymns)"}
 
 Church context:
 ${churchContextBlurb(ctx)}
-${repBlock ? `\n${repBlock}\n` : ""}${alignmentBlock}
+${repBlock ? `\n${repBlock}\n` : ""}${alignmentBlock}${tempoConstraintLine}
 Return JSON exactly in this shape:
 {
   "theme": "string",
@@ -402,6 +409,7 @@ Keep "whyItFits" to 1-2 short sentences.
       const rawSongs: RawSong[] = Array.isArray(raw?.songs)
         ? (raw.songs as RawSong[])
         : [];
+      let droppedOutOfRange = 0;
       const cleaned = rawSongs.flatMap((s) => {
         if (
           !s ||
@@ -421,6 +429,15 @@ Keep "whyItFits" to 1-2 short sentences.
         // to the AI estimate if it looks sane.
         const repertoireBpm = bpmByTitle.get(normalizedTitle) ?? null;
         const bpm = repertoireBpm ?? coerceBpm(s.bpm);
+        // Range safety net: drop AI suggestions whose BPM is clearly out
+        // of range. Repertoire songs with no saved BPM still pass (bpm
+        // null), since the user explicitly added them. Strict mode already
+        // pre-filters the prompt list, but the model can still echo back
+        // an out-of-range entry so we double-check here.
+        if (bpmRange && bpm !== null && !bpmInRange(bpm, bpmRange)) {
+          droppedOutOfRange += 1;
+          return [];
+        }
         return [
           {
             title: s.title,
@@ -454,14 +471,25 @@ Keep "whyItFits" to 1-2 short sentences.
 
       if (effectiveMode === "strict") {
         if (cleaned.length === 0) {
-          result.notice =
-            "No songs in your repertoire matched this theme. Add more songs to your repertoire, or switch to Prefer or Off for broader suggestions.";
+          result.notice = bpmRange
+            ? `No songs in your repertoire matched this theme within ${describeBpmRange(bpmRange)}. Try widening or clearing the tempo range, or switch to Prefer for broader suggestions.`
+            : "No songs in your repertoire matched this theme. Add more songs to your repertoire, or switch to Prefer or Off for broader suggestions.";
         } else if (cleaned.length < requestedCount) {
-          result.notice = `Only ${cleaned.length} song${cleaned.length === 1 ? "" : "s"} from your repertoire fit this theme. Add more to your repertoire for richer Strict-mode results.`;
+          result.notice = bpmRange
+            ? `Only ${cleaned.length} repertoire song${cleaned.length === 1 ? "" : "s"} fit this theme within ${describeBpmRange(bpmRange)}. Widen the tempo range or add more songs for richer Strict-mode results.`
+            : `Only ${cleaned.length} song${cleaned.length === 1 ? "" : "s"} from your repertoire fit this theme. Add more to your repertoire for richer Strict-mode results.`;
         }
       } else if (requestedMode !== "off" && repertoire.length === 0) {
         result.notice =
           "Your repertoire is empty, so suggestions come from general worship knowledge. Add songs in Library → Our Repertoire to make future picks feel familiar.";
+      } else if (
+        bpmRange &&
+        droppedOutOfRange > 0 &&
+        cleaned.length < requestedCount
+      ) {
+        // Non-strict path: the model gave us some out-of-range picks. Tell
+        // the user we filtered them so a short result list isn't mysterious.
+        result.notice = `${droppedOutOfRange} suggestion${droppedOutOfRange === 1 ? " was" : "s were"} dropped for falling outside ${describeBpmRange(bpmRange)}.`;
       }
 
       const finalResult = result as typeof result & { alignmentNotes?: string };

@@ -2089,6 +2089,16 @@ components:
           type: string
           maxLength: 4000
           description: Optional sermon notes, source text, or other material the song picks should echo in theme and imagery.
+        bpmMin:
+          type: integer
+          minimum: 30
+          maximum: 300
+          description: Optional lower bound for the suggested songs' tempo. Bounds out of order are auto-swapped.
+        bpmMax:
+          type: integer
+          minimum: 30
+          maximum: 300
+          description: Optional upper bound for the suggested songs' tempo. Bounds out of order are auto-swapped.
       required: [theme]
 
     SongSuggestion:

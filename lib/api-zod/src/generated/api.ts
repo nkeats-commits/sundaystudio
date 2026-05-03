@@ -998,6 +998,12 @@ the wire protocol. The final `done` event payload conforms to
  */
 export const generateSongSuggestionsBodyAlignmentNotesMax = 4000;
 
+export const generateSongSuggestionsBodyBpmMinMin = 30;
+export const generateSongSuggestionsBodyBpmMinMax = 300;
+
+export const generateSongSuggestionsBodyBpmMaxMin = 30;
+export const generateSongSuggestionsBodyBpmMaxMax = 300;
+
 export const GenerateSongSuggestionsBody = zod.object({
   theme: zod.string(),
   scripture: zod.string().optional(),
@@ -1018,6 +1024,22 @@ export const GenerateSongSuggestionsBody = zod.object({
     .optional()
     .describe(
       "Optional sermon notes, source text, or other material the song picks should echo in theme and imagery.",
+    ),
+  bpmMin: zod
+    .number()
+    .min(generateSongSuggestionsBodyBpmMinMin)
+    .max(generateSongSuggestionsBodyBpmMinMax)
+    .optional()
+    .describe(
+      "Optional lower bound for the suggested songs' tempo. Bounds out of order are auto-swapped.",
+    ),
+  bpmMax: zod
+    .number()
+    .min(generateSongSuggestionsBodyBpmMaxMin)
+    .max(generateSongSuggestionsBodyBpmMaxMax)
+    .optional()
+    .describe(
+      "Optional upper bound for the suggested songs' tempo. Bounds out of order are auto-swapped.",
     ),
 });
 

@@ -11,6 +11,63 @@ export type RepertoireSong = {
 };
 
 /**
+ * Optional inclusive BPM range used to filter or shape song suggestions.
+ * Either bound may be null, meaning "no constraint on that side".
+ */
+export type BpmRange = {
+  min: number | null;
+  max: number | null;
+};
+
+/**
+ * Normalize a caller-supplied BPM range. Each bound is run through
+ * `coerceBpm`, which keeps integers in 30-300 and drops anything else
+ * (out-of-range or unparseable values become null on that side, leaving
+ * the other side intact). Reversed bounds are swapped. Returns null when
+ * neither bound is set so callers can short-circuit. Note: the OpenAPI
+ * schema already rejects out-of-range integers with a 400, so in practice
+ * the server only sees values inside 30-300.
+ */
+export function normalizeBpmRange(
+  rawMin: unknown,
+  rawMax: unknown,
+): BpmRange | null {
+  const min = coerceBpm(rawMin);
+  const max = coerceBpm(rawMax);
+  if (min === null && max === null) return null;
+  if (min !== null && max !== null && min > max) {
+    return { min: max, max: min };
+  }
+  return { min, max };
+}
+
+/**
+ * True when the song's BPM lies inside the inclusive range. Songs with no
+ * saved BPM are treated as "unknown" and pass — we'd rather show them than
+ * silently drop a song the user has explicitly added to their repertoire.
+ */
+export function bpmInRange(
+  bpm: number | null | undefined,
+  range: BpmRange | null,
+): boolean {
+  if (!range) return true;
+  if (bpm === null || bpm === undefined) return true;
+  if (range.min !== null && bpm < range.min) return false;
+  if (range.max !== null && bpm > range.max) return false;
+  return true;
+}
+
+/** Render a BPM range as a short, human-readable phrase. */
+export function describeBpmRange(range: BpmRange): string {
+  if (range.min !== null && range.max !== null) {
+    return `${range.min}–${range.max} BPM`;
+  }
+  if (range.min !== null) return `${range.min} BPM or faster`;
+  if (range.max !== null) return `${range.max} BPM or slower`;
+  return "";
+}
+
+/**
  * Coerce a stored content.bpm value (which can be a number or a numeric
  * string from older imports) into a clean integer in our valid range, or
  * null when the value is missing/unusable. We mirror the same 30-300 range
@@ -90,13 +147,29 @@ export function repertoireBpmByTitle(
 export function repertoirePromptBlock(
   songs: RepertoireSong[],
   mode: RepertoireMode,
+  range: BpmRange | null = null,
 ): string {
-  if (mode === "off" || songs.length === 0) return "";
-  const list = songs
-    .map(
-      (s) =>
-        `- ${s.title}${s.artist ? ` (${s.artist})` : ""}${s.bpm !== null ? ` — ${s.bpm} BPM` : ""}`,
-    )
+  if (mode === "off") return "";
+  // In strict mode + a range, drop out-of-range songs from the prompt
+  // entirely so the model never even considers them. In prefer mode we
+  // keep the full list so the model still has the wider repertoire as
+  // context, but we'll annotate which ones are in range.
+  const filteredSongs =
+    mode === "strict" && range
+      ? songs.filter((s) => bpmInRange(s.bpm, range))
+      : songs;
+  if (filteredSongs.length === 0) return "";
+  const list = filteredSongs
+    .map((s) => {
+      const bpmTag = s.bpm !== null ? ` — ${s.bpm} BPM` : "";
+      // Mark which prefer-mode entries fit the requested range so the
+      // model has an unambiguous signal to favor them.
+      const rangeTag =
+        mode === "prefer" && range && s.bpm !== null && bpmInRange(s.bpm, range)
+          ? " ✓ in tempo range"
+          : "";
+      return `- ${s.title}${s.artist ? ` (${s.artist})` : ""}${bpmTag}${rangeTag}`;
+    })
     .join("\n");
   const tempoGuidance = `Tempo guidance: when a slot's intent or title implies energy (e.g. "opener", "upbeat", "celebration", "sending"), favor faster songs (roughly 100+ BPM). When a slot implies reflection, lament, communion, confession, or response, favor slower songs (roughly under 90 BPM). For each suggested song, return a "bpm" integer estimate when known, or null when you genuinely don't know.`;
   if (mode === "strict") {
@@ -110,7 +183,7 @@ ${tempoGuidance}`;
   return `THE USER'S TEAM REPERTOIRE — these are songs the team already knows (BPM shown when set). Prefer them when they fit the theme:
 ${list}
 
-Guidance: when a repertoire song genuinely fits the theme, choose it over a less-familiar option. It is fine to also suggest other real, published songs to round out the picks.
+Guidance: when a repertoire song genuinely fits the theme, choose it over a less-familiar option. It is fine to also suggest other real, published songs to round out the picks.${range ? ` When a tempo range is requested (see above), strongly prefer the entries marked "✓ in tempo range".` : ""}
 
 ${tempoGuidance}`;
 }
