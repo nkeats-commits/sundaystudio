@@ -400,7 +400,10 @@ export interface RepertoireImportSong {
   notes?: string;
   /** Optional free-text notes for the chosen arrangement (BPM/key/length). Stored on `content.arrangementNotes`. */
   arrangementNotes?: string;
-  /** Optional date the song was last scheduled (any parseable date string; the server stores it as-is on `content.lastScheduledDate`). Useful for ranking under-used songs later. */
+  /**
+   * Optional ISO YYYY-MM-DD date the song was last scheduled. Stored verbatim on content.lastScheduledDate. Useful for ranking under-used songs later. The pattern enforces ISO format at the Zod layer; clients must normalize free-form dates (e.g. 'March 29, 2026') to ISO before submitting and OMIT malformed values rather than passing them through. We avoid format: date so the value stays a string end-to-end (no Date/string coercion in the contract).
+   * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+   */
   lastScheduledDate?: string;
   tags?: string[];
 }

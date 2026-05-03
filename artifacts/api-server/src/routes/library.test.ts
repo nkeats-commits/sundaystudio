@@ -82,12 +82,16 @@ test("POST /api/library/repertoire/bulk-import round-trips all CSV-import fields
         title: "Goodness of God",
         // Test that empty optional fields are NOT stored as empty strings
         // (would later look like real data and confuse filters/UI).
+        // lastScheduledDate is OMITTED here rather than sent as "" — the
+        // OpenAPI contract enforces an ISO YYYY-MM-DD pattern at the Zod
+        // layer, so clients must drop malformed/empty dates rather than
+        // pass them through (matches CsvImportModal's normalizeDate
+        // behavior, which returns undefined for unparseable strings).
         artist: "",
         key: "  ",
         ccli: "",
         notes: "",
         arrangementNotes: "",
-        lastScheduledDate: "",
       },
     ];
     const res = await fetch(`${base}/api/library/repertoire/bulk-import`, {

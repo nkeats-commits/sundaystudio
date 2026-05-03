@@ -627,6 +627,9 @@ export const SetLibraryItemRepertoireResponse = zod.object({
 export const bulkImportRepertoireBodySongsItemBpmMin = 30;
 export const bulkImportRepertoireBodySongsItemBpmMax = 300;
 
+export const bulkImportRepertoireBodySongsItemLastScheduledDateRegExp =
+  new RegExp("^[0-9]{4}-[0-9]{2}-[0-9]{2}$");
+
 export const BulkImportRepertoireBody = zod.object({
   songs: zod
     .array(
@@ -668,9 +671,10 @@ export const BulkImportRepertoireBody = zod.object({
           ),
         lastScheduledDate: zod
           .string()
+          .regex(bulkImportRepertoireBodySongsItemLastScheduledDateRegExp)
           .optional()
           .describe(
-            "Optional date the song was last scheduled (any parseable date string; the server stores it as-is on `content.lastScheduledDate`). Useful for ranking under-used songs later.",
+            "Optional ISO YYYY-MM-DD date the song was last scheduled. Stored verbatim on content.lastScheduledDate. Useful for ranking under-used songs later. The pattern enforces ISO format at the Zod layer; clients must normalize free-form dates (e.g. 'March 29, 2026') to ISO before submitting and OMIT malformed values rather than passing them through. We avoid format: date so the value stays a string end-to-end (no Date\/string coercion in the contract).",
           ),
         tags: zod.array(zod.string()).optional(),
       }),

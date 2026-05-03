@@ -12,6 +12,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+// Tracks identity of the initialFile we've already consumed, so a second
+// re-open of the modal with a new file re-runs the parser, but a re-render
+// with the same file does not re-parse.
 import Papa from 'papaparse';
 import { toast } from 'sonner';
 import { FileUp, Loader2, X, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -58,6 +61,7 @@ export function CsvImportModal({
   onClose,
   onImported,
   existingTitles,
+  initialFile,
 }: {
   onClose: () => void;
   onImported: () => void;
@@ -69,30 +73,33 @@ export function CsvImportModal({
    * matching the server's normalizeTitle.
    */
   existingTitles: string[];
+  /**
+   * Optional file selected by the user BEFORE the modal opened (the
+   * "Import from CSV" button in Library.tsx clicks a hidden file input
+   * directly so the OS file picker is tied to the user gesture and
+   * isn't blocked by the browser). When provided, the modal jumps
+   * straight to parsing. The user can still pick another file from
+   * within the modal afterward.
+   */
+  initialFile?: File | null;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parse, setParse] = useState<ParseResult>({ status: 'idle' });
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const bulkImport = useBulkImportRepertoire();
+  const consumedInitialFileRef = useRef<File | null>(null);
 
-  // Acceptance criterion: clicking "Import from CSV" opens the file
-  // picker. The button itself opens this modal, so on first mount we
-  // auto-trigger the file picker — the user goes straight from one
-  // click to choosing a file, with the preview/import surface waiting
-  // here once they've made a selection. We only do this in the idle
-  // state so it doesn't fire again after parsing/errors.
+  // Auto-parse the initialFile exactly once per file identity. This is
+  // NOT a substitute for clicking the picker (the picker must be opened
+  // from a user gesture, which Library.tsx handles before mounting this
+  // modal); it just feeds the already-selected file into the parser.
   useEffect(() => {
-    if (parse.status === 'idle') {
-      // Defer one tick so the modal has mounted and the input is in the
-      // DOM before .click() runs.
-      const id = window.setTimeout(() => {
-        fileInputRef.current?.click();
-      }, 0);
-      return () => window.clearTimeout(id);
+    if (initialFile && consumedInitialFileRef.current !== initialFile) {
+      consumedInitialFileRef.current = initialFile;
+      onFile(initialFile);
     }
-    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialFile]);
 
   const onFile = (file: File) => {
     setParse({ status: 'parsing' });

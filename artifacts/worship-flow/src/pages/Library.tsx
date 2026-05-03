@@ -33,7 +33,7 @@ import {
   Check,
 } from 'lucide-react';
 import { CsvImportModal } from '../components/library/CsvImportModal';
-import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
@@ -359,6 +359,8 @@ export default function Library() {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingCsvFile, setPendingCsvFile] = useState<File | null>(null);
   const [viewingItem, setViewingItem] = useState<LibraryItem | null>(null);
 
   // Translate the active tab into a query for the list endpoint. The
@@ -521,8 +523,35 @@ export default function Library() {
                   <ClipboardList className="w-4 h-4" />
                   Paste a list
                 </button>
+                {/*
+                  Hidden file input + button that clicks it. We open the
+                  OS file picker directly from the user's button gesture
+                  (NOT from a useEffect inside the modal) so browsers
+                  don't block the dialog. Once the user picks a file the
+                  onChange handler stashes it and opens the modal, which
+                  parses + previews + submits.
+                */}
+                <input
+                  ref={csvFileInputRef}
+                  type="file"
+                  accept=".csv,text/csv,application/vnd.ms-excel"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setPendingCsvFile(f);
+                      setShowCsvModal(true);
+                    }
+                    // Reset value so picking the same file twice in a
+                    // row still triggers onChange.
+                    if (csvFileInputRef.current) {
+                      csvFileInputRef.current.value = '';
+                    }
+                  }}
+                  className="hidden"
+                  data-testid="input-csv-file"
+                />
                 <button
-                  onClick={() => setShowCsvModal(true)}
+                  onClick={() => csvFileInputRef.current?.click()}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
                   data-testid="button-open-csv-modal"
                 >
@@ -713,11 +742,15 @@ export default function Library() {
 
       {showCsvModal && (
         <CsvImportModal
-          onClose={() => setShowCsvModal(false)}
+          onClose={() => {
+            setShowCsvModal(false);
+            setPendingCsvFile(null);
+          }}
           onImported={invalidateLibrary}
           existingTitles={
             repertoireQuery.data?.map((it) => it.title) ?? []
           }
+          initialFile={pendingCsvFile}
         />
       )}
 
