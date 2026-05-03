@@ -5,11 +5,9 @@
  * WorshipFlow API
  * OpenAPI spec version: 0.1.0
  */
+import type { ExtendAdminUserTrialBodyDays } from "./extendAdminUserTrialBodyDays";
 
 export type ExtendAdminUserTrialBody = {
-  /**
-   * @minimum 1
-   * @maximum 365
-   */
-  days: number;
+  /** Operator preset extension length. */
+  days: ExtendAdminUserTrialBodyDays;
 };

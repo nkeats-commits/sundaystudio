@@ -1493,12 +1493,21 @@ export const GetAdminUsersStatus = {
   expired: "expired",
 } as const;
 
+/**
+ * Operator preset extension length.
+ */
+export type ExtendAdminUserTrialBodyDays =
+  (typeof ExtendAdminUserTrialBodyDays)[keyof typeof ExtendAdminUserTrialBodyDays];
+
+export const ExtendAdminUserTrialBodyDays = {
+  NUMBER_7: 7,
+  NUMBER_14: 14,
+  NUMBER_30: 30,
+} as const;
+
 export type ExtendAdminUserTrialBody = {
-  /**
-   * @minimum 1
-   * @maximum 365
-   */
-  days: number;
+  /** Operator preset extension length. */
+  days: ExtendAdminUserTrialBodyDays;
 };
 
 export type ExtendAdminUserTrial200 = {

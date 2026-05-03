@@ -48,6 +48,7 @@ export * from "./exportServicePlanBody";
 export * from "./exportServicePlanBodyFormat";
 export * from "./extendAdminUserTrial200";
 export * from "./extendAdminUserTrialBody";
+export * from "./extendAdminUserTrialBodyDays";
 export * from "./generatedDevotional";
 export * from "./generateDevotional400";
 export * from "./generateDevotionalBody";

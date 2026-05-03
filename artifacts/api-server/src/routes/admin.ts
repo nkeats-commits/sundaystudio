@@ -77,15 +77,20 @@ function buildUserStateCte(stripeAvailable: boolean) {
   const subFrom = stripeAvailable
     ? sql`LEFT JOIN latest_sub s ON s.customer = u.stripe_customer_id`
     : sql``;
+  // Mirrors getAccessState exactly:
+  //   - any present sub row decides the state (unknown statuses → past_due,
+  //     matching the conservative "no access" fallback)
+  //   - no sub row → trial vs expired by the local 14-day window
   const stateCase = stripeAvailable
     ? sql`CASE
+            WHEN s.status IS NULL THEN
+              CASE WHEN COALESCE(u.trial_started_at, u.created_at) + ${trialInterval} > NOW()
+                   THEN 'trial' ELSE 'expired' END
             WHEN s.status = 'active' THEN 'active'
             WHEN s.status = 'trialing' THEN 'trialing'
             WHEN s.status IN ('past_due','unpaid','incomplete','paused') THEN 'past_due'
             WHEN s.status IN ('canceled','incomplete_expired') THEN 'canceled'
-            WHEN COALESCE(u.trial_started_at, u.created_at) + ${trialInterval} > NOW()
-              THEN 'trial'
-            ELSE 'expired'
+            ELSE 'past_due'
           END`
     : sql`CASE
             WHEN COALESCE(u.trial_started_at, u.created_at) + ${trialInterval} > NOW()
@@ -110,7 +115,14 @@ function buildUserStateCte(stripeAvailable: boolean) {
           u.id, u.email, u.first_name, u.last_name, u.image_url,
           u.created_at, u.trial_started_at, u.stripe_customer_id,
           ${subSelect}
-          GREATEST(lp.updated_at, ls.updated_at) AS last_activity_at,
+          -- GREATEST(NULL, x) returns NULL in Postgres, so fall back to
+          -- the lone non-null side when only one of plans/sermons exists.
+          CASE
+            WHEN lp.updated_at IS NULL AND ls.updated_at IS NULL THEN NULL
+            WHEN lp.updated_at IS NULL THEN ls.updated_at
+            WHEN ls.updated_at IS NULL THEN lp.updated_at
+            ELSE GREATEST(lp.updated_at, ls.updated_at)
+          END AS last_activity_at,
           ${stateCase} AS state_kind
         FROM users u
         ${subFrom}
@@ -219,8 +231,10 @@ const usersListQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
   offset: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
 });
+// Operator presets only — keeps the audit log meaningful and prevents
+// accidental "extend by 9999 days" misclicks.
 const extendTrialBody = z.object({
-  days: z.coerce.number().int().min(1).max(365),
+  days: z.union([z.literal(7), z.literal(14), z.literal(30)]),
 });
 
 function badRequest(res: Response, err: z.ZodError): void {

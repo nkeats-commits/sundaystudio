@@ -77,7 +77,7 @@ export default function AdminUserDetail() {
   const queryClient = useQueryClient();
   const { data: user, isLoading, error, refetch } = useGetAdminUser(id);
 
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState<7 | 14 | 30>(7);
   const [busyAction, setBusyAction] = useState<
     null | "extend" | "comp" | "delete"
   >(null);
@@ -253,16 +253,17 @@ export default function AdminUserDetail() {
                     Push the trial end date forward by N days.
                   </p>
                 </div>
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
+                <select
                   value={days}
                   onChange={(e) =>
-                    setDays(Math.max(1, parseInt(e.target.value, 10) || 1))
+                    setDays(parseInt(e.target.value, 10) as 7 | 14 | 30)
                   }
-                  className="w-24 px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm"
-                />
+                  className="w-28 px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm"
+                >
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                  <option value={30}>30 days</option>
+                </select>
                 <button
                   onClick={onExtend}
                   disabled={busyAction !== null}

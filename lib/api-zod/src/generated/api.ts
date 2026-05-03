@@ -3497,10 +3497,10 @@ export const ExtendAdminUserTrialParams = zod.object({
   id: zod.coerce.string(),
 });
 
-export const extendAdminUserTrialBodyDaysMax = 365;
-
 export const ExtendAdminUserTrialBody = zod.object({
-  days: zod.number().min(1).max(extendAdminUserTrialBodyDaysMax),
+  days: zod
+    .union([zod.literal(7), zod.literal(14), zod.literal(30)])
+    .describe("Operator preset extension length."),
 });
 
 export const ExtendAdminUserTrialResponse = zod.object({
