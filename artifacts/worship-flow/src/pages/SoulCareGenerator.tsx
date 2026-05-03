@@ -39,7 +39,7 @@ const SEASONS = [
 ];
 
 const PRACTICES = [
-  { value: 'auto', label: 'Let the AI choose' },
+  { value: 'auto', label: 'Let us choose for you' },
   { value: 'examen', label: 'Examen (Ignatian)' },
   { value: 'lectio_divina', label: 'Lectio Divina' },
   { value: 'centering_prayer', label: 'Centering Prayer' },
