@@ -60,6 +60,8 @@ import {
   Calendar,
   Mail,
   Printer,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 const LENGTHS = ['10 minutes', '15 minutes', '20 minutes', '25 minutes', '30 minutes', '40 minutes'];
@@ -256,6 +258,12 @@ export default function SermonBuilder() {
   const [form, setForm] = useState<FormState>(blankForm());
   const [tab, setTab] = useState<TabKey>('study');
   const [exportContent, setExportContent] = useState<{ content: string; format: string } | null>(null);
+  // Inline editing: which section is currently being edited and a working copy
+  // (the "draft") of its content. The draft is a deep clone so cancel cleanly
+  // discards in-flight edits without touching the saved sermon.
+  const [editingSection, setEditingSection] = useState<SectionKey | null>(null);
+  const [editDraft, setEditDraft] = useState<unknown>(null);
+  const [editSaving, setEditSaving] = useState(false);
   const hydratedRef = useRef(false);
 
   // Hydrate form when an existing sermon is loaded
@@ -364,6 +372,36 @@ export default function SermonBuilder() {
       queryClient.setQueryData(getGetSermonQueryKey(id), updated);
     } catch {
       toast.error('Could not save section. Try the explicit "Save context" button.');
+    }
+  };
+
+  // ------- Inline edit handlers -------
+  // Editing a section persists via persistField (NOT persistSection), so we
+  // intentionally do NOT touch sectionHashes — manual edits should never
+  // mark downstream sections stale on their own.
+  const startEdit = (section: SectionKey, current: unknown) => {
+    setEditingSection(section);
+    // Deep clone so cancel discards cleanly. structuredClone is supported in
+    // all modern browsers Vite targets and handles nested arrays/objects.
+    setEditDraft(structuredClone(current));
+  };
+  const cancelEdit = () => {
+    setEditingSection(null);
+    setEditDraft(null);
+  };
+  const saveEdit = async (field: keyof Sermon) => {
+    if (editDraft === null || editDraft === undefined) {
+      cancelEdit();
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await persistField(field, editDraft as Sermon[typeof field]);
+      toast.success('Saved');
+      setEditingSection(null);
+      setEditDraft(null);
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -917,8 +955,16 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, study: v })}
                   onGenerate={() => handleStudy(null)}
                   onRegenerate={() => handleStudy(studyData)}
+                  canEdit={!!studyData}
+                  editing={editingSection === 'study'}
+                  onEdit={() => studyData && startEdit('study', studyData)}
+                  onSave={() => saveEdit('study')}
+                  onCancel={cancelEdit}
+                  saving={editSaving}
                 >
-                  {studyData && <StudyView data={studyData} />}
+                  {studyData && (editingSection === 'study'
+                    ? <StudyView data={editDraft as SermonStudyOutput} editing onChange={setEditDraft} />
+                    : <StudyView data={studyData} />)}
                 </SectionPanel>
               )}
               </div>
@@ -944,27 +990,16 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, bigIdea: v })}
                   onGenerate={handleBigIdea}
                   onRegenerate={handleBigIdea}
+                  canEdit={!!bigIdeaData}
+                  editing={editingSection === 'bigIdea'}
+                  onEdit={() => bigIdeaData && startEdit('bigIdea', bigIdeaData)}
+                  onSave={() => saveEdit('bigIdea')}
+                  onCancel={cancelEdit}
+                  saving={editSaving}
                 >
-                  {bigIdeaData && (
-                    <div className="space-y-3">
-                      {bigIdeaData.options.map((opt, i) => {
-                        const selected = bigIdeaData.selected === opt.bigIdea;
-                        return (
-                          <div key={i} className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${selected ? 'border-[var(--worship-gold)] bg-[var(--worship-pale-gold)]/40' : 'border-[var(--worship-border)] bg-white hover:bg-[var(--worship-cream)]'}`} onClick={() => setBigIdeaSelection(opt.bigIdea)}>
-                            <div className="flex items-start gap-3">
-                              <div className={`w-5 h-5 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${selected ? 'border-[var(--worship-gold)] bg-[var(--worship-gold)]' : 'border-[var(--worship-border)]'}`}>
-                                {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-serif text-base text-[var(--worship-navy)] leading-snug">{opt.bigIdea}</p>
-                                {opt.rationale && <p className="text-xs text-[var(--worship-slate)] mt-2 leading-relaxed">{opt.rationale}</p>}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {bigIdeaData && (editingSection === 'bigIdea'
+                    ? <BigIdeaView data={editDraft as SermonBigIdeaOutput} editing onChange={setEditDraft} />
+                    : <BigIdeaView data={bigIdeaData} onSelect={setBigIdeaSelection} />)}
                 </SectionPanel>
               )}
               </div>
@@ -990,38 +1025,16 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, outline: v })}
                   onGenerate={() => handleOutline(null)}
                   onRegenerate={() => handleOutline(outlineData)}
+                  canEdit={!!outlineData}
+                  editing={editingSection === 'outline'}
+                  onEdit={() => outlineData && startEdit('outline', outlineData)}
+                  onSave={() => saveEdit('outline')}
+                  onCancel={cancelEdit}
+                  saving={editSaving}
                 >
-                  {outlineData && (
-                    <div className="space-y-4">
-                      {outlineData.options.map((opt, i) => {
-                        const selected = (outlineData.selectedIndex ?? 0) === i;
-                        return (
-                          <div key={i} className={`p-5 rounded-xl border-2 transition-colors ${selected ? 'border-[var(--worship-gold)] bg-[var(--worship-pale-gold)]/30' : 'border-[var(--worship-border)] bg-white'}`}>
-                            <div className="flex items-start gap-3 mb-3">
-                              <button onClick={() => setOutlineSelection(i)} className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center ${selected ? 'border-[var(--worship-gold)] bg-[var(--worship-gold)]' : 'border-[var(--worship-border)]'}`}>
-                                {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
-                              </button>
-                              <div className="flex-1">
-                                <h4 className="font-serif text-lg text-[var(--worship-navy)]">{opt.title}</h4>
-                                {opt.approach && <p className="text-xs text-[var(--worship-slate)] mt-0.5 italic">{opt.approach}</p>}
-                              </div>
-                            </div>
-                            <ol className="space-y-2 ml-8 list-decimal list-outside marker:text-[var(--worship-gold)] marker:font-bold">
-                              {opt.points.map((p, j) => (
-                                <li key={j} className="text-sm text-[var(--worship-charcoal)] pl-1">
-                                  <span className="font-semibold">{p.heading}</span>
-                                  {p.summary && <p className="text-xs text-[var(--worship-slate)] leading-relaxed mt-0.5">{p.summary}</p>}
-                                  {p.scriptureSupport && p.scriptureSupport.length > 0 && (
-                                    <p className="text-[10px] text-[var(--worship-muted-slate)] mt-1 italic">Scripture: {p.scriptureSupport.join(', ')}</p>
-                                  )}
-                                </li>
-                              ))}
-                            </ol>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {outlineData && (editingSection === 'outline'
+                    ? <OutlineView data={editDraft as SermonOutlineOutput} editing onChange={setEditDraft} />
+                    : <OutlineView data={outlineData} onSelect={setOutlineSelection} />)}
                 </SectionPanel>
               )}
               </div>
@@ -1047,25 +1060,16 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, manuscript: v })}
                   onGenerate={() => handleManuscript(null)}
                   onRegenerate={() => handleManuscript(manuscriptData)}
+                  canEdit={!!manuscriptData}
+                  editing={editingSection === 'manuscript'}
+                  onEdit={() => manuscriptData && startEdit('manuscript', manuscriptData)}
+                  onSave={() => saveEdit('manuscript')}
+                  onCancel={cancelEdit}
+                  saving={editSaving}
                 >
-                  {manuscriptData && (
-                    <div className="prose prose-sm max-w-none">
-                      {manuscriptData.introduction && (
-                        <>
-                          <h3 className="font-serif text-lg text-[var(--worship-navy)] mb-2">Introduction</h3>
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--worship-charcoal)] mb-6">{manuscriptData.introduction}</p>
-                        </>
-                      )}
-                      <h3 className="font-serif text-lg text-[var(--worship-navy)] mb-2">{manuscriptData.format === 'manuscript' ? 'Manuscript' : manuscriptData.format === 'notes' ? 'Speaking notes' : 'Outline'}</h3>
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--worship-charcoal)]">{manuscriptData.body}</div>
-                      {manuscriptData.conclusion && (
-                        <>
-                          <h3 className="font-serif text-lg text-[var(--worship-navy)] mt-6 mb-2">Conclusion</h3>
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--worship-charcoal)]">{manuscriptData.conclusion}</p>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  {manuscriptData && (editingSection === 'manuscript'
+                    ? <ManuscriptView data={editDraft as SermonManuscriptOutput} editing onChange={setEditDraft} />
+                    : <ManuscriptView data={manuscriptData} />)}
                 </SectionPanel>
               )}
               </div>
@@ -1091,34 +1095,16 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, applications: v })}
                   onGenerate={handleApplications}
                   onRegenerate={handleApplications}
+                  canEdit={!!applicationsData}
+                  editing={editingSection === 'applications'}
+                  onEdit={() => applicationsData && startEdit('applications', applicationsData)}
+                  onSave={() => saveEdit('applications')}
+                  onCancel={cancelEdit}
+                  saving={editSaving}
                 >
-                  {applicationsData && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {applicationsData.groups.map((g, i) => (
-                          <div key={i} className="p-4 rounded-xl border bg-white" style={{ borderColor: 'var(--worship-border)' }}>
-                            <div className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-1">{g.audience}</div>
-                            <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{g.application}</p>
-                          </div>
-                        ))}
-                      </div>
-                      {!smallGroupData && applicationsData.smallGroupQuestions && applicationsData.smallGroupQuestions.length > 0 && (
-                        <div>
-                          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Small group questions</h4>
-                          <ul className="space-y-2">
-                            {applicationsData.smallGroupQuestions.map((q, i) => (
-                              <li key={i} className="flex items-start gap-2 text-sm text-[var(--worship-charcoal)]">
-                                <ChevronRight className="w-4 h-4 text-[var(--worship-gold)] shrink-0 mt-0.5" />{q}
-                              </li>
-                            ))}
-                          </ul>
-                          <p className="text-[10px] text-[var(--worship-muted-slate)] mt-2 italic">
-                            Tip: open the Small Group Questions add-on for a fuller, grouped Bible-study set.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {applicationsData && (editingSection === 'applications'
+                    ? <ApplicationsView data={editDraft as SermonApplicationsOutput} editing onChange={setEditDraft} />
+                    : <ApplicationsView data={applicationsData} hideSmallGroupHint={!!smallGroupData} />)}
                 </SectionPanel>
               )}
               </div>
@@ -1144,30 +1130,16 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, illustrations: v })}
                   onGenerate={handleIllustrations}
                   onRegenerate={handleIllustrations}
+                  canEdit={!!illustrationsData}
+                  editing={editingSection === 'illustrations'}
+                  onEdit={() => illustrationsData && startEdit('illustrations', illustrationsData)}
+                  onSave={() => saveEdit('illustrations')}
+                  onCancel={cancelEdit}
+                  saving={editSaving}
                 >
-                  {illustrationsData && (
-                    <div className="space-y-3">
-                      {illustrationsData.illustrations.map((ill, i) => (
-                        <div key={i} className="p-4 rounded-xl border bg-white" style={{ borderColor: 'var(--worship-border)' }}>
-                          <div className="flex items-start gap-3 mb-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-0.5">{ill.kind}</div>
-                              <h4 className="font-serif text-base text-[var(--worship-navy)] leading-snug">{ill.title}</h4>
-                            </div>
-                            {ill.verifyBeforeUsing && (
-                              <span className="shrink-0 text-[10px] uppercase tracking-wider px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3" /> Verify before using
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{ill.body}</p>
-                          {ill.notes && (
-                            <p className="text-xs text-[var(--worship-slate)] mt-3 border-t pt-2 italic" style={{ borderColor: 'var(--worship-border)' }}>{ill.notes}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {illustrationsData && (editingSection === 'illustrations'
+                    ? <IllustrationsView data={editDraft as SermonIllustrationsOutput} editing onChange={setEditDraft} />
+                    : <IllustrationsView data={illustrationsData} />)}
                 </SectionPanel>
               )}
               </div>
@@ -1193,9 +1165,17 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, smallGroupQuestions: v })}
                   onGenerate={handleSmallGroupQuestions}
                   onRegenerate={handleSmallGroupQuestions}
+                  canEdit={!!smallGroupData}
+                  editing={editingSection === 'smallGroupQuestions'}
+                  onEdit={() => smallGroupData && startEdit('smallGroupQuestions', smallGroupData)}
+                  onSave={() => saveEdit('smallGroupQuestions')}
+                  onCancel={cancelEdit}
+                  saving={editSaving}
                 >
-                  {smallGroupData && <SmallGroupQuestionsView data={smallGroupData} />}
-                  {smallGroupData && (
+                  {smallGroupData && (editingSection === 'smallGroupQuestions'
+                    ? <SmallGroupQuestionsView data={editDraft as SermonSmallGroupQuestionsOutput} editing onChange={setEditDraft} />
+                    : <SmallGroupQuestionsView data={smallGroupData} />)}
+                  {smallGroupData && editingSection !== 'smallGroupQuestions' && (
                     <div className="mt-6 p-5 rounded-xl border bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
                       <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div className="min-w-0">
@@ -1259,9 +1239,17 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, worship: v })}
                   onGenerate={handleWorship}
                   onRegenerate={handleWorship}
+                  canEdit={!!worshipData}
+                  editing={editingSection === 'worshipIntegration'}
+                  onEdit={() => worshipData && startEdit('worshipIntegration', worshipData)}
+                  onSave={() => saveEdit('worshipIntegration')}
+                  onCancel={cancelEdit}
+                  saving={editSaving}
                 >
-                  {worshipData && <WorshipView data={worshipData} hideSmallGroupQuestions={!!smallGroupData} />}
-                  {worshipData && (
+                  {worshipData && (editingSection === 'worshipIntegration'
+                    ? <WorshipView data={editDraft as SermonWorshipIntegrationOutput} hideSmallGroupQuestions={!!smallGroupData} editing onChange={setEditDraft} />
+                    : <WorshipView data={worshipData} hideSmallGroupQuestions={!!smallGroupData} />)}
+                  {worshipData && editingSection !== 'worshipIntegration' && (
                     <div className="mt-4 p-5 rounded-xl border bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
                       <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div className="min-w-0">
@@ -1346,6 +1334,12 @@ function SectionPanel({
   onRefineChange,
   onGenerate,
   onRegenerate,
+  canEdit = false,
+  editing = false,
+  onEdit,
+  onSave,
+  onCancel,
+  saving = false,
   children,
 }: {
   title: string;
@@ -1362,6 +1356,14 @@ function SectionPanel({
   onRefineChange: (v: string) => void;
   onGenerate: () => void;
   onRegenerate: () => void;
+  /** Whether this section supports inline editing. */
+  canEdit?: boolean;
+  /** Whether this section is currently being edited. */
+  editing?: boolean;
+  onEdit?: () => void;
+  onSave?: () => void;
+  onCancel?: () => void;
+  saving?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -1381,20 +1383,38 @@ function SectionPanel({
           <p className="text-sm text-[var(--worship-slate)] mt-1 max-w-xl">{subtitle}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {hasContent && (
-            <button onClick={onRegenerate} disabled={pending} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
-              <RefreshCw className={`w-3.5 h-3.5 ${pending ? 'animate-spin' : ''}`} /> Regenerate
-            </button>
-          )}
-          {!hasContent && (
-            <button onClick={onGenerate} disabled={pending} className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60">
-              {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Generate
-            </button>
+          {editing ? (
+            <>
+              <button onClick={onCancel} disabled={saving} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                <X className="w-3.5 h-3.5" /> Cancel
+              </button>
+              <button onClick={onSave} disabled={saving} className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Save
+              </button>
+            </>
+          ) : (
+            <>
+              {hasContent && canEdit && onEdit && (
+                <button onClick={onEdit} disabled={pending} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                  <Pencil className="w-3.5 h-3.5" /> Edit
+                </button>
+              )}
+              {hasContent && (
+                <button onClick={onRegenerate} disabled={pending} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                  <RefreshCw className={`w-3.5 h-3.5 ${pending ? 'animate-spin' : ''}`} /> Regenerate
+                </button>
+              )}
+              {!hasContent && (
+                <button onClick={onGenerate} disabled={pending} className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60">
+                  {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Generate
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {stale && hasContent && (
+      {stale && hasContent && !editing && (
         <div className="p-3 rounded-xl border border-amber-300 bg-amber-50 flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-700" />
           <div className="flex-1 text-xs text-amber-900 leading-relaxed">
@@ -1419,7 +1439,7 @@ function SectionPanel({
         </div>
       )}
 
-      {hasContent && (
+      {hasContent && !editing && (
         <div className="flex items-stretch gap-2">
           <input value={refineValue} onChange={(e) => onRefineChange(e.target.value)} placeholder="Refine: e.g. make it more pastoral, shorter, add a sending note…" className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white" style={{ borderColor: 'var(--worship-border)' }} />
           <button onClick={onRegenerate} disabled={pending} className="worship-btn-primary px-4 py-2 text-sm rounded-lg flex items-center gap-1.5 disabled:opacity-60">
@@ -1633,108 +1653,869 @@ function SermonAddOnRow({
   );
 }
 
-function StudyView({ data }: { data: SermonStudyOutput }) {
+// ---------------- Inline-edit primitives ----------------
+
+/** Auto-growing textarea used in every editable section. */
+function AutoTextarea({
+  value,
+  onChange,
+  placeholder,
+  minRows = 3,
+  className = '',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  minRows?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={minRows}
+      className={`w-full px-3 py-2 rounded-lg border text-sm bg-white leading-relaxed resize-none ${className}`}
+      style={{ borderColor: 'var(--worship-border)' }}
+    />
+  );
+}
+
+/** Editable list of plain strings with add/remove. */
+function EditableStringList({
+  items,
+  onChange,
+  placeholder = 'Add item…',
+  itemPlaceholder = '',
+  multiline = false,
+}: {
+  items: string[];
+  onChange: (next: string[]) => void;
+  placeholder?: string;
+  itemPlaceholder?: string;
+  multiline?: boolean;
+}) {
+  const update = (i: number, v: string) => {
+    const next = items.slice();
+    next[i] = v;
+    onChange(next);
+  };
+  const remove = (i: number) => {
+    const next = items.slice();
+    next.splice(i, 1);
+    onChange(next);
+  };
+  const add = () => onChange([...items, '']);
+  return (
+    <div className="space-y-2">
+      {items.map((it, i) => (
+        <div key={i} className="flex items-start gap-2">
+          {multiline ? (
+            <AutoTextarea value={it} onChange={(v) => update(i, v)} placeholder={itemPlaceholder} minRows={2} />
+          ) : (
+            <input
+              value={it}
+              onChange={(e) => update(i, e.target.value)}
+              placeholder={itemPlaceholder}
+              className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white"
+              style={{ borderColor: 'var(--worship-border)' }}
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            className="p-2 rounded-lg border text-[var(--worship-slate)] hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+            style={{ borderColor: 'var(--worship-border)' }}
+            aria-label="Remove"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1 text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]"
+        style={{ borderColor: 'var(--worship-border)' }}
+      >
+        <Plus className="w-3 h-3" /> {placeholder}
+      </button>
+    </div>
+  );
+}
+
+/** Labeled prose block — read or edit. */
+function EditableTextBlock({
+  label,
+  value,
+  editing,
+  onChange,
+  minRows = 3,
+}: {
+  label: string;
+  value: string | null | undefined;
+  editing: boolean;
+  onChange?: (v: string) => void;
+  minRows?: number;
+}) {
+  if (!editing) {
+    if (!value) return null;
+    return (
+      <div>
+        <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">{label}</h4>
+        <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{value}</p>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">{label}</h4>
+      <AutoTextarea value={value ?? ''} onChange={(v) => onChange?.(v)} minRows={minRows} />
+    </div>
+  );
+}
+
+// ---------------- Section view components ----------------
+
+function StudyView({
+  data,
+  editing = false,
+  onChange,
+}: {
+  data: SermonStudyOutput;
+  editing?: boolean;
+  onChange?: (next: SermonStudyOutput) => void;
+}) {
+  const set = <K extends keyof SermonStudyOutput>(key: K, v: SermonStudyOutput[K]) => {
+    onChange?.({ ...data, [key]: v });
+  };
   return (
     <div className="space-y-5">
-      {data.context && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">Context</h4>
-          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.context}</p>
-        </div>
-      )}
-      {data.observation && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">Observation</h4>
-          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.observation}</p>
-        </div>
-      )}
-      {data.interpretation && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">Interpretation</h4>
-          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.interpretation}</p>
-        </div>
-      )}
-      {data.application && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">Application</h4>
-          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.application}</p>
-        </div>
-      )}
-      {data.crossReferences && data.crossReferences.length > 0 && (
+      <EditableTextBlock label="Context" value={data.context} editing={editing} onChange={(v) => set('context', v)} />
+      <EditableTextBlock label="Observation" value={data.observation} editing={editing} onChange={(v) => set('observation', v)} />
+      <EditableTextBlock label="Interpretation" value={data.interpretation} editing={editing} onChange={(v) => set('interpretation', v)} />
+      <EditableTextBlock label="Application" value={data.application} editing={editing} onChange={(v) => set('application', v)} />
+      {(editing || (data.crossReferences && data.crossReferences.length > 0)) && (
         <div>
           <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">Cross references</h4>
-          <div className="flex flex-wrap gap-1.5">
-            {data.crossReferences.map((c, i) => (
-              <span key={i} className="text-xs px-2 py-1 rounded-md bg-[var(--worship-cream)] text-[var(--worship-charcoal)]">{c}</span>
-            ))}
-          </div>
+          {editing ? (
+            <EditableStringList
+              items={data.crossReferences ?? []}
+              onChange={(v) => set('crossReferences', v)}
+              placeholder="Add reference"
+              itemPlaceholder="e.g. Romans 8:28"
+            />
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {(data.crossReferences ?? []).map((c, i) => (
+                <span key={i} className="text-xs px-2 py-1 rounded-md bg-[var(--worship-cream)] text-[var(--worship-charcoal)]">{c}</span>
+              ))}
+            </div>
+          )}
         </div>
       )}
-      {data.interpretiveCautions && data.interpretiveCautions.length > 0 && (
+      {(editing || (data.interpretiveCautions && data.interpretiveCautions.length > 0)) && (
         <div className="p-3 rounded-xl border border-amber-200 bg-amber-50">
           <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Interpretive cautions</h4>
-          <ul className="space-y-1">
-            {data.interpretiveCautions.map((c, i) => <li key={i} className="text-xs text-amber-900 leading-relaxed">• {c}</li>)}
-          </ul>
+          {editing ? (
+            <EditableStringList
+              items={data.interpretiveCautions ?? []}
+              onChange={(v) => set('interpretiveCautions', v)}
+              placeholder="Add caution"
+              itemPlaceholder="What to be careful of…"
+              multiline
+            />
+          ) : (
+            <ul className="space-y-1">
+              {(data.interpretiveCautions ?? []).map((c, i) => <li key={i} className="text-xs text-amber-900 leading-relaxed">• {c}</li>)}
+            </ul>
+          )}
         </div>
       )}
-      {data.resourceInsights && (
+      {(editing || data.resourceInsights) && (
         <div className="p-3 rounded-xl border bg-[var(--worship-pale-gold)]/40" style={{ borderColor: 'var(--worship-border)' }}>
           <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--worship-gold)] mb-2">From your resources</h4>
-          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.resourceInsights}</p>
+          {editing ? (
+            <AutoTextarea value={data.resourceInsights ?? ''} onChange={(v) => set('resourceInsights', v)} />
+          ) : (
+            <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{data.resourceInsights}</p>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function WorshipView({ data, hideSmallGroupQuestions = false }: { data: SermonWorshipIntegrationOutput; hideSmallGroupQuestions?: boolean }) {
+function BigIdeaView({
+  data,
+  editing = false,
+  onChange,
+  onSelect,
+}: {
+  data: SermonBigIdeaOutput;
+  editing?: boolean;
+  onChange?: (next: SermonBigIdeaOutput) => void;
+  /** Selection click handler when not editing. */
+  onSelect?: (bigIdea: string) => void;
+}) {
+  const updateOption = (i: number, patch: Partial<{ bigIdea: string; rationale: string | null }>) => {
+    if (!onChange) return;
+    const options = data.options.map((o, idx) => (idx === i ? { ...o, ...patch } : o));
+    // Keep `selected` pointing at the same option even if its text changed.
+    const prevSelectedIdx = data.options.findIndex((o) => o.bigIdea === data.selected);
+    const nextSelected =
+      prevSelectedIdx >= 0 ? options[prevSelectedIdx]?.bigIdea ?? null : data.selected ?? null;
+    onChange({ ...data, options, selected: nextSelected });
+  };
+  const removeOption = (i: number) => {
+    if (!onChange) return;
+    const options = data.options.slice();
+    const removed = options.splice(i, 1)[0];
+    const selected = data.selected === removed?.bigIdea ? options[0]?.bigIdea ?? null : data.selected ?? null;
+    onChange({ ...data, options, selected });
+  };
+  const addOption = () => {
+    if (!onChange) return;
+    onChange({ ...data, options: [...data.options, { bigIdea: '', rationale: '' }] });
+  };
+  const pickInDraft = (bigIdea: string) => {
+    if (!onChange) return;
+    onChange({ ...data, selected: bigIdea });
+  };
   return (
-    <div className="space-y-5">
-      {data.themes && data.themes.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {data.themes.map((t, i) => <span key={i} className="text-xs px-3 py-1 rounded-full bg-[var(--worship-sand)] text-[var(--worship-navy)]">{t}</span>)}
-        </div>
-      )}
-      {data.songs && data.songs.length > 0 && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2 flex items-center gap-2"><Music className="w-4 h-4" /> Suggested songs</h4>
-          <div className="space-y-2">
-            {data.songs.map((s, i) => (
-              <div key={i} className="p-3 rounded-lg border bg-white" style={{ borderColor: 'var(--worship-border)' }}>
-                <div className="font-semibold text-sm text-[var(--worship-navy)]">{s.title}{s.artist ? ` — ${s.artist}` : ''}</div>
-                {s.whyItFits && <div className="text-xs text-[var(--worship-slate)] mt-0.5 leading-relaxed">{s.whyItFits}</div>}
+    <div className="space-y-3">
+      {data.options.map((opt, i) => {
+        const selected = data.selected === opt.bigIdea;
+        return (
+          <div
+            key={i}
+            className={`p-4 rounded-xl border-2 transition-colors ${selected ? 'border-[var(--worship-gold)] bg-[var(--worship-pale-gold)]/40' : 'border-[var(--worship-border)] bg-white'} ${!editing ? 'cursor-pointer hover:bg-[var(--worship-cream)]' : ''}`}
+            onClick={!editing ? () => onSelect?.(opt.bigIdea) : undefined}
+          >
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); editing ? pickInDraft(opt.bigIdea) : onSelect?.(opt.bigIdea); }}
+                className={`w-5 h-5 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${selected ? 'border-[var(--worship-gold)] bg-[var(--worship-gold)]' : 'border-[var(--worship-border)]'}`}
+                aria-label={selected ? 'Selected' : 'Select this big idea'}
+              >
+                {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
+              </button>
+              <div className="flex-1 min-w-0 space-y-2">
+                {editing ? (
+                  <>
+                    <AutoTextarea value={opt.bigIdea} onChange={(v) => updateOption(i, { bigIdea: v })} placeholder="The big idea…" minRows={2} />
+                    <AutoTextarea value={opt.rationale ?? ''} onChange={(v) => updateOption(i, { rationale: v })} placeholder="Rationale (optional)" minRows={2} />
+                  </>
+                ) : (
+                  <>
+                    <p className="font-serif text-base text-[var(--worship-navy)] leading-snug">{opt.bigIdea}</p>
+                    {opt.rationale && <p className="text-xs text-[var(--worship-slate)] mt-2 leading-relaxed">{opt.rationale}</p>}
+                  </>
+                )}
               </div>
-            ))}
+              {editing && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); removeOption(i); }}
+                  className="p-1.5 rounded-lg border text-[var(--worship-slate)] hover:bg-red-50 hover:text-red-600 hover:border-red-200 shrink-0"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                  aria-label="Remove option"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
+        );
+      })}
+      {editing && (
+        <button
+          type="button"
+          onClick={addOption}
+          className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1 text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]"
+          style={{ borderColor: 'var(--worship-border)' }}
+        >
+          <Plus className="w-3 h-3" /> Add option
+        </button>
+      )}
+    </div>
+  );
+}
+
+function OutlineView({
+  data,
+  editing = false,
+  onChange,
+  onSelect,
+}: {
+  data: SermonOutlineOutput;
+  editing?: boolean;
+  onChange?: (next: SermonOutlineOutput) => void;
+  onSelect?: (index: number) => void;
+}) {
+  const updateOption = (i: number, patch: Partial<SermonOutlineOption>) => {
+    if (!onChange) return;
+    const options = data.options.map((o, idx) => (idx === i ? { ...o, ...patch } : o));
+    onChange({ ...data, options });
+  };
+  const updatePoint = (oi: number, pi: number, patch: Partial<{ heading: string; summary: string | null; scriptureSupport: string[] | null }>) => {
+    if (!onChange) return;
+    const options = data.options.map((o, idx) => {
+      if (idx !== oi) return o;
+      const points = o.points.map((p, j) => (j === pi ? { ...p, ...patch } : p));
+      return { ...o, points };
+    });
+    onChange({ ...data, options });
+  };
+  const addPoint = (oi: number) => {
+    if (!onChange) return;
+    const options = data.options.map((o, idx) => {
+      if (idx !== oi) return o;
+      return { ...o, points: [...o.points, { heading: '', summary: '', scriptureSupport: [] }] };
+    });
+    onChange({ ...data, options });
+  };
+  const removePoint = (oi: number, pi: number) => {
+    if (!onChange) return;
+    const options = data.options.map((o, idx) => {
+      if (idx !== oi) return o;
+      const points = o.points.slice();
+      points.splice(pi, 1);
+      return { ...o, points };
+    });
+    onChange({ ...data, options });
+  };
+  const removeOption = (i: number) => {
+    if (!onChange) return;
+    const options = data.options.slice();
+    options.splice(i, 1);
+    let selectedIndex = data.selectedIndex ?? 0;
+    if (selectedIndex >= options.length) selectedIndex = Math.max(0, options.length - 1);
+    onChange({ ...data, options, selectedIndex });
+  };
+  const addOption = () => {
+    if (!onChange) return;
+    onChange({ ...data, options: [...data.options, { title: '', approach: '', points: [{ heading: '', summary: '', scriptureSupport: [] }] }] });
+  };
+  const pickInDraft = (i: number) => {
+    if (!onChange) return;
+    onChange({ ...data, selectedIndex: i });
+  };
+  return (
+    <div className="space-y-4">
+      {data.options.map((opt, i) => {
+        const selected = (data.selectedIndex ?? 0) === i;
+        return (
+          <div key={i} className={`p-5 rounded-xl border-2 transition-colors ${selected ? 'border-[var(--worship-gold)] bg-[var(--worship-pale-gold)]/30' : 'border-[var(--worship-border)] bg-white'}`}>
+            <div className="flex items-start gap-3 mb-3">
+              <button
+                type="button"
+                onClick={() => (editing ? pickInDraft(i) : onSelect?.(i))}
+                className={`w-5 h-5 rounded-full border-2 shrink-0 mt-1 flex items-center justify-center ${selected ? 'border-[var(--worship-gold)] bg-[var(--worship-gold)]' : 'border-[var(--worship-border)]'}`}
+                aria-label={selected ? 'Selected' : 'Select this outline'}
+              >
+                {selected && <CheckCircle2 className="w-3 h-3 text-white" />}
+              </button>
+              <div className="flex-1 min-w-0 space-y-2">
+                {editing ? (
+                  <>
+                    <input
+                      value={opt.title}
+                      onChange={(e) => updateOption(i, { title: e.target.value })}
+                      placeholder="Outline title"
+                      className="w-full px-3 py-2 rounded-lg border text-base font-serif text-[var(--worship-navy)] bg-white"
+                      style={{ borderColor: 'var(--worship-border)' }}
+                    />
+                    <input
+                      value={opt.approach ?? ''}
+                      onChange={(e) => updateOption(i, { approach: e.target.value })}
+                      placeholder="Approach (optional)"
+                      className="w-full px-3 py-2 rounded-lg border text-xs italic bg-white"
+                      style={{ borderColor: 'var(--worship-border)' }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <h4 className="font-serif text-lg text-[var(--worship-navy)]">{opt.title}</h4>
+                    {opt.approach && <p className="text-xs text-[var(--worship-slate)] mt-0.5 italic">{opt.approach}</p>}
+                  </>
+                )}
+              </div>
+              {editing && data.options.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeOption(i)}
+                  className="p-1.5 rounded-lg border text-[var(--worship-slate)] hover:bg-red-50 hover:text-red-600 hover:border-red-200 shrink-0"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                  aria-label="Remove option"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {editing ? (
+              <div className="space-y-3 ml-8">
+                {opt.points.map((p, j) => (
+                  <div key={j} className="p-3 rounded-lg border bg-white space-y-2" style={{ borderColor: 'var(--worship-border)' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[var(--worship-gold)]">{j + 1}.</span>
+                      <input
+                        value={p.heading}
+                        onChange={(e) => updatePoint(i, j, { heading: e.target.value })}
+                        placeholder="Point heading"
+                        className="flex-1 px-2 py-1.5 rounded-md border text-sm font-semibold bg-white"
+                        style={{ borderColor: 'var(--worship-border)' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePoint(i, j)}
+                        className="p-1.5 rounded-md border text-[var(--worship-slate)] hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                        style={{ borderColor: 'var(--worship-border)' }}
+                        aria-label="Remove point"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <AutoTextarea value={p.summary ?? ''} onChange={(v) => updatePoint(i, j, { summary: v })} placeholder="Summary (optional)" minRows={2} />
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider text-[var(--worship-muted-slate)] font-bold">Scripture support</label>
+                      <EditableStringList
+                        items={p.scriptureSupport ?? []}
+                        onChange={(v) => updatePoint(i, j, { scriptureSupport: v })}
+                        placeholder="Add reference"
+                        itemPlaceholder="e.g. John 3:16"
+                      />
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => addPoint(i)}
+                  className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1 text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                >
+                  <Plus className="w-3 h-3" /> Add point
+                </button>
+              </div>
+            ) : (
+              <ol className="space-y-2 ml-8 list-decimal list-outside marker:text-[var(--worship-gold)] marker:font-bold">
+                {opt.points.map((p, j) => (
+                  <li key={j} className="text-sm text-[var(--worship-charcoal)] pl-1">
+                    <span className="font-semibold">{p.heading}</span>
+                    {p.summary && <p className="text-xs text-[var(--worship-slate)] leading-relaxed mt-0.5">{p.summary}</p>}
+                    {p.scriptureSupport && p.scriptureSupport.length > 0 && (
+                      <p className="text-[10px] text-[var(--worship-muted-slate)] mt-1 italic">Scripture: {p.scriptureSupport.join(', ')}</p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        );
+      })}
+      {editing && (
+        <button
+          type="button"
+          onClick={addOption}
+          className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1 text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]"
+          style={{ borderColor: 'var(--worship-border)' }}
+        >
+          <Plus className="w-3 h-3" /> Add outline option
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ManuscriptView({
+  data,
+  editing = false,
+  onChange,
+}: {
+  data: SermonManuscriptOutput;
+  editing?: boolean;
+  onChange?: (next: SermonManuscriptOutput) => void;
+}) {
+  const set = <K extends keyof SermonManuscriptOutput>(key: K, v: SermonManuscriptOutput[K]) => {
+    onChange?.({ ...data, [key]: v });
+  };
+  const bodyHeading = data.format === 'manuscript' ? 'Manuscript' : data.format === 'notes' ? 'Speaking notes' : 'Outline';
+  return (
+    <div className="prose prose-sm max-w-none">
+      {(editing || data.introduction) && (
+        <>
+          <h3 className="font-serif text-lg text-[var(--worship-navy)] mb-2">Introduction</h3>
+          {editing ? (
+            <AutoTextarea value={data.introduction ?? ''} onChange={(v) => set('introduction', v)} minRows={4} />
+          ) : (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--worship-charcoal)] mb-6">{data.introduction}</p>
+          )}
+        </>
+      )}
+      <h3 className={`font-serif text-lg text-[var(--worship-navy)] mb-2 ${editing ? 'mt-4' : ''}`}>{bodyHeading}</h3>
+      {editing ? (
+        <AutoTextarea value={data.body} onChange={(v) => set('body', v)} minRows={12} />
+      ) : (
+        <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--worship-charcoal)]">{data.body}</div>
+      )}
+      {(editing || data.conclusion) && (
+        <>
+          <h3 className="font-serif text-lg text-[var(--worship-navy)] mt-6 mb-2">Conclusion</h3>
+          {editing ? (
+            <AutoTextarea value={data.conclusion ?? ''} onChange={(v) => set('conclusion', v)} minRows={4} />
+          ) : (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--worship-charcoal)]">{data.conclusion}</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ApplicationsView({
+  data,
+  editing = false,
+  onChange,
+  hideSmallGroupHint = false,
+}: {
+  data: SermonApplicationsOutput;
+  editing?: boolean;
+  onChange?: (next: SermonApplicationsOutput) => void;
+  hideSmallGroupHint?: boolean;
+}) {
+  const updateGroup = (i: number, patch: Partial<{ audience: string; application: string }>) => {
+    if (!onChange) return;
+    const groups = data.groups.map((g, idx) => (idx === i ? { ...g, ...patch } : g));
+    onChange({ ...data, groups });
+  };
+  const removeGroup = (i: number) => {
+    if (!onChange) return;
+    const groups = data.groups.slice();
+    groups.splice(i, 1);
+    onChange({ ...data, groups });
+  };
+  const addGroup = () => {
+    if (!onChange) return;
+    onChange({ ...data, groups: [...data.groups, { audience: '', application: '' }] });
+  };
+  return (
+    <div className="space-y-4">
+      {editing ? (
+        <div className="space-y-3">
+          {data.groups.map((g, i) => (
+            <div key={i} className="p-4 rounded-xl border bg-white space-y-2" style={{ borderColor: 'var(--worship-border)' }}>
+              <div className="flex items-center gap-2">
+                <input
+                  value={g.audience}
+                  onChange={(e) => updateGroup(i, { audience: e.target.value })}
+                  placeholder="Audience (e.g. Parents)"
+                  className="flex-1 px-3 py-2 rounded-lg border text-xs uppercase tracking-wider font-bold text-[var(--worship-gold)] bg-white"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeGroup(i)}
+                  className="p-2 rounded-lg border text-[var(--worship-slate)] hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                  aria-label="Remove group"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <AutoTextarea value={g.application} onChange={(v) => updateGroup(i, { application: v })} placeholder="Application…" minRows={3} />
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addGroup}
+            className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1 text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]"
+            style={{ borderColor: 'var(--worship-border)' }}
+          >
+            <Plus className="w-3 h-3" /> Add audience group
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {data.groups.map((g, i) => (
+            <div key={i} className="p-4 rounded-xl border bg-white" style={{ borderColor: 'var(--worship-border)' }}>
+              <div className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-1">{g.audience}</div>
+              <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{g.application}</p>
+            </div>
+          ))}
         </div>
       )}
-      {data.callToWorship && <BlockSection title="Call to worship">{data.callToWorship}</BlockSection>}
-      {data.responseMoment && <BlockSection title="Response moment">{data.responseMoment}</BlockSection>}
-      {data.communionMoment && <BlockSection title="Communion moment">{data.communionMoment}</BlockSection>}
-      {data.benediction && <BlockSection title="Benediction">{data.benediction}</BlockSection>}
-      {data.prayerPrompts && data.prayerPrompts.length > 0 && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Prayer prompts</h4>
-          <ul className="space-y-1">{data.prayerPrompts.map((p, i) => <li key={i} className="text-sm text-[var(--worship-charcoal)] flex items-start gap-2"><ChevronRight className="w-4 h-4 text-[var(--worship-gold)] shrink-0 mt-0.5" />{p}</li>)}</ul>
-        </div>
-      )}
-      {!hideSmallGroupQuestions && data.smallGroupQuestions && data.smallGroupQuestions.length > 0 && (
+      {(editing || (!hideSmallGroupHint && data.smallGroupQuestions && data.smallGroupQuestions.length > 0)) && (
         <div>
           <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Small group questions</h4>
-          <ul className="space-y-1">{data.smallGroupQuestions.map((p, i) => <li key={i} className="text-sm text-[var(--worship-charcoal)] flex items-start gap-2"><ChevronRight className="w-4 h-4 text-[var(--worship-gold)] shrink-0 mt-0.5" />{p}</li>)}</ul>
+          {editing ? (
+            <EditableStringList
+              items={data.smallGroupQuestions ?? []}
+              onChange={(v) => onChange?.({ ...data, smallGroupQuestions: v })}
+              placeholder="Add question"
+              itemPlaceholder="A discussion question…"
+              multiline
+            />
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {(data.smallGroupQuestions ?? []).map((q, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-[var(--worship-charcoal)]">
+                    <ChevronRight className="w-4 h-4 text-[var(--worship-gold)] shrink-0 mt-0.5" />{q}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[10px] text-[var(--worship-muted-slate)] mt-2 italic">
+                Tip: open the Small Group Questions add-on for a fuller, grouped Bible-study set.
+              </p>
+            </>
+          )}
         </div>
       )}
-      {data.teamDevotionalSeed && <BlockSection title="Team devotional seed">{data.teamDevotionalSeed}</BlockSection>}
+    </div>
+  );
+}
+
+function IllustrationsView({
+  data,
+  editing = false,
+  onChange,
+}: {
+  data: SermonIllustrationsOutput;
+  editing?: boolean;
+  onChange?: (next: SermonIllustrationsOutput) => void;
+}) {
+  const KIND_OPTIONS = ['story', 'analogy', 'historical', 'cultural', 'personal', 'other'] as const;
+  const update = (i: number, patch: Partial<SermonIllustrationsOutput['illustrations'][number]>) => {
+    if (!onChange) return;
+    const illustrations = data.illustrations.map((it, idx) => (idx === i ? { ...it, ...patch } : it));
+    onChange({ ...data, illustrations });
+  };
+  const remove = (i: number) => {
+    if (!onChange) return;
+    const illustrations = data.illustrations.slice();
+    illustrations.splice(i, 1);
+    onChange({ ...data, illustrations });
+  };
+  const add = () => {
+    if (!onChange) return;
+    onChange({
+      ...data,
+      illustrations: [
+        ...data.illustrations,
+        { kind: 'story', title: '', body: '', verifyBeforeUsing: false, notes: '' },
+      ],
+    });
+  };
+  return (
+    <div className="space-y-3">
+      {data.illustrations.map((ill, i) => (
+        <div key={i} className="p-4 rounded-xl border bg-white" style={{ borderColor: 'var(--worship-border)' }}>
+          {editing ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={ill.kind}
+                  onChange={(e) => update(i, { kind: e.target.value as SermonIllustrationsOutput['illustrations'][number]['kind'] })}
+                  className="px-2 py-1.5 rounded-md border text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)] bg-white"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                >
+                  {KIND_OPTIONS.map((k) => <option key={k} value={k}>{k}</option>)}
+                </select>
+                <input
+                  value={ill.title}
+                  onChange={(e) => update(i, { title: e.target.value })}
+                  placeholder="Title"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm font-serif text-[var(--worship-navy)] bg-white"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                />
+                <label className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-amber-800 px-2 py-1 rounded-md bg-amber-50 border border-amber-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!ill.verifyBeforeUsing}
+                    onChange={(e) => update(i, { verifyBeforeUsing: e.target.checked })}
+                    className="accent-amber-600"
+                  />
+                  Verify
+                </label>
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  className="p-2 rounded-lg border text-[var(--worship-slate)] hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                  aria-label="Remove illustration"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <AutoTextarea value={ill.body} onChange={(v) => update(i, { body: v })} placeholder="Body…" minRows={4} />
+              <AutoTextarea value={ill.notes ?? ''} onChange={(v) => update(i, { notes: v })} placeholder="Notes (optional)" minRows={2} />
+            </div>
+          ) : (
+            <>
+              <div className="flex items-start gap-3 mb-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-0.5">{ill.kind}</div>
+                  <h4 className="font-serif text-base text-[var(--worship-navy)] leading-snug">{ill.title}</h4>
+                </div>
+                {ill.verifyBeforeUsing && (
+                  <span className="shrink-0 text-[10px] uppercase tracking-wider px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Verify before using
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{ill.body}</p>
+              {ill.notes && (
+                <p className="text-xs text-[var(--worship-slate)] mt-3 border-t pt-2 italic" style={{ borderColor: 'var(--worship-border)' }}>{ill.notes}</p>
+              )}
+            </>
+          )}
+        </div>
+      ))}
+      {editing && (
+        <button
+          type="button"
+          onClick={add}
+          className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1 text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]"
+          style={{ borderColor: 'var(--worship-border)' }}
+        >
+          <Plus className="w-3 h-3" /> Add illustration
+        </button>
+      )}
+    </div>
+  );
+}
+
+function WorshipView({
+  data,
+  hideSmallGroupQuestions = false,
+  editing = false,
+  onChange,
+}: {
+  data: SermonWorshipIntegrationOutput;
+  hideSmallGroupQuestions?: boolean;
+  editing?: boolean;
+  onChange?: (next: SermonWorshipIntegrationOutput) => void;
+}) {
+  const set = <K extends keyof SermonWorshipIntegrationOutput>(key: K, v: SermonWorshipIntegrationOutput[K]) => {
+    onChange?.({ ...data, [key]: v });
+  };
+  const updateSong = (i: number, patch: Partial<{ title: string; artist: string | null; whyItFits: string | null }>) => {
+    if (!onChange) return;
+    const songs = (data.songs ?? []).map((s, idx) => (idx === i ? { ...s, ...patch } : s));
+    onChange({ ...data, songs });
+  };
+  const removeSong = (i: number) => {
+    if (!onChange) return;
+    const songs = (data.songs ?? []).slice();
+    songs.splice(i, 1);
+    onChange({ ...data, songs });
+  };
+  const addSong = () => {
+    if (!onChange) return;
+    onChange({ ...data, songs: [...(data.songs ?? []), { title: '', artist: '', whyItFits: '' }] });
+  };
+  return (
+    <div className="space-y-5">
+      {(editing || (data.themes && data.themes.length > 0)) && (
+        <div>
+          {editing && <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Themes</h4>}
+          {editing ? (
+            <EditableStringList
+              items={data.themes ?? []}
+              onChange={(v) => set('themes', v)}
+              placeholder="Add theme"
+              itemPlaceholder="e.g. grace, perseverance"
+            />
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {(data.themes ?? []).map((t, i) => <span key={i} className="text-xs px-3 py-1 rounded-full bg-[var(--worship-sand)] text-[var(--worship-navy)]">{t}</span>)}
+            </div>
+          )}
+        </div>
+      )}
+      {(editing || (data.songs && data.songs.length > 0)) && (
+        <div>
+          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2 flex items-center gap-2"><Music className="w-4 h-4" /> Suggested songs</h4>
+          {editing ? (
+            <div className="space-y-2">
+              {(data.songs ?? []).map((s, i) => (
+                <div key={i} className="p-3 rounded-lg border bg-white space-y-2" style={{ borderColor: 'var(--worship-border)' }}>
+                  <div className="flex items-center gap-2">
+                    <input value={s.title} onChange={(e) => updateSong(i, { title: e.target.value })} placeholder="Title" className="flex-1 px-3 py-2 rounded-lg border text-sm font-semibold bg-white" style={{ borderColor: 'var(--worship-border)' }} />
+                    <input value={s.artist ?? ''} onChange={(e) => updateSong(i, { artist: e.target.value })} placeholder="Artist" className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white" style={{ borderColor: 'var(--worship-border)' }} />
+                    <button type="button" onClick={() => removeSong(i)} className="p-2 rounded-lg border text-[var(--worship-slate)] hover:bg-red-50 hover:text-red-600 hover:border-red-200" style={{ borderColor: 'var(--worship-border)' }} aria-label="Remove song"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                  <AutoTextarea value={s.whyItFits ?? ''} onChange={(v) => updateSong(i, { whyItFits: v })} placeholder="Why it fits…" minRows={2} />
+                </div>
+              ))}
+              <button type="button" onClick={addSong} className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1 text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}><Plus className="w-3 h-3" /> Add song</button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(data.songs ?? []).map((s, i) => (
+                <div key={i} className="p-3 rounded-lg border bg-white" style={{ borderColor: 'var(--worship-border)' }}>
+                  <div className="font-semibold text-sm text-[var(--worship-navy)]">{s.title}{s.artist ? ` — ${s.artist}` : ''}</div>
+                  {s.whyItFits && <div className="text-xs text-[var(--worship-slate)] mt-0.5 leading-relaxed">{s.whyItFits}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <BlockSection title="Call to worship" value={data.callToWorship} editing={editing} onChange={(v) => set('callToWorship', v)} />
+      <BlockSection title="Response moment" value={data.responseMoment} editing={editing} onChange={(v) => set('responseMoment', v)} />
+      <BlockSection title="Communion moment" value={data.communionMoment} editing={editing} onChange={(v) => set('communionMoment', v)} />
+      <BlockSection title="Benediction" value={data.benediction} editing={editing} onChange={(v) => set('benediction', v)} />
+      {(editing || (data.prayerPrompts && data.prayerPrompts.length > 0)) && (
+        <div>
+          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Prayer prompts</h4>
+          {editing ? (
+            <EditableStringList items={data.prayerPrompts ?? []} onChange={(v) => set('prayerPrompts', v)} placeholder="Add prompt" itemPlaceholder="A prayer prompt…" multiline />
+          ) : (
+            <ul className="space-y-1">{(data.prayerPrompts ?? []).map((p, i) => <li key={i} className="text-sm text-[var(--worship-charcoal)] flex items-start gap-2"><ChevronRight className="w-4 h-4 text-[var(--worship-gold)] shrink-0 mt-0.5" />{p}</li>)}</ul>
+          )}
+        </div>
+      )}
+      {!hideSmallGroupQuestions && (editing || (data.smallGroupQuestions && data.smallGroupQuestions.length > 0)) && (
+        <div>
+          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Small group questions</h4>
+          {editing ? (
+            <EditableStringList items={data.smallGroupQuestions ?? []} onChange={(v) => set('smallGroupQuestions', v)} placeholder="Add question" itemPlaceholder="A discussion question…" multiline />
+          ) : (
+            <ul className="space-y-1">{(data.smallGroupQuestions ?? []).map((p, i) => <li key={i} className="text-sm text-[var(--worship-charcoal)] flex items-start gap-2"><ChevronRight className="w-4 h-4 text-[var(--worship-gold)] shrink-0 mt-0.5" />{p}</li>)}</ul>
+          )}
+        </div>
+      )}
+      <BlockSection title="Team devotional seed" value={data.teamDevotionalSeed} editing={editing} onChange={(v) => set('teamDevotionalSeed', v)} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {data.socialSummary && <BlockSection title="Social summary">{data.socialSummary}</BlockSection>}
-        {data.emailSummary && <BlockSection title="Email summary">{data.emailSummary}</BlockSection>}
+        <BlockSection title="Social summary" value={data.socialSummary} editing={editing} onChange={(v) => set('socialSummary', v)} />
+        <BlockSection title="Email summary" value={data.emailSummary} editing={editing} onChange={(v) => set('emailSummary', v)} />
       </div>
     </div>
   );
 }
 
-function SmallGroupQuestionsView({ data }: { data: SermonSmallGroupQuestionsOutput }) {
+function SmallGroupQuestionsView({
+  data,
+  editing = false,
+  onChange,
+}: {
+  data: SermonSmallGroupQuestionsOutput;
+  editing?: boolean;
+  onChange?: (next: SermonSmallGroupQuestionsOutput) => void;
+}) {
+  const set = <K extends keyof SermonSmallGroupQuestionsOutput>(key: K, v: SermonSmallGroupQuestionsOutput[K]) => {
+    onChange?.({ ...data, [key]: v });
+  };
   const QuestionList = ({ items }: { items: string[] }) => (
     <ol className="space-y-2 ml-5 list-decimal list-outside marker:text-[var(--worship-gold)] marker:font-bold">
       {items.map((q, i) => (
@@ -1742,50 +2523,72 @@ function SmallGroupQuestionsView({ data }: { data: SermonSmallGroupQuestionsOutp
       ))}
     </ol>
   );
+  const Group = ({ title, hint, items, key: _k, onListChange }: { title: string; hint: string; items: string[]; key?: string; onListChange: (v: string[]) => void }) => (
+    <div>
+      <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">{title}</h4>
+      <p className="text-xs text-[var(--worship-slate)] mb-2 italic">{hint}</p>
+      {editing ? (
+        <EditableStringList items={items} onChange={onListChange} placeholder="Add question" itemPlaceholder="A discussion question…" multiline />
+      ) : (
+        <QuestionList items={items} />
+      )}
+    </div>
+  );
   return (
     <div className="space-y-5">
-      {data.openingIcebreaker && (
+      {(editing || data.openingIcebreaker) && (
         <div className="p-4 rounded-xl border bg-[var(--worship-pale-gold)]/40" style={{ borderColor: 'var(--worship-border)' }}>
           <h4 className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-1">Opening icebreaker</h4>
-          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.openingIcebreaker}</p>
+          {editing ? (
+            <AutoTextarea value={data.openingIcebreaker ?? ''} onChange={(v) => set('openingIcebreaker', v)} minRows={2} />
+          ) : (
+            <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{data.openingIcebreaker}</p>
+          )}
         </div>
       )}
-      {data.observationQuestions.length > 0 && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Observation</h4>
-          <p className="text-xs text-[var(--worship-slate)] mb-2 italic">What does the text actually say?</p>
-          <QuestionList items={data.observationQuestions} />
-        </div>
+      {(editing || data.observationQuestions.length > 0) && (
+        <Group title="Observation" hint="What does the text actually say?" items={data.observationQuestions} onListChange={(v) => set('observationQuestions', v)} />
       )}
-      {data.interpretationQuestions.length > 0 && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Interpretation</h4>
-          <p className="text-xs text-[var(--worship-slate)] mb-2 italic">What does it mean?</p>
-          <QuestionList items={data.interpretationQuestions} />
-        </div>
+      {(editing || data.interpretationQuestions.length > 0) && (
+        <Group title="Interpretation" hint="What does it mean?" items={data.interpretationQuestions} onListChange={(v) => set('interpretationQuestions', v)} />
       )}
-      {data.applicationQuestions.length > 0 && (
-        <div>
-          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-2">Application</h4>
-          <p className="text-xs text-[var(--worship-slate)] mb-2 italic">How does it shape my life this week?</p>
-          <QuestionList items={data.applicationQuestions} />
-        </div>
+      {(editing || data.applicationQuestions.length > 0) && (
+        <Group title="Application" hint="How does it shape my life this week?" items={data.applicationQuestions} onListChange={(v) => set('applicationQuestions', v)} />
       )}
-      {data.prayerPrompt && (
+      {(editing || data.prayerPrompt) && (
         <div className="p-4 rounded-xl border bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
           <h4 className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-1">Prayer prompt</h4>
-          <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed">{data.prayerPrompt}</p>
+          {editing ? (
+            <AutoTextarea value={data.prayerPrompt ?? ''} onChange={(v) => set('prayerPrompt', v)} minRows={2} />
+          ) : (
+            <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{data.prayerPrompt}</p>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function BlockSection({ title, children }: { title: string; children: React.ReactNode }) {
+function BlockSection({
+  title,
+  value,
+  editing = false,
+  onChange,
+}: {
+  title: string;
+  value: string | null | undefined;
+  editing?: boolean;
+  onChange?: (v: string) => void;
+}) {
+  if (!editing && !value) return null;
   return (
     <div>
       <h4 className="font-serif text-base text-[var(--worship-navy)] mb-1">{title}</h4>
-      <div className="p-3 rounded-lg border bg-white text-sm leading-relaxed text-[var(--worship-charcoal)] whitespace-pre-wrap" style={{ borderColor: 'var(--worship-border)' }}>{children}</div>
+      {editing ? (
+        <AutoTextarea value={value ?? ''} onChange={(v) => onChange?.(v)} minRows={3} />
+      ) : (
+        <div className="p-3 rounded-lg border bg-white text-sm leading-relaxed text-[var(--worship-charcoal)] whitespace-pre-wrap" style={{ borderColor: 'var(--worship-border)' }}>{value}</div>
+      )}
     </div>
   );
 }
