@@ -25,8 +25,15 @@ import {
   type SermonIllustrationsOutput,
   type SermonWorshipIntegrationOutput,
   type SermonResource,
+  type SermonSectionHashes,
 } from '@workspace/api-client-react';
 import { useJobGenerate } from '../hooks/useJobGenerate';
+import {
+  type SectionKey,
+  buildSnapshot,
+  computeSectionHash,
+  staleSections,
+} from '../lib/sermonStaleness';
 import { AppLayout } from '../components/layout/AppLayout';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
@@ -140,14 +147,31 @@ function buildResourcePayload(
     .map((r) => ({ title: r.title, author: r.author || undefined, excerpt: r.excerpt }));
 }
 
-const TABS: Array<{ key: string; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { key: 'study', label: 'Passage Study', icon: BookOpen },
-  { key: 'bigIdea', label: 'Big Idea', icon: Lightbulb },
-  { key: 'outline', label: 'Outline', icon: ListTree },
-  { key: 'manuscript', label: 'Manuscript', icon: FileText },
-  { key: 'applications', label: 'Applications', icon: Users },
-  { key: 'illustrations', label: 'Illustrations', icon: Sparkles },
-  { key: 'worship', label: 'Worship Integration', icon: Music },
+type TabKey = 'study' | 'bigIdea' | 'outline' | 'manuscript' | 'applications' | 'illustrations' | 'worship';
+
+interface StepDef {
+  key: TabKey;
+  /** Section key in the sermon record / hashes object. */
+  section: SectionKey;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** Other section the user should generate first (UI hint only). */
+  prereq?: { section: SectionKey; label: string };
+}
+
+// Core dependency chain — drawn as a numbered stepper.
+const CORE_STEPS: StepDef[] = [
+  { key: 'study', section: 'study', label: 'Passage Study', icon: BookOpen },
+  { key: 'bigIdea', section: 'bigIdea', label: 'Big Idea', icon: Lightbulb, prereq: { section: 'study', label: 'Passage Study' } },
+  { key: 'outline', section: 'outline', label: 'Outline', icon: ListTree, prereq: { section: 'bigIdea', label: 'Big Idea' } },
+  { key: 'manuscript', section: 'manuscript', label: 'Manuscript', icon: FileText, prereq: { section: 'outline', label: 'Outline' } },
+];
+
+// Optional add-ons that branch off from the core chain.
+const ADDON_STEPS: StepDef[] = [
+  { key: 'applications', section: 'applications', label: 'Applications', icon: Users, prereq: { section: 'bigIdea', label: 'Big Idea' } },
+  { key: 'illustrations', section: 'illustrations', label: 'Illustrations', icon: Sparkles, prereq: { section: 'bigIdea', label: 'Big Idea' } },
+  { key: 'worship', section: 'worshipIntegration', label: 'Worship Integration', icon: Music, prereq: { section: 'bigIdea', label: 'Big Idea' } },
 ];
 
 export default function SermonBuilder() {
@@ -170,7 +194,7 @@ export default function SermonBuilder() {
   const buildService = useBuildServiceFromSermon();
 
   const [form, setForm] = useState<FormState>(blankForm());
-  const [tab, setTab] = useState<string>('study');
+  const [tab, setTab] = useState<TabKey>('study');
   const [exportContent, setExportContent] = useState<{ content: string; format: string } | null>(null);
   const hydratedRef = useRef(false);
 
@@ -282,6 +306,65 @@ export default function SermonBuilder() {
     }
   };
 
+  /**
+   * Build a snapshot of the upstream inputs that the *generation handlers*
+   * actually saw when they ran. Generators read passage / outputFormat from
+   * the live form (`baseContext`) and section content from the freshest
+   * source (`sermon ?? gen.data`). The hash needs to mirror exactly that —
+   * not the saved-but-possibly-stale `sermon.passage` — otherwise a user
+   * who edits the form and immediately regenerates would see a permanent
+   * false-positive stale flag.
+   */
+  const currentSnapshot = () => {
+    // Read the freshest sermon from the cache (it may include hashes
+    // written by a sibling section that finished a moment ago).
+    const fresh = sermonId
+      ? (queryClient.getQueryData(getGetSermonQueryKey(sermonId)) as Sermon | undefined)
+      : undefined;
+    const sermonForSnap = fresh ?? sermon;
+    return buildSnapshot({
+      passage: form.passage,
+      secondaryPassages: parseSecondary(form.secondaryPassagesText),
+      outputFormat: form.outputFormat,
+      study: sermonForSnap?.study ?? studyGen.data ?? null,
+      bigIdea: sermonForSnap?.bigIdea ?? bigIdeaGen.data ?? null,
+      outline: sermonForSnap?.outline ?? outlineGen.data ?? null,
+      applications: sermonForSnap?.applications ?? applicationsGen.data ?? null,
+    });
+  };
+
+  /**
+   * Persist a freshly-generated section value AND fingerprint the upstream
+   * inputs that produced it, so the UI can later flag the section as stale
+   * if those inputs change.
+   *
+   * To avoid a lost-update race when two sections finish nearly together
+   * (each captures `sectionHashes` from its own closure and overwrites the
+   * other's key) we re-read the freshest sermon from the React Query cache
+   * just before computing the merged hashes object.
+   */
+  const persistSection = async <K extends keyof Sermon>(
+    field: K,
+    section: SectionKey,
+    value: Sermon[K],
+  ): Promise<void> => {
+    const id = await ensureSermonId();
+    if (!id) return;
+    const hash = computeSectionHash(section, currentSnapshot());
+    const fresh = queryClient.getQueryData(getGetSermonQueryKey(id)) as Sermon | undefined;
+    const baseHashes = fresh?.sectionHashes ?? sermon?.sectionHashes ?? {};
+    const nextHashes: SermonSectionHashes = { ...baseHashes, [section]: hash };
+    try {
+      const updated = await updateSermon.mutateAsync({
+        id,
+        data: { [field]: value, sectionHashes: nextHashes } as Partial<Sermon>,
+      });
+      queryClient.setQueryData(getGetSermonQueryKey(id), updated);
+    } catch {
+      toast.error('Could not save section. Try the explicit "Save context" button.');
+    }
+  };
+
   // ------- Generate handlers -------
 
   const { ready: profileReady } = useChurchProfileReady();
@@ -307,7 +390,7 @@ export default function SermonBuilder() {
       refineInstruction: refine.study,
       existingContent: existing ?? undefined,
     });
-    if (out) await persistField('study', out);
+    if (out) await persistSection('study', 'study', out);
   };
 
   const handleBigIdea = async () => {
@@ -317,7 +400,7 @@ export default function SermonBuilder() {
       study: sermon?.study ?? studyGen.data ?? undefined,
       refineInstruction: refine.bigIdea,
     });
-    if (out) await persistField('bigIdea', out);
+    if (out) await persistSection('bigIdea', 'bigIdea', out);
   };
 
   const handleOutline = async (existing?: SermonOutlineOutput | null) => {
@@ -330,7 +413,7 @@ export default function SermonBuilder() {
       refineInstruction: refine.outline,
       existingContent: existing ?? undefined,
     });
-    if (out) await persistField('outline', out);
+    if (out) await persistSection('outline', 'outline', out);
   };
 
   const handleManuscript = async (existing?: SermonManuscriptOutput | null) => {
@@ -346,7 +429,7 @@ export default function SermonBuilder() {
       refineInstruction: refine.manuscript,
       existingContent: existing ?? undefined,
     });
-    if (out) await persistField('manuscript', out);
+    if (out) await persistSection('manuscript', 'manuscript', out);
   };
 
   const handleApplications = async () => {
@@ -358,7 +441,7 @@ export default function SermonBuilder() {
       bigIdea: big?.selected ?? big?.options?.[0]?.bigIdea ?? undefined,
       refineInstruction: refine.applications,
     });
-    if (out) await persistField('applications', out);
+    if (out) await persistSection('applications', 'applications', out);
   };
 
   const handleIllustrations = async () => {
@@ -372,7 +455,7 @@ export default function SermonBuilder() {
       outline: chosen,
       refineInstruction: refine.illustrations,
     });
-    if (out) await persistField('illustrations', out);
+    if (out) await persistSection('illustrations', 'illustrations', out);
   };
 
   const handleWorship = async () => {
@@ -387,7 +470,7 @@ export default function SermonBuilder() {
       applications: (sermon?.applications ?? applicationsGen.data) ?? undefined,
       refineInstruction: refine.worship,
     });
-    if (out) await persistField('worshipIntegration', out);
+    if (out) await persistSection('worshipIntegration', 'worshipIntegration', out);
   };
 
   const saveContext = async () => {
@@ -472,6 +555,66 @@ export default function SermonBuilder() {
   const applicationsData: SermonApplicationsOutput | null = (sermon?.applications ?? applicationsGen.data) ?? null;
   const illustrationsData: SermonIllustrationsOutput | null = (sermon?.illustrations ?? illustrationsGen.data) ?? null;
   const worshipData: SermonWorshipIntegrationOutput | null = (sermon?.worshipIntegration ?? worshipGen.data) ?? null;
+
+  /**
+   * Per-section presence map and the set of sections whose stored input
+   * fingerprint no longer matches the live upstream values. Sections without
+   * a stored hash (legacy data) are intentionally treated as up-to-date.
+   */
+  const hasContentBySection: Record<SectionKey, boolean> = useMemo(
+    () => ({
+      study: !!studyData,
+      bigIdea: !!bigIdeaData,
+      outline: !!outlineData,
+      manuscript: !!manuscriptData,
+      applications: !!applicationsData,
+      illustrations: !!illustrationsData,
+      worshipIntegration: !!worshipData,
+    }),
+    [studyData, bigIdeaData, outlineData, manuscriptData, applicationsData, illustrationsData, worshipData],
+  );
+
+  const staleSet: Set<SectionKey> = useMemo(() => {
+    // Use live form values for primitives so the stale check stays
+    // consistent with what persistSection writes when the user generates.
+    const snap = buildSnapshot({
+      passage: form.passage,
+      secondaryPassages: parseSecondary(form.secondaryPassagesText),
+      outputFormat: form.outputFormat,
+      study: sermon?.study ?? studyGen.data ?? null,
+      bigIdea: sermon?.bigIdea ?? bigIdeaGen.data ?? null,
+      outline: sermon?.outline ?? outlineGen.data ?? null,
+      applications: sermon?.applications ?? applicationsGen.data ?? null,
+    });
+    return staleSections(sermon?.sectionHashes, snap, hasContentBySection);
+  }, [
+    sermon,
+    form.passage,
+    form.secondaryPassagesText,
+    form.outputFormat,
+    studyGen.data,
+    bigIdeaGen.data,
+    outlineGen.data,
+    applicationsGen.data,
+    hasContentBySection,
+  ]);
+
+  const pendingBySection: Record<SectionKey, boolean> = {
+    study: studyGen.isPending,
+    bigIdea: bigIdeaGen.isPending,
+    outline: outlineGen.isPending,
+    manuscript: manuscriptGen.isPending,
+    applications: applicationsGen.isPending,
+    illustrations: illustrationsGen.isPending,
+    worshipIntegration: worshipGen.isPending,
+  };
+
+  function statusFor(section: SectionKey): 'pending' | 'stale' | 'done' | 'empty' {
+    if (pendingBySection[section]) return 'pending';
+    if (!hasContentBySection[section]) return 'empty';
+    if (staleSet.has(section)) return 'stale';
+    return 'done';
+  }
 
   // -------- UI --------
 
@@ -657,15 +800,19 @@ export default function SermonBuilder() {
 
           {/* RIGHT: workspace */}
           <div className="flex-1 flex flex-col worship-card !p-0 overflow-hidden min-h-[600px]">
-            <div className="border-b bg-white px-2 sm:px-4 flex items-center gap-1 overflow-x-auto" style={{ borderColor: 'var(--worship-border)' }}>
-              {TABS.map((t) => {
-                const active = tab === t.key;
-                return (
-                  <button key={t.key} onClick={() => setTab(t.key)} className={`px-3 py-3 text-xs font-medium flex items-center gap-1.5 border-b-2 whitespace-nowrap ${active ? 'border-[var(--worship-gold)] text-[var(--worship-navy)]' : 'border-transparent text-[var(--worship-slate)] hover:text-[var(--worship-navy)]'}`}>
-                    <t.icon className="w-3.5 h-3.5" /> {t.label}
-                  </button>
-                );
-              })}
+            <div className="border-b bg-white px-3 sm:px-5 py-3 space-y-2" style={{ borderColor: 'var(--worship-border)' }}>
+              <SermonStepper
+                steps={CORE_STEPS}
+                activeKey={tab}
+                onSelect={(k) => setTab(k)}
+                statusFor={statusFor}
+              />
+              <SermonAddOnRow
+                steps={ADDON_STEPS}
+                activeKey={tab}
+                onSelect={(k) => setTab(k)}
+                statusFor={statusFor}
+              />
             </div>
             <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-white">
               {tab === 'study' && (
@@ -676,6 +823,7 @@ export default function SermonBuilder() {
                   partial={studyGen.partialText}
                   error={studyGen.error}
                   hasContent={!!studyData}
+                  stale={staleSet.has('study')}
                   refineValue={refine.study ?? ''}
                   onRefineChange={(v) => setRefine({ ...refine, study: v })}
                   onGenerate={() => handleStudy(null)}
@@ -692,6 +840,8 @@ export default function SermonBuilder() {
                   partial={bigIdeaGen.partialText}
                   error={bigIdeaGen.error}
                   hasContent={!!bigIdeaData}
+                  stale={staleSet.has('bigIdea')}
+                  prereqHint={!studyData ? 'Tip: generate Passage Study first so the Big Idea has something to build on.' : null}
                   refineValue={refine.bigIdea ?? ''}
                   onRefineChange={(v) => setRefine({ ...refine, bigIdea: v })}
                   onGenerate={handleBigIdea}
@@ -727,6 +877,8 @@ export default function SermonBuilder() {
                   partial={outlineGen.partialText}
                   error={outlineGen.error}
                   hasContent={!!outlineData}
+                  stale={staleSet.has('outline')}
+                  prereqHint={!bigIdeaData ? 'Tip: pick a Big Idea first — outlines are shaped around it.' : null}
                   refineValue={refine.outline ?? ''}
                   onRefineChange={(v) => setRefine({ ...refine, outline: v })}
                   onGenerate={() => handleOutline(null)}
@@ -773,6 +925,8 @@ export default function SermonBuilder() {
                   partial={manuscriptGen.partialText}
                   error={manuscriptGen.error}
                   hasContent={!!manuscriptData}
+                  stale={staleSet.has('manuscript')}
+                  prereqHint={!outlineData ? 'Tip: generate an Outline first — the manuscript is drafted from it.' : null}
                   refineValue={refine.manuscript ?? ''}
                   onRefineChange={(v) => setRefine({ ...refine, manuscript: v })}
                   onGenerate={() => handleManuscript(null)}
@@ -806,6 +960,8 @@ export default function SermonBuilder() {
                   partial={applicationsGen.partialText}
                   error={applicationsGen.error}
                   hasContent={!!applicationsData}
+                  stale={staleSet.has('applications')}
+                  prereqHint={!bigIdeaData ? 'Tip: pick a Big Idea first so applications stay focused.' : null}
                   refineValue={refine.applications ?? ''}
                   onRefineChange={(v) => setRefine({ ...refine, applications: v })}
                   onGenerate={handleApplications}
@@ -845,6 +1001,8 @@ export default function SermonBuilder() {
                   partial={illustrationsGen.partialText}
                   error={illustrationsGen.error}
                   hasContent={!!illustrationsData}
+                  stale={staleSet.has('illustrations')}
+                  prereqHint={!bigIdeaData ? 'Tip: pick a Big Idea first so illustrations land on the right truth.' : null}
                   refineValue={refine.illustrations ?? ''}
                   onRefineChange={(v) => setRefine({ ...refine, illustrations: v })}
                   onGenerate={handleIllustrations}
@@ -883,6 +1041,8 @@ export default function SermonBuilder() {
                   partial={worshipGen.partialText}
                   error={worshipGen.error}
                   hasContent={!!worshipData}
+                  stale={staleSet.has('worshipIntegration')}
+                  prereqHint={!bigIdeaData ? 'Tip: pick a Big Idea first — worship songs and liturgy hinge on it.' : null}
                   refineValue={refine.worship ?? ''}
                   onRefineChange={(v) => setRefine({ ...refine, worship: v })}
                   onGenerate={handleWorship}
@@ -966,6 +1126,8 @@ function SectionPanel({
   partial,
   error,
   hasContent,
+  stale = false,
+  prereqHint = null,
   refineValue,
   onRefineChange,
   onGenerate,
@@ -978,6 +1140,10 @@ function SectionPanel({
   partial: string;
   error: Error | null;
   hasContent: boolean;
+  /** When true, show an amber "inputs changed" banner with a Regenerate CTA. */
+  stale?: boolean;
+  /** When set, show a soft hint above Generate that an upstream step is missing. */
+  prereqHint?: string | null;
   refineValue: string;
   onRefineChange: (v: string) => void;
   onGenerate: () => void;
@@ -988,7 +1154,16 @@ function SectionPanel({
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="font-serif text-2xl text-[var(--worship-navy)]">{title}</h2>
+          <h2 className="font-serif text-2xl text-[var(--worship-navy)] flex items-center gap-2">
+            {title}
+            {stale && (
+              <span
+                aria-label="This section's upstream inputs have changed since it was generated."
+                title="Upstream inputs have changed since this was generated."
+                className="inline-block w-2 h-2 rounded-full bg-amber-500"
+              />
+            )}
+          </h2>
           <p className="text-sm text-[var(--worship-slate)] mt-1 max-w-xl">{subtitle}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -1004,6 +1179,31 @@ function SectionPanel({
           )}
         </div>
       </div>
+
+      {stale && hasContent && (
+        <div className="p-3 rounded-xl border border-amber-300 bg-amber-50 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-700" />
+          <div className="flex-1 text-xs text-amber-900 leading-relaxed">
+            <span className="font-semibold">Inputs changed since this was generated.</span>{' '}
+            What you see below was drafted against earlier upstream values. Regenerate to refresh
+            against the current passage, study, big idea, or outline selection.
+          </div>
+          <button
+            onClick={onRegenerate}
+            disabled={pending}
+            className="shrink-0 px-3 py-1.5 text-xs rounded-md bg-amber-600 text-white hover:bg-amber-700 flex items-center gap-1 disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3 h-3 ${pending ? 'animate-spin' : ''}`} /> Regenerate
+          </button>
+        </div>
+      )}
+
+      {prereqHint && !hasContent && !pending && (
+        <div className="p-3 rounded-xl border bg-[var(--worship-cream)] text-xs text-[var(--worship-slate)] flex items-start gap-2" style={{ borderColor: 'var(--worship-border)' }}>
+          <Lightbulb className="w-4 h-4 mt-0.5 shrink-0 text-[var(--worship-gold)]" />
+          <div>{prereqHint} You can still generate now if you want — the AI will fill in around what's missing.</div>
+        </div>
+      )}
 
       {hasContent && (
         <div className="flex items-stretch gap-2">
@@ -1043,6 +1243,118 @@ function SectionPanel({
       )}
 
       {hasContent && children}
+    </div>
+  );
+}
+
+type SectionStatus = 'pending' | 'stale' | 'done' | 'empty';
+
+function statusDot(status: SectionStatus): React.ReactNode {
+  if (status === 'done') {
+    return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-label="Done" />;
+  }
+  if (status === 'stale') {
+    return <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" aria-label="Stale" />;
+  }
+  if (status === 'pending') {
+    return <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--worship-slate)]" aria-label="Generating" />;
+  }
+  return <span className="inline-block w-2.5 h-2.5 rounded-full border border-[var(--worship-border)]" aria-label="Not started" />;
+}
+
+function SermonStepper({
+  steps,
+  activeKey,
+  onSelect,
+  statusFor,
+}: {
+  steps: StepDef[];
+  activeKey: TabKey;
+  onSelect: (k: TabKey) => void;
+  statusFor: (s: SectionKey) => SectionStatus;
+}) {
+  return (
+    <div className="flex items-stretch gap-1 overflow-x-auto" role="list" aria-label="Sermon build steps">
+      {steps.map((step, i) => {
+        const status = statusFor(step.section);
+        const active = activeKey === step.key;
+        const isLast = i === steps.length - 1;
+        return (
+          <div key={step.key} className="flex items-stretch min-w-0" role="listitem">
+            <button
+              onClick={() => onSelect(step.key)}
+              aria-current={active ? 'step' : undefined}
+              className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                active
+                  ? 'bg-[var(--worship-pale-gold)] text-[var(--worship-navy)]'
+                  : 'text-[var(--worship-slate)] hover:bg-[var(--worship-cream)] hover:text-[var(--worship-navy)]'
+              }`}
+            >
+              <span
+                className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                  active
+                    ? 'bg-[var(--worship-gold)] text-white'
+                    : status === 'done'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : status === 'stale'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-[var(--worship-cream)] text-[var(--worship-slate)] border border-[var(--worship-border)]'
+                }`}
+              >
+                {i + 1}
+              </span>
+              <step.icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{step.label}</span>
+              <span className="shrink-0">{statusDot(status)}</span>
+            </button>
+            {!isLast && (
+              <div className="flex items-center px-1 text-[var(--worship-muted-slate)]">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SermonAddOnRow({
+  steps,
+  activeKey,
+  onSelect,
+  statusFor,
+}: {
+  steps: StepDef[];
+  activeKey: TabKey;
+  onSelect: (k: TabKey) => void;
+  statusFor: (s: SectionKey) => SectionStatus;
+}) {
+  return (
+    <div className="flex items-center gap-2 overflow-x-auto pt-1">
+      <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--worship-muted-slate)] shrink-0">
+        Add-ons
+      </span>
+      {steps.map((step) => {
+        const status = statusFor(step.section);
+        const active = activeKey === step.key;
+        return (
+          <button
+            key={step.key}
+            onClick={() => onSelect(step.key)}
+            aria-pressed={active}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap border transition-colors ${
+              active
+                ? 'border-[var(--worship-gold)] bg-[var(--worship-pale-gold)] text-[var(--worship-navy)]'
+                : 'border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-[var(--worship-cream)] hover:text-[var(--worship-navy)]'
+            }`}
+          >
+            <step.icon className="w-3 h-3" />
+            {step.label}
+            {statusDot(status)}
+          </button>
+        );
+      })}
     </div>
   );
 }

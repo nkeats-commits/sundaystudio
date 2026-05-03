@@ -92,6 +92,26 @@ export type SermonConclusionOutput = {
   closingPrayer?: string | null;
 };
 
+/**
+ * Per-section fingerprints used by the Sermon Builder to detect when a
+ * downstream section was generated against now-stale upstream values
+ * (e.g. the user changed the selected Big Idea after generating the
+ * Manuscript). Each value is a short hash string produced by the client
+ * using a stable serialization of the section's upstream inputs.
+ *
+ * Missing keys are treated as "current" — existing sermons saved before
+ * this column existed never look stale.
+ */
+export type SermonSectionHashes = {
+  study?: string;
+  bigIdea?: string;
+  outline?: string;
+  manuscript?: string;
+  applications?: string;
+  illustrations?: string;
+  worshipIntegration?: string;
+};
+
 export type SermonWorshipIntegrationOutput = {
   themes?: string[] | null;
   songs?: { title: string; artist?: string | null; whyItFits?: string | null }[] | null;
@@ -133,6 +153,7 @@ export const sermonsTable = pgTable("sermons", {
   illustrations: jsonb("illustrations").$type<SermonIllustrationsOutput | null>(),
   conclusion: jsonb("conclusion").$type<SermonConclusionOutput | null>(),
   worshipIntegration: jsonb("worship_integration").$type<SermonWorshipIntegrationOutput | null>(),
+  sectionHashes: jsonb("section_hashes").$type<SermonSectionHashes>().notNull().default({}),
   attachedResourceIds: jsonb("attached_resource_ids").$type<number[]>().notNull().default([]),
   tags: text("tags").array().notNull().default([]),
   status: text("status").notNull().default("draft"),

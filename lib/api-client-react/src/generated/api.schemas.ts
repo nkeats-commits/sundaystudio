@@ -627,6 +627,24 @@ export interface SermonWorshipIntegrationOutput {
   emailSummary?: string | null;
 }
 
+/**
+ * Per-section fingerprints used by the Sermon Builder UI to detect
+when a downstream section (e.g. Manuscript) was generated against
+now-stale upstream values (e.g. a different Big Idea selection).
+Each value is a short opaque hash string. Missing keys are treated
+as current.
+
+ */
+export interface SermonSectionHashes {
+  study?: string;
+  bigIdea?: string;
+  outline?: string;
+  manuscript?: string;
+  applications?: string;
+  illustrations?: string;
+  worshipIntegration?: string;
+}
+
 export interface Sermon {
   id: number;
   userId: string;
@@ -654,6 +672,7 @@ export interface Sermon {
   illustrations?: SermonIllustrationsOutput | null;
   conclusion?: SermonConclusionOutput | null;
   worshipIntegration?: SermonWorshipIntegrationOutput | null;
+  sectionHashes?: SermonSectionHashes;
   attachedResourceIds: number[];
   tags: string[];
   status: string;
@@ -709,6 +728,7 @@ export interface UpdateSermonBody {
   illustrations?: SermonIllustrationsOutput | null;
   conclusion?: SermonConclusionOutput | null;
   worshipIntegration?: SermonWorshipIntegrationOutput | null;
+  sectionHashes?: SermonSectionHashes;
   attachedResourceIds?: number[];
   tags?: string[];
   status?: string;

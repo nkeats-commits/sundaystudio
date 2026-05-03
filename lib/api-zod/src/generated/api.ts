@@ -1274,6 +1274,20 @@ export const GetSermonSeriesResponse = zod
               emailSummary: zod.string().nullish(),
             })
             .nullish(),
+          sectionHashes: zod
+            .object({
+              study: zod.string().optional(),
+              bigIdea: zod.string().optional(),
+              outline: zod.string().optional(),
+              manuscript: zod.string().optional(),
+              applications: zod.string().optional(),
+              illustrations: zod.string().optional(),
+              worshipIntegration: zod.string().optional(),
+            })
+            .optional()
+            .describe(
+              "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
+            ),
           attachedResourceIds: zod.array(zod.number()),
           tags: zod.array(zod.string()),
           status: zod.string(),
@@ -1455,6 +1469,20 @@ export const ListSermonsResponseItem = zod.object({
       emailSummary: zod.string().nullish(),
     })
     .nullish(),
+  sectionHashes: zod
+    .object({
+      study: zod.string().optional(),
+      bigIdea: zod.string().optional(),
+      outline: zod.string().optional(),
+      manuscript: zod.string().optional(),
+      applications: zod.string().optional(),
+      illustrations: zod.string().optional(),
+      worshipIntegration: zod.string().optional(),
+    })
+    .optional()
+    .describe(
+      "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
+    ),
   attachedResourceIds: zod.array(zod.number()),
   tags: zod.array(zod.string()),
   status: zod.string(),
@@ -1624,6 +1652,20 @@ export const GetSermonResponse = zod.object({
       emailSummary: zod.string().nullish(),
     })
     .nullish(),
+  sectionHashes: zod
+    .object({
+      study: zod.string().optional(),
+      bigIdea: zod.string().optional(),
+      outline: zod.string().optional(),
+      manuscript: zod.string().optional(),
+      applications: zod.string().optional(),
+      illustrations: zod.string().optional(),
+      worshipIntegration: zod.string().optional(),
+    })
+    .optional()
+    .describe(
+      "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
+    ),
   attachedResourceIds: zod.array(zod.number()),
   tags: zod.array(zod.string()),
   status: zod.string(),
@@ -1764,6 +1806,20 @@ export const UpdateSermonBody = zod.object({
       emailSummary: zod.string().nullish(),
     })
     .nullish(),
+  sectionHashes: zod
+    .object({
+      study: zod.string().optional(),
+      bigIdea: zod.string().optional(),
+      outline: zod.string().optional(),
+      manuscript: zod.string().optional(),
+      applications: zod.string().optional(),
+      illustrations: zod.string().optional(),
+      worshipIntegration: zod.string().optional(),
+    })
+    .optional()
+    .describe(
+      "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
+    ),
   attachedResourceIds: zod.array(zod.number()).optional(),
   tags: zod.array(zod.string()).optional(),
   status: zod.string().optional(),
@@ -1897,6 +1953,20 @@ export const UpdateSermonResponse = zod.object({
       emailSummary: zod.string().nullish(),
     })
     .nullish(),
+  sectionHashes: zod
+    .object({
+      study: zod.string().optional(),
+      bigIdea: zod.string().optional(),
+      outline: zod.string().optional(),
+      manuscript: zod.string().optional(),
+      applications: zod.string().optional(),
+      illustrations: zod.string().optional(),
+      worshipIntegration: zod.string().optional(),
+    })
+    .optional()
+    .describe(
+      "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
+    ),
   attachedResourceIds: zod.array(zod.number()),
   tags: zod.array(zod.string()),
   status: zod.string(),

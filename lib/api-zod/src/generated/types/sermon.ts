@@ -11,6 +11,7 @@ import type { SermonConclusionOutput } from "./sermonConclusionOutput";
 import type { SermonIllustrationsOutput } from "./sermonIllustrationsOutput";
 import type { SermonManuscriptOutput } from "./sermonManuscriptOutput";
 import type { SermonOutlineOutput } from "./sermonOutlineOutput";
+import type { SermonSectionHashes } from "./sermonSectionHashes";
 import type { SermonStudyOutput } from "./sermonStudyOutput";
 import type { SermonWorshipIntegrationOutput } from "./sermonWorshipIntegrationOutput";
 
@@ -41,6 +42,7 @@ export interface Sermon {
   illustrations?: SermonIllustrationsOutput | null;
   conclusion?: SermonConclusionOutput | null;
   worshipIntegration?: SermonWorshipIntegrationOutput | null;
+  sectionHashes?: SermonSectionHashes;
   attachedResourceIds: number[];
   tags: string[];
   status: string;

@@ -93,6 +93,7 @@ export * from "./sermonOutlineOutput";
 export * from "./sermonOutlinePoint";
 export * from "./sermonResource";
 export * from "./sermonResourceRef";
+export * from "./sermonSectionHashes";
 export * from "./sermonSeries";
 export * from "./sermonSeriesWithSermons";
 export * from "./sermonStudyOutput";
