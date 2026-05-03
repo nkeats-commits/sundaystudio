@@ -259,7 +259,7 @@ router.post("/generate/sermon-outline", requireAuth, async (req, res) => {
   };
   await hydrateSeriesContext(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
-  const prompt = `Propose 3-5 distinct sermon outline options as JSON.
+  const prompt = `Propose exactly 3 distinct sermon outline options as JSON.
 
 ${SERMON_GROUND_RULES}
 
@@ -292,7 +292,7 @@ Return JSON exactly in this shape:
     }
   ]
 }`;
-  runJob(req, res, prompt, 4000, "sermon outline", GenerateSermonOutlineResponse);
+  runJob(req, res, prompt, 8000, "sermon outline", GenerateSermonOutlineResponse);
 });
 
 router.post("/generate/sermon-manuscript", requireAuth, async (req, res) => {
