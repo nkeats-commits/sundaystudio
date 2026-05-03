@@ -43,6 +43,7 @@ import { useJobGenerate } from '../hooks/useJobGenerate';
 import { SlotPicker, LinkedPill, slotPickerSupported } from '../components/SlotPicker';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import {
   WORSHIP_ELEMENTS,
   STARTER_TEMPLATES,
@@ -137,6 +138,7 @@ export default function ServiceBuilder() {
   );
 
   const { ready: profileReady } = useChurchProfileReady();
+  const { allowed: subAllowed } = useSubscriptionStatus();
 
   // Convert the editable flow into the on-the-wire FlowStep[] (drops uid).
   const wireFlow: FlowStep[] = useMemo(
@@ -782,10 +784,12 @@ export default function ServiceBuilder() {
             <button
               onClick={handleGenerate}
               disabled={
-                generate.isPending || !profileReady || wireFlow.length === 0
+                generate.isPending || !profileReady || !subAllowed || wireFlow.length === 0
               }
               title={
-                !profileReady
+                !subAllowed
+                  ? 'Subscribe to enable AI generation'
+                  : !profileReady
                   ? 'Finish your profile to enable AI generation'
                   : wireFlow.length === 0
                     ? 'Add at least one element to your service flow'
@@ -884,7 +888,8 @@ export default function ServiceBuilder() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={createPlan.isPending}
+                  disabled={createPlan.isPending || !subAllowed}
+                  title={!subAllowed ? 'Subscribe to save service plans' : undefined}
                   className="px-4 py-1.5 rounded-lg text-xs font-medium worship-btn-primary flex items-center gap-2 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />{' '}

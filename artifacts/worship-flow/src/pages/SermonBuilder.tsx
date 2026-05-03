@@ -38,6 +38,7 @@ import {
 import { AppLayout } from '../components/layout/AppLayout';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import {
   BookOpen,
   Lightbulb,
@@ -509,6 +510,7 @@ export default function SermonBuilder() {
   // ------- Generate handlers -------
 
   const { ready: profileReady } = useChurchProfileReady();
+  const { allowed: subAllowed } = useSubscriptionStatus();
 
   const requirePassage = (): boolean => {
     if (!profileReady) {
@@ -949,7 +951,7 @@ export default function SermonBuilder() {
               </div>
             </div>
             <div className="px-5 py-4 border-t bg-[var(--worship-cream)] flex items-center gap-2 shrink-0" style={{ borderColor: 'var(--worship-border)' }}>
-              <button onClick={saveContext} disabled={createSermon.isPending || updateSermon.isPending} className="worship-btn-primary px-4 py-2 rounded-lg text-sm flex-1 flex items-center justify-center gap-2 disabled:opacity-60">
+              <button onClick={saveContext} disabled={createSermon.isPending || updateSermon.isPending || !subAllowed} title={!subAllowed ? 'Subscribe to save changes' : undefined} className="worship-btn-primary px-4 py-2 rounded-lg text-sm flex-1 flex items-center justify-center gap-2 disabled:opacity-60">
                 {(createSermon.isPending || updateSermon.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Save context
               </button>

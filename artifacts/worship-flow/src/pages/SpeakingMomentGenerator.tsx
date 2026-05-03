@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 export default function SpeakingMomentGenerator() {
@@ -25,6 +26,7 @@ export default function SpeakingMomentGenerator() {
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
   const { ready: profileReady } = useChurchProfileReady();
+  const { allowed: subAllowed } = useSubscriptionStatus();
   const [savedItem, setSavedItem] = useState<LibraryItem | null>(null);
   const [addToServiceOpen, setAddToServiceOpen] = useState(false);
   // Shared in-flight save promise so Save + Add-to-service can't double-create.
@@ -195,8 +197,8 @@ export default function SpeakingMomentGenerator() {
 
             <button 
               type="submit"
-              disabled={generate.isPending || !profileReady}
-              title={!profileReady ? "Finish your profile to enable AI generation" : undefined}
+              disabled={generate.isPending || !profileReady || !subAllowed}
+              title={!subAllowed ? "Subscribe to enable AI generation" : !profileReady ? "Finish your profile to enable AI generation" : undefined}
               className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {generate.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Drafting...</> : "Generate Setup"}
@@ -255,7 +257,7 @@ export default function SpeakingMomentGenerator() {
                   <button onClick={handleCopy} className="p-2 rounded-lg border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-slate-50 transition-colors" title="Copy">
                     <Copy className="w-4 h-4" />
                   </button>
-                  <button onClick={handleSave} disabled={createLibraryItem.isPending || !!savedItem} className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50">
+                  <button onClick={handleSave} disabled={createLibraryItem.isPending || !!savedItem || !subAllowed} title={!subAllowed ? "Subscribe to save items" : undefined} className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50">
                     <Save className="w-4 h-4" /> {createLibraryItem.isPending ? "Saving..." : savedItem ? "Saved" : "Save"}
                   </button>
                   <button onClick={() => setAddToServiceOpen(true)} className="px-4 py-2 rounded-lg font-medium text-sm border border-[var(--worship-border)] text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] flex items-center gap-2" data-testid="button-add-to-service">

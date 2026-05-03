@@ -25,11 +25,18 @@ function originFromReq(req: import("express").Request): string {
 }
 
 /**
- * Look up the active monthly recurring price for our single product, queried
- * from the local mirror (synced by stripe-replit-sync from Stripe webhooks).
- * Returns null if Stripe isn't connected yet or the seed script hasn't run.
+ * Resolve the monthly Stripe price id for our single product.
+ *
+ * Preferred source: the `STRIPE_PRICE_ID` environment variable, which the
+ * seed script prints on success. This avoids any provisioning race against
+ * the stripe-replit-sync webhook backfill.
+ *
+ * Fallback: query the local mirror by product name. Useful in dev right
+ * after seeding, before an admin has set the env var.
  */
 async function getMonthlyPriceId(): Promise<string | null> {
+  const fromEnv = process.env["STRIPE_PRICE_ID"]?.trim();
+  if (fromEnv) return fromEnv;
   try {
     const result = await db.execute(sql`
       SELECT pr.id AS price_id

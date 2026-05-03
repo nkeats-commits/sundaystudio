@@ -480,7 +480,7 @@ router.get("/sermons/:id/linked-services", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.post("/sermons/:id/export", requireAuth, requireActiveAccess, async (req, res) => {
+router.post("/sermons/:id/export", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });

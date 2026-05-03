@@ -102,7 +102,7 @@ router.put("/service-plans/:id", requireAuth, requireActiveAccess, async (req, r
   res.json(row);
 });
 
-router.post("/service-plans/:id/export", requireAuth, requireActiveAccess, async (req, res) => {
+router.post("/service-plans/:id/export", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });

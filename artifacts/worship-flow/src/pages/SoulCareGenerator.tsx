@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 type Audience = 'self' | 'team';
@@ -67,6 +68,7 @@ export default function SoulCareGenerator() {
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
   const { ready: profileReady } = useChurchProfileReady();
+  const { allowed: subAllowed } = useSubscriptionStatus();
   const [savedItem, setSavedItem] = useState<LibraryItem | null>(null);
   const [addToServiceOpen, setAddToServiceOpen] = useState(false);
   const savePromiseRef = useRef<Promise<LibraryItem> | null>(null);
@@ -434,9 +436,11 @@ export default function SoulCareGenerator() {
 
             <button
               type="submit"
-              disabled={generate.isPending || !profileReady}
+              disabled={generate.isPending || !profileReady || !subAllowed}
               title={
-                !profileReady
+                !subAllowed
+                  ? 'Subscribe to enable AI generation'
+                  : !profileReady
                   ? 'Finish your profile to enable AI generation'
                   : undefined
               }
@@ -545,7 +549,8 @@ export default function SoulCareGenerator() {
                   </button>
                   <button
                     onClick={handleSave}
-                    disabled={createLibraryItem.isPending || !!savedItem}
+                    disabled={createLibraryItem.isPending || !!savedItem || !subAllowed}
+                    title={!subAllowed ? 'Subscribe to save items' : undefined}
                     className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50"
                   >
                     <Save className="w-4 h-4" />{' '}

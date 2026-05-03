@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 type RepertoireMode = 'off' | 'prefer' | 'strict';
@@ -100,6 +101,7 @@ export default function SongGenerator() {
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
   const { ready: profileReady } = useChurchProfileReady();
+  const { allowed: subAllowed } = useSubscriptionStatus();
   // Per-row save tracking, keyed by song index in the current generation.
   // Reset on each fresh generation so we never reuse a stale id.
   const [savedSongs, setSavedSongs] = useState<Record<number, LibraryItem>>({});
@@ -483,9 +485,11 @@ export default function SongGenerator() {
 
             <button
               type="submit"
-              disabled={generate.isPending || !profileReady}
+              disabled={generate.isPending || !profileReady || !subAllowed}
               title={
-                !profileReady
+                !subAllowed
+                  ? 'Subscribe to enable AI generation'
+                  : !profileReady
                   ? 'Finish your profile to enable AI generation'
                   : undefined
               }
