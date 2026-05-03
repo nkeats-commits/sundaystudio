@@ -7,6 +7,7 @@ import {
   Copy,
   AlertCircle,
   CalendarPlus,
+  Printer,
   User,
   Users,
 } from 'lucide-react';
@@ -140,6 +141,124 @@ export default function SoulCareGenerator() {
     ensureSaved()
       .then(() => toast.success('Saved to Library'))
       .catch((err: Error) => toast.error(err.message || 'Could not save'));
+  };
+
+  const handlePrint = () => {
+    if (!generate.data) return;
+    const d = generate.data;
+    const esc = (s: string) =>
+      s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const paras = (s: string) =>
+      s
+        .split('\n\n')
+        .map((p) => `<p>${esc(p).replace(/\n/g, '<br/>')}</p>`)
+        .join('');
+    const audienceLabel = formData.audience === 'self' ? 'Personal' : 'Team';
+    const practicesHtml = d.practices
+      .map(
+        (p, i) => `
+        <section class="practice">
+          <div class="practice-head">
+            <h3>${i + 1}. ${esc(p.name)}</h3>
+            ${p.durationMinutes ? `<span class="dur">${p.durationMinutes} min</span>` : ''}
+          </div>
+          ${paras(p.instructions)}
+        </section>`,
+      )
+      .join('');
+    const promptsHtml =
+      d.journalingPrompts && d.journalingPrompts.length > 0
+        ? `
+      <section class="prompts">
+        <h2>Journaling Prompts</h2>
+        <ol>${d.journalingPrompts.map((q) => `<li>${esc(q)}</li>`).join('')}</ol>
+      </section>`
+        : '';
+    const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${esc(d.title)}</title>
+<style>
+  @page { margin: 0.6in; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #1f2937; margin: 0; padding: 32px; line-height: 1.55; max-width: 7.5in; }
+  h1 { font-size: 22pt; margin: 0 0 6px; color: #0f1d3d; font-weight: 600; }
+  h2 { font-size: 11pt; margin: 0 0 8px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+  h3 { font-size: 13pt; margin: 0; color: #0f1d3d; font-weight: 600; }
+  p { margin: 0 0 10px; font-size: 11pt; }
+  .meta { font-size: 9pt; color: #6b7280; margin: 0 0 24px; }
+  .badges { margin: 4px 0 24px; }
+  .badge { display: inline-block; font-size: 8pt; padding: 2px 8px; border-radius: 999px; background: #f3e9c7; color: #8a6d1f; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 6px; }
+  .badge.alt { background: #f5f1e8; color: #4a5568; border: 1px solid #e5e7eb; }
+  section { margin: 0 0 24px; page-break-inside: avoid; }
+  .leader-notes { font-style: italic; color: #4a5568; background: #faf6ec; border-left: 2px solid #c9a443; padding: 10px 14px; font-size: 10pt; }
+  .scripture { background: #faf6ec; border-left: 2px solid #c9a443; padding: 16px 18px; }
+  .scripture .ref { font-size: 9pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin: 0 0 8px; }
+  .scripture .text { font-style: italic; color: #0f1d3d; font-size: 13pt; margin: 0 0 10px; }
+  .scripture .reflection { font-size: 10.5pt; }
+  .practice { border-left: 2px solid #d6dbe5; padding-left: 14px; margin-bottom: 18px; }
+  .practice-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; gap: 12px; }
+  .dur { font-size: 9pt; color: #c9a443; font-weight: 600; white-space: nowrap; }
+  .closing { background: #0f1d3d; color: #fff; padding: 18px 22px; border-radius: 6px; }
+  .closing h2 { color: #efe1b6; }
+  .closing p { font-style: italic; margin: 0; }
+  .prompts ol { padding-left: 20px; }
+  .prompts li { margin: 0 0 8px; padding-left: 4px; }
+  .take-home { border-top: 1px solid #e5e7eb; padding-top: 14px; }
+  @media print { body { padding: 0; } .no-print { display: none; } }
+</style>
+</head>
+<body>
+  <h1>${esc(d.title)}</h1>
+  <div class="badges">
+    <span class="badge">${esc(d.practiceTradition)}</span>
+    <span class="badge alt">${d.durationMinutes} min</span>
+    <span class="badge alt">${audienceLabel}</span>
+  </div>
+  <p class="meta">Soul Care · printed from WorshipFlow · ${esc(new Date().toLocaleDateString())}</p>
+  ${d.leaderNotes ? `<div class="leader-notes">${esc(d.leaderNotes)}</div>` : ''}
+  <section>
+    <h2>Opening</h2>
+    ${paras(d.opening)}
+  </section>
+  <section class="scripture">
+    <p class="ref">Scripture — ${esc(d.scripture.reference)}</p>
+    <p class="text">"${esc(d.scripture.text)}"</p>
+    <p class="reflection">${esc(d.scripture.reflection)}</p>
+  </section>
+  <section>
+    <h2>Guided Practice</h2>
+    ${practicesHtml}
+  </section>
+  ${promptsHtml}
+  <section class="closing">
+    <h2>Closing</h2>
+    <p>${esc(d.closing)}</p>
+  </section>
+  <section class="take-home">
+    <h2>Take-home Practice</h2>
+    <p>${esc(d.takeHomePractice)}</p>
+  </section>
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () { window.focus(); window.print(); }, 100);
+    });
+  </script>
+</body>
+</html>`;
+    const win = window.open('', '_blank');
+    if (!win) {
+      toast.error('Pop-up blocked. Please allow pop-ups to print.');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
   };
 
   const handleCopy = () => {
@@ -415,6 +534,14 @@ export default function SoulCareGenerator() {
                     title="Copy"
                   >
                     <Copy className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handlePrint}
+                    data-testid="button-print"
+                    className="p-2 rounded-lg border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-slate-50 transition-colors"
+                    title="Print"
+                  >
+                    <Printer className="w-4 h-4" />
                   </button>
                   <button
                     onClick={handleSave}
