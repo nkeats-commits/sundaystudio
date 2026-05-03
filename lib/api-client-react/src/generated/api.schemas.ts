@@ -917,10 +917,24 @@ export interface GeneratedSoulCare {
   intent?: string;
 }
 
+/**
+ * Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.
+ */
+export type ConsultedScholarlySourceKind =
+  (typeof ConsultedScholarlySourceKind)[keyof typeof ConsultedScholarlySourceKind];
+
+export const ConsultedScholarlySourceKind = {
+  "public-domain": "public-domain",
+  library: "library",
+} as const;
+
 export interface ConsultedScholarlySource {
+  /** Stable opaque id. Public-domain commentaries use the source id (e.g. "matthew-henry-concise"); user library items use "library:<numericId>". */
   id: string;
   title: string;
   author?: string | null;
+  /** Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. */
+  kind: ConsultedScholarlySourceKind;
 }
 
 export interface SermonStudyOutput {
@@ -1096,7 +1110,10 @@ export interface Sermon {
   worshipIntegration?: SermonWorshipIntegrationOutput | null;
   smallGroupQuestions?: SermonSmallGroupQuestionsOutput | null;
   sectionHashes?: SermonSectionHashes;
+  /** Legacy. Resource Library rows the pastor hand-picked for this sermon back when the sermon-builder showed a manual attach checklist. Server no longer reads this for prompt context — it's kept for back-compat with old saved sermons. */
   attachedResourceIds: number[];
+  /** Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list. */
+  excludedResourceIds: number[];
   tags: string[];
   status: string;
   createdAt: string;
@@ -1122,6 +1139,7 @@ export interface CreateSermonBody {
   outputFormat?: string;
   pastorNotes?: string;
   attachedResourceIds?: number[];
+  excludedResourceIds?: number[];
   tags?: string[];
   status?: string;
 }
@@ -1154,6 +1172,7 @@ export interface UpdateSermonBody {
   smallGroupQuestions?: SermonSmallGroupQuestionsOutput | null;
   sectionHashes?: SermonSectionHashes;
   attachedResourceIds?: number[];
+  excludedResourceIds?: number[];
   tags?: string[];
   status?: string;
 }
@@ -1322,7 +1341,10 @@ export interface SermonContextBlurb {
   depth?: string;
   outputFormat?: string;
   pastorNotes?: string;
+  /** Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored. */
   resources?: SermonResourceRef[];
+  /** Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list. */
+  excludedResourceIds?: number[];
 }
 
 export type GenerateSermonStudyBody = SermonContextBlurb & {

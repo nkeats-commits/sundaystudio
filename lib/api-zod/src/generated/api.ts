@@ -1473,9 +1473,18 @@ export const GetSermonSeriesResponse = zod
               consultedSources: zod
                 .array(
                   zod.object({
-                    id: zod.string(),
+                    id: zod
+                      .string()
+                      .describe(
+                        'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+                      ),
                     title: zod.string(),
                     author: zod.string().nullish(),
+                    kind: zod
+                      .enum(["public-domain", "library"])
+                      .describe(
+                        "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                      ),
                   }),
                 )
                 .nullish()
@@ -1612,7 +1621,16 @@ export const GetSermonSeriesResponse = zod
             .describe(
               "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
             ),
-          attachedResourceIds: zod.array(zod.number()),
+          attachedResourceIds: zod
+            .array(zod.number())
+            .describe(
+              "Legacy. Resource Library rows the pastor hand-picked for this sermon back when the sermon-builder showed a manual attach checklist. Server no longer reads this for prompt context — it's kept for back-compat with old saved sermons.",
+            ),
+          excludedResourceIds: zod
+            .array(zod.number())
+            .describe(
+              "Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.",
+            ),
           tags: zod.array(zod.string()),
           status: zod.string(),
           createdAt: zod.coerce.date(),
@@ -1696,9 +1714,18 @@ export const ListSermonsResponseItem = zod.object({
       consultedSources: zod
         .array(
           zod.object({
-            id: zod.string(),
+            id: zod
+              .string()
+              .describe(
+                'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+              ),
             title: zod.string(),
             author: zod.string().nullish(),
+            kind: zod
+              .enum(["public-domain", "library"])
+              .describe(
+                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+              ),
           }),
         )
         .nullish()
@@ -1835,7 +1862,16 @@ export const ListSermonsResponseItem = zod.object({
     .describe(
       "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
     ),
-  attachedResourceIds: zod.array(zod.number()),
+  attachedResourceIds: zod
+    .array(zod.number())
+    .describe(
+      "Legacy. Resource Library rows the pastor hand-picked for this sermon back when the sermon-builder showed a manual attach checklist. Server no longer reads this for prompt context — it's kept for back-compat with old saved sermons.",
+    ),
+  excludedResourceIds: zod
+    .array(zod.number())
+    .describe(
+      "Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.",
+    ),
   tags: zod.array(zod.string()),
   status: zod.string(),
   createdAt: zod.coerce.date(),
@@ -1865,6 +1901,7 @@ export const CreateSermonBody = zod.object({
   outputFormat: zod.string().optional(),
   pastorNotes: zod.string().optional(),
   attachedResourceIds: zod.array(zod.number()).optional(),
+  excludedResourceIds: zod.array(zod.number()).optional(),
   tags: zod.array(zod.string()).optional(),
   status: zod.string().optional(),
 });
@@ -1907,9 +1944,18 @@ export const GetSermonResponse = zod.object({
       consultedSources: zod
         .array(
           zod.object({
-            id: zod.string(),
+            id: zod
+              .string()
+              .describe(
+                'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+              ),
             title: zod.string(),
             author: zod.string().nullish(),
+            kind: zod
+              .enum(["public-domain", "library"])
+              .describe(
+                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+              ),
           }),
         )
         .nullish()
@@ -2046,7 +2092,16 @@ export const GetSermonResponse = zod.object({
     .describe(
       "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
     ),
-  attachedResourceIds: zod.array(zod.number()),
+  attachedResourceIds: zod
+    .array(zod.number())
+    .describe(
+      "Legacy. Resource Library rows the pastor hand-picked for this sermon back when the sermon-builder showed a manual attach checklist. Server no longer reads this for prompt context — it's kept for back-compat with old saved sermons.",
+    ),
+  excludedResourceIds: zod
+    .array(zod.number())
+    .describe(
+      "Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.",
+    ),
   tags: zod.array(zod.string()),
   status: zod.string(),
   createdAt: zod.coerce.date(),
@@ -2089,9 +2144,18 @@ export const UpdateSermonBody = zod.object({
       consultedSources: zod
         .array(
           zod.object({
-            id: zod.string(),
+            id: zod
+              .string()
+              .describe(
+                'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+              ),
             title: zod.string(),
             author: zod.string().nullish(),
+            kind: zod
+              .enum(["public-domain", "library"])
+              .describe(
+                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+              ),
           }),
         )
         .nullish()
@@ -2229,6 +2293,7 @@ export const UpdateSermonBody = zod.object({
       "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
     ),
   attachedResourceIds: zod.array(zod.number()).optional(),
+  excludedResourceIds: zod.array(zod.number()).optional(),
   tags: zod.array(zod.string()).optional(),
   status: zod.string().optional(),
 });
@@ -2264,9 +2329,18 @@ export const UpdateSermonResponse = zod.object({
       consultedSources: zod
         .array(
           zod.object({
-            id: zod.string(),
+            id: zod
+              .string()
+              .describe(
+                'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+              ),
             title: zod.string(),
             author: zod.string().nullish(),
+            kind: zod
+              .enum(["public-domain", "library"])
+              .describe(
+                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+              ),
           }),
         )
         .nullish()
@@ -2403,7 +2477,16 @@ export const UpdateSermonResponse = zod.object({
     .describe(
       "Per-section fingerprints used by the Sermon Builder UI to detect\nwhen a downstream section (e.g. Manuscript) was generated against\nnow-stale upstream values (e.g. a different Big Idea selection).\nEach value is a short opaque hash string. Missing keys are treated\nas current.\n",
     ),
-  attachedResourceIds: zod.array(zod.number()),
+  attachedResourceIds: zod
+    .array(zod.number())
+    .describe(
+      "Legacy. Resource Library rows the pastor hand-picked for this sermon back when the sermon-builder showed a manual attach checklist. Server no longer reads this for prompt context — it's kept for back-compat with old saved sermons.",
+    ),
+  excludedResourceIds: zod
+    .array(zod.number())
+    .describe(
+      "Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.",
+    ),
   tags: zod.array(zod.string()),
   status: zod.string(),
   createdAt: zod.coerce.date(),
@@ -2614,7 +2697,16 @@ export const GenerateSermonStudyBody = zod
           excerpt: zod.string(),
         }),
       )
-      .optional(),
+      .optional()
+      .describe(
+        "Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.",
+      ),
+    excludedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -2634,9 +2726,18 @@ export const GenerateSermonStudyBody = zod
           consultedSources: zod
             .array(
               zod.object({
-                id: zod.string(),
+                id: zod
+                  .string()
+                  .describe(
+                    'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+                  ),
                 title: zod.string(),
                 author: zod.string().nullish(),
+                kind: zod
+                  .enum(["public-domain", "library"])
+                  .describe(
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                  ),
               }),
             )
             .nullish()
@@ -2659,9 +2760,18 @@ export const GenerateSermonStudyResponse = zod.object({
   consultedSources: zod
     .array(
       zod.object({
-        id: zod.string(),
+        id: zod
+          .string()
+          .describe(
+            'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+          ),
         title: zod.string(),
         author: zod.string().nullish(),
+        kind: zod
+          .enum(["public-domain", "library"])
+          .describe(
+            "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+          ),
       }),
     )
     .nullish()
@@ -2714,7 +2824,16 @@ export const GenerateSermonBigIdeaBody = zod
           excerpt: zod.string(),
         }),
       )
-      .optional(),
+      .optional()
+      .describe(
+        "Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.",
+      ),
+    excludedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -2733,9 +2852,18 @@ export const GenerateSermonBigIdeaBody = zod
           consultedSources: zod
             .array(
               zod.object({
-                id: zod.string(),
+                id: zod
+                  .string()
+                  .describe(
+                    'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+                  ),
                 title: zod.string(),
                 author: zod.string().nullish(),
+                kind: zod
+                  .enum(["public-domain", "library"])
+                  .describe(
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                  ),
               }),
             )
             .nullish()
@@ -2802,7 +2930,16 @@ export const GenerateSermonOutlineBody = zod
           excerpt: zod.string(),
         }),
       )
-      .optional(),
+      .optional()
+      .describe(
+        "Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.",
+      ),
+    excludedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -2821,9 +2958,18 @@ export const GenerateSermonOutlineBody = zod
           consultedSources: zod
             .array(
               zod.object({
-                id: zod.string(),
+                id: zod
+                  .string()
+                  .describe(
+                    'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+                  ),
                 title: zod.string(),
                 author: zod.string().nullish(),
+                kind: zod
+                  .enum(["public-domain", "library"])
+                  .describe(
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                  ),
               }),
             )
             .nullish()
@@ -2916,7 +3062,16 @@ export const GenerateSermonManuscriptBody = zod
           excerpt: zod.string(),
         }),
       )
-      .optional(),
+      .optional()
+      .describe(
+        "Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.",
+      ),
+    excludedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -2935,9 +3090,18 @@ export const GenerateSermonManuscriptBody = zod
           consultedSources: zod
             .array(
               zod.object({
-                id: zod.string(),
+                id: zod
+                  .string()
+                  .describe(
+                    'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+                  ),
                 title: zod.string(),
                 author: zod.string().nullish(),
+                kind: zod
+                  .enum(["public-domain", "library"])
+                  .describe(
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                  ),
               }),
             )
             .nullish()
@@ -3023,7 +3187,16 @@ export const GenerateSermonApplicationsBody = zod
           excerpt: zod.string(),
         }),
       )
-      .optional(),
+      .optional()
+      .describe(
+        "Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.",
+      ),
+    excludedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3042,9 +3215,18 @@ export const GenerateSermonApplicationsBody = zod
           consultedSources: zod
             .array(
               zod.object({
-                id: zod.string(),
+                id: zod
+                  .string()
+                  .describe(
+                    'Stable opaque id. Public-domain commentaries use the source id (e.g. \"matthew-henry-concise\"); user library items use \"library:<numericId>\".',
+                  ),
                 title: zod.string(),
                 author: zod.string().nullish(),
+                kind: zod
+                  .enum(["public-domain", "library"])
+                  .describe(
+                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.",
+                  ),
               }),
             )
             .nullish()
@@ -3112,7 +3294,16 @@ export const GenerateSermonIllustrationsBody = zod
           excerpt: zod.string(),
         }),
       )
-      .optional(),
+      .optional()
+      .describe(
+        "Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.",
+      ),
+    excludedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3200,7 +3391,16 @@ export const GenerateSermonSmallGroupQuestionsBody = zod
           excerpt: zod.string(),
         }),
       )
-      .optional(),
+      .optional()
+      .describe(
+        "Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.",
+      ),
+    excludedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3288,7 +3488,16 @@ export const GenerateSermonToServiceBody = zod
           excerpt: zod.string(),
         }),
       )
-      .optional(),
+      .optional()
+      .describe(
+        "Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.",
+      ),
+    excludedResourceIds: zod
+      .array(zod.number())
+      .optional()
+      .describe(
+        "Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",

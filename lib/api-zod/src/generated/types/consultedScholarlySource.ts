@@ -5,9 +5,13 @@
  * WorshipFlow API
  * OpenAPI spec version: 0.1.0
  */
+import type { ConsultedScholarlySourceKind } from "./consultedScholarlySourceKind";
 
 export interface ConsultedScholarlySource {
+  /** Stable opaque id. Public-domain commentaries use the source id (e.g. "matthew-henry-concise"); user library items use "library:<numericId>". */
   id: string;
   title: string;
   author?: string | null;
+  /** Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. */
+  kind: ConsultedScholarlySourceKind;
 }

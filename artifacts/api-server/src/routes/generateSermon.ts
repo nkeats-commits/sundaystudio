@@ -112,6 +112,16 @@ export interface SermonContext {
   depth?: string;
   outputFormat?: string;
   pastorNotes?: string;
+  /**
+   * Resource Library row ids the pastor explicitly opted out of for this
+   * sermon. Server merges every Library row that passage-matches MINUS
+   * this list; the client only ever sends opt-outs, never opt-ins.
+   */
+  excludedResourceIds?: number[];
+  /**
+   * @deprecated Server now derives this from the user's Resource Library.
+   * `mergeScholarlyResources` overwrites whatever the client sent.
+   */
   resources?: { title: string; author?: string; excerpt: string }[];
 }
 
@@ -145,11 +155,14 @@ function resourceBlurb(s: SermonContext): string {
   if (!s.resources?.length) {
     return "No additional resources were attached. Do NOT invent or quote any.";
   }
-  // Synthetic public-domain source entries are tagged in the title with a
-  // leading "[Public-Domain Source]" marker by mergeScholarlyResources.
+  // Synthetic entries are tagged in the title by mergeScholarlyResources:
+  //   "[Public-Domain Source] ..." — bundled commentary excerpts
+  //   "[Library] ..."             — pastor's Resource Library rows that
+  //                                 matched the sermon's passages
   const isPublicDomain = (title: string) => title.startsWith("[Public-Domain Source]");
+  const isLibrary = (title: string) => title.startsWith("[Library]");
   const pd = s.resources.filter((r) => isPublicDomain(r.title));
-  const pastor = s.resources.filter((r) => !isPublicDomain(r.title));
+  const lib = s.resources.filter((r) => isLibrary(r.title));
   const lines: string[] = [];
   if (pd.length) {
     lines.push(
@@ -161,14 +174,14 @@ function resourceBlurb(s: SermonContext): string {
       lines.push(`Excerpt: ${r.excerpt.slice(0, 1500)}`);
     });
   }
-  if (pastor.length) {
+  if (lib.length) {
     if (lines.length) lines.push("");
     lines.push(
-      "Pastor-supplied resources (use carefully and attribute to the title/author the pastor provided):",
+      "Pastor's Resource Library entries that matched this sermon's passages (use carefully and attribute to the title/author the pastor provided):",
     );
-    pastor.forEach((r, i) => {
+    lib.forEach((r, i) => {
       const author = r.author ? ` — ${r.author}` : "";
-      lines.push(`[${i + 1}] ${r.title}${author}`);
+      lines.push(`[L${i + 1}] ${r.title}${author}`);
       lines.push(`Excerpt: ${r.excerpt.slice(0, 1500)}`);
     });
   }

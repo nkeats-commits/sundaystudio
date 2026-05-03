@@ -3024,12 +3024,17 @@ components:
       properties:
         id:
           type: string
+          description: Stable opaque id. Public-domain commentaries use the source id (e.g. "matthew-henry-concise"); user library items use "library:<numericId>".
         title:
           type: string
         author:
           type: string
           nullable: true
-      required: [id, title]
+        kind:
+          type: string
+          enum: [public-domain, library]
+          description: Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library.
+      required: [id, title, kind]
 
     SermonBigIdeaOption:
       type: object
@@ -3344,6 +3349,12 @@ components:
           type: array
           items:
             type: integer
+          description: Legacy. Resource Library rows the pastor hand-picked for this sermon back when the sermon-builder showed a manual attach checklist. Server no longer reads this for prompt context — it's kept for back-compat with old saved sermons.
+        excludedResourceIds:
+          type: array
+          items:
+            type: integer
+          description: Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list.
         tags:
           type: array
           items:
@@ -3373,6 +3384,7 @@ components:
         - outputFormat
         - pastorNotes
         - attachedResourceIds
+        - excludedResourceIds
         - tags
         - status
         - createdAt
@@ -3421,6 +3433,10 @@ components:
         pastorNotes:
           type: string
         attachedResourceIds:
+          type: array
+          items:
+            type: integer
+        excludedResourceIds:
           type: array
           items:
             type: integer
@@ -3512,6 +3528,10 @@ components:
         sectionHashes:
           $ref: "#/components/schemas/SermonSectionHashes"
         attachedResourceIds:
+          type: array
+          items:
+            type: integer
+        excludedResourceIds:
           type: array
           items:
             type: integer
@@ -3883,8 +3903,14 @@ components:
           type: string
         resources:
           type: array
+          description: Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored.
           items:
             $ref: "#/components/schemas/SermonResourceRef"
+        excludedResourceIds:
+          type: array
+          description: Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list.
+          items:
+            type: integer
       required: [passage]
 
     GenerateSermonStudyBody:

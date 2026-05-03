@@ -162,11 +162,12 @@ const router: IRouter = Router();
 async function validateResourceOwnership(
   userId: string,
   ids: number[],
+  fieldName: "attachedResourceIds" | "excludedResourceIds" = "attachedResourceIds",
 ): Promise<string | null> {
   if (ids.length === 0) return null;
   const nonInt = ids.filter((n) => !Number.isInteger(n));
   if (nonInt.length > 0) {
-    return `attachedResourceIds must be integers: ${nonInt.join(", ")}`;
+    return `${fieldName} must be integers: ${nonInt.join(", ")}`;
   }
   const unique = Array.from(new Set(ids));
   const owned = await db
@@ -181,7 +182,7 @@ async function validateResourceOwnership(
   const ownedSet = new Set(owned.map((r) => r.id));
   const missing = unique.filter((id) => !ownedSet.has(id));
   if (missing.length > 0) {
-    return `Some attached resources do not exist or are not yours: ${missing.join(", ")}`;
+    return `Some ${fieldName} do not exist or are not yours: ${missing.join(", ")}`;
   }
   return null;
 }
@@ -239,6 +240,15 @@ router.post("/sermons", requireAuth, requireActiveAccess, async (req, res) => {
     res.status(400).json({ error: ownershipError });
     return;
   }
+  const excludeError = await validateResourceOwnership(
+    req.userId!,
+    d.excludedResourceIds ?? [],
+    "excludedResourceIds",
+  );
+  if (excludeError) {
+    res.status(400).json({ error: excludeError });
+    return;
+  }
   const seriesError = await validateSeriesOwnership(req.userId!, d.seriesId);
   if (seriesError) {
     res.status(400).json({ error: seriesError });
@@ -265,6 +275,7 @@ router.post("/sermons", requireAuth, requireActiveAccess, async (req, res) => {
       outputFormat: d.outputFormat ?? "manuscript",
       pastorNotes: d.pastorNotes ?? "",
       attachedResourceIds: d.attachedResourceIds ?? [],
+      excludedResourceIds: d.excludedResourceIds ?? [],
       tags: d.tags ?? [],
       status: d.status ?? "draft",
     })
@@ -312,6 +323,17 @@ router.patch("/sermons/:id", requireAuth, requireActiveAccess, async (req, res) 
       return;
     }
   }
+  if (d.excludedResourceIds !== undefined) {
+    const excludeError = await validateResourceOwnership(
+      req.userId!,
+      d.excludedResourceIds,
+      "excludedResourceIds",
+    );
+    if (excludeError) {
+      res.status(400).json({ error: excludeError });
+      return;
+    }
+  }
   if (d.seriesId !== undefined) {
     const seriesError = await validateSeriesOwnership(req.userId!, d.seriesId);
     if (seriesError) {
@@ -348,6 +370,7 @@ router.patch("/sermons/:id", requireAuth, requireActiveAccess, async (req, res) 
     "smallGroupQuestions",
     "sectionHashes",
     "attachedResourceIds",
+    "excludedResourceIds",
     "tags",
     "status",
   ] as const) {

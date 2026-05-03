@@ -45,7 +45,10 @@ export interface Sermon {
   worshipIntegration?: SermonWorshipIntegrationOutput | null;
   smallGroupQuestions?: SermonSmallGroupQuestionsOutput | null;
   sectionHashes?: SermonSectionHashes;
+  /** Legacy. Resource Library rows the pastor hand-picked for this sermon back when the sermon-builder showed a manual attach checklist. Server no longer reads this for prompt context — it's kept for back-compat with old saved sermons. */
   attachedResourceIds: number[];
+  /** Resource Library rows the pastor explicitly excluded from this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS the ids in this list. */
+  excludedResourceIds: number[];
   tags: string[];
   status: string;
   createdAt: Date;

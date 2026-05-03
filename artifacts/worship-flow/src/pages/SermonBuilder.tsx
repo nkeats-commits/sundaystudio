@@ -35,6 +35,7 @@ import {
   computeSectionHash,
   staleSections,
 } from '../lib/sermonStaleness';
+import { libraryRowMatchesSermon } from '../lib/passageMatch';
 import { AppLayout } from '../components/layout/AppLayout';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { ScholarlySourcesChip } from '../components/ScholarlySourcesChip';
@@ -95,6 +96,7 @@ type FormState = {
   outputFormat: string;
   pastorNotes: string;
   attachedResourceIds: number[];
+  excludedResourceIds: number[];
   tags: string[];
 };
 
@@ -116,6 +118,7 @@ const blankForm = (): FormState => ({
   outputFormat: 'manuscript',
   pastorNotes: '',
   attachedResourceIds: [],
+  excludedResourceIds: [],
   tags: [],
 });
 
@@ -138,6 +141,7 @@ function fromSermon(s: Sermon): FormState {
     outputFormat: s.outputFormat || 'manuscript',
     pastorNotes: s.pastorNotes,
     attachedResourceIds: s.attachedResourceIds ?? [],
+    excludedResourceIds: s.excludedResourceIds ?? [],
     tags: s.tags ?? [],
   };
 }
@@ -146,14 +150,25 @@ function parseSecondary(text: string): string[] {
   return text.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
 }
 
-function buildResourcePayload(
-  ids: number[],
+/**
+ * Compute which Resource Library rows the SERVER will auto-include for
+ * the given passages, given the pastor's per-sermon exclusions. Mirrors
+ * `mergeScholarlyResources` on the server. Used purely for UI preview —
+ * the server still does its own match independently.
+ */
+function previewIncludedLibraryRows(
   resources: SermonResource[] | undefined,
-): { title: string; author?: string; excerpt: string }[] {
+  excludedIds: ReadonlyArray<number>,
+  passages: ReadonlyArray<string>,
+): SermonResource[] {
   if (!resources) return [];
-  return resources
-    .filter((r) => ids.includes(r.id) && r.excerpt.trim())
-    .map((r) => ({ title: r.title, author: r.author || undefined, excerpt: r.excerpt }));
+  const excluded = new Set(excludedIds);
+  return resources.filter(
+    (r) =>
+      !excluded.has(r.id) &&
+      r.excerpt.trim() &&
+      libraryRowMatchesSermon(r.relatedPassage, passages),
+  );
 }
 
 type TabKey = 'study' | 'bigIdea' | 'outline' | 'manuscript' | 'applications' | 'illustrations' | 'worship' | 'smallGroupQuestions';
@@ -321,9 +336,9 @@ export default function SermonBuilder() {
       depth: form.depth,
       outputFormat: form.outputFormat,
       pastorNotes: form.pastorNotes,
-      resources: buildResourcePayload(form.attachedResourceIds, resourcesQuery.data),
+      excludedResourceIds: form.excludedResourceIds,
     }),
-    [form, resourcesQuery.data],
+    [form],
   );
 
   const ensureSermonId = async (): Promise<number | null> => {
@@ -357,6 +372,7 @@ export default function SermonBuilder() {
           outputFormat: form.outputFormat,
           pastorNotes: form.pastorNotes,
           attachedResourceIds: form.attachedResourceIds,
+          excludedResourceIds: form.excludedResourceIds,
           tags: form.tags,
           status: 'draft',
         },
@@ -656,6 +672,7 @@ export default function SermonBuilder() {
           outputFormat: form.outputFormat,
           pastorNotes: form.pastorNotes,
           attachedResourceIds: form.attachedResourceIds,
+          excludedResourceIds: form.excludedResourceIds,
           tags: form.tags,
         },
       });
@@ -693,10 +710,18 @@ export default function SermonBuilder() {
     await persistField('outline', next);
   };
 
-  const toggleResource = (id: number) => {
-    const has = form.attachedResourceIds.includes(id);
-    const next = has ? form.attachedResourceIds.filter((x) => x !== id) : [...form.attachedResourceIds, id];
-    setForm({ ...form, attachedResourceIds: next });
+  /**
+   * Per-sermon opt-out for a single Library row. The server auto-includes
+   * every Library row whose passage matches; this just adds/removes the id
+   * from `excludedResourceIds` so the pastor can skip a row for one sermon
+   * without unpublishing it from the Library.
+   */
+  const toggleExcludeResource = (id: number) => {
+    const isExcluded = form.excludedResourceIds.includes(id);
+    const next = isExcluded
+      ? form.excludedResourceIds.filter((x) => x !== id)
+      : [...form.excludedResourceIds, id];
+    setForm({ ...form, excludedResourceIds: next });
   };
 
   const removeTag = (t: string) => setForm({ ...form, tags: form.tags.filter((x) => x !== t) });
@@ -916,27 +941,87 @@ export default function SermonBuilder() {
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold text-[var(--worship-slate)]">RESOURCES TO DRAW ON</label>
+                  <label className="block text-xs font-semibold text-[var(--worship-slate)]">RESOURCES THE AI WILL DRAW ON</label>
                   <Link href="/resources" className="text-xs text-[var(--worship-gold)] hover:underline flex items-center gap-1"><Plus className="w-3 h-3" /> Manage library</Link>
                 </div>
-                {(resourcesQuery.data?.length ?? 0) === 0 ? (
-                  <p className="text-xs text-[var(--worship-muted-slate)] italic">Your Resource Library is empty. Add commentary excerpts you want the AI to draw from.</p>
-                ) : (
-                  <div className="border rounded-lg max-h-48 overflow-y-auto bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
-                    {resourcesQuery.data!.map((r) => {
-                      const checked = form.attachedResourceIds.includes(r.id);
-                      return (
-                        <label key={r.id} className={`flex items-start gap-2 px-3 py-2 text-xs cursor-pointer border-b last:border-b-0 ${checked ? 'bg-[var(--worship-pale-gold)]/40' : ''}`} style={{ borderColor: 'var(--worship-border)' }}>
-                          <input type="checkbox" checked={checked} onChange={() => toggleResource(r.id)} className="mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-[var(--worship-navy)] truncate">{r.title}</div>
-                            <div className="text-[10px] text-[var(--worship-slate)] truncate">{[r.author, r.relatedPassage].filter(Boolean).join(' · ')}</div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
+                {(() => {
+                  const sermonPassages = [form.passage, ...parseSecondary(form.secondaryPassagesText)].filter(Boolean);
+                  const allLibrary = resourcesQuery.data ?? [];
+                  const includedRows = previewIncludedLibraryRows(
+                    allLibrary,
+                    form.excludedResourceIds,
+                    sermonPassages,
+                  );
+                  // Library rows that PASS the passage match but the pastor
+                  // explicitly excluded for this sermon — surface them so the
+                  // toggle state is reversible from the panel.
+                  const excludedRows = allLibrary.filter(
+                    (r) =>
+                      form.excludedResourceIds.includes(r.id) &&
+                      r.excerpt.trim() &&
+                      libraryRowMatchesSermon(r.relatedPassage, sermonPassages),
+                  );
+                  if (allLibrary.length === 0) {
+                    return (
+                      <p className="text-xs text-[var(--worship-muted-slate)] italic">
+                        Your Resource Library is empty. Add commentary excerpts and the AI will use them on every sermon whose passage they match.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="space-y-2">
+                      <div className="text-xs text-[var(--worship-slate)]">
+                        Drawing on <span className="font-semibold text-[var(--worship-navy)]">{includedRows.length}</span> {includedRows.length === 1 ? 'library entry' : 'library entries'} that match this sermon's passages.
+                        <span className="block text-[10px] text-[var(--worship-muted-slate)] mt-0.5">
+                          Plus any public-domain commentaries enabled in Settings whose chapter overlaps your passage.
+                        </span>
+                      </div>
+                      {(includedRows.length > 0 || excludedRows.length > 0) && (
+                        <div className="border rounded-lg max-h-48 overflow-y-auto bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
+                          {includedRows.map((r) => (
+                            <div key={r.id} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0" style={{ borderColor: 'var(--worship-border)' }}>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-[var(--worship-navy)] truncate">{r.title}</div>
+                                <div className="text-[10px] text-[var(--worship-slate)] truncate">{[r.author, r.relatedPassage || 'always relevant'].filter(Boolean).join(' · ')}</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleExcludeResource(r.id)}
+                                className="text-[10px] px-2 py-0.5 rounded border text-[var(--worship-slate)] hover:bg-white shrink-0"
+                                style={{ borderColor: 'var(--worship-border)' }}
+                                title="Don't use this entry for this sermon"
+                              >
+                                Exclude
+                              </button>
+                            </div>
+                          ))}
+                          {excludedRows.map((r) => (
+                            <div key={`ex-${r.id}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0 opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-[var(--worship-navy)] truncate line-through">{r.title}</div>
+                                <div className="text-[10px] text-[var(--worship-slate)] truncate">Excluded for this sermon</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleExcludeResource(r.id)}
+                                className="text-[10px] px-2 py-0.5 rounded border text-[var(--worship-gold)] hover:bg-white shrink-0"
+                                style={{ borderColor: 'var(--worship-border)' }}
+                                title="Re-include this entry"
+                              >
+                                Include
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {includedRows.length === 0 && excludedRows.length === 0 && (
+                        <p className="text-[11px] text-[var(--worship-muted-slate)] italic">
+                          No library entries match this sermon's passages yet. Add a related passage to a library entry or save one without a related passage to make it always-relevant.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>

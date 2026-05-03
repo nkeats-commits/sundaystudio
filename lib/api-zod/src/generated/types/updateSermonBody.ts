@@ -44,6 +44,7 @@ export interface UpdateSermonBody {
   smallGroupQuestions?: SermonSmallGroupQuestionsOutput | null;
   sectionHashes?: SermonSectionHashes;
   attachedResourceIds?: number[];
+  excludedResourceIds?: number[];
   tags?: string[];
   status?: string;
 }

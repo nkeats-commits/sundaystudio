@@ -32,5 +32,8 @@ export interface SermonContextBlurb {
   depth?: string;
   outputFormat?: string;
   pastorNotes?: string;
+  /** Deprecated. Server now derives the resources to draw on from the user's Resource Library by passage match (minus excludedResourceIds). Any value sent by the client is ignored. */
   resources?: SermonResourceRef[];
+  /** Resource Library row ids the pastor excluded for this sermon. The server auto-includes every library row whose related passage matches the sermon's passages, MINUS this list. */
+  excludedResourceIds?: number[];
 }
