@@ -1,5 +1,6 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { and, count, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { z } from "zod";
 import {
   db,
   usersTable,
@@ -18,6 +19,44 @@ const router: IRouter = Router();
 
 const MONTHLY_AMOUNT_CENTS = 999;
 const COMP_COUPON_LOOKUP = "worshipflow_owner_comp";
+
+// Runtime input schemas — every admin endpoint validates params/query/body
+// through these before touching the DB. Failures return 400 with details
+// so the UI (and curl probes) get an actionable message.
+const userIdParam = z.object({ id: z.string().min(1).max(128) });
+const usersListQuery = z.object({
+  search: z.string().max(200).optional(),
+  status: z
+    .enum(["trial", "subscribed", "past_due", "canceled", "expired"])
+    .optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+  offset: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
+});
+const extendTrialBody = z.object({
+  days: z.coerce.number().int().min(1).max(365),
+});
+
+function badRequest(res: Response, err: z.ZodError): void {
+  res.status(400).json({
+    error: "Invalid request",
+    details: err.issues.map((i) => ({
+      path: i.path.join("."),
+      message: i.message,
+    })),
+  });
+}
+
+function parseUserIdParam(
+  req: Request,
+  res: Response,
+): string | null {
+  const parsed = userIdParam.safeParse(req.params);
+  if (!parsed.success) {
+    badRequest(res, parsed.error);
+    return null;
+  }
+  return parsed.data.id;
+}
 
 /**
  * GET /admin/me — tiny endpoint that the frontend `useIsOwner` hook calls
@@ -222,17 +261,15 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
  * Status filter ∈ {trial, subscribed, past_due, canceled, expired}.
  */
 router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
+  const parsedQuery = usersListQuery.safeParse(req.query);
+  if (!parsedQuery.success) {
+    badRequest(res, parsedQuery.error);
+    return;
+  }
+  const { limit, offset } = parsedQuery.data;
+  const search = (parsedQuery.data.search ?? "").trim();
+  const status = parsedQuery.data.status ?? "";
   try {
-    const limit = Math.min(
-      Math.max(parseInt(String(req.query["limit"] ?? "50"), 10) || 50, 1),
-      200,
-    );
-    const offset = Math.max(
-      parseInt(String(req.query["offset"] ?? "0"), 10) || 0,
-      0,
-    );
-    const search = String(req.query["search"] ?? "").trim();
-    const status = String(req.query["status"] ?? "").trim();
 
     const whereParts = [];
     if (search) {
@@ -334,13 +371,9 @@ router.get(
   requireAuth,
   requireOwner,
   async (req, res) => {
+    const targetId = parseUserIdParam(req, res);
+    if (!targetId) return;
     try {
-      const targetIdRaw = req.params["id"];
-    const targetId = typeof targetIdRaw === "string" ? targetIdRaw : "";
-      if (!targetId) {
-        res.status(400).json({ error: "Missing user id" });
-        return;
-      }
       const [u] = await db
         .select()
         .from(usersTable)
@@ -410,19 +443,14 @@ router.post(
   requireAuth,
   requireOwner,
   async (req, res) => {
-    const targetIdRaw = req.params["id"];
-    const targetId = typeof targetIdRaw === "string" ? targetIdRaw : "";
-    const days = Number(
-      (req.body as { days?: unknown } | undefined)?.days ?? 0,
-    );
-    if (!targetId) {
-      res.status(400).json({ error: "Missing user id" });
+    const targetId = parseUserIdParam(req, res);
+    if (!targetId) return;
+    const parsedBody = extendTrialBody.safeParse(req.body);
+    if (!parsedBody.success) {
+      badRequest(res, parsedBody.error);
       return;
     }
-    if (!Number.isFinite(days) || days <= 0 || days > 365) {
-      res.status(400).json({ error: "days must be between 1 and 365" });
-      return;
-    }
+    const { days } = parsedBody.data;
     try {
       const [u] = await db
         .select()
@@ -474,12 +502,8 @@ router.post(
   requireAuth,
   requireOwner,
   async (req, res) => {
-    const targetIdRaw = req.params["id"];
-    const targetId = typeof targetIdRaw === "string" ? targetIdRaw : "";
-    if (!targetId) {
-      res.status(400).json({ error: "Missing user id" });
-      return;
-    }
+    const targetId = parseUserIdParam(req, res);
+    if (!targetId) return;
     if (!(await isStripeConfigured())) {
       res
         .status(503)
@@ -599,12 +623,8 @@ router.delete(
   requireAuth,
   requireOwner,
   async (req, res) => {
-    const targetIdRaw = req.params["id"];
-    const targetId = typeof targetIdRaw === "string" ? targetIdRaw : "";
-    if (!targetId) {
-      res.status(400).json({ error: "Missing user id" });
-      return;
-    }
+    const targetId = parseUserIdParam(req, res);
+    if (!targetId) return;
     // Don't let the owner accidentally delete themselves.
     if (targetId === req.userId) {
       res.status(400).json({ error: "You cannot delete your own account." });

@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
-import { getAuth } from "@clerk/express";
+import { getAuth, clerkClient } from "@clerk/express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 
@@ -48,6 +48,9 @@ export const requireOwner: RequestHandler = async (
       | { email?: string }
       | undefined;
     let email: string | null | undefined = claims?.email;
+
+    // Fall back to the local DB. Clerk's default session JWT doesn't
+    // include email, so this is the typical path for established users.
     if (!email) {
       const [u] = await db
         .select({ email: usersTable.email })
@@ -56,6 +59,34 @@ export const requireOwner: RequestHandler = async (
         .limit(1);
       email = u?.email ?? null;
     }
+
+    // Last resort: ask Clerk directly. Required for accounts created
+    // before the requireAuth backfill landed (DB email is NULL) and
+    // before they sign in again. Also fills the gap for sites where
+    // the JWT template intentionally omits email.
+    if (!email) {
+      try {
+        const clerkUser = await clerkClient.users.getUser(userId);
+        const primaryId = clerkUser.primaryEmailAddressId;
+        const primary = clerkUser.emailAddresses.find(
+          (e) => e.id === primaryId,
+        );
+        email =
+          primary?.emailAddress ||
+          clerkUser.emailAddresses[0]?.emailAddress ||
+          null;
+        if (email) {
+          // Persist for future fast-path lookups and the user list.
+          await db
+            .update(usersTable)
+            .set({ email })
+            .where(eq(usersTable.id, userId));
+        }
+      } catch (err) {
+        req.log.warn({ err }, "requireOwner: Clerk lookup failed");
+      }
+    }
+
     const normalized = email?.trim().toLowerCase();
     if (!normalized || normalized !== ownerEmail) {
       res.status(404).json({ error: "Not found" });
