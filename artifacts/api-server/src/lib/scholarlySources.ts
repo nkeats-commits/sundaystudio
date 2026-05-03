@@ -359,7 +359,19 @@ const REGISTRY: Map<string, LoadedSource> = (() => {
   }
   for (const id of dirs) {
     const src = loadSource(id);
-    if (src && src.id === id) m.set(src.id, src);
+    if (!src || src.id !== id) continue;
+    // v1 ships only sources with a populated book corpus in the public
+    // registry. Manifest-only stubs are kept on disk (for future seeding —
+    // see follow-up task) but excluded from the registry so pastors never
+    // see a toggle that quietly contributes no excerpts.
+    if (src.books.size === 0) {
+      logger.info(
+        { sourceId: id },
+        "scholarlySources: skipping manifest-only source (no book files)",
+      );
+      continue;
+    }
+    m.set(src.id, src);
   }
   logger.info(
     { sourceCount: m.size, sourceIds: Array.from(m.keys()) },

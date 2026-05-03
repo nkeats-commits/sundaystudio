@@ -108,6 +108,7 @@ export function ScholarlySourcesPanel() {
             Public-domain commentaries the Sermon Builder may quietly consult
             on your behalf. Toggle any source off to keep it out of generated
             content. {enabledCount} of {data.sources.length} sources active.
+            More commentaries will appear here as we add them.
           </p>
         </div>
       </div>

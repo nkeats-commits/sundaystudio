@@ -82,14 +82,34 @@ test("parsePassageRef: empty / garbage", () => {
   assert.deepEqual(parsePassageRef("Twelfth book 99"), []);
 });
 
-test("registry: bundled sources are discoverable", () => {
+test("registry: only sources with populated book corpora are registered", () => {
   const sources = listRegisteredSources();
-  // We bundle 7 manifests; the seed corpus only populates Matthew Henry.
-  assert.ok(sources.length >= 5, `expected ≥5 sources, got ${sources.length}`);
+  // v1 ships book JSON only for matthew-henry-concise. Manifest-only stubs
+  // are explicitly skipped by the loader so users never see no-op toggles.
+  assert.ok(sources.length >= 1, `expected ≥1 source, got ${sources.length}`);
   assert.ok(sources.every((s) => s.id && s.title && s.license));
+  assert.ok(
+    sources.some((s) => s.id === "matthew-henry-concise"),
+    "matthew-henry-concise must be registered",
+  );
+  // Stub sources must NOT appear in the registry until their corpora ship.
+  for (const stub of [
+    "barnes-notes",
+    "keil-delitzsch",
+    "jamieson-fausset-brown",
+    "pulpit-commentary",
+    "john-gill",
+    "adam-clarke",
+  ]) {
+    assert.ok(
+      !isRegisteredSource(stub),
+      `${stub} should be excluded (manifest-only)`,
+    );
+  }
 });
 
 test("registry: defaults are all registered", () => {
+  assert.ok(DEFAULT_ENABLED_SOURCE_IDS.length > 0, "defaults must not be empty");
   for (const id of DEFAULT_ENABLED_SOURCE_IDS) {
     assert.ok(isRegisteredSource(id), `default ${id} not in registry`);
   }
@@ -104,9 +124,9 @@ test("lookupCommentary: hits Matthew Henry on Romans 8", () => {
   assert.ok(hits[0].text.length > 0);
 });
 
-test("lookupCommentary: no false hits when source is empty", () => {
-  // Barnes manifest is registered but has no book files in the seed corpus,
-  // so it should produce zero hits.
+test("lookupCommentary: returns nothing for sources excluded from registry", () => {
+  // barnes-notes is manifest-only and skipped by the loader, so even if a
+  // stale preference row references it, lookupCommentary must yield 0.
   const hits = lookupCommentary(["barnes-notes"], ["Romans 8:28"]);
   assert.equal(hits.length, 0);
 });

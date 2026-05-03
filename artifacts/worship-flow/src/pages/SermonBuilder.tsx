@@ -1932,12 +1932,15 @@ function StudyView({
       )}
       {(editing || data.resourceInsights) && (
         <div className="p-3 rounded-xl border bg-[var(--worship-pale-gold)]/40" style={{ borderColor: 'var(--worship-border)' }}>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--worship-gold)] mb-2">From your resources</h4>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--worship-gold)] mb-2">Sources consulted</h4>
           {editing ? (
             <AutoTextarea value={data.resourceInsights ?? ''} onChange={(v) => set('resourceInsights', v)} />
           ) : (
             <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{data.resourceInsights}</p>
           )}
+          <p className="mt-2 text-[11px] text-[var(--worship-slate)]">
+            Includes any pastor-attached resources plus public-domain commentaries you've enabled in <a href="/settings" className="underline">Settings</a>.
+          </p>
         </div>
       )}
     </div>

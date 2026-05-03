@@ -17,6 +17,17 @@ export const requireAuth: RequestHandler = async (
   res: Response,
   next: NextFunction,
 ) => {
+  // Test-only bypass: when NODE_ENV=test and a header carries a synthetic
+  // user id, skip Clerk and skip the users-table upsert. Production never
+  // has NODE_ENV=test, so this branch is unreachable for real traffic.
+  if (process.env.NODE_ENV === "test") {
+    const testUserId = req.header("x-test-user-id");
+    if (testUserId) {
+      req.userId = testUserId;
+      next();
+      return;
+    }
+  }
   const auth = getAuth(req);
   const claims = auth?.sessionClaims as
     | { userId?: string; email?: string; firstName?: string; lastName?: string; imageUrl?: string }

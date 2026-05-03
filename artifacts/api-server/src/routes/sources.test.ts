@@ -1,0 +1,184 @@
+/**
+ * Integration tests for the Scholarly Sources HTTP endpoints.
+ *
+ * Mounts the real `sourcesRouter` on a tiny Express app and exercises both
+ * endpoints against the real Postgres database via `DATABASE_URL`. Auth is
+ * handled by the test-only `x-test-user-id` header bypass in
+ * `middlewares/requireAuth.ts`, gated by NODE_ENV=test.
+ *
+ * Run with: `pnpm --filter @workspace/api-server run test`
+ */
+process.env.NODE_ENV = "test";
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import express from "express";
+import type { AddressInfo } from "node:net";
+import { db, userSourcePreferencesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import sourcesRouter from "./sources";
+
+function makeApp() {
+  const app = express();
+  app.use(express.json());
+  app.use("/api", sourcesRouter);
+  return app;
+}
+
+async function startServer() {
+  const app = makeApp();
+  const server = app.listen(0);
+  await new Promise((resolve) => server.once("listening", resolve));
+  const { port } = server.address() as AddressInfo;
+  return {
+    base: `http://127.0.0.1:${port}`,
+    close: () => new Promise<void>((r) => server.close(() => r())),
+  };
+}
+
+function userId() {
+  return `test-user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+async function cleanup(uid: string) {
+  await db
+    .delete(userSourcePreferencesTable)
+    .where(eq(userSourcePreferencesTable.userId, uid));
+}
+
+test("GET /api/sources rejects unauthenticated requests (no bypass header)", async () => {
+  const { base, close } = await startServer();
+  try {
+    // Without the test-only bypass header, requireAuth falls through to
+    // Clerk. Clerk middleware is not mounted on this minimal test app, so
+    // getAuth throws — manifesting as a 500 here. The important assertion
+    // is simply: unauthenticated traffic does NOT receive a 200 with data.
+    // (The live server, which has Clerk mounted, returns a clean 401 — see
+    // commit message and replit.md for the live-curl verification.)
+    const res = await fetch(`${base}/api/sources`);
+    assert.notEqual(res.status, 200, "unauthenticated GET must not return 200");
+  } finally {
+    await close();
+  }
+});
+
+test("GET /api/sources returns registry + defaults for a fresh user", async () => {
+  const uid = userId();
+  await cleanup(uid);
+  const { base, close } = await startServer();
+  try {
+    const res = await fetch(`${base}/api/sources`, {
+      headers: { "x-test-user-id": uid },
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      sources: Array<{ id: string; title: string; license: string }>;
+      enabledSourceIds: string[];
+      defaults: string[];
+    };
+    assert.ok(Array.isArray(body.sources) && body.sources.length >= 1);
+    assert.ok(
+      body.sources.some((s) => s.id === "matthew-henry-concise"),
+      "registry must include matthew-henry-concise",
+    );
+    // Fresh user falls back to defaults.
+    assert.deepEqual(body.enabledSourceIds, body.defaults);
+    assert.ok(body.defaults.includes("matthew-henry-concise"));
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});
+
+test("PUT /api/sources/preferences persists, dedupes, and round-trips", async () => {
+  const uid = userId();
+  await cleanup(uid);
+  const { base, close } = await startServer();
+  try {
+    const put = await fetch(`${base}/api/sources/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({
+        enabledSourceIds: [
+          "matthew-henry-concise",
+          "matthew-henry-concise", // dup, must collapse
+        ],
+      }),
+    });
+    assert.equal(put.status, 200);
+    const putBody = (await put.json()) as { enabledSourceIds: string[] };
+    assert.deepEqual(putBody.enabledSourceIds, ["matthew-henry-concise"]);
+
+    // Round-trip: GET returns persisted set, not defaults.
+    const get = await fetch(`${base}/api/sources`, {
+      headers: { "x-test-user-id": uid },
+    });
+    const getBody = (await get.json()) as { enabledSourceIds: string[] };
+    assert.deepEqual(getBody.enabledSourceIds, ["matthew-henry-concise"]);
+
+    // Toggle off — empty array persists distinctly from defaults.
+    const off = await fetch(`${base}/api/sources/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({ enabledSourceIds: [] }),
+    });
+    assert.equal(off.status, 200);
+    const after = (await (
+      await fetch(`${base}/api/sources`, {
+        headers: { "x-test-user-id": uid },
+      })
+    ).json()) as { enabledSourceIds: string[] };
+    assert.deepEqual(after.enabledSourceIds, []);
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});
+
+test("PUT /api/sources/preferences rejects unknown source ids", async () => {
+  const uid = userId();
+  await cleanup(uid);
+  const { base, close } = await startServer();
+  try {
+    const res = await fetch(`${base}/api/sources/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({
+        enabledSourceIds: ["matthew-henry-concise", "totally-fake-source"],
+      }),
+    });
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { error: string };
+    assert.match(body.error, /totally-fake-source|unknown|invalid|registered/i);
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});
+
+test("PUT /api/sources/preferences rejects malformed bodies", async () => {
+  const uid = userId();
+  const { base, close } = await startServer();
+  try {
+    const res = await fetch(`${base}/api/sources/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({ enabledSourceIds: "not-an-array" }),
+    });
+    assert.equal(res.status, 400);
+  } finally {
+    await close();
+  }
+});
