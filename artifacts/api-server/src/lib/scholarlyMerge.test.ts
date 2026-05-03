@@ -31,6 +31,8 @@ test("merge bookkeeping: dedupes consulted sources by id", () => {
 
 test("merge bookkeeping: empty when no passages match", () => {
   // Source that the loader excluded → zero hits, zero consulted sources.
-  const hits = lookupCommentary(["barnes-notes"], ["Romans 8:28"]);
+  // (barnes-notes used to be manifest-only; it now ships content. Use
+  // adam-clarke, which is still a manifest-only stub.)
+  const hits = lookupCommentary(["adam-clarke"], ["Romans 8:28"]);
   assert.equal(hits.length, 0);
 });
