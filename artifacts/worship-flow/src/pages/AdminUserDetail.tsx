@@ -213,7 +213,20 @@ export default function AdminUserDetail() {
                 />
                 <Detail
                   label="Stripe customer"
-                  value={user.stripeCustomerId || "none"}
+                  value={
+                    user.stripeCustomerId ? (
+                      <a
+                        href={`https://dashboard.stripe.com/customers/${user.stripeCustomerId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[var(--worship-gold)] hover:underline font-mono text-xs"
+                      >
+                        {user.stripeCustomerId} ↗
+                      </a>
+                    ) : (
+                      "none"
+                    )
+                  }
                 />
                 <Detail
                   label="Trial days left"

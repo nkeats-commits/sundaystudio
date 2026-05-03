@@ -246,6 +246,23 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
         conversions30d: conversions30,
         conversions90d: conversions90,
         churn30d: churn30,
+        // Trial → paid conversion rate over the same trailing window:
+        // (new paid subs in window) / (signups in window). We clamp the
+        // signup denominator to >= 1 to avoid division-by-zero spikes.
+        conversionRate30d:
+          Number(signups30) > 0
+            ? Math.round((conversions30 / Number(signups30)) * 1000) / 10
+            : 0,
+        conversionRate90d:
+          (await (async () => {
+            const [{ value: signups90 = 0 } = {}] = await db
+              .select({ value: count() })
+              .from(usersTable)
+              .where(gte(usersTable.createdAt, ninetyAgo));
+            return Number(signups90) > 0
+              ? Math.round((conversions90 / Number(signups90)) * 1000) / 10
+              : 0;
+          })()),
       },
       series: { signups: signupSeries, subscriptions: subSeries },
       stripeAvailable,
@@ -270,7 +287,6 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
   const search = (parsedQuery.data.search ?? "").trim();
   const status = parsedQuery.data.status ?? "";
   try {
-
     const whereParts = [];
     if (search) {
       const pattern = `%${search}%`;
@@ -284,22 +300,22 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
     }
     const whereClause = whereParts.length > 0 ? and(...whereParts) : undefined;
 
-    const baseRows = await db
+    // We must filter by access-state (which depends on stripe + trial
+    // dates) *before* paginating, so totals and pages are correct.
+    // Strategy: pull every search-matching row (capped for safety),
+    // compute state per row, then filter+paginate in memory. With our
+    // user counts this is fine; if we ever cross 50k we'll push the
+    // status predicate into SQL.
+    const FETCH_CAP = 5000;
+    const candidateRows = await db
       .select()
       .from(usersTable)
       .where(whereClause as ReturnType<typeof and>)
       .orderBy(desc(usersTable.createdAt))
-      .limit(limit)
-      .offset(offset);
+      .limit(FETCH_CAP);
 
-    const [{ value: total = 0 } = {}] = await db
-      .select({ value: count() })
-      .from(usersTable)
-      .where(whereClause as ReturnType<typeof and>);
-
-    // For each row, compute access state + last activity.
-    const items = await Promise.all(
-      baseRows.map(async (u) => {
+    const enriched = await Promise.all(
+      candidateRows.map(async (u) => {
         const state = await getAccessState(u.id);
         const [lastPlan] = await db
           .select({ updatedAt: servicePlansTable.updatedAt })
@@ -329,33 +345,30 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
       }),
     );
 
-    const filtered = status
-      ? items.filter((it) => {
-          switch (status) {
-            case "trial":
-              return it.state.kind === "trial";
-            case "subscribed":
-              return (
-                it.state.kind === "active" || it.state.kind === "trialing"
-              );
-            case "past_due":
-              return it.state.kind === "past_due";
-            case "canceled":
-              return it.state.kind === "canceled";
-            case "expired":
-              return it.state.kind === "expired";
-            default:
-              return true;
-          }
-        })
-      : items;
+    const matchesStatus = (kind: string): boolean => {
+      switch (status) {
+        case "":
+          return true;
+        case "trial":
+          return kind === "trial";
+        case "subscribed":
+          return kind === "active" || kind === "trialing";
+        case "past_due":
+          return kind === "past_due";
+        case "canceled":
+          return kind === "canceled";
+        case "expired":
+          return kind === "expired";
+        default:
+          return true;
+      }
+    };
 
-    res.json({
-      items: filtered,
-      total: Number(total),
-      limit,
-      offset,
-    });
+    const filtered = enriched.filter((it) => matchesStatus(it.state.kind));
+    const total = filtered.length;
+    const items = filtered.slice(offset, offset + limit);
+
+    res.json({ items, total, limit, offset });
   } catch (err) {
     req.log.error({ err }, "admin user list failed");
     res.status(500).json({ error: "Failed to load users" });
@@ -461,16 +474,18 @@ router.post(
         res.status(404).json({ error: "User not found" });
         return;
       }
-      // Push the trial-start anchor backward so trial_end = anchor + 14d
-      // moves forward by `days`. Cap at "now - trialDays" so the trial
-      // can never start in the future (which would be confusing).
-      const ms = days * 24 * 60 * 60 * 1000;
+      // Always *increase* days_left by `days`. If the trial has already
+      // expired we treat "now" as the floor so the user gets a fresh
+      // `days` of trial; otherwise we extend their existing window.
+      // trial_end = trial_started_at + TRIAL_DAYS, so to make
+      // new_trial_end = max(current_end, now) + days, we set
+      // new_anchor   = new_trial_end - TRIAL_DAYS.
+      const dayMs = 24 * 60 * 60 * 1000;
+      const trialMs = TRIAL_DAYS * dayMs;
       const baseAnchor = u.trialStartedAt ?? u.createdAt;
-      const newAnchor = new Date(baseAnchor.getTime() + ms);
-      const maxAnchor = new Date(Date.now()); // future-anchored is OK; getAccessState handles it.
-      const finalAnchor = newAnchor.getTime() > maxAnchor.getTime()
-        ? maxAnchor
-        : newAnchor;
+      const currentEndMs = baseAnchor.getTime() + trialMs;
+      const newEndMs = Math.max(currentEndMs, Date.now()) + days * dayMs;
+      const finalAnchor = new Date(newEndMs - trialMs);
       await db
         .update(usersTable)
         .set({ trialStartedAt: finalAnchor })
@@ -586,7 +601,7 @@ router.post(
 
       // Create the subscription. Use payment_behavior=allow_incomplete so
       // Stripe doesn't require a payment method up front for a $0 sub.
-      await stripe.subscriptions.create({
+      const newSub = await stripe.subscriptions.create({
         customer: customerId,
         items: [{ price: priceId }],
         discounts: [{ coupon: coupon.id }],
@@ -594,16 +609,62 @@ router.post(
         metadata: { comped_by: getOwnerEmail() ?? "owner", userId: u.id },
       });
 
+      // Synchronously mirror the new subscription into stripe.subscriptions
+      // so getAccessState reflects "active" *immediately*, without waiting
+      // for the Stripe webhook to land. We look up _account_id from any
+      // existing mirrored row to keep parity with stripe-replit-sync.
+      try {
+        const acct = await db.execute(sql`
+          SELECT _account_id FROM stripe.subscriptions
+          ORDER BY _updated_at DESC LIMIT 1
+        `);
+        const accountId =
+          (acct.rows[0] as { _account_id?: string } | undefined)?._account_id;
+        if (accountId) {
+          await db.execute(sql`
+            INSERT INTO stripe.subscriptions (_account_id, _raw_data, _last_synced_at)
+            VALUES (
+              ${accountId},
+              ${JSON.stringify(newSub)}::jsonb,
+              NOW()
+            )
+          `);
+        }
+      } catch (err) {
+        req.log.warn(
+          { err, subId: newSub.id },
+          "comp-subscription: mirror insert failed; webhook will catch up",
+        );
+      }
+
       const ownerEmail = getOwnerEmail();
       req.log.info(
-        { ownerEmail, targetId: u.id },
+        { ownerEmail, targetId: u.id, subId: newSub.id },
         "admin comped subscription",
       );
 
-      // The webhook syncs new subs into stripe.subscriptions; getAccessState
-      // will pick it up shortly. Return the current best-known state.
-      const state = await getAccessState(u.id);
-      res.json({ state, couponId: coupon.id });
+      // After the synthetic mirror insert above, getAccessState should now
+      // return "active" — but we also synthesize a guaranteed-active reply
+      // in case the mirror insert was skipped (no prior account row found).
+      const live = await getAccessState(u.id);
+      // Stripe's Subscription type moved current_period_end onto items in
+      // recent API versions; keep both shapes working with a runtime read.
+      const periodEndUnix =
+        (newSub as unknown as { current_period_end?: number })
+          .current_period_end ??
+        newSub.items?.data?.[0]?.current_period_end ??
+        null;
+      const state =
+        live.kind === "active" || live.kind === "trialing"
+          ? live
+          : {
+              kind: "active" as const,
+              currentPeriodEnd: periodEndUnix
+                ? new Date(periodEndUnix * 1000).toISOString()
+                : null,
+              cancelAtPeriodEnd: false,
+            };
+      res.json({ state, couponId: coupon.id, subscriptionId: newSub.id });
     } catch (err) {
       req.log.error({ err }, "comp-subscription failed");
       res.status(500).json({ error: "Failed to comp subscription" });
