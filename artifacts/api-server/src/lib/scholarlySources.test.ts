@@ -154,7 +154,7 @@ test("registry: bundled commentaries cover ~all 66 books × 1189 chapters", () =
   // this batch and tracked separately.
   const expectations: Record<string, { books: number; chapters: number }> = {
     "jamieson-fausset-brown": { books: 66, chapters: 1189 },
-    "barnes-notes": { books: 66, chapters: 1186 },
+    "barnes-notes": { books: 66, chapters: 1185 },
     "pulpit-commentary": { books: 66, chapters: 1189 },
   };
   for (const [sourceId, expected] of Object.entries(expectations)) {

@@ -42,6 +42,25 @@ license + source URL for traceability. Each per-book `<book-slug>.json` also
 records the URL it was sourced from in a top-level `_sourceUrl` field
 (ignored by the loader; present purely for provenance / future re-ingest).
 
+### Provenance note (batch 1: JFB, Barnes, Pulpit)
+
+The original task spec named CCEL as the upstream for these three works, but
+CCEL only ships a per-work plain-text dump for JFB (and that dump's per-book
+headers vary too much to parse reliably across the canon — Genesis is "FIRST
+BOOK OF MOSES, CALLED \n GENESIS", Joshua is "THE \n BOOK OF JOSHUA", several
+books have no explicit header, etc.). Barnes and Pulpit have no CCEL dump at
+all. To ship all three with one consistent parser we pulled chapter text
+from BibleHub's per-chapter HTML pages instead. The works themselves are
+identical PD editions; only the host changed. Each manifest records the
+actual `sourceUrl` (BibleHub) and the originally-intended `originalSourceUrl`
+(CCEL) for traceability.
+
+Per the task spec, Barnes was expected to have partial OT coverage. The
+upstream BibleHub edition actually carries Barnes for the entire OT — only
+4 chapters are genuinely empty (Exodus 36, 37, 39, and 2 Chronicles 10, the
+1 Kings // 2 Chronicles parallel) and those are tracked in the script's
+`KNOWN_EMPTY_UPSTREAM` allowlist.
+
 ## How to ingest a new source
 
 The repo ships one shared ingest script that scrapes BibleHub's per-chapter

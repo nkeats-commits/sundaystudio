@@ -238,17 +238,59 @@ function extractBibleHubExcerpt(html: string): string {
     collected.push(text);
     total += text.length;
   }
-  let combined = collected.join(" ");
-  combined = combined.replace(/\s+/g, " ").trim();
+  let combined = collected.join(" ").replace(/\s+/g, " ").trim();
+
+  // Strip BibleHub's appended attribution/footer boilerplate. The site
+  // emits these inline with the last verse on some chapter pages, so they
+  // bleed into our extraction and read as garbage.
+  // Cut at the first occurrence of any boilerplate marker.
+  const FOOTER_MARKERS = [
+    /\bText Courtesy of [^.]*\./i,                 // Barnes ("Text Courtesy of Internet Sacred Texts Archive .")
+    /\bOld and New Testaments by Robert Jamieson[\s\S]*$/i, // JFB title-page footer
+    /\bBible Hub\s*$/i,                            // trailing "Bible Hub"
+    /\bbiblehub\.com[\s\S]*$/i,
+    /\bInternet Sacred Texts Archive[\s\S]*$/i,
+  ];
+  for (const re of FOOTER_MARKERS) {
+    combined = combined.replace(re, "").trim();
+  }
+
+  // Final cut to TARGET_EXCERPT_CHARS, ending on a sentence boundary if
+  // possible, otherwise on a word boundary — never mid-word.
   if (combined.length > TARGET_EXCERPT_CHARS) {
-    // Cut on a sentence boundary if possible.
     const cut = combined.slice(0, TARGET_EXCERPT_CHARS);
     const lastStop = Math.max(
       cut.lastIndexOf(". "),
       cut.lastIndexOf("! "),
       cut.lastIndexOf("? "),
     );
-    combined = lastStop > TARGET_EXCERPT_CHARS - 300 ? cut.slice(0, lastStop + 1) : cut;
+    if (lastStop > TARGET_EXCERPT_CHARS - 300) {
+      combined = cut.slice(0, lastStop + 1);
+    } else {
+      const lastSpace = cut.lastIndexOf(" ");
+      combined = (lastSpace > 100 ? cut.slice(0, lastSpace) : cut).trimEnd() + "…";
+    }
+  } else {
+    // Even when within the cap, the final text can end mid-word because
+    // upstream `<div class="versenum">` boundaries often fall mid-sentence
+    // of the previous verse's commentary. Trim back to the last sentence
+    // stop or word boundary so excerpts always read cleanly.
+    const tail = combined.slice(-1);
+    if (tail && !/[.!?")\]]/.test(tail)) {
+      const lastStop = Math.max(
+        combined.lastIndexOf(". "),
+        combined.lastIndexOf("! "),
+        combined.lastIndexOf("? "),
+      );
+      if (lastStop > combined.length - 400 && lastStop > 200) {
+        combined = combined.slice(0, lastStop + 1);
+      } else if (combined.length > 200) {
+        const lastSpace = combined.lastIndexOf(" ");
+        if (lastSpace > combined.length - 30) {
+          combined = combined.slice(0, lastSpace).trimEnd() + "…";
+        }
+      }
+    }
   }
   return combined;
 }
@@ -431,7 +473,12 @@ function writeBooks(sourceId: string, books: Map<string, BookOut>): void {
  */
 const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
   "jamieson-fausset-brown": [],
-  "barnes-notes": ["exodus 37", "exodus 39", "2 chronicles 10"],
+  "barnes-notes": [
+    "exodus 36",
+    "exodus 37",
+    "exodus 39",
+    "2 chronicles 10",
+  ],
   "pulpit-commentary": [],
 };
 
