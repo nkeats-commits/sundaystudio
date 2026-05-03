@@ -1314,7 +1314,7 @@ export default function SermonBuilder() {
           <div className="bg-white w-full md:max-w-3xl md:rounded-2xl shadow-xl flex flex-col max-h-screen md:max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--worship-border)' }}>
               <div>
-                <h2 className="font-serif text-xl text-[var(--worship-navy)]">{exportContent.format === 'small-group-handout' ? 'Small group leader handout' : exportContent.format === 'small-group-email' ? 'Small group email draft' : 'Exported sermon'}</h2>
+                <h2 className="font-serif text-xl text-[var(--worship-navy)]">{exportTitleFor(exportContent.format)}</h2>
                 <p className="text-xs text-[var(--worship-slate)]">{exportContent.format === 'small-group-handout' ? 'Print or copy this and hand it to your group leaders.' : exportContent.format === 'small-group-email' ? 'Copy and paste into your email — subject line included.' : `Format: ${exportContent.format}`}</p>
               </div>
               <div className="flex items-center gap-2">
