@@ -34,6 +34,8 @@ tags:
     description: Third-party integrations (Planning Center Services, etc.)
   - name: billing
     description: Subscription billing (trial + Stripe)
+  - name: admin
+    description: Owner-only admin panel (single-admin model gated by OWNER_EMAIL)
 paths:
   /healthz:
     get:
@@ -1544,6 +1546,203 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      tags: [admin]
+      summary: Returns 200 if the caller is the owner; 404 otherwise
+      responses:
+        "200":
+          description: Owner identity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMe"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/metrics:
+    get:
+      operationId: getAdminMetrics
+      tags: [admin]
+      summary: Owner overview — signups, trials, subscriptions, MRR
+      responses:
+        "200":
+          description: Metrics snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMetrics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [admin]
+      summary: Paginated, searchable list of users for the admin panel
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [trial, subscribed, past_due, canceled, expired]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getAdminUser
+      tags: [admin]
+      summary: Single-user admin detail
+      responses:
+        "200":
+          description: User detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteAdminUser
+      tags: [admin]
+      summary: Hard-delete a user, their content, and cancel any Stripe sub
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          description: Invalid request (e.g. self-delete attempt)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/extend-trial:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: extendAdminUserTrial
+      tags: [admin]
+      summary: Extend the user's trial by N days
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [days]
+              properties:
+                days:
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+      responses:
+        "200":
+          description: Updated state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [state]
+                properties:
+                  state:
+                    $ref: "#/components/schemas/AccessState"
+        "400":
+          description: Invalid days
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/comp-subscription:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: compAdminUserSubscription
+      tags: [admin]
+      summary: Create a free (100% off) Stripe subscription for the user
+      responses:
+        "200":
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [state]
+                properties:
+                  state:
+                    $ref: "#/components/schemas/AccessState"
+                  couponId:
+                    type: string
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          description: Stripe not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
 components:
   parameters:
     IdParam:
@@ -1630,6 +1829,127 @@ components:
           type: integer
           description: Length of the free trial in days.
       required: [state, trialDays]
+
+    AdminMe:
+      type: object
+      properties:
+        ownerEmail:
+          type: string
+          nullable: true
+        userId:
+          type: string
+      required: [userId]
+
+    AdminMetrics:
+      type: object
+      required: [totals, trials, subscriptions, revenue, series, stripeAvailable]
+      properties:
+        totals:
+          type: object
+          required: [users, signups7d, signups30d]
+          properties:
+            users: { type: integer }
+            signups7d: { type: integer }
+            signups30d: { type: integer }
+        trials:
+          type: object
+          required: [active, endingSoon, expired]
+          properties:
+            active: { type: integer }
+            endingSoon: { type: integer }
+            expired: { type: integer }
+        subscriptions:
+          type: object
+          required: [active, trialing, pastDue, canceled]
+          properties:
+            active: { type: integer }
+            trialing: { type: integer }
+            pastDue: { type: integer }
+            canceled: { type: integer }
+        revenue:
+          type: object
+          required: [mrrCents, conversions30d, conversions90d, churn30d]
+          properties:
+            mrrCents: { type: integer }
+            conversions30d: { type: integer }
+            conversions90d: { type: integer }
+            churn30d: { type: integer }
+        series:
+          type: object
+          required: [signups, subscriptions]
+          properties:
+            signups:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminSeriesPoint"
+            subscriptions:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminSeriesPoint"
+        stripeAvailable:
+          type: boolean
+
+    AdminSeriesPoint:
+      type: object
+      required: [day, count]
+      properties:
+        day:
+          type: string
+          description: ISO date (YYYY-MM-DD)
+        count:
+          type: integer
+
+    AdminUserSummary:
+      type: object
+      required: [id, createdAt, state]
+      properties:
+        id: { type: string }
+        email: { type: string, nullable: true }
+        firstName: { type: string, nullable: true }
+        lastName: { type: string, nullable: true }
+        createdAt: { type: string }
+        stripeCustomerId: { type: string, nullable: true }
+        state:
+          $ref: "#/components/schemas/AccessState"
+        lastActivityAt:
+          type: string
+          nullable: true
+
+    AdminUserList:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUserSummary"
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    AdminUserDetail:
+      type: object
+      required: [id, createdAt, state, counts]
+      properties:
+        id: { type: string }
+        email: { type: string, nullable: true }
+        firstName: { type: string, nullable: true }
+        lastName: { type: string, nullable: true }
+        imageUrl: { type: string, nullable: true }
+        createdAt: { type: string }
+        trialStartedAt: { type: string, nullable: true }
+        stripeCustomerId: { type: string, nullable: true }
+        state:
+          $ref: "#/components/schemas/AccessState"
+        counts:
+          type: object
+          required: [servicePlans, sermons]
+          properties:
+            servicePlans: { type: integer }
+            sermons: { type: integer }
+        lastActivityAt:
+          type: string
+          nullable: true
 
     PcsConnectUrl:
       type: object

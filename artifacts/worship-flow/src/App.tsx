@@ -37,6 +37,9 @@ import ResourceLibrary from "./pages/ResourceLibrary";
 import Integrations from "./pages/Integrations";
 import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
+import AdminOverview from "./pages/AdminOverview";
+import AdminUsers from "./pages/AdminUsers";
+import AdminUserDetail from "./pages/AdminUserDetail";
 import NotFound from "./pages/NotFound";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -352,6 +355,9 @@ function ClerkProviderWithRoutes() {
           <Route path="/settings">{() => <Protected component={Settings} />}</Route>
           <Route path="/pricing">{() => <Protected component={Pricing} />}</Route>
           <Route path="/billing">{() => <Protected component={Billing} />}</Route>
+          <Route path="/admin">{() => <Protected component={AdminOverview} />}</Route>
+          <Route path="/admin/users">{() => <Protected component={AdminUsers} />}</Route>
+          <Route path="/admin/users/:id">{() => <Protected component={AdminUserDetail} />}</Route>
           <Route>{() => <Protected component={NotFound} />}</Route>
         </Switch>
       </QueryClientProvider>

@@ -55,6 +55,94 @@ export interface BillingStatusResponse {
   trialDays: number;
 }
 
+export interface AdminMe {
+  ownerEmail?: string | null;
+  userId: string;
+}
+
+export type AdminMetricsTotals = {
+  users: number;
+  signups7d: number;
+  signups30d: number;
+};
+
+export type AdminMetricsTrials = {
+  active: number;
+  endingSoon: number;
+  expired: number;
+};
+
+export type AdminMetricsSubscriptions = {
+  active: number;
+  trialing: number;
+  pastDue: number;
+  canceled: number;
+};
+
+export type AdminMetricsRevenue = {
+  mrrCents: number;
+  conversions30d: number;
+  conversions90d: number;
+  churn30d: number;
+};
+
+export interface AdminSeriesPoint {
+  /** ISO date (YYYY-MM-DD) */
+  day: string;
+  count: number;
+}
+
+export type AdminMetricsSeries = {
+  signups: AdminSeriesPoint[];
+  subscriptions: AdminSeriesPoint[];
+};
+
+export interface AdminMetrics {
+  totals: AdminMetricsTotals;
+  trials: AdminMetricsTrials;
+  subscriptions: AdminMetricsSubscriptions;
+  revenue: AdminMetricsRevenue;
+  series: AdminMetricsSeries;
+  stripeAvailable: boolean;
+}
+
+export interface AdminUserSummary {
+  id: string;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  createdAt: string;
+  stripeCustomerId?: string | null;
+  state: AccessState;
+  lastActivityAt?: string | null;
+}
+
+export interface AdminUserList {
+  items: AdminUserSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export type AdminUserDetailCounts = {
+  servicePlans: number;
+  sermons: number;
+};
+
+export interface AdminUserDetail {
+  id: string;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  imageUrl?: string | null;
+  createdAt: string;
+  trialStartedAt?: string | null;
+  stripeCustomerId?: string | null;
+  state: AccessState;
+  counts: AdminUserDetailCounts;
+  lastActivityAt?: string | null;
+}
+
 export interface PcsConnectUrl {
   /** Full Planning Center authorization URL the browser should redirect to. */
   authUrl: string;
@@ -1374,4 +1462,46 @@ export type GenerateSermonSmallGroupQuestions400 = {
 
 export type GenerateSermonToService400 = {
   error?: string;
+};
+
+export type GetAdminUsersParams = {
+  search?: string;
+  status?: GetAdminUsersStatus;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+  /**
+   * @minimum 0
+   */
+  offset?: number;
+};
+
+export type GetAdminUsersStatus =
+  (typeof GetAdminUsersStatus)[keyof typeof GetAdminUsersStatus];
+
+export const GetAdminUsersStatus = {
+  trial: "trial",
+  subscribed: "subscribed",
+  past_due: "past_due",
+  canceled: "canceled",
+  expired: "expired",
+} as const;
+
+export type ExtendAdminUserTrialBody = {
+  /**
+   * @minimum 1
+   * @maximum 365
+   */
+  days: number;
+};
+
+export type ExtendAdminUserTrial200 = {
+  state: AccessState;
+};
+
+export type CompAdminUserSubscription200 = {
+  state: AccessState;
+  couponId?: string | null;
 };

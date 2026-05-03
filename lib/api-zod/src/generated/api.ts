@@ -3295,3 +3295,290 @@ export const CreateBillingPortalSessionResponse = zod.object({
     .string()
     .describe("URL the browser should be redirected to (Checkout or Portal)."),
 });
+
+/**
+ * @summary Returns 200 if the caller is the owner; 404 otherwise
+ */
+export const GetAdminMeResponse = zod.object({
+  ownerEmail: zod.string().nullish(),
+  userId: zod.string(),
+});
+
+/**
+ * @summary Owner overview — signups, trials, subscriptions, MRR
+ */
+export const GetAdminMetricsResponse = zod.object({
+  totals: zod.object({
+    users: zod.number(),
+    signups7d: zod.number(),
+    signups30d: zod.number(),
+  }),
+  trials: zod.object({
+    active: zod.number(),
+    endingSoon: zod.number(),
+    expired: zod.number(),
+  }),
+  subscriptions: zod.object({
+    active: zod.number(),
+    trialing: zod.number(),
+    pastDue: zod.number(),
+    canceled: zod.number(),
+  }),
+  revenue: zod.object({
+    mrrCents: zod.number(),
+    conversions30d: zod.number(),
+    conversions90d: zod.number(),
+    churn30d: zod.number(),
+  }),
+  series: zod.object({
+    signups: zod.array(
+      zod.object({
+        day: zod.string().describe("ISO date (YYYY-MM-DD)"),
+        count: zod.number(),
+      }),
+    ),
+    subscriptions: zod.array(
+      zod.object({
+        day: zod.string().describe("ISO date (YYYY-MM-DD)"),
+        count: zod.number(),
+      }),
+    ),
+  }),
+  stripeAvailable: zod.boolean(),
+});
+
+/**
+ * @summary Paginated, searchable list of users for the admin panel
+ */
+export const getAdminUsersQueryLimitMax = 200;
+
+export const getAdminUsersQueryOffsetMin = 0;
+
+export const GetAdminUsersQueryParams = zod.object({
+  search: zod.coerce.string().optional(),
+  status: zod
+    .enum(["trial", "subscribed", "past_due", "canceled", "expired"])
+    .optional(),
+  limit: zod.coerce.number().min(1).max(getAdminUsersQueryLimitMax).optional(),
+  offset: zod.coerce.number().min(getAdminUsersQueryOffsetMin).optional(),
+});
+
+export const GetAdminUsersResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      email: zod.string().nullish(),
+      firstName: zod.string().nullish(),
+      lastName: zod.string().nullish(),
+      createdAt: zod.string(),
+      stripeCustomerId: zod.string().nullish(),
+      state: zod
+        .object({
+          kind: zod.enum([
+            "trial",
+            "active",
+            "trialing",
+            "past_due",
+            "canceled",
+            "expired",
+          ]),
+          daysLeft: zod
+            .number()
+            .nullish()
+            .describe(
+              "Days remaining in the local trial (only when kind=trial).",
+            ),
+          trialEndsAt: zod
+            .string()
+            .nullish()
+            .describe("When the local trial ends (only when kind=trial)."),
+          trialEndedAt: zod
+            .string()
+            .nullish()
+            .describe("When the local trial ended (only when kind=expired)."),
+          currentPeriodEnd: zod
+            .string()
+            .nullish()
+            .describe("End of the current Stripe billing period."),
+          cancelAtPeriodEnd: zod
+            .boolean()
+            .nullish()
+            .describe(
+              "True if a Stripe subscription is set to cancel at period end.",
+            ),
+        })
+        .describe(
+          "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+        ),
+      lastActivityAt: zod.string().nullish(),
+    }),
+  ),
+  total: zod.number(),
+  limit: zod.number(),
+  offset: zod.number(),
+});
+
+/**
+ * @summary Single-user admin detail
+ */
+export const GetAdminUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetAdminUserResponse = zod.object({
+  id: zod.string(),
+  email: zod.string().nullish(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
+  imageUrl: zod.string().nullish(),
+  createdAt: zod.string(),
+  trialStartedAt: zod.string().nullish(),
+  stripeCustomerId: zod.string().nullish(),
+  state: zod
+    .object({
+      kind: zod.enum([
+        "trial",
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "expired",
+      ]),
+      daysLeft: zod
+        .number()
+        .nullish()
+        .describe("Days remaining in the local trial (only when kind=trial)."),
+      trialEndsAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ends (only when kind=trial)."),
+      trialEndedAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ended (only when kind=expired)."),
+      currentPeriodEnd: zod
+        .string()
+        .nullish()
+        .describe("End of the current Stripe billing period."),
+      cancelAtPeriodEnd: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "True if a Stripe subscription is set to cancel at period end.",
+        ),
+    })
+    .describe(
+      "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+    ),
+  counts: zod.object({
+    servicePlans: zod.number(),
+    sermons: zod.number(),
+  }),
+  lastActivityAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Hard-delete a user, their content, and cancel any Stripe sub
+ */
+export const DeleteAdminUserParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Extend the user's trial by N days
+ */
+export const ExtendAdminUserTrialParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const extendAdminUserTrialBodyDaysMax = 365;
+
+export const ExtendAdminUserTrialBody = zod.object({
+  days: zod.number().min(1).max(extendAdminUserTrialBodyDaysMax),
+});
+
+export const ExtendAdminUserTrialResponse = zod.object({
+  state: zod
+    .object({
+      kind: zod.enum([
+        "trial",
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "expired",
+      ]),
+      daysLeft: zod
+        .number()
+        .nullish()
+        .describe("Days remaining in the local trial (only when kind=trial)."),
+      trialEndsAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ends (only when kind=trial)."),
+      trialEndedAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ended (only when kind=expired)."),
+      currentPeriodEnd: zod
+        .string()
+        .nullish()
+        .describe("End of the current Stripe billing period."),
+      cancelAtPeriodEnd: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "True if a Stripe subscription is set to cancel at period end.",
+        ),
+    })
+    .describe(
+      "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+    ),
+});
+
+/**
+ * @summary Create a free (100% off) Stripe subscription for the user
+ */
+export const CompAdminUserSubscriptionParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const CompAdminUserSubscriptionResponse = zod.object({
+  state: zod
+    .object({
+      kind: zod.enum([
+        "trial",
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "expired",
+      ]),
+      daysLeft: zod
+        .number()
+        .nullish()
+        .describe("Days remaining in the local trial (only when kind=trial)."),
+      trialEndsAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ends (only when kind=trial)."),
+      trialEndedAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ended (only when kind=expired)."),
+      currentPeriodEnd: zod
+        .string()
+        .nullish()
+        .describe("End of the current Stripe billing period."),
+      cancelAtPeriodEnd: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "True if a Stripe subscription is set to cancel at period end.",
+        ),
+    })
+    .describe(
+      "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+    ),
+  couponId: zod.string().nullish(),
+});

@@ -17,12 +17,17 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AdminMe,
+  AdminMetrics,
+  AdminUserDetail,
+  AdminUserList,
   ApiError,
   BillingRedirect,
   BillingStatusResponse,
   BulkImportRepertoireBody,
   BulkImportRepertoireResult,
   ChurchProfile,
+  CompAdminUserSubscription200,
   CreateLibraryItemBody,
   CreateSermonBody,
   CreateSermonResourceBody,
@@ -34,6 +39,8 @@ import type {
   DashboardResponse,
   ExportSermonBody,
   ExportServicePlanBody,
+  ExtendAdminUserTrial200,
+  ExtendAdminUserTrialBody,
   GenerateDevotional400,
   GenerateDevotionalBody,
   GenerateJobSnapshot,
@@ -72,6 +79,7 @@ import type {
   GeneratedServicePlan,
   GeneratedSongs,
   GeneratedSpeakingMoment,
+  GetAdminUsersParams,
   HealthStatus,
   LibraryItem,
   LinkedServiceRef,
@@ -5610,4 +5618,606 @@ export const useCreateBillingPortalSession = <
   TContext
 > => {
   return useMutation(getCreateBillingPortalSessionMutationOptions(options));
+};
+
+/**
+ * @summary Returns 200 if the caller is the owner; 404 otherwise
+ */
+export const getGetAdminMeUrl = () => {
+  return `/api/admin/me`;
+};
+
+export const getAdminMe = async (options?: RequestInit): Promise<AdminMe> => {
+  return customFetch<AdminMe>(getGetAdminMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminMeQueryKey = () => {
+  return [`/api/admin/me`] as const;
+};
+
+export const getGetAdminMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminMe>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMe>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMe>>> = ({
+    signal,
+  }) => getAdminMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminMeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminMe>>
+>;
+export type GetAdminMeQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Returns 200 if the caller is the owner; 404 otherwise
+ */
+
+export function useGetAdminMe<
+  TData = Awaited<ReturnType<typeof getAdminMe>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMe>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Owner overview — signups, trials, subscriptions, MRR
+ */
+export const getGetAdminMetricsUrl = () => {
+  return `/api/admin/metrics`;
+};
+
+export const getAdminMetrics = async (
+  options?: RequestInit,
+): Promise<AdminMetrics> => {
+  return customFetch<AdminMetrics>(getGetAdminMetricsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminMetricsQueryKey = () => {
+  return [`/api/admin/metrics`] as const;
+};
+
+export const getGetAdminMetricsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminMetrics>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMetrics>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminMetricsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMetrics>>> = ({
+    signal,
+  }) => getAdminMetrics({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMetrics>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminMetricsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminMetrics>>
+>;
+export type GetAdminMetricsQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Owner overview — signups, trials, subscriptions, MRR
+ */
+
+export function useGetAdminMetrics<
+  TData = Awaited<ReturnType<typeof getAdminMetrics>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminMetrics>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminMetricsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Paginated, searchable list of users for the admin panel
+ */
+export const getGetAdminUsersUrl = (params?: GetAdminUsersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/users?${stringifiedParams}`
+    : `/api/admin/users`;
+};
+
+export const getAdminUsers = async (
+  params?: GetAdminUsersParams,
+  options?: RequestInit,
+): Promise<AdminUserList> => {
+  return customFetch<AdminUserList>(getGetAdminUsersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminUsersQueryKey = (params?: GetAdminUsersParams) => {
+  return [`/api/admin/users`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAdminUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminUsers>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  params?: GetAdminUsersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminUsers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminUsersQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminUsers>>> = ({
+    signal,
+  }) => getAdminUsers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminUsers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminUsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminUsers>>
+>;
+export type GetAdminUsersQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Paginated, searchable list of users for the admin panel
+ */
+
+export function useGetAdminUsers<
+  TData = Awaited<ReturnType<typeof getAdminUsers>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  params?: GetAdminUsersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminUsers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminUsersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Single-user admin detail
+ */
+export const getGetAdminUserUrl = (id: string) => {
+  return `/api/admin/users/${id}`;
+};
+
+export const getAdminUser = async (
+  id: string,
+  options?: RequestInit,
+): Promise<AdminUserDetail> => {
+  return customFetch<AdminUserDetail>(getGetAdminUserUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminUserQueryKey = (id: string) => {
+  return [`/api/admin/users/${id}`] as const;
+};
+
+export const getGetAdminUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminUser>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminUserQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminUser>>> = ({
+    signal,
+  }) => getAdminUser(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminUser>>
+>;
+export type GetAdminUserQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Single-user admin detail
+ */
+
+export function useGetAdminUser<
+  TData = Awaited<ReturnType<typeof getAdminUser>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminUserQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Hard-delete a user, their content, and cancel any Stripe sub
+ */
+export const getDeleteAdminUserUrl = (id: string) => {
+  return `/api/admin/users/${id}`;
+};
+
+export const deleteAdminUser = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteAdminUserUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAdminUserMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAdminUser>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAdminUser>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteAdminUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAdminUser>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteAdminUser(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAdminUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAdminUser>>
+>;
+
+export type DeleteAdminUserMutationError = ErrorType<
+  ApiError | UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Hard-delete a user, their content, and cancel any Stripe sub
+ */
+export const useDeleteAdminUser = <
+  TError = ErrorType<ApiError | UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAdminUser>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAdminUser>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteAdminUserMutationOptions(options));
+};
+
+/**
+ * @summary Extend the user's trial by N days
+ */
+export const getExtendAdminUserTrialUrl = (id: string) => {
+  return `/api/admin/users/${id}/extend-trial`;
+};
+
+export const extendAdminUserTrial = async (
+  id: string,
+  extendAdminUserTrialBody: ExtendAdminUserTrialBody,
+  options?: RequestInit,
+): Promise<ExtendAdminUserTrial200> => {
+  return customFetch<ExtendAdminUserTrial200>(getExtendAdminUserTrialUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(extendAdminUserTrialBody),
+  });
+};
+
+export const getExtendAdminUserTrialMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof extendAdminUserTrial>>,
+    TError,
+    { id: string; data: BodyType<ExtendAdminUserTrialBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof extendAdminUserTrial>>,
+  TError,
+  { id: string; data: BodyType<ExtendAdminUserTrialBody> },
+  TContext
+> => {
+  const mutationKey = ["extendAdminUserTrial"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof extendAdminUserTrial>>,
+    { id: string; data: BodyType<ExtendAdminUserTrialBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return extendAdminUserTrial(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExtendAdminUserTrialMutationResult = NonNullable<
+  Awaited<ReturnType<typeof extendAdminUserTrial>>
+>;
+export type ExtendAdminUserTrialMutationBody =
+  BodyType<ExtendAdminUserTrialBody>;
+export type ExtendAdminUserTrialMutationError = ErrorType<
+  ApiError | UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Extend the user's trial by N days
+ */
+export const useExtendAdminUserTrial = <
+  TError = ErrorType<ApiError | UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof extendAdminUserTrial>>,
+    TError,
+    { id: string; data: BodyType<ExtendAdminUserTrialBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof extendAdminUserTrial>>,
+  TError,
+  { id: string; data: BodyType<ExtendAdminUserTrialBody> },
+  TContext
+> => {
+  return useMutation(getExtendAdminUserTrialMutationOptions(options));
+};
+
+/**
+ * @summary Create a free (100% off) Stripe subscription for the user
+ */
+export const getCompAdminUserSubscriptionUrl = (id: string) => {
+  return `/api/admin/users/${id}/comp-subscription`;
+};
+
+export const compAdminUserSubscription = async (
+  id: string,
+  options?: RequestInit,
+): Promise<CompAdminUserSubscription200> => {
+  return customFetch<CompAdminUserSubscription200>(
+    getCompAdminUserSubscriptionUrl(id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getCompAdminUserSubscriptionMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof compAdminUserSubscription>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof compAdminUserSubscription>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["compAdminUserSubscription"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof compAdminUserSubscription>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return compAdminUserSubscription(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompAdminUserSubscriptionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof compAdminUserSubscription>>
+>;
+
+export type CompAdminUserSubscriptionMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ApiError
+>;
+
+/**
+ * @summary Create a free (100% off) Stripe subscription for the user
+ */
+export const useCompAdminUserSubscription = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof compAdminUserSubscription>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof compAdminUserSubscription>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getCompAdminUserSubscriptionMutationOptions(options));
 };

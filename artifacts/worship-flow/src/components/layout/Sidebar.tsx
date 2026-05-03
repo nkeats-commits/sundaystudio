@@ -20,10 +20,13 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
+import { Shield } from 'lucide-react';
+import { useIsOwner } from '../../hooks/useIsOwner';
 
 export function Sidebar() {
   const [location] = useLocation();
   const { user } = useUser();
+  const { isOwner } = useIsOwner();
 
   const sermonItems = [
     { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
@@ -49,6 +52,9 @@ export function Sidebar() {
     { icon: Plug, label: 'Integrations', href: '/settings/integrations' },
     { icon: CreditCard, label: 'Billing', href: '/billing' },
     { icon: Settings, label: 'Settings', href: '/settings' },
+    ...(isOwner
+      ? [{ icon: Shield, label: 'Admin', href: '/admin' }]
+      : []),
   ];
 
   const firstName = user?.firstName || '';

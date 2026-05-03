@@ -44,6 +44,18 @@ export const requireAuth: RequestHandler = async (
           imageUrl: claims?.imageUrl ?? null,
         })
         .onConflictDoNothing();
+    } else {
+      // Refresh missing identity fields when Clerk supplies them. We don't
+      // overwrite non-empty values to avoid clobbering manual edits.
+      const cur = existing[0];
+      const patch: Partial<typeof usersTable.$inferInsert> = {};
+      if (!cur.email && claims?.email) patch.email = claims.email;
+      if (!cur.firstName && claims?.firstName) patch.firstName = claims.firstName;
+      if (!cur.lastName && claims?.lastName) patch.lastName = claims.lastName;
+      if (!cur.imageUrl && claims?.imageUrl) patch.imageUrl = claims.imageUrl;
+      if (Object.keys(patch).length > 0) {
+        await db.update(usersTable).set(patch).where(eq(usersTable.id, userId));
+      }
     }
   } catch (err) {
     req.log.error({ err }, "failed to upsert user");
