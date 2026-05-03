@@ -58,6 +58,8 @@ import {
   X,
   ChevronRight,
   Calendar,
+  Mail,
+  Printer,
 } from 'lucide-react';
 
 const LENGTHS = ['10 minutes', '15 minutes', '20 minutes', '25 minutes', '30 minutes', '40 minutes'];
@@ -526,7 +528,9 @@ export default function SermonBuilder() {
     }
   };
 
-  const doExport = async (format: 'markdown' | 'text') => {
+  const doExport = async (
+    format: 'markdown' | 'text' | 'small-group-handout' | 'small-group-email',
+  ) => {
     const id = await ensureSermonId();
     if (!id) return;
     try {
@@ -1136,6 +1140,45 @@ export default function SermonBuilder() {
                   onRegenerate={handleSmallGroupQuestions}
                 >
                   {smallGroupData && <SmallGroupQuestionsView data={smallGroupData} />}
+                  {smallGroupData && (
+                    <div className="mt-6 p-5 rounded-xl border bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="min-w-0">
+                          <h4 className="font-serif text-lg text-[var(--worship-navy)] flex items-center gap-2">
+                            <Users className="w-4 h-4" /> Send to small group leaders
+                          </h4>
+                          <p className="text-xs text-[var(--worship-slate)] mt-1 max-w-md">
+                            Generate a clean, leader-ready handout — just the passage, big idea, and the grouped questions. No manuscript, no worship notes. Pick a printable handout or an email-ready version with a brief context paragraph.
+                          </p>
+                          {!sermonId && (
+                            <p className="text-xs text-[var(--worship-gold)] font-medium mt-2">
+                              Save the sermon first to enable this.
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                          <button
+                            disabled={!sermonId || exportSermon.isPending}
+                            onClick={() => doExport('small-group-handout')}
+                            className="px-3 py-2 text-xs rounded-lg border bg-white flex items-center gap-1.5 hover:bg-slate-50 disabled:opacity-60"
+                            style={{ borderColor: 'var(--worship-border)' }}
+                            title="Printable leader handout (Markdown)"
+                          >
+                            <Printer className="w-3.5 h-3.5" /> Printable handout
+                          </button>
+                          <button
+                            disabled={!sermonId || exportSermon.isPending}
+                            onClick={() => doExport('small-group-email')}
+                            className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60"
+                            title="Email-ready version with context paragraph"
+                          >
+                            {exportSermon.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                            Email to leaders
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </SectionPanel>
               )}
               </div>
@@ -1216,8 +1259,8 @@ export default function SermonBuilder() {
           <div className="bg-white w-full md:max-w-3xl md:rounded-2xl shadow-xl flex flex-col max-h-screen md:max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--worship-border)' }}>
               <div>
-                <h2 className="font-serif text-xl text-[var(--worship-navy)]">Exported sermon</h2>
-                <p className="text-xs text-[var(--worship-slate)]">Format: {exportContent.format}</p>
+                <h2 className="font-serif text-xl text-[var(--worship-navy)]">{exportContent.format === 'small-group-handout' ? 'Small group leader handout' : exportContent.format === 'small-group-email' ? 'Small group email draft' : 'Exported sermon'}</h2>
+                <p className="text-xs text-[var(--worship-slate)]">{exportContent.format === 'small-group-handout' ? 'Print or copy this and hand it to your group leaders.' : exportContent.format === 'small-group-email' ? 'Copy and paste into your email — subject line included.' : `Format: ${exportContent.format}`}</p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => navigator.clipboard.writeText(exportContent.content).then(() => toast.success('Copied'))} className="worship-btn-primary px-3 py-1.5 text-xs rounded-lg">Copy</button>

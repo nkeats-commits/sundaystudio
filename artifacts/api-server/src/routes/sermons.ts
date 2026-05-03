@@ -19,6 +19,8 @@ import { requireAuth } from "../middlewares/requireAuth";
 import {
   renderSermonAsMarkdown,
   renderSermonAsText,
+  renderSmallGroupHandoutEmail,
+  renderSmallGroupHandoutMarkdown,
 } from "../lib/sermonExport";
 
 /**
@@ -500,7 +502,11 @@ router.post("/sermons/:id/export", requireAuth, async (req, res) => {
   const content =
     parsed.data.format === "text"
       ? renderSermonAsText(sermon)
-      : renderSermonAsMarkdown(sermon);
+      : parsed.data.format === "small-group-handout"
+        ? renderSmallGroupHandoutMarkdown(sermon)
+        : parsed.data.format === "small-group-email"
+          ? renderSmallGroupHandoutEmail(sermon)
+          : renderSermonAsMarkdown(sermon);
   const [row] = await db
     .insert(sermonExportsTable)
     .values({

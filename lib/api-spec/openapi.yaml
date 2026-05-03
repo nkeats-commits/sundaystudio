@@ -2865,7 +2865,7 @@ components:
       properties:
         format:
           type: string
-          enum: [markdown, text]
+          enum: [markdown, text, small-group-handout, small-group-email]
       required: [format]
 
     ExportServicePlanBody:

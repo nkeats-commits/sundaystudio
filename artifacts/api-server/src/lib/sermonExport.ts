@@ -245,3 +245,152 @@ export function renderSermonAsText(s: Sermon): string {
     .replace(/^>\s?/gm, "")
     .replace(/^- /gm, "• ");
 }
+
+/**
+ * Pull the small-group questions section out of a sermon as its own
+ * stand-alone leader handout. Includes only what a lay leader running
+ * a mid-week group needs: passage, big idea, and the grouped questions.
+ *
+ * Falls back to the lighter `applications.smallGroupQuestions` list when
+ * the dedicated Small Group Questions add-on hasn't been generated yet.
+ */
+export function renderSmallGroupHandoutMarkdown(s: Sermon): string {
+  const lines: string[] = [];
+  lines.push(`# Small Group Discussion — ${s.title}`);
+  lines.push("");
+  const meta = [
+    s.passage ? `**Passage:** ${s.passage}` : "",
+    s.sermonDate ? `**Sunday:** ${fmtDate(s.sermonDate)}` : "",
+    s.series ? `**Series:** ${s.series}` : "",
+  ]
+    .filter(Boolean)
+    .join("  \n");
+  if (meta) {
+    lines.push(meta);
+    lines.push("");
+  }
+
+  if (s.bigIdea?.selected) {
+    lines.push("## Big idea");
+    lines.push(s.bigIdea.selected);
+    lines.push("");
+  }
+
+  const sg = s.smallGroupQuestions;
+  const hasDedicated =
+    !!sg &&
+    (!!sg.openingIcebreaker ||
+      (sg.observationQuestions && sg.observationQuestions.length > 0) ||
+      (sg.interpretationQuestions && sg.interpretationQuestions.length > 0) ||
+      (sg.applicationQuestions && sg.applicationQuestions.length > 0) ||
+      !!sg.prayerPrompt);
+
+  if (hasDedicated && sg) {
+    if (sg.openingIcebreaker) {
+      lines.push("## Opening icebreaker");
+      lines.push(sg.openingIcebreaker);
+      lines.push("");
+    }
+    if (sg.observationQuestions && sg.observationQuestions.length > 0) {
+      lines.push("## Observation — what does the text say?");
+      sg.observationQuestions.forEach((q, i) =>
+        lines.push(`${i + 1}. ${q}`),
+      );
+      lines.push("");
+    }
+    if (sg.interpretationQuestions && sg.interpretationQuestions.length > 0) {
+      lines.push("## Interpretation — what does it mean?");
+      sg.interpretationQuestions.forEach((q, i) =>
+        lines.push(`${i + 1}. ${q}`),
+      );
+      lines.push("");
+    }
+    if (sg.applicationQuestions && sg.applicationQuestions.length > 0) {
+      lines.push("## Application — how does it shape this week?");
+      sg.applicationQuestions.forEach((q, i) =>
+        lines.push(`${i + 1}. ${q}`),
+      );
+      lines.push("");
+    }
+    if (sg.prayerPrompt) {
+      lines.push("## Prayer prompt");
+      lines.push(sg.prayerPrompt);
+      lines.push("");
+    }
+  } else {
+    const fallback =
+      (s.applications?.smallGroupQuestions ?? []).concat(
+        s.worshipIntegration?.smallGroupQuestions ?? [],
+      );
+    if (fallback.length > 0) {
+      lines.push("## Discussion questions");
+      fallback.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+      lines.push("");
+    } else {
+      lines.push(
+        "_No small group questions have been generated for this sermon yet._",
+      );
+      lines.push("");
+    }
+  }
+
+  return lines.join("\n").trim() + "\n";
+}
+
+export function renderSmallGroupHandoutText(s: Sermon): string {
+  return renderSmallGroupHandoutMarkdown(s)
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/_(.+?)_/g, "$1");
+}
+
+/**
+ * Email-friendly variant of the small-group handout. Adds a brief
+ * pastoral context paragraph above the questions so the leader has
+ * something they can forward to their group as-is.
+ */
+export function renderSmallGroupHandoutEmail(s: Sermon): string {
+  const lines: string[] = [];
+  const sundayLabel = s.sermonDate ? fmtDate(s.sermonDate) : null;
+  const subjectBits = ["Small group discussion"];
+  if (s.passage) subjectBits.push(s.passage);
+  else subjectBits.push(s.title);
+  lines.push(`Subject: ${subjectBits.join(" — ")}`);
+  lines.push("");
+  lines.push("Hi friends,");
+  lines.push("");
+
+  const intro: string[] = [];
+  intro.push(
+    `Here are this week's discussion questions for our group, drawn from ${
+      sundayLabel ? `Sunday's (${sundayLabel}) ` : "Sunday's "
+    }message${s.passage ? ` on ${s.passage}` : ""}${
+      s.title ? ` — "${s.title}"` : ""
+    }.`,
+  );
+  if (s.bigIdea?.selected) {
+    intro.push(`The big idea we landed on: ${s.bigIdea.selected}`);
+  }
+  intro.push(
+    "Use as many or as few as fit your time together. Don't feel obligated to get through all of them — depth beats breadth.",
+  );
+  for (const p of intro) {
+    lines.push(p);
+    lines.push("");
+  }
+
+  const body = renderSmallGroupHandoutText(s)
+    .split("\n")
+    .slice(1) // drop the "Small Group Discussion — Title" header line
+    .join("\n")
+    .trim();
+  if (body) {
+    lines.push(body);
+    lines.push("");
+  }
+
+  lines.push("Thanks for shepherding your group well this week.");
+  lines.push("");
+  return lines.join("\n").trim() + "\n";
+}

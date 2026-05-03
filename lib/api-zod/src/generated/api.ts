@@ -2213,7 +2213,12 @@ export const ExportSermonParams = zod.object({
 });
 
 export const ExportSermonBody = zod.object({
-  format: zod.enum(["markdown", "text"]),
+  format: zod.enum([
+    "markdown",
+    "text",
+    "small-group-handout",
+    "small-group-email",
+  ]),
 });
 
 export const ExportSermonResponse = zod.object({

@@ -912,6 +912,8 @@ export type ExportSermonBodyFormat =
 export const ExportSermonBodyFormat = {
   markdown: "markdown",
   text: "text",
+  "small-group-handout": "small-group-handout",
+  "small-group-email": "small-group-email",
 } as const;
 
 export interface ExportSermonBody {
