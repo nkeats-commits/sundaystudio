@@ -1056,13 +1056,15 @@ export const GenerateSpeakingMomentResponse = zod.object({
 });
 
 /**
- * Regenerates the body text for a single step inside a service plan.
-Started as an async job; poll `GET /generate/jobs/{jobId}` for the
-final `GeneratedStepContent` payload. The slot's `kind` MUST NOT be
+ * Starts a background generation job for a single step inside a
+service plan. The endpoint returns `{ jobId }` immediately; clients
+must poll `GET /generate/jobs/{jobId}` until the job's `status` is
+`done` (the snapshot's `result` then conforms to
+`GeneratedStepContent`) or `error`. The slot's `kind` MUST NOT be
 `sermon` — sermon content is authored in Sermon Builder and is not
 eligible for inline regeneration.
 
- * @summary AI-generate body text for a single service-plan slot
+ * @summary Start an async job to regenerate body text for a single service-plan slot
  */
 
 export const GenerateStepContentBody = zod
@@ -1094,9 +1096,62 @@ export const GenerateStepContentBody = zod
     "Request body for regenerating the text of a single service-plan slot.\n`kind` must be a valid `ServiceFlowStep.kind` other than `sermon`.\n",
   );
 
-export const GenerateStepContentResponse = zod.object({
-  body: zod.string().describe("The regenerated body text for the slot."),
-  durationMinutes: zod.number().nullish(),
+export const GenerateStepContentResponse = zod
+  .object({
+    jobId: zod.string(),
+  })
+  .describe(
+    "Returned by `POST \/generate\/step-content` to start a background\ngeneration job. Clients then poll `GET \/generate\/jobs\/{jobId}` for\nstatus. (Other `\/generate\/\*` endpoints in this spec are still\ndocumented as SSE\/direct-result responses.)\n",
+  );
+
+/**
+ * Returns a snapshot of the job. When `status` is `done`, `result`
+holds the final payload (its shape depends on which generation
+endpoint started the job — e.g. `GeneratedStepContent` for
+`/generate/step-content`). When `status` is `unknown`, the polled
+worker doesn't own this job (autoscale routing); clients should
+keep polling until they hit the right worker or give up.
+
+ * @summary Poll the status of a background generation job
+ */
+export const GetGenerationJobParams = zod.object({
+  jobId: zod.coerce.string(),
+});
+
+export const GetGenerationJobResponse = zod
+  .object({
+    status: zod.enum(["pending", "done", "error", "unknown"]),
+    charsReceived: zod
+      .number()
+      .optional()
+      .describe("Total characters of model output accumulated so far."),
+    partialTail: zod
+      .string()
+      .optional()
+      .describe("Tail of the streamed model text, capped server-side."),
+    result: zod
+      .unknown()
+      .optional()
+      .describe(
+        "Final result payload when `status` is `done`. Shape depends on\nthe endpoint that started the job (e.g. `GeneratedStepContent`\nfor `\/generate\/step-content`).\n",
+      ),
+    errorMessage: zod
+      .string()
+      .optional()
+      .describe("Human-readable error when `status` is `error`."),
+  })
+  .describe(
+    "Snapshot of a background generation job. `result` is present when\n`status` is `done`; its shape depends on which generation endpoint\nstarted the job.\n",
+  );
+
+/**
+ * Idempotent. Always returns `204` so callers don't have to
+special-case "job already gone" or autoscale cross-worker misses.
+
+ * @summary Cancel a background generation job
+ */
+export const CancelGenerationJobParams = zod.object({
+  jobId: zod.coerce.string(),
 });
 
 /**

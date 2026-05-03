@@ -33,6 +33,8 @@ import type {
   ExportServicePlanBody,
   GenerateDevotional400,
   GenerateDevotionalBody,
+  GenerateJobSnapshot,
+  GenerateJobStarted,
   GenerateLiturgy400,
   GenerateLiturgyBody,
   GenerateSermonApplications400,
@@ -64,7 +66,6 @@ import type {
   GeneratedServicePlan,
   GeneratedSongs,
   GeneratedSpeakingMoment,
-  GeneratedStepContent,
   HealthStatus,
   LibraryItem,
   LinkedServiceRef,
@@ -2298,13 +2299,15 @@ export const useGenerateSpeakingMoment = <
 };
 
 /**
- * Regenerates the body text for a single step inside a service plan.
-Started as an async job; poll `GET /generate/jobs/{jobId}` for the
-final `GeneratedStepContent` payload. The slot's `kind` MUST NOT be
+ * Starts a background generation job for a single step inside a
+service plan. The endpoint returns `{ jobId }` immediately; clients
+must poll `GET /generate/jobs/{jobId}` until the job's `status` is
+`done` (the snapshot's `result` then conforms to
+`GeneratedStepContent`) or `error`. The slot's `kind` MUST NOT be
 `sermon` — sermon content is authored in Sermon Builder and is not
 eligible for inline regeneration.
 
- * @summary AI-generate body text for a single service-plan slot
+ * @summary Start an async job to regenerate body text for a single service-plan slot
  */
 export const getGenerateStepContentUrl = () => {
   return `/api/generate/step-content`;
@@ -2313,8 +2316,8 @@ export const getGenerateStepContentUrl = () => {
 export const generateStepContent = async (
   generateStepContentBody: GenerateStepContentBody,
   options?: RequestInit,
-): Promise<GeneratedStepContent> => {
-  return customFetch<GeneratedStepContent>(getGenerateStepContentUrl(), {
+): Promise<GenerateJobStarted> => {
+  return customFetch<GenerateJobStarted>(getGenerateStepContentUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -2369,7 +2372,7 @@ export type GenerateStepContentMutationError = ErrorType<
 >;
 
 /**
- * @summary AI-generate body text for a single service-plan slot
+ * @summary Start an async job to regenerate body text for a single service-plan slot
  */
 export const useGenerateStepContent = <
   TError = ErrorType<GenerateStepContent400 | UnauthorizedResponse>,
@@ -2389,6 +2392,187 @@ export const useGenerateStepContent = <
   TContext
 > => {
   return useMutation(getGenerateStepContentMutationOptions(options));
+};
+
+/**
+ * Returns a snapshot of the job. When `status` is `done`, `result`
+holds the final payload (its shape depends on which generation
+endpoint started the job — e.g. `GeneratedStepContent` for
+`/generate/step-content`). When `status` is `unknown`, the polled
+worker doesn't own this job (autoscale routing); clients should
+keep polling until they hit the right worker or give up.
+
+ * @summary Poll the status of a background generation job
+ */
+export const getGetGenerationJobUrl = (jobId: string) => {
+  return `/api/generate/jobs/${jobId}`;
+};
+
+export const getGenerationJob = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<GenerateJobSnapshot> => {
+  return customFetch<GenerateJobSnapshot>(getGetGenerationJobUrl(jobId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGenerationJobQueryKey = (jobId: string) => {
+  return [`/api/generate/jobs/${jobId}`] as const;
+};
+
+export const getGetGenerationJobQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGenerationJob>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGenerationJob>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGenerationJobQueryKey(jobId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getGenerationJob>>
+  > = ({ signal }) => getGenerationJob(jobId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!jobId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGenerationJob>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGenerationJobQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGenerationJob>>
+>;
+export type GetGenerationJobQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Poll the status of a background generation job
+ */
+
+export function useGetGenerationJob<
+  TData = Awaited<ReturnType<typeof getGenerationJob>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  jobId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGenerationJob>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGenerationJobQueryOptions(jobId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Idempotent. Always returns `204` so callers don't have to
+special-case "job already gone" or autoscale cross-worker misses.
+
+ * @summary Cancel a background generation job
+ */
+export const getCancelGenerationJobUrl = (jobId: string) => {
+  return `/api/generate/jobs/${jobId}`;
+};
+
+export const cancelGenerationJob = async (
+  jobId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getCancelGenerationJobUrl(jobId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getCancelGenerationJobMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelGenerationJob>>,
+    TError,
+    { jobId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelGenerationJob>>,
+  TError,
+  { jobId: string },
+  TContext
+> => {
+  const mutationKey = ["cancelGenerationJob"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelGenerationJob>>,
+    { jobId: string }
+  > = (props) => {
+    const { jobId } = props ?? {};
+
+    return cancelGenerationJob(jobId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelGenerationJobMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelGenerationJob>>
+>;
+
+export type CancelGenerationJobMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Cancel a background generation job
+ */
+export const useCancelGenerationJob = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelGenerationJob>>,
+    TError,
+    { jobId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelGenerationJob>>,
+  TError,
+  { jobId: string },
+  TContext
+> => {
+  return useMutation(getCancelGenerationJobMutationOptions(options));
 };
 
 /**

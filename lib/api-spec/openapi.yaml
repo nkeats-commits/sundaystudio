@@ -646,11 +646,13 @@ paths:
     post:
       operationId: generateStepContent
       tags: [generate]
-      summary: AI-generate body text for a single service-plan slot
+      summary: Start an async job to regenerate body text for a single service-plan slot
       description: |
-        Regenerates the body text for a single step inside a service plan.
-        Started as an async job; poll `GET /generate/jobs/{jobId}` for the
-        final `GeneratedStepContent` payload. The slot's `kind` MUST NOT be
+        Starts a background generation job for a single step inside a
+        service plan. The endpoint returns `{ jobId }` immediately; clients
+        must poll `GET /generate/jobs/{jobId}` until the job's `status` is
+        `done` (the snapshot's `result` then conforms to
+        `GeneratedStepContent`) or `error`. The slot's `kind` MUST NOT be
         `sermon` — sermon content is authored in Sermon Builder and is not
         eligible for inline regeneration.
       requestBody:
@@ -661,11 +663,11 @@ paths:
               $ref: "#/components/schemas/GenerateStepContentBody"
       responses:
         "200":
-          description: Job started; final result is a `GeneratedStepContent`.
+          description: Job started. Poll `/generate/jobs/{jobId}` for the result.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GeneratedStepContent"
+                $ref: "#/components/schemas/GenerateJobStarted"
         "400":
           description: Invalid request body or unsupported kind.
           content:
@@ -675,6 +677,52 @@ paths:
                 properties:
                   error:
                     type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /generate/jobs/{jobId}:
+    get:
+      operationId: getGenerationJob
+      tags: [generate]
+      summary: Poll the status of a background generation job
+      description: |
+        Returns a snapshot of the job. When `status` is `done`, `result`
+        holds the final payload (its shape depends on which generation
+        endpoint started the job — e.g. `GeneratedStepContent` for
+        `/generate/step-content`). When `status` is `unknown`, the polled
+        worker doesn't own this job (autoscale routing); clients should
+        keep polling until they hit the right worker or give up.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateJobSnapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: cancelGenerationJob
+      tags: [generate]
+      summary: Cancel a background generation job
+      description: |
+        Idempotent. Always returns `204` so callers don't have to
+        special-case "job already gone" or autoscale cross-worker misses.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Cancellation requested (idempotent).
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -1911,6 +1959,44 @@ components:
           type: integer
           nullable: true
       required: [body]
+
+    GenerateJobStarted:
+      type: object
+      description: |
+        Returned by `POST /generate/step-content` to start a background
+        generation job. Clients then poll `GET /generate/jobs/{jobId}` for
+        status. (Other `/generate/*` endpoints in this spec are still
+        documented as SSE/direct-result responses.)
+      properties:
+        jobId:
+          type: string
+      required: [jobId]
+
+    GenerateJobSnapshot:
+      type: object
+      description: |
+        Snapshot of a background generation job. `result` is present when
+        `status` is `done`; its shape depends on which generation endpoint
+        started the job.
+      properties:
+        status:
+          type: string
+          enum: [pending, done, error, unknown]
+        charsReceived:
+          type: integer
+          description: Total characters of model output accumulated so far.
+        partialTail:
+          type: string
+          description: Tail of the streamed model text, capped server-side.
+        result:
+          description: |
+            Final result payload when `status` is `done`. Shape depends on
+            the endpoint that started the job (e.g. `GeneratedStepContent`
+            for `/generate/step-content`).
+        errorMessage:
+          type: string
+          description: Human-readable error when `status` is `error`.
+      required: [status]
 
     GenerateLiturgyBody:
       type: object

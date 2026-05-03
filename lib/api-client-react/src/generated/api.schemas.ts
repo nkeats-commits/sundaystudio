@@ -394,6 +394,48 @@ export interface GeneratedStepContent {
   durationMinutes?: number | null;
 }
 
+/**
+ * Returned by `POST /generate/step-content` to start a background
+generation job. Clients then poll `GET /generate/jobs/{jobId}` for
+status. (Other `/generate/*` endpoints in this spec are still
+documented as SSE/direct-result responses.)
+
+ */
+export interface GenerateJobStarted {
+  jobId: string;
+}
+
+export type GenerateJobSnapshotStatus =
+  (typeof GenerateJobSnapshotStatus)[keyof typeof GenerateJobSnapshotStatus];
+
+export const GenerateJobSnapshotStatus = {
+  pending: "pending",
+  done: "done",
+  error: "error",
+  unknown: "unknown",
+} as const;
+
+/**
+ * Snapshot of a background generation job. `result` is present when
+`status` is `done`; its shape depends on which generation endpoint
+started the job.
+
+ */
+export interface GenerateJobSnapshot {
+  status: GenerateJobSnapshotStatus;
+  /** Total characters of model output accumulated so far. */
+  charsReceived?: number;
+  /** Tail of the streamed model text, capped server-side. */
+  partialTail?: string;
+  /** Final result payload when `status` is `done`. Shape depends on
+the endpoint that started the job (e.g. `GeneratedStepContent`
+for `/generate/step-content`).
+ */
+  result?: unknown;
+  /** Human-readable error when `status` is `error`. */
+  errorMessage?: string;
+}
+
 export type GenerateLiturgyBodyKind =
   (typeof GenerateLiturgyBodyKind)[keyof typeof GenerateLiturgyBodyKind];
 
