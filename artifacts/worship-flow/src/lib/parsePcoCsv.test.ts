@@ -71,11 +71,7 @@ test('normalizeDate: handles undefined and empty', () => {
   assert.equal(normalizeDate('   '), undefined);
 });
 
-test('mapPcoRow: extracts title, BPM, key, themes, CCLI, last scheduled date (per-field arrangement fallback)', () => {
-  // Real PCO export shape: the headline arrangement (Catalyst) has a
-  // key but no BPM, while a later arrangement (CL // Str Quartet) fills
-  // the BPM in. We expect key from the first named slot that has it
-  // (slot 1) and BPM from the first named slot that has it (slot 2).
+test('mapPcoRow: extracts title, BPM, key, themes, CCLI, last scheduled date from the default arrangement', () => {
   const row: Record<string, string> = {
     Id: '215638',
     Title: 'Here I Am To Worship',
@@ -86,7 +82,7 @@ test('mapPcoRow: extracts title, BPM, key, themes, CCLI, last scheduled date (pe
     'Song Tag 1': '',
     'Song Tag 2': '',
     'Arrangement 1 Name': 'Catalyst',
-    'Arrangement 1 BPM': '',
+    'Arrangement 1 BPM': '76',
     'Arrangement 1 Length': '0',
     'Arrangement 1 Notes': '',
     'Arrangement 1 Keys': 'D',
@@ -98,8 +94,11 @@ test('mapPcoRow: extracts title, BPM, key, themes, CCLI, last scheduled date (pe
   const out = mapPcoRow(row);
   assert.ok(out, 'expected a song');
   assert.equal(out!.title, 'Here I Am To Worship');
-  assert.equal(out!.key, 'D'); // Slot 1 (Catalyst) has the key.
-  assert.equal(out!.bpm, 82); // Slot 1 BPM is empty, recover from slot 2.
+  // Default arrangement = slot 1 (Catalyst). All arrangement-level
+  // fields come from THAT slot only — we never mix fields across
+  // arrangements.
+  assert.equal(out!.bpm, 76);
+  assert.equal(out!.key, 'D');
   assert.equal(out!.ccli, '3266032');
   assert.equal(out!.lastScheduledDate, '2026-03-29');
   assert.deepEqual(out!.tags, [
@@ -110,15 +109,37 @@ test('mapPcoRow: extracts title, BPM, key, themes, CCLI, last scheduled date (pe
   ]);
 });
 
-test('mapPcoRow: per-field fallback recovers BPM/key/notes from a later named arrangement', () => {
-  // Slot 1 is named but has no BPM, no key, and no arrangement notes.
-  // Each field should fall through to the next named slot independently.
+test('mapPcoRow: default arrangement = first slot whose Name is non-empty (skips unnamed slot 1)', () => {
+  // Unnamed slots aren't trusted as a "real arrangement", so slot 1's
+  // BPM is ignored even though it has a value — we fall through to the
+  // first NAMED slot and import every arrangement-level field from
+  // that single slot.
   const row: Record<string, string> = {
-    Title: 'Mixed Arrangements',
+    Title: 'Stray Data',
+    'Arrangement 1 Name': '',
+    'Arrangement 1 BPM': '60', // ignored: slot 1 is unnamed
+    'Arrangement 2 Name': 'Live',
+    'Arrangement 2 BPM': '120',
+    'Arrangement 2 Chord Chart Key': 'G',
+    'Arrangement 2 Notes': 'Click track only',
+  };
+  const out = mapPcoRow(row);
+  assert.equal(out!.bpm, 120);
+  assert.equal(out!.key, 'G');
+  assert.equal(out!.arrangementNotes, 'Click track only');
+});
+
+test('mapPcoRow: imports the default arrangement only — does NOT mix fields across slots', () => {
+  // Slot 1 (Acoustic) is the default. It has key 'C' but no BPM and no
+  // notes. Slot 2 (Full Band) has BPM/key/notes, but they belong to a
+  // DIFFERENT arrangement and must not leak into the default. The
+  // imported song should be a coherent representation of slot 1 only.
+  const row: Record<string, string> = {
+    Title: 'Default Only',
     'Arrangement 1 Name': 'Acoustic',
     'Arrangement 1 BPM': '',
     'Arrangement 1 Keys': '',
-    'Arrangement 1 Chord Chart Key': '',
+    'Arrangement 1 Chord Chart Key': 'C',
     'Arrangement 1 Notes': '',
     'Arrangement 2 Name': 'Full Band',
     'Arrangement 2 BPM': '128',
@@ -127,26 +148,11 @@ test('mapPcoRow: per-field fallback recovers BPM/key/notes from a later named ar
   };
   const out = mapPcoRow(row);
   assert.ok(out);
-  assert.equal(out!.bpm, 128);
-  assert.equal(out!.key, 'A');
-  assert.equal(out!.arrangementNotes, 'Pad intro 8 bars');
-});
-
-test('mapPcoRow: unnamed arrangement slots are NOT trusted, even if they carry data', () => {
-  // Slot 1 has no name → treated as "not a real arrangement" and
-  // skipped, even though it carries a BPM. Falls back to the named
-  // slot 2.
-  const row: Record<string, string> = {
-    Title: 'Stray Data',
-    'Arrangement 1 Name': '',
-    'Arrangement 1 BPM': '60',
-    'Arrangement 2 Name': 'Live',
-    'Arrangement 2 BPM': '120',
-    'Arrangement 2 Chord Chart Key': 'G',
-  };
-  const out = mapPcoRow(row);
-  assert.equal(out!.bpm, 120);
-  assert.equal(out!.key, 'G');
+  assert.equal(out!.key, 'C');
+  // BPM and arrangementNotes are deliberately undefined — slot 1 has
+  // none, and slot 2 belongs to a different arrangement.
+  assert.equal(out!.bpm, undefined);
+  assert.equal(out!.arrangementNotes, undefined);
 });
 
 test('mapPcoRow: drops rows with no title', () => {

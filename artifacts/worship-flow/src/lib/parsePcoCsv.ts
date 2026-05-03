@@ -120,48 +120,20 @@ function dedupeCaseInsensitive(list: string[]): string[] {
 }
 
 /**
- * Iterate the named arrangement slots (1..19, in order) so callers can
- * pull each arrangement-level field (BPM, key, notes) from the first
- * named slot that actually has a value for it.
- *
- * Why per-field instead of "pick one default slot up front":
- *   Real PCO exports routinely leave BPM blank on the headline
- *   arrangement (e.g. "Catalyst") and only fill it in on a later
- *   arrangement variant (e.g. "CL // Str Quartet"). A single-slot
- *   default would silently drop BPM for a large fraction of songs.
- *   Falling back to the next named slot per-field recovers that data
- *   without inventing musical info from unrelated arrangements.
- *
- * Unnamed slots are skipped intentionally — a slot with no name is
- * treated as "not a real arrangement" and its data isn't trusted.
- *
- * If no slot is named at all (rare), we yield slot 1 as a last resort
- * so single-arrangement-no-name songs still parse.
+ * Pick the single default arrangement: the first arrangement slot
+ * (1..19) whose `Name` cell is non-empty. Falls back to slot 1 if no
+ * slot is named (rare — single-arrangement songs sometimes ship that
+ * way). All arrangement-level fields (BPM, key, arrangement notes)
+ * are then read ONLY from this one slot, so each imported song
+ * represents one coherent arrangement rather than a frankenstein of
+ * fields stitched across slots.
  */
-function* namedArrangementSlots(
-  row: Record<string, string>,
-): Generator<number> {
-  let yieldedAny = false;
+function pickDefaultArrangementSlot(row: Record<string, string>): number {
   for (let i = 1; i <= 19; i += 1) {
     const name = row[`Arrangement ${i} Name`];
-    if (name && name.trim()) {
-      yieldedAny = true;
-      yield i;
-    }
+    if (name && name.trim()) return i;
   }
-  if (!yieldedAny) yield 1;
-}
-
-/** First named-slot value of an arrangement field, or undefined. */
-function firstNonEmptyArrangementValue(
-  row: Record<string, string>,
-  field: string,
-): string | undefined {
-  for (const slot of namedArrangementSlots(row)) {
-    const v = row[`Arrangement ${slot} ${field}`];
-    if (v && v.trim()) return v;
-  }
-  return undefined;
+  return 1;
 }
 
 /** Pull the first key out of a comma/space-separated PCO `Keys` cell. */
@@ -181,19 +153,12 @@ export function mapPcoRow(row: Record<string, string>): RepertoireImportSong | n
   const title = row['Title']?.trim();
   if (!title) return null;
 
-  const bpm = coerceBpm(firstNonEmptyArrangementValue(row, 'BPM'));
-  const keyFromChart = firstNonEmptyArrangementValue(
-    row,
-    'Chord Chart Key',
-  )?.trim();
-  const keyFromList = firstKeyFromList(
-    firstNonEmptyArrangementValue(row, 'Keys'),
-  );
+  const slot = pickDefaultArrangementSlot(row);
+  const bpm = coerceBpm(row[`Arrangement ${slot} BPM`]);
+  const keyFromChart = row[`Arrangement ${slot} Chord Chart Key`]?.trim();
+  const keyFromList = firstKeyFromList(row[`Arrangement ${slot} Keys`]);
   const key = keyFromChart || keyFromList;
-  const arrangementNotes = firstNonEmptyArrangementValue(
-    row,
-    'Notes',
-  )?.trim();
+  const arrangementNotes = row[`Arrangement ${slot} Notes`]?.trim();
 
   const tags = dedupeCaseInsensitive([
     ...splitList(row['Themes']),

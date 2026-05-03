@@ -11,7 +11,7 @@
  * batches of 500 so very large PCO exports don't time out.
  */
 
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Papa from 'papaparse';
 import { toast } from 'sonner';
 import { FileUp, Loader2, X, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -74,6 +74,25 @@ export function CsvImportModal({
   const [parse, setParse] = useState<ParseResult>({ status: 'idle' });
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const bulkImport = useBulkImportRepertoire();
+
+  // Acceptance criterion: clicking "Import from CSV" opens the file
+  // picker. The button itself opens this modal, so on first mount we
+  // auto-trigger the file picker — the user goes straight from one
+  // click to choosing a file, with the preview/import surface waiting
+  // here once they've made a selection. We only do this in the idle
+  // state so it doesn't fire again after parsing/errors.
+  useEffect(() => {
+    if (parse.status === 'idle') {
+      // Defer one tick so the modal has mounted and the input is in the
+      // DOM before .click() runs.
+      const id = window.setTimeout(() => {
+        fileInputRef.current?.click();
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onFile = (file: File) => {
     setParse({ status: 'parsing' });
