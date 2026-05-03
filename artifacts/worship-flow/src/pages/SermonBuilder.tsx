@@ -795,6 +795,7 @@ export default function SermonBuilder() {
       ? form.excludedResourceIds.filter((x) => x !== id)
       : [...form.excludedResourceIds, id];
     setForm({ ...form, excludedResourceIds: next });
+    void persistExcludes({ excludedResourceIds: next });
   };
 
   /**
@@ -808,6 +809,25 @@ export default function SermonBuilder() {
       ? form.excludedSourceIds.filter((x) => x !== sourceId)
       : [...form.excludedSourceIds, sourceId];
     setForm({ ...form, excludedSourceIds: next });
+    void persistExcludes({ excludedSourceIds: next });
+  };
+
+  /**
+   * Persist exclusion changes immediately for already-saved sermons so a
+   * toggle survives page reload without a manual "Save context" click. For
+   * brand-new (unsaved) sermons we skip — the excludes will ride along the
+   * first explicit save.
+   */
+  const persistExcludes = async (
+    patch: { excludedResourceIds?: number[]; excludedSourceIds?: string[] },
+  ) => {
+    if (!sermonId) return;
+    try {
+      const updated = await updateSermon.mutateAsync({ id: sermonId, data: patch });
+      queryClient.setQueryData(getGetSermonQueryKey(sermonId), updated);
+    } catch {
+      toast.error('Could not save your resource preference');
+    }
   };
 
   /**
