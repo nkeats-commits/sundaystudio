@@ -7,6 +7,13 @@ export const usersTable = pgTable("users", {
   lastName: text("last_name"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // Billing — Stripe customer + when their 14-day trial clock starts.
+  // trialStartedAt defaults to now() on first row insert so existing users
+  // get a fresh 14-day trial after the migration adds the column.
+  stripeCustomerId: text("stripe_customer_id"),
+  trialStartedAt: timestamp("trial_started_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export type User = typeof usersTable.$inferSelect;

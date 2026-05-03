@@ -9,6 +9,7 @@ import {
   getListServicePlansQueryKey,
   getListLibraryItemsQueryKey,
 } from '@workspace/api-client-react';
+import { TrialPill } from '../TrialPill';
 
 type SearchHit = {
   id: string;
@@ -149,7 +150,8 @@ export function Header({ title = 'Dashboard' }: { title?: string }) {
         {title}
       </h2>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
+        <TrialPill />
         <div ref={containerRef} className="relative hidden md:block">
           <Search
             className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"

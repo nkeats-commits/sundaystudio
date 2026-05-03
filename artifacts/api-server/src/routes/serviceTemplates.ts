@@ -8,6 +8,7 @@ import {
   DeleteServiceTemplateParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 
 const router: IRouter = Router();
 
@@ -20,7 +21,7 @@ router.get("/service-templates", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.post("/service-templates", requireAuth, async (req, res) => {
+router.post("/service-templates", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = CreateServiceTemplateBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -75,7 +76,7 @@ router.post("/service-templates", requireAuth, async (req, res) => {
   }
 });
 
-router.patch("/service-templates/:id", requireAuth, async (req, res) => {
+router.patch("/service-templates/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const params = UpdateServiceTemplateParams.safeParse(req.params);
   if (!params.success) {
     res.status(404).json({ error: "Not found" });
@@ -156,7 +157,7 @@ router.patch("/service-templates/:id", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/service-templates/:id", requireAuth, async (req, res) => {
+router.delete("/service-templates/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const params = DeleteServiceTemplateParams.safeParse(req.params);
   if (!params.success) {
     res.status(404).json({ error: "Not found" });

@@ -8,6 +8,7 @@ import {
   ExportServicePlanBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import {
   renderServicePlanAsMarkdown,
   renderServicePlanAsText,
@@ -24,7 +25,7 @@ router.get("/service-plans", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.post("/service-plans", requireAuth, async (req, res) => {
+router.post("/service-plans", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = CreateServicePlanBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -66,7 +67,7 @@ router.get("/service-plans/:id", requireAuth, async (req, res) => {
   res.json(row);
 });
 
-router.put("/service-plans/:id", requireAuth, async (req, res) => {
+router.put("/service-plans/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const params = UpdateServicePlanParams.safeParse(req.params);
   if (!params.success) {
     res.status(404).json({ error: "Not found" });
@@ -101,7 +102,7 @@ router.put("/service-plans/:id", requireAuth, async (req, res) => {
   res.json(row);
 });
 
-router.post("/service-plans/:id/export", requireAuth, async (req, res) => {
+router.post("/service-plans/:id/export", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
@@ -130,7 +131,7 @@ router.post("/service-plans/:id/export", requireAuth, async (req, res) => {
   res.json({ servicePlanId: id, format: parsed.data.format, content });
 });
 
-router.delete("/service-plans/:id", requireAuth, async (req, res) => {
+router.delete("/service-plans/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });

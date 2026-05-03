@@ -12,6 +12,7 @@ import {
   GenerateSoulCareBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
 import { runJob } from "../lib/runJob";
 import { jobManager } from "../lib/jobManager";
@@ -115,7 +116,7 @@ async function getChurchContext(userId: string): Promise<ChurchContext | null> {
   };
 }
 
-router.post("/generate/service-plan", requireAuth, async (req, res) => {
+router.post("/generate/service-plan", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateServicePlanBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -212,7 +213,7 @@ ${orderGuideline}
   );
 });
 
-router.post("/generate/liturgy", requireAuth, async (req, res) => {
+router.post("/generate/liturgy", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateLiturgyBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -313,7 +314,7 @@ Be concise: liturgy body should be the natural length for its kind, not padded.`
   );
 });
 
-router.post("/generate/songs", requireAuth, async (req, res) => {
+router.post("/generate/songs", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSongSuggestionsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -530,7 +531,7 @@ Keep "whyItFits" to 1-2 short sentences.
   );
 });
 
-router.post("/generate/speaking-moment", requireAuth, async (req, res) => {
+router.post("/generate/speaking-moment", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSpeakingMomentBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -591,7 +592,7 @@ Match the requested duration. Don't exceed the spoken length budget.`;
   );
 });
 
-router.post("/generate/step-content", requireAuth, async (req, res) => {
+router.post("/generate/step-content", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateStepContentBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -654,7 +655,7 @@ Return JSON exactly in this shape:
   runJob(req, res, prompt, 1500, "step content");
 });
 
-router.post("/generate/devotional", requireAuth, async (req, res) => {
+router.post("/generate/devotional", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateDevotionalBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -716,7 +717,7 @@ Aim for content that fits in the ${minutes}-minute window when read aloud.`;
   );
 });
 
-router.post("/generate/soul-care", requireAuth, async (req, res) => {
+router.post("/generate/soul-care", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSoulCareBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

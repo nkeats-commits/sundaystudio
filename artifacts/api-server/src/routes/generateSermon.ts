@@ -20,6 +20,7 @@ import {
   GenerateSermonSmallGroupQuestionsResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
 import { runJob } from "../lib/runJob";
 import {
@@ -166,7 +167,7 @@ function refineBlurb(refineInstruction?: string, existingContent?: unknown): str
   return parts.join("\n\n");
 }
 
-router.post("/generate/sermon-study", requireAuth, async (req, res) => {
+router.post("/generate/sermon-study", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSermonStudyBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -205,7 +206,7 @@ Return JSON exactly in this shape:
   runJob(req, res, prompt, 4000, "sermon study", GenerateSermonStudyResponse);
 });
 
-router.post("/generate/sermon-big-idea", requireAuth, async (req, res) => {
+router.post("/generate/sermon-big-idea", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSermonBigIdeaBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -245,7 +246,7 @@ Return JSON exactly in this shape:
   runJob(req, res, prompt, 2500, "sermon big idea", GenerateSermonBigIdeaResponse);
 });
 
-router.post("/generate/sermon-outline", requireAuth, async (req, res) => {
+router.post("/generate/sermon-outline", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSermonOutlineBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -295,7 +296,7 @@ Return JSON exactly in this shape:
   runJob(req, res, prompt, 8000, "sermon outline", GenerateSermonOutlineResponse);
 });
 
-router.post("/generate/sermon-manuscript", requireAuth, async (req, res) => {
+router.post("/generate/sermon-manuscript", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSermonManuscriptBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -350,7 +351,7 @@ Return JSON exactly in this shape:
   runJob(req, res, prompt, 12000, "sermon manuscript", GenerateSermonManuscriptResponse);
 });
 
-router.post("/generate/sermon-applications", requireAuth, async (req, res) => {
+router.post("/generate/sermon-applications", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSermonApplicationsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -393,7 +394,7 @@ Return JSON exactly in this shape:
   runJob(req, res, prompt, 3500, "sermon applications", GenerateSermonApplicationsResponse);
 });
 
-router.post("/generate/sermon-small-group-questions", requireAuth, async (req, res) => {
+router.post("/generate/sermon-small-group-questions", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSermonSmallGroupQuestionsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -438,7 +439,7 @@ Return JSON exactly in this shape:
   runJob(req, res, prompt, 2500, "sermon small group questions", GenerateSermonSmallGroupQuestionsResponse);
 });
 
-router.post("/generate/sermon-illustrations", requireAuth, async (req, res) => {
+router.post("/generate/sermon-illustrations", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSermonIllustrationsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -485,7 +486,7 @@ Return JSON exactly in this shape:
   runJob(req, res, prompt, 3000, "sermon illustrations", GenerateSermonIllustrationsResponse);
 });
 
-router.post("/generate/sermon-to-service", requireAuth, async (req, res) => {
+router.post("/generate/sermon-to-service", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = GenerateSermonToServiceBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

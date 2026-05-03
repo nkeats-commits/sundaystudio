@@ -16,6 +16,7 @@ import {
   Archive,
   Layers,
   Plug,
+  CreditCard,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
@@ -46,6 +47,7 @@ export function Sidebar() {
     { icon: FolderOpen, label: 'Library', href: '/library' },
     { icon: Building, label: 'Your Profile', href: '/church' },
     { icon: Plug, label: 'Integrations', href: '/settings/integrations' },
+    { icon: CreditCard, label: 'Billing', href: '/billing' },
     { icon: Settings, label: 'Settings', href: '/settings' },
   ];
 

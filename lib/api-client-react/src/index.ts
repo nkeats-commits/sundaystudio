@@ -4,5 +4,10 @@ export {
   setBaseUrl,
   setAuthTokenGetter,
   setOnUnauthorized,
+  setOnPaymentRequired,
 } from "./custom-fetch";
-export type { AuthTokenGetter, UnauthorizedHandler } from "./custom-fetch";
+export type {
+  AuthTokenGetter,
+  UnauthorizedHandler,
+  PaymentRequiredHandler,
+} from "./custom-fetch";

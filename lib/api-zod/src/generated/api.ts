@@ -3234,3 +3234,64 @@ export const SyncPcsSongsResponse = zod.object({
       "Existing imported songs whose metadata was refreshed on this run.",
     ),
 });
+
+/**
+ * @summary Current subscription/trial state for the signed-in user
+ */
+export const GetBillingStatusResponse = zod.object({
+  state: zod
+    .object({
+      kind: zod.enum([
+        "trial",
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "expired",
+      ]),
+      daysLeft: zod
+        .number()
+        .nullish()
+        .describe("Days remaining in the local trial (only when kind=trial)."),
+      trialEndsAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ends (only when kind=trial)."),
+      trialEndedAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ended (only when kind=expired)."),
+      currentPeriodEnd: zod
+        .string()
+        .nullish()
+        .describe("End of the current Stripe billing period."),
+      cancelAtPeriodEnd: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "True if a Stripe subscription is set to cancel at period end.",
+        ),
+    })
+    .describe(
+      "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+    ),
+  trialDays: zod.number().describe("Length of the free trial in days."),
+});
+
+/**
+ * @summary Create a Stripe Checkout session and return its URL
+ */
+export const CreateBillingCheckoutSessionResponse = zod.object({
+  url: zod
+    .string()
+    .describe("URL the browser should be redirected to (Checkout or Portal)."),
+});
+
+/**
+ * @summary Create a Stripe Customer Portal session and return its URL
+ */
+export const CreateBillingPortalSessionResponse = zod.object({
+  url: zod
+    .string()
+    .describe("URL the browser should be redirected to (Checkout or Portal)."),
+});

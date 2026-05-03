@@ -13,6 +13,48 @@ export interface ApiError {
   error: string;
 }
 
+export interface BillingRedirect {
+  /** URL the browser should be redirected to (Checkout or Portal). */
+  url: string;
+}
+
+export type AccessStateKind =
+  (typeof AccessStateKind)[keyof typeof AccessStateKind];
+
+export const AccessStateKind = {
+  trial: "trial",
+  active: "active",
+  trialing: "trialing",
+  past_due: "past_due",
+  canceled: "canceled",
+  expired: "expired",
+} as const;
+
+/**
+ * Discriminated union describing whether the user is in their trial,
+actively subscribed, lapsed, or expired.  Discriminated by `kind`.
+
+ */
+export interface AccessState {
+  kind: AccessStateKind;
+  /** Days remaining in the local trial (only when kind=trial). */
+  daysLeft?: number | null;
+  /** When the local trial ends (only when kind=trial). */
+  trialEndsAt?: string | null;
+  /** When the local trial ended (only when kind=expired). */
+  trialEndedAt?: string | null;
+  /** End of the current Stripe billing period. */
+  currentPeriodEnd?: string | null;
+  /** True if a Stripe subscription is set to cancel at period end. */
+  cancelAtPeriodEnd?: boolean | null;
+}
+
+export interface BillingStatusResponse {
+  state: AccessState;
+  /** Length of the free trial in days. */
+  trialDays: number;
+}
+
 export interface PcsConnectUrl {
   /** Full Planning Center authorization URL the browser should redirect to. */
   authUrl: string;

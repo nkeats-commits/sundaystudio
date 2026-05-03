@@ -10,6 +10,7 @@ import {
   UpdateSermonSeriesBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 
 const router: IRouter = Router();
 
@@ -22,7 +23,7 @@ router.get("/sermon-series", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.post("/sermon-series", requireAuth, async (req, res) => {
+router.post("/sermon-series", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = CreateSermonSeriesBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -85,7 +86,7 @@ router.get("/sermon-series/:id", requireAuth, async (req, res) => {
   res.json({ ...series, sermons });
 });
 
-router.patch("/sermon-series/:id", requireAuth, async (req, res) => {
+router.patch("/sermon-series/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
@@ -145,7 +146,7 @@ router.patch("/sermon-series/:id", requireAuth, async (req, res) => {
   res.json(row);
 });
 
-router.delete("/sermon-series/:id", requireAuth, async (req, res) => {
+router.delete("/sermon-series/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });

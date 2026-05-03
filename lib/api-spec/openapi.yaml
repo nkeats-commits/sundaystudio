@@ -32,6 +32,8 @@ tags:
     description: Saved reusable service flows (the ordered skeleton of a service)
   - name: integrations
     description: Third-party integrations (Planning Center Services, etc.)
+  - name: billing
+    description: Subscription billing (trial + Stripe)
 paths:
   /healthz:
     get:
@@ -1485,6 +1487,63 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /billing/status:
+    get:
+      operationId: getBillingStatus
+      tags: [billing]
+      summary: Current subscription/trial state for the signed-in user
+      responses:
+        "200":
+          description: Billing status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /billing/checkout-session:
+    post:
+      operationId: createBillingCheckoutSession
+      tags: [billing]
+      summary: Create a Stripe Checkout session and return its URL
+      responses:
+        "200":
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingRedirect"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Billing not yet configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /billing/portal-session:
+    post:
+      operationId: createBillingPortalSession
+      tags: [billing]
+      summary: Create a Stripe Customer Portal session and return its URL
+      responses:
+        "200":
+          description: Portal session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingRedirect"
+        "400":
+          description: No Stripe customer for this account yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
   parameters:
     IdParam:
@@ -1522,6 +1581,55 @@ components:
         error:
           type: string
       required: [error]
+
+    BillingRedirect:
+      type: object
+      properties:
+        url:
+          type: string
+          description: URL the browser should be redirected to (Checkout or Portal).
+      required: [url]
+
+    AccessState:
+      type: object
+      description: |
+        Discriminated union describing whether the user is in their trial,
+        actively subscribed, lapsed, or expired.  Discriminated by `kind`.
+      properties:
+        kind:
+          type: string
+          enum: [trial, active, trialing, past_due, canceled, expired]
+        daysLeft:
+          type: integer
+          nullable: true
+          description: Days remaining in the local trial (only when kind=trial).
+        trialEndsAt:
+          type: string
+          nullable: true
+          description: When the local trial ends (only when kind=trial).
+        trialEndedAt:
+          type: string
+          nullable: true
+          description: When the local trial ended (only when kind=expired).
+        currentPeriodEnd:
+          type: string
+          nullable: true
+          description: End of the current Stripe billing period.
+        cancelAtPeriodEnd:
+          type: boolean
+          nullable: true
+          description: True if a Stripe subscription is set to cancel at period end.
+      required: [kind]
+
+    BillingStatusResponse:
+      type: object
+      properties:
+        state:
+          $ref: "#/components/schemas/AccessState"
+        trialDays:
+          type: integer
+          description: Length of the free trial in days.
+      required: [state, trialDays]
 
     PcsConnectUrl:
       type: object

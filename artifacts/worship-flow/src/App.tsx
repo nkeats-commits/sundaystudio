@@ -8,6 +8,7 @@ import { Toaster, toast } from "sonner";
 import {
   setAuthTokenGetter,
   setOnUnauthorized,
+  setOnPaymentRequired,
 } from "@workspace/api-client-react";
 import { setJobGenerateOnUnauthorized } from "./hooks/useJobGenerate";
 import LandingPage from "./pages/LandingPage";
@@ -30,6 +31,8 @@ import SermonSeriesArchive from "./pages/SermonSeriesArchive";
 import SermonSeriesDetail from "./pages/SermonSeriesDetail";
 import ResourceLibrary from "./pages/ResourceLibrary";
 import Integrations from "./pages/Integrations";
+import Pricing from "./pages/Pricing";
+import Billing from "./pages/Billing";
 import NotFound from "./pages/NotFound";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -223,9 +226,28 @@ function ClerkAuthBootstrap() {
     setOnUnauthorized(handleUnauthorized);
     setJobGenerateOnUnauthorized(handleUnauthorized);
 
+    // 402 from a gated mutation → bounce to /pricing with a toast (once
+    // per burst, like 401 handling above, since a page can fire several
+    // gated calls at the same time).
+    const paymentRedirectingRef = { current: false };
+    setOnPaymentRequired(({ url }) => {
+      // Don't bounce when the failing request *is* one of the billing
+      // endpoints — the page already renders the appropriate state.
+      if (url.includes("/api/billing/")) return;
+      if (paymentRedirectingRef.current) return;
+      paymentRedirectingRef.current = true;
+      toast.error("Your trial has ended — subscribe to keep going.");
+      setLocation("/pricing");
+      // Re-arm after a tick so future bounces still work.
+      setTimeout(() => {
+        paymentRedirectingRef.current = false;
+      }, 1500);
+    });
+
     return () => {
       setAuthTokenGetter(null);
       setOnUnauthorized(null);
+      setOnPaymentRequired(null);
       setJobGenerateOnUnauthorized(null);
     };
   }, [isLoaded, isSignedIn, getToken, signOut, setLocation]);
@@ -321,6 +343,8 @@ function ClerkProviderWithRoutes() {
           <Route path="/church">{() => <Protected component={ChurchProfile} />}</Route>
           <Route path="/settings/integrations">{() => <Protected component={Integrations} />}</Route>
           <Route path="/settings">{() => <Protected component={Settings} />}</Route>
+          <Route path="/pricing">{() => <Protected component={Pricing} />}</Route>
+          <Route path="/billing">{() => <Protected component={Billing} />}</Route>
           <Route>{() => <Protected component={NotFound} />}</Route>
         </Switch>
       </QueryClientProvider>

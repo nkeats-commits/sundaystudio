@@ -14,6 +14,13 @@ export type UnauthorizedHandler = (info: {
   response: Response;
 }) => void;
 
+export type PaymentRequiredHandler = (info: {
+  method: string;
+  url: string;
+  response: Response;
+  body: unknown;
+}) => void;
+
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
@@ -24,6 +31,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 let _onUnauthorized: UnauthorizedHandler | null = null;
+let _onPaymentRequired: PaymentRequiredHandler | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -65,6 +73,17 @@ export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
  */
 export function setOnUnauthorized(handler: UnauthorizedHandler | null): void {
   _onUnauthorized = handler;
+}
+
+/**
+ * Register a callback that fires when the API responds with HTTP 402
+ * Payment Required.  WorshipFlow uses this to bounce the user to /pricing
+ * when their trial has expired or their subscription has lapsed.
+ *
+ * Pass `null` to clear the handler.
+ */
+export function setOnPaymentRequired(handler: PaymentRequiredHandler | null): void {
+  _onPaymentRequired = handler;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -394,6 +413,18 @@ export async function customFetch<T = unknown>(
       }
     }
     const errorData = await parseErrorBody(response, method);
+    if (response.status === 402 && _onPaymentRequired) {
+      try {
+        _onPaymentRequired({
+          method,
+          url: requestInfo.url,
+          response,
+          body: errorData,
+        });
+      } catch {
+        /* swallow handler errors so they don't mask the original 402 */
+      }
+    }
     throw new ApiError(response, errorData, requestInfo);
   }
 

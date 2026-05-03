@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "seed-billing": "tsx ./src/seed-billing.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "stripe": "^22.1.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

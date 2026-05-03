@@ -16,6 +16,7 @@ import {
   ExportSermonBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import {
   renderSermonAsMarkdown,
   renderSermonAsText,
@@ -223,7 +224,7 @@ router.get("/sermons", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.post("/sermons", requireAuth, async (req, res) => {
+router.post("/sermons", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = CreateSermonBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -289,7 +290,7 @@ router.get("/sermons/:id", requireAuth, async (req, res) => {
   res.json(row);
 });
 
-router.patch("/sermons/:id", requireAuth, async (req, res) => {
+router.patch("/sermons/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
@@ -377,7 +378,7 @@ router.patch("/sermons/:id", requireAuth, async (req, res) => {
   res.json(row);
 });
 
-router.delete("/sermons/:id", requireAuth, async (req, res) => {
+router.delete("/sermons/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
@@ -394,7 +395,7 @@ router.delete("/sermons/:id", requireAuth, async (req, res) => {
   res.status(204).end();
 });
 
-router.post("/sermons/:id/duplicate", requireAuth, async (req, res) => {
+router.post("/sermons/:id/duplicate", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
@@ -417,7 +418,7 @@ router.post("/sermons/:id/duplicate", requireAuth, async (req, res) => {
   res.status(201).json(row);
 });
 
-router.post("/sermons/:id/build-service", requireAuth, async (req, res) => {
+router.post("/sermons/:id/build-service", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
@@ -479,7 +480,7 @@ router.get("/sermons/:id/linked-services", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.post("/sermons/:id/export", requireAuth, async (req, res) => {
+router.post("/sermons/:id/export", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });

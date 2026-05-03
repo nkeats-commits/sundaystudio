@@ -9,6 +9,7 @@ import {
   UpdateLibraryItemBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import { normalizeTitle } from "../lib/repertoire";
 import { recordBpmFromContent } from "../lib/crowdsourceBpm";
 
@@ -41,7 +42,7 @@ router.get("/library", requireAuth, async (req, res) => {
   res.json(rows);
 });
 
-router.post("/library", requireAuth, async (req, res) => {
+router.post("/library", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = CreateLibraryItemBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -102,7 +103,7 @@ router.get("/library/:id/linked-services", requireAuth, async (req, res) => {
  * Promote / demote a saved song to/from the user's repertoire. Returns the
  * updated row so the client can swap it into its cache without a refetch.
  */
-router.patch("/library/:id/repertoire", requireAuth, async (req, res) => {
+router.patch("/library/:id/repertoire", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
@@ -138,7 +139,7 @@ router.patch("/library/:id/repertoire", requireAuth, async (req, res) => {
  * repertoire; also skips entries with a missing/empty title. Returns a
  * summary the UI can surface as a toast.
  */
-router.post("/library/repertoire/bulk-import", requireAuth, async (req, res) => {
+router.post("/library/repertoire/bulk-import", requireAuth, requireActiveAccess, async (req, res) => {
   const parsed = BulkImportRepertoireBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -218,7 +219,7 @@ router.post("/library/repertoire/bulk-import", requireAuth, async (req, res) => 
  * and tags so the detail modal can persist quick fixes without re-creating
  * the row. Returns the updated row so the client can swap it into its cache.
  */
-router.patch("/library/:id", requireAuth, async (req, res) => {
+router.patch("/library/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
@@ -273,7 +274,7 @@ router.patch("/library/:id", requireAuth, async (req, res) => {
   res.json(row);
 });
 
-router.delete("/library/:id", requireAuth, async (req, res) => {
+router.delete("/library/:id", requireAuth, requireActiveAccess, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Not found" });
