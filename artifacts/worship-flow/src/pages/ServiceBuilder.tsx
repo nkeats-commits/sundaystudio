@@ -43,7 +43,7 @@ import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import {
   WORSHIP_ELEMENTS,
   STARTER_TEMPLATES,
-  findElement,
+  findElementById,
   type FlowStep,
   type WorshipKind,
 } from '../lib/serviceFlow';
@@ -78,11 +78,9 @@ export default function ServiceBuilder() {
     serviceDate: new Date().toISOString().split('T')[0],
   });
 
-  // The user-defined ordered service flow. Starts with the first built-in
-  // starter so a brand-new user has something sensible already loaded.
-  const [flow, setFlow] = useState<EditableFlowStep[]>(() =>
-    toEditable(STARTER_TEMPLATES[0]!.flow),
-  );
+  // The user-defined ordered service flow. Starts EMPTY — the spec calls for
+  // an explicit, deliberate flow rather than a silently preloaded skeleton.
+  const [flow, setFlow] = useState<EditableFlowStep[]>([]);
   const [renamingUid, setRenamingUid] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -90,7 +88,7 @@ export default function ServiceBuilder() {
   // the user mutates the flow so it visually de-selects, signalling unsaved
   // changes.
   const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(
-    `starter-${STARTER_TEMPLATES[0]!.id}`,
+    null,
   );
 
   const [, setLocation] = useLocation();
@@ -131,12 +129,26 @@ export default function ServiceBuilder() {
     setAppliedTemplateId(null);
   };
 
-  const addStep = (kind: WorshipKind) => {
-    const el = findElement(kind);
+  const addStepFromPalette = (paletteId: string) => {
+    const el = findElementById(paletteId);
+    if (!el) return;
     mutateFlow([
       ...flow,
-      { uid: uid(), kind, stepName: el.defaultStepName },
+      { uid: uid(), kind: el.kind, stepName: el.defaultStepName },
     ]);
+  };
+
+  const resetFlow = () => {
+    if (flow.length === 0) return;
+    if (
+      !window.confirm(
+        'Clear your current service flow? This will remove all steps.',
+      )
+    ) {
+      return;
+    }
+    setFlow([]);
+    setAppliedTemplateId(null);
   };
 
   const removeStep = (u: string) => {
@@ -192,6 +204,15 @@ export default function ServiceBuilder() {
     nextFlow: FlowStep[],
     badgeId: string,
   ) => {
+    // If the user already has a non-empty flow that isn't a clean copy of a
+    // saved/starter template, confirm before stomping it.
+    const isDirty = flow.length > 0 && appliedTemplateId === null;
+    if (isDirty) {
+      const ok = window.confirm(
+        `Replace your current ${flow.length}-step flow with "${id}"? Your unsaved order will be lost.`,
+      );
+      if (!ok) return;
+    }
     setFlow(toEditable(nextFlow));
     setAppliedTemplateId(badgeId);
     toast.success(`Applied "${id}"`);
@@ -502,11 +523,11 @@ export default function ServiceBuilder() {
                 <div className="flex flex-wrap gap-2">
                   {WORSHIP_ELEMENTS.map((el) => (
                     <button
-                      key={el.kind}
+                      key={el.id}
                       type="button"
-                      onClick={() => addStep(el.kind)}
+                      onClick={() => addStepFromPalette(el.id)}
                       className="px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[var(--worship-slate)] border-[var(--worship-border)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] flex items-center gap-1 transition-colors"
-                      data-testid={`palette-add-${el.kind}`}
+                      data-testid={`palette-add-${el.id}`}
                     >
                       {getMiniIcon(el.kind)}
                       <Plus className="w-3 h-3" />
@@ -518,15 +539,40 @@ export default function ServiceBuilder() {
 
               {/* Ordered list */}
               <div className="mt-4">
-                <p
-                  className="text-[11px] uppercase tracking-wider mb-2"
-                  style={{ color: 'var(--worship-muted-slate)' }}
-                >
-                  Your order ({flow.length})
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p
+                    className="text-[11px] uppercase tracking-wider"
+                    style={{ color: 'var(--worship-muted-slate)' }}
+                  >
+                    Your order ({flow.length})
+                  </p>
+                  {flow.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={resetFlow}
+                      className="text-[11px] font-medium text-[var(--worship-muted-slate)] hover:text-red-500 flex items-center gap-1"
+                      data-testid="button-reset-flow"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Reset
+                    </button>
+                  )}
+                </div>
                 {flow.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-[var(--worship-border)] py-6 text-center text-xs text-[var(--worship-muted-slate)]">
-                    Click an element above to start building your service.
+                  <div className="rounded-lg border border-dashed border-[var(--worship-border)] py-6 px-4 text-center text-xs text-[var(--worship-muted-slate)] space-y-2">
+                    <p>
+                      Click a worship element above to add it to your flow.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const t = STARTER_TEMPLATES[0]!;
+                        applyTemplate(t.name, t.flow, `starter-${t.id}`);
+                      }}
+                      className="text-[var(--worship-gold)] hover:underline font-medium"
+                      data-testid="button-use-starter-template"
+                    >
+                      Or use a starter template →
+                    </button>
                   </div>
                 ) : (
                   <ol

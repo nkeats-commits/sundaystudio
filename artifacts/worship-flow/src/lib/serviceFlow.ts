@@ -23,26 +23,34 @@ export type FlowStep = {
 };
 
 export type WorshipElementOption = {
+  /** Stable id used as data-testid suffix and React key. */
+  id: string;
   kind: WorshipKind;
   label: string;
+  /** What gets dropped into the ordered list when this chip is clicked. */
   defaultStepName: string;
 };
 
 /**
- * The chip palette shown to the user. Each click appends a step with this
- * default name; the user can rename it inline afterwards.
+ * The chip palette shown to the user. These are the canonical worship-element
+ * labels — multiple chips can map to the same underlying `kind` so a pastor
+ * can add a named "Opening Song" or "Closing Song" with a single click rather
+ * than adding a generic "Song" and renaming it.
  */
 export const WORSHIP_ELEMENTS: WorshipElementOption[] = [
-  { kind: "welcome", label: "Welcome", defaultStepName: "Welcome & Greeting" },
-  { kind: "song", label: "Song", defaultStepName: "Worship Song" },
-  { kind: "prayer", label: "Prayer", defaultStepName: "Opening Prayer" },
-  { kind: "scripture", label: "Scripture", defaultStepName: "Scripture Reading" },
-  { kind: "sermon", label: "Sermon", defaultStepName: "Sermon" },
-  { kind: "communion", label: "Communion", defaultStepName: "Communion" },
-  { kind: "offering", label: "Offering", defaultStepName: "Offering" },
-  { kind: "benediction", label: "Benediction", defaultStepName: "Benediction" },
-  { kind: "transition", label: "Transition", defaultStepName: "Transition" },
-  { kind: "custom", label: "Custom", defaultStepName: "Custom Element" },
+  { id: "call-to-worship", kind: "welcome", label: "Call to Worship", defaultStepName: "Call to Worship" },
+  { id: "opening-song", kind: "song", label: "Opening Song", defaultStepName: "Opening Song" },
+  { id: "greeting", kind: "welcome", label: "Greeting", defaultStepName: "Greeting" },
+  { id: "worship-set", kind: "song", label: "Worship Set", defaultStepName: "Worship Set" },
+  { id: "prayer-of-confession", kind: "prayer", label: "Prayer of Confession", defaultStepName: "Prayer of Confession" },
+  { id: "assurance-of-pardon", kind: "prayer", label: "Assurance of Pardon", defaultStepName: "Assurance of Pardon" },
+  { id: "scripture-reading", kind: "scripture", label: "Scripture Reading", defaultStepName: "Scripture Reading" },
+  { id: "sermon", kind: "sermon", label: "Sermon", defaultStepName: "Sermon" },
+  { id: "communion", kind: "communion", label: "Communion", defaultStepName: "Communion" },
+  { id: "offering", kind: "offering", label: "Offering", defaultStepName: "Offering" },
+  { id: "closing-song", kind: "song", label: "Closing Song", defaultStepName: "Closing Song" },
+  { id: "benediction", kind: "benediction", label: "Benediction", defaultStepName: "Benediction" },
+  { id: "custom", kind: "custom", label: "Custom step…", defaultStepName: "Custom Step" },
 ];
 
 export type StarterTemplate = {
@@ -127,8 +135,12 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   },
 ];
 
-export function findElement(kind: WorshipKind): WorshipElementOption {
-  return (
-    WORSHIP_ELEMENTS.find((e) => e.kind === kind) ?? WORSHIP_ELEMENTS[9]!
-  );
+export function findElementById(id: string): WorshipElementOption | undefined {
+  return WORSHIP_ELEMENTS.find((e) => e.id === id);
+}
+
+export function findElementByKind(
+  kind: WorshipKind,
+): WorshipElementOption | undefined {
+  return WORSHIP_ELEMENTS.find((e) => e.kind === kind);
 }
