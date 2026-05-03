@@ -836,7 +836,15 @@ export default function SermonBuilder() {
                 statusFor={statusFor}
               />
             </div>
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-white">
+            <div className="flex-1 overflow-y-auto bg-white">
+              <div
+                role="tabpanel"
+                id={panelId('study')}
+                aria-labelledby={tabId('study')}
+                hidden={tab !== 'study'}
+                tabIndex={0}
+                className="p-6 md:p-8 focus:outline-none"
+              >
               {tab === 'study' && (
                 <SectionPanel
                   title="Passage Study"
@@ -854,6 +862,15 @@ export default function SermonBuilder() {
                   {studyData && <StudyView data={studyData} />}
                 </SectionPanel>
               )}
+              </div>
+              <div
+                role="tabpanel"
+                id={panelId('bigIdea')}
+                aria-labelledby={tabId('bigIdea')}
+                hidden={tab !== 'bigIdea'}
+                tabIndex={0}
+                className="p-6 md:p-8 focus:outline-none"
+              >
               {tab === 'bigIdea' && (
                 <SectionPanel
                   title="Big Idea"
@@ -891,6 +908,15 @@ export default function SermonBuilder() {
                   )}
                 </SectionPanel>
               )}
+              </div>
+              <div
+                role="tabpanel"
+                id={panelId('outline')}
+                aria-labelledby={tabId('outline')}
+                hidden={tab !== 'outline'}
+                tabIndex={0}
+                className="p-6 md:p-8 focus:outline-none"
+              >
               {tab === 'outline' && (
                 <SectionPanel
                   title="Outline"
@@ -939,6 +965,15 @@ export default function SermonBuilder() {
                   )}
                 </SectionPanel>
               )}
+              </div>
+              <div
+                role="tabpanel"
+                id={panelId('manuscript')}
+                aria-labelledby={tabId('manuscript')}
+                hidden={tab !== 'manuscript'}
+                tabIndex={0}
+                className="p-6 md:p-8 focus:outline-none"
+              >
               {tab === 'manuscript' && (
                 <SectionPanel
                   title="Manuscript"
@@ -974,6 +1009,15 @@ export default function SermonBuilder() {
                   )}
                 </SectionPanel>
               )}
+              </div>
+              <div
+                role="tabpanel"
+                id={panelId('applications')}
+                aria-labelledby={tabId('applications')}
+                hidden={tab !== 'applications'}
+                tabIndex={0}
+                className="p-6 md:p-8 focus:outline-none"
+              >
               {tab === 'applications' && (
                 <SectionPanel
                   title="Applications"
@@ -1018,6 +1062,15 @@ export default function SermonBuilder() {
                   )}
                 </SectionPanel>
               )}
+              </div>
+              <div
+                role="tabpanel"
+                id={panelId('illustrations')}
+                aria-labelledby={tabId('illustrations')}
+                hidden={tab !== 'illustrations'}
+                tabIndex={0}
+                className="p-6 md:p-8 focus:outline-none"
+              >
               {tab === 'illustrations' && (
                 <SectionPanel
                   title="Illustrations"
@@ -1058,6 +1111,15 @@ export default function SermonBuilder() {
                   )}
                 </SectionPanel>
               )}
+              </div>
+              <div
+                role="tabpanel"
+                id={panelId('smallGroupQuestions')}
+                aria-labelledby={tabId('smallGroupQuestions')}
+                hidden={tab !== 'smallGroupQuestions'}
+                tabIndex={0}
+                className="p-6 md:p-8 focus:outline-none"
+              >
               {tab === 'smallGroupQuestions' && (
                 <SectionPanel
                   title="Small Group Questions"
@@ -1076,6 +1138,15 @@ export default function SermonBuilder() {
                   {smallGroupData && <SmallGroupQuestionsView data={smallGroupData} />}
                 </SectionPanel>
               )}
+              </div>
+              <div
+                role="tabpanel"
+                id={panelId('worship')}
+                aria-labelledby={tabId('worship')}
+                hidden={tab !== 'worship'}
+                tabIndex={0}
+                className="p-6 md:p-8 focus:outline-none"
+              >
               {tab === 'worship' && (
                 <SectionPanel
                   title="Worship Integration"
@@ -1134,6 +1205,7 @@ export default function SermonBuilder() {
                   )}
                 </SectionPanel>
               )}
+              </div>
             </div>
           </div>
         </div>
@@ -1305,6 +1377,32 @@ function statusDot(status: SectionStatus): React.ReactNode {
   return <span className="inline-block w-2.5 h-2.5 rounded-full border border-[var(--worship-border)]" aria-label="Not started" />;
 }
 
+const tabId = (k: TabKey) => `sermon-tab-${k}`;
+const panelId = (k: TabKey) => `sermon-panel-${k}`;
+
+/**
+ * Shared roving-tabindex / arrow-key handler for tablists. Steps within each
+ * row form an independent tab strip — Left/Right move focus and selection
+ * between steps in that row, wrapping at the ends. Home/End jump to first/last.
+ */
+function useTabRowKeydown(
+  steps: StepDef[],
+  onSelect: (k: TabKey) => void,
+  refs: React.MutableRefObject<(HTMLButtonElement | null)[]>,
+) {
+  return (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    let next = idx;
+    if (e.key === 'ArrowRight') next = (idx + 1) % steps.length;
+    else if (e.key === 'ArrowLeft') next = (idx - 1 + steps.length) % steps.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = steps.length - 1;
+    else return;
+    e.preventDefault();
+    onSelect(steps[next].key);
+    refs.current[next]?.focus();
+  };
+}
+
 function SermonStepper({
   steps,
   activeKey,
@@ -1316,17 +1414,32 @@ function SermonStepper({
   onSelect: (k: TabKey) => void;
   statusFor: (s: SectionKey) => SectionStatus;
 }) {
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onKeyDown = useTabRowKeydown(steps, onSelect, btnRefs);
+  // If the active tab lives in a sibling row (e.g. an add-on chip is the
+  // current tab), this row would otherwise have every button at
+  // tabIndex=-1 and become unreachable via Tab. Mirror the add-on row's
+  // fallback: keep the first step as a tab-stop so keyboard users can
+  // always reach the core stepper.
+  const activeInRow = steps.some((s) => s.key === activeKey);
   return (
-    <div className="flex items-stretch gap-1 overflow-x-auto" role="list" aria-label="Sermon build steps">
+    <div className="flex items-stretch gap-1 overflow-x-auto" role="tablist" aria-label="Sermon build steps">
       {steps.map((step, i) => {
         const status = statusFor(step.section);
         const active = activeKey === step.key;
+        const isTabStop = active || (!activeInRow && i === 0);
         const isLast = i === steps.length - 1;
         return (
-          <div key={step.key} className="flex items-stretch min-w-0" role="listitem">
+          <div key={step.key} className="flex items-stretch min-w-0">
             <button
+              ref={(el) => { btnRefs.current[i] = el; }}
+              role="tab"
+              id={tabId(step.key)}
+              aria-controls={panelId(step.key)}
+              aria-selected={active}
+              tabIndex={isTabStop ? 0 : -1}
               onClick={() => onSelect(step.key)}
-              aria-current={active ? 'step' : undefined}
+              onKeyDown={(e) => onKeyDown(e, i)}
               className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                 active
                   ? 'bg-[var(--worship-pale-gold)] text-[var(--worship-navy)]'
@@ -1351,7 +1464,7 @@ function SermonStepper({
               <span className="shrink-0">{statusDot(status)}</span>
             </button>
             {!isLast && (
-              <div className="flex items-center px-1 text-[var(--worship-muted-slate)]">
+              <div aria-hidden="true" className="flex items-center px-1 text-[var(--worship-muted-slate)]">
                 <ChevronRight className="w-4 h-4" />
               </div>
             )}
@@ -1373,19 +1486,38 @@ function SermonAddOnRow({
   onSelect: (k: TabKey) => void;
   statusFor: (s: SectionKey) => SectionStatus;
 }) {
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onKeyDown = useTabRowKeydown(steps, onSelect, btnRefs);
+  // Whether the active tab lives in this row — controls roving tabindex so a
+  // keyboard user lands on the *currently selected* add-on (if any) rather
+  // than always the first chip when tabbing into the row.
+  const activeInRow = steps.some((s) => s.key === activeKey);
   return (
-    <div className="flex items-center gap-2 overflow-x-auto pt-1">
-      <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--worship-muted-slate)] shrink-0">
+    <div
+      className="flex items-center gap-2 overflow-x-auto pt-1"
+      role="tablist"
+      aria-label="Sermon add-on steps"
+    >
+      <span aria-hidden="true" className="text-[10px] uppercase tracking-widest font-bold text-[var(--worship-muted-slate)] shrink-0">
         Add-ons
       </span>
-      {steps.map((step) => {
+      {steps.map((step, i) => {
         const status = statusFor(step.section);
         const active = activeKey === step.key;
+        // If no add-on is currently selected, make the first chip the
+        // tab-stop so the row remains keyboard-reachable.
+        const isTabStop = active || (!activeInRow && i === 0);
         return (
           <button
             key={step.key}
+            ref={(el) => { btnRefs.current[i] = el; }}
+            role="tab"
+            id={tabId(step.key)}
+            aria-controls={panelId(step.key)}
+            aria-selected={active}
+            tabIndex={isTabStop ? 0 : -1}
             onClick={() => onSelect(step.key)}
-            aria-pressed={active}
+            onKeyDown={(e) => onKeyDown(e, i)}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap border transition-colors ${
               active
                 ? 'border-[var(--worship-gold)] bg-[var(--worship-pale-gold)] text-[var(--worship-navy)]'
