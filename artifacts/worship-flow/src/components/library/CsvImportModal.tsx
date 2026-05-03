@@ -43,8 +43,6 @@ type ParseResult =
       totalRows: number;
       droppedRows: number;
       intraFileDupes: number;
-      newCount: number;
-      duplicateCount: number;
       sample: RepertoireImportSong[];
       fileName: string;
     };
@@ -88,6 +86,29 @@ export function CsvImportModal({
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const bulkImport = useBulkImportRepertoire();
   const consumedInitialFileRef = useRef<File | null>(null);
+
+  // Derive new vs duplicate counts reactively from the latest
+  // existingTitles. We never snapshot these at parse time because the
+  // repertoire query that supplies existingTitles can finish loading
+  // *after* the modal mounts and parses the file (the Library page
+  // renders the buttons before list data resolves), and the user's
+  // repertoire could also change underneath us. The new songs the user
+  // is about to upload (parse.songs) only contains the unique mapped
+  // titles, so this is exactly the set the server will dedupe against.
+  const counts = useMemo(() => {
+    if (parse.status !== 'ready') {
+      return { newCount: 0, duplicateCount: 0, newSongs: [] as RepertoireImportSong[] };
+    }
+    const { newSongs, existingMatches } = splitNewVsDuplicate(
+      parse.songs,
+      existingTitles,
+    );
+    return {
+      newCount: newSongs.length,
+      duplicateCount: existingMatches.length,
+      newSongs,
+    };
+  }, [parse, existingTitles]);
 
   // Auto-parse the initialFile exactly once per file identity. This is
   // NOT a substitute for clicking the picker (the picker must be opened
@@ -139,10 +160,13 @@ export function CsvImportModal({
           });
           return;
         }
-        const { newSongs, existingMatches } = splitNewVsDuplicate(
-          unique,
-          existingTitles,
-        );
+        // NOTE: we deliberately do NOT snapshot new/duplicate counts at
+        // parse time. The repertoire query that supplies `existingTitles`
+        // may still be loading when the user opens the modal (the button
+        // is rendered before the list resolves), and the user could also
+        // add or remove songs in another tab while the preview is open.
+        // Counts are derived reactively below via useMemo so they stay
+        // in sync with the latest existingTitles on every render.
         setParse({
           status: 'ready',
           format,
@@ -150,8 +174,6 @@ export function CsvImportModal({
           totalRows: rows.length,
           droppedRows,
           intraFileDupes,
-          newCount: newSongs.length,
-          duplicateCount: existingMatches.length,
           // Preview shows the first 5 mapped rows verbatim — i.e. what
           // the file actually contains at the top — rather than filtering
           // to "new only", so the user can sanity-check parsing.
@@ -330,12 +352,16 @@ export function CsvImportModal({
                       className="text-xs text-emerald-800/90"
                       data-testid="csv-preview-counts"
                     >
-                      <strong>{parse.newCount}</strong> new
+                      <strong>{counts.newCount}</strong> new
                       {' · '}
-                      <strong>{parse.duplicateCount}</strong> already in
+                      <strong>{counts.duplicateCount}</strong> already in
                       repertoire
                       {' · '}
-                      <strong>{parse.songs.length}</strong> total in file
+                      <strong>{parse.songs.length}</strong> unique song
+                      {parse.songs.length === 1 ? '' : 's'}
+                      {' · '}
+                      <strong>{parse.totalRows}</strong> row
+                      {parse.totalRows === 1 ? '' : 's'} in file
                     </div>
                     <div className="text-xs text-emerald-800/80">
                       From <em>{parse.fileName}</em>
@@ -347,7 +373,7 @@ export function CsvImportModal({
                         : ''}
                       .
                     </div>
-                    {parse.newCount === 0 && (
+                    {counts.newCount === 0 && (
                       <div className="text-xs text-emerald-800/80 italic">
                         Every song in this file is already in your
                         repertoire — nothing new to add.
@@ -441,10 +467,10 @@ export function CsvImportModal({
                 </>
               ) : parse.status === 'ready' ? (
                 <>
-                  {parse.newCount > 0 ? (
+                  {counts.newCount > 0 ? (
                     <>
-                      Import {parse.newCount} new song
-                      {parse.newCount === 1 ? '' : 's'}
+                      Import {counts.newCount} new song
+                      {counts.newCount === 1 ? '' : 's'}
                     </>
                   ) : (
                     <>
