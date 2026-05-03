@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, count, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { count, desc, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   db,
@@ -13,8 +13,194 @@ import {
   getUncachableStripeClient,
   isStripeConfigured,
 } from "../lib/stripeClient";
-import { getAccessState, TRIAL_DAYS } from "../lib/getAccessState";
+import {
+  getAccessState,
+  type AccessState,
+  TRIAL_DAYS,
+} from "../lib/getAccessState";
 import { getMonthlyPriceId } from "../lib/getMonthlyPriceId";
+
+/**
+ * One-shot probe (cached for the process) for whether the
+ * `stripe.subscriptions` mirror table exists. We use this to decide
+ * which CTE shape to build — the stripe-aware variant joins to the
+ * mirror, the fallback derives state from `users` only.
+ */
+let _stripeSubsCache: { value: boolean; at: number } | null = null;
+const STRIPE_PROBE_TTL_MS = 60_000;
+async function stripeSubsAvailable(): Promise<boolean> {
+  if (_stripeSubsCache && Date.now() - _stripeSubsCache.at < STRIPE_PROBE_TTL_MS) {
+    return _stripeSubsCache.value;
+  }
+  let value = false;
+  try {
+    await db.execute(sql`SELECT 1 FROM stripe.subscriptions LIMIT 1`);
+    value = true;
+  } catch {
+    value = false;
+  }
+  _stripeSubsCache = { value, at: Date.now() };
+  return value;
+}
+
+/**
+ * Build the `user_state` CTE that derives every user's canonical access
+ * state in pure SQL. Mirrors the logic in `getAccessState` — Stripe sub
+ * status takes precedence; otherwise the local 14-day trial window from
+ * `trial_started_at` (or `created_at`) decides trial-vs-expired. Used by
+ * both the metrics aggregation and the users list so neither truncates.
+ *
+ * `lastActivityAt` is also pre-joined here so the users list doesn't need
+ * an N+1 lookup for service plans / sermons.
+ */
+function buildUserStateCte(stripeAvailable: boolean) {
+  const trialMs = TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  const trialInterval = sql.raw(`interval '${TRIAL_DAYS} days'`);
+  const subJoin = stripeAvailable
+    ? sql`
+        latest_sub AS (
+          SELECT DISTINCT ON (customer)
+            customer, status, current_period_end, cancel_at_period_end,
+            created
+          FROM stripe.subscriptions
+          WHERE customer IS NOT NULL
+          ORDER BY customer, created DESC
+        ),`
+    : sql``;
+  const subSelect = stripeAvailable
+    ? sql`s.status AS sub_status,
+           s.current_period_end AS sub_current_period_end,
+           s.cancel_at_period_end AS sub_cancel_at_period_end,`
+    : sql`NULL::text AS sub_status,
+           NULL::bigint AS sub_current_period_end,
+           NULL::boolean AS sub_cancel_at_period_end,`;
+  const subFrom = stripeAvailable
+    ? sql`LEFT JOIN latest_sub s ON s.customer = u.stripe_customer_id`
+    : sql``;
+  const stateCase = stripeAvailable
+    ? sql`CASE
+            WHEN s.status = 'active' THEN 'active'
+            WHEN s.status = 'trialing' THEN 'trialing'
+            WHEN s.status IN ('past_due','unpaid','incomplete','paused') THEN 'past_due'
+            WHEN s.status IN ('canceled','incomplete_expired') THEN 'canceled'
+            WHEN COALESCE(u.trial_started_at, u.created_at) + ${trialInterval} > NOW()
+              THEN 'trial'
+            ELSE 'expired'
+          END`
+    : sql`CASE
+            WHEN COALESCE(u.trial_started_at, u.created_at) + ${trialInterval} > NOW()
+              THEN 'trial'
+            ELSE 'expired'
+          END`;
+  return {
+    cte: sql`
+      WITH ${subJoin}
+      last_plan AS (
+        SELECT user_id, MAX(updated_at) AS updated_at
+        FROM service_plans
+        GROUP BY user_id
+      ),
+      last_sermon AS (
+        SELECT user_id, MAX(updated_at) AS updated_at
+        FROM sermons
+        GROUP BY user_id
+      ),
+      user_state AS (
+        SELECT
+          u.id, u.email, u.first_name, u.last_name, u.image_url,
+          u.created_at, u.trial_started_at, u.stripe_customer_id,
+          ${subSelect}
+          GREATEST(lp.updated_at, ls.updated_at) AS last_activity_at,
+          ${stateCase} AS state_kind
+        FROM users u
+        ${subFrom}
+        LEFT JOIN last_plan lp ON lp.user_id = u.id
+        LEFT JOIN last_sermon ls ON ls.user_id = u.id
+      )`,
+    trialMs,
+  };
+}
+
+/** Map a row from `user_state` back into the AccessState union. */
+function rowToAccessState(row: {
+  state_kind: string;
+  trial_started_at: Date | string | null;
+  created_at: Date | string;
+  sub_current_period_end: number | string | null;
+  sub_cancel_at_period_end: boolean | null;
+}): AccessState {
+  const trialStartRaw = row.trial_started_at ?? row.created_at;
+  const trialStartMs = new Date(trialStartRaw).getTime();
+  const trialEndMs = trialStartMs + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  const periodEndIso = (() => {
+    const v = row.sub_current_period_end;
+    if (v == null) return null;
+    const n = typeof v === "number" ? v : Number(v);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return new Date(n * 1000).toISOString();
+  })();
+  switch (row.state_kind) {
+    case "active":
+      return {
+        kind: "active",
+        currentPeriodEnd: periodEndIso,
+        cancelAtPeriodEnd: !!row.sub_cancel_at_period_end,
+      };
+    case "trialing":
+      return { kind: "trialing", currentPeriodEnd: periodEndIso };
+    case "past_due":
+      return { kind: "past_due", currentPeriodEnd: periodEndIso };
+    case "canceled":
+      return { kind: "canceled" };
+    case "trial": {
+      const daysLeft = Math.max(
+        0,
+        Math.ceil((trialEndMs - Date.now()) / (24 * 60 * 60 * 1000)),
+      );
+      return {
+        kind: "trial",
+        daysLeft,
+        trialEndsAt: new Date(trialEndMs).toISOString(),
+      };
+    }
+    default:
+      return {
+        kind: "expired",
+        trialEndedAt: new Date(trialEndMs).toISOString(),
+      };
+  }
+}
+
+/**
+ * Probe every Stripe-mirror table we know about for any non-null
+ * `_account_id`. Used by `comp-subscription` so the synchronous mirror
+ * insert into `stripe.subscriptions` works even when the subs table is
+ * empty (e.g. first-ever comp on a fresh environment) — `stripe.customers`,
+ * `stripe.prices`, and `stripe.products` are all populated by the billing
+ * seed before any subscription exists.
+ */
+async function findStripeAccountId(): Promise<string | null> {
+  const tables = [
+    "stripe.subscriptions",
+    "stripe.customers",
+    "stripe.prices",
+    "stripe.products",
+  ] as const;
+  for (const t of tables) {
+    try {
+      const r = await db.execute(
+        sql.raw(
+          `SELECT _account_id FROM ${t} WHERE _account_id IS NOT NULL LIMIT 1`,
+        ),
+      );
+      const row = r.rows[0] as { _account_id?: string } | undefined;
+      if (row?._account_id) return row._account_id;
+    } catch {
+      // table missing — try next
+    }
+  }
+  return null;
+}
 
 const router: IRouter = Router();
 
@@ -101,49 +287,45 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
       .where(gte(usersTable.createdAt, ninetyAgo));
 
     // ----- Canonical bucket counts -----
-    // Both trial buckets AND subscription buckets are derived from the same
-    // getAccessState that powers the user-facing billing flow, so the admin
-    // dashboard cannot diverge from what users actually see. We pull every
-    // user (capped) and compute their access state in parallel.
-    const METRICS_USER_CAP = 50000;
-    const allUsers = await db
-      .select({ id: usersTable.id })
-      .from(usersTable)
-      .limit(METRICS_USER_CAP);
-    const states = await Promise.all(
-      allUsers.map((u) => getAccessState(u.id)),
+    // Bucket totals are derived from the same logic as `getAccessState` —
+    // but pushed entirely into SQL via the shared user_state CTE so we
+    // never truncate the user list. One aggregate query per row of users,
+    // not one round-trip per user.
+    const stripeAvailable = await stripeSubsAvailable();
+    const { cte } = buildUserStateCte(stripeAvailable);
+    const trialIntervalSql = sql.raw(`interval '${TRIAL_DAYS} days'`);
+    const bucketRows = await db.execute(sql`
+      ${cte}
+      SELECT state_kind, COUNT(*)::int AS c
+      FROM user_state
+      GROUP BY state_kind
+    `);
+    const buckets = new Map<string, number>();
+    for (const row of bucketRows.rows as Array<{
+      state_kind: string;
+      c: number | string;
+    }>) {
+      buckets.set(row.state_kind, Number(row.c));
+    }
+    const activeSubs = buckets.get("active") ?? 0;
+    const trialingSubs = buckets.get("trialing") ?? 0;
+    const pastDueSubs = buckets.get("past_due") ?? 0;
+    const canceledSubs = buckets.get("canceled") ?? 0;
+    const activeTrials = buckets.get("trial") ?? 0;
+    const expiredTrials = buckets.get("expired") ?? 0;
+
+    const endingSoonRow = await db.execute(sql`
+      ${cte}
+      SELECT COUNT(*)::int AS c
+      FROM user_state
+      WHERE state_kind = 'trial'
+        AND COALESCE(trial_started_at, created_at) + ${trialIntervalSql}
+            <= NOW() + interval '3 days'
+    `);
+    const trialsEndingSoon = Number(
+      (endingSoonRow.rows[0] as { c?: number | string } | undefined)?.c ?? 0,
     );
 
-    let activeSubs = 0;
-    let trialingSubs = 0;
-    let pastDueSubs = 0;
-    let canceledSubs = 0;
-    let activeTrials = 0;
-    let trialsEndingSoon = 0;
-    let expiredTrials = 0;
-    for (const s of states) {
-      switch (s.kind) {
-        case "active":
-          activeSubs++;
-          break;
-        case "trialing":
-          trialingSubs++;
-          break;
-        case "past_due":
-          pastDueSubs++;
-          break;
-        case "canceled":
-          canceledSubs++;
-          break;
-        case "trial":
-          activeTrials++;
-          if (s.daysLeft <= 3) trialsEndingSoon++;
-          break;
-        case "expired":
-          expiredTrials++;
-          break;
-      }
-    }
     const mrrCents = activeSubs * MONTHLY_AMOUNT_CENTS;
 
     // ----- Stripe-mirror-derived series & conversions -----
@@ -153,7 +335,6 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
     let conversions30 = 0;
     let conversions90 = 0;
     let churn30 = 0;
-    let stripeAvailable = false;
     let signupSeries: Array<{ day: string; count: number }> = [];
     let subSeries: Array<{ day: string; count: number }> = [];
 
@@ -177,7 +358,7 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
       count: Number(r.count),
     }));
 
-    try {
+    if (stripeAvailable) try {
       // True trial→paid cohort conversion: of users who signed up in the
       // window, how many later got their first paid subscription (any time
       // after signup). We join users → stripe.subscriptions on the local
@@ -205,7 +386,6 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
             WHERE s.status IN ('active', 'trialing')
           ) AS c90
       `);
-      stripeAvailable = true;
       const cRow = conv.rows[0] as {
         c30?: number | string;
         c90?: number | string;
@@ -259,8 +439,9 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
             : row.day.toISOString().slice(0, 10),
         count: Number(row.count),
       }));
-    } catch {
-      stripeAvailable = false;
+    } catch (err) {
+      // Mirror present but query failed — leave conversions/churn at 0.
+      req.log.warn({ err }, "admin metrics: stripe-derived series failed");
     }
 
     // Conversion *rates* — % of signups in the window that became paid subs.
@@ -315,86 +496,83 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
   const search = (parsedQuery.data.search ?? "").trim();
   const status = parsedQuery.data.status ?? "";
   try {
-    const whereParts = [];
-    if (search) {
-      const pattern = `%${search}%`;
-      whereParts.push(
-        or(
-          ilike(usersTable.email, pattern),
-          ilike(usersTable.firstName, pattern),
-          ilike(usersTable.lastName, pattern),
-        )!,
-      );
-    }
-    const whereClause = whereParts.length > 0 ? and(...whereParts) : undefined;
+    const stripeAvailable = await stripeSubsAvailable();
+    const { cte } = buildUserStateCte(stripeAvailable);
 
-    // We must filter by access-state (which depends on stripe + trial
-    // dates) *before* paginating, so totals and pages are correct.
-    // Strategy: pull every search-matching row (capped for safety),
-    // compute state per row, then filter+paginate in memory. With our
-    // user counts this is fine; if we ever cross 50k we'll push the
-    // status predicate into SQL.
-    const FETCH_CAP = 5000;
-    const candidateRows = await db
-      .select()
-      .from(usersTable)
-      .where(whereClause as ReturnType<typeof and>)
-      .orderBy(desc(usersTable.createdAt))
-      .limit(FETCH_CAP);
-
-    const enriched = await Promise.all(
-      candidateRows.map(async (u) => {
-        const state = await getAccessState(u.id);
-        const [lastPlan] = await db
-          .select({ updatedAt: servicePlansTable.updatedAt })
-          .from(servicePlansTable)
-          .where(eq(servicePlansTable.userId, u.id))
-          .orderBy(desc(servicePlansTable.updatedAt))
-          .limit(1);
-        const [lastSermon] = await db
-          .select({ updatedAt: sermonsTable.updatedAt })
-          .from(sermonsTable)
-          .where(eq(sermonsTable.userId, u.id))
-          .orderBy(desc(sermonsTable.updatedAt))
-          .limit(1);
-        const lastActivity = [lastPlan?.updatedAt, lastSermon?.updatedAt]
-          .filter((d): d is Date => !!d)
-          .sort((a, b) => b.getTime() - a.getTime())[0];
-        return {
-          id: u.id,
-          email: u.email,
-          firstName: u.firstName,
-          lastName: u.lastName,
-          createdAt: u.createdAt.toISOString(),
-          stripeCustomerId: u.stripeCustomerId,
-          state,
-          lastActivityAt: lastActivity ? lastActivity.toISOString() : null,
-        };
-      }),
-    );
-
-    const matchesStatus = (kind: string): boolean => {
-      switch (status) {
-        case "":
-          return true;
-        case "trial":
-          return kind === "trial";
-        case "subscribed":
-          return kind === "active" || kind === "trialing";
-        case "past_due":
-          return kind === "past_due";
-        case "canceled":
-          return kind === "canceled";
-        case "expired":
-          return kind === "expired";
-        default:
-          return true;
-      }
+    // Map the public `status` query param to the set of state_kind values
+    // it covers. "subscribed" intentionally bundles active + trialing,
+    // matching the UI's combined badge.
+    const statusKinds: Record<string, string[]> = {
+      trial: ["trial"],
+      subscribed: ["active", "trialing"],
+      past_due: ["past_due"],
+      canceled: ["canceled"],
+      expired: ["expired"],
     };
+    const allowedKinds = status ? statusKinds[status] ?? [] : [];
+    const statusFilter =
+      status && allowedKinds.length > 0
+        ? sql`AND state_kind = ANY(${allowedKinds}::text[])`
+        : sql``;
 
-    const filtered = enriched.filter((it) => matchesStatus(it.state.kind));
-    const total = filtered.length;
-    const items = filtered.slice(offset, offset + limit);
+    const searchPattern = search ? `%${search}%` : null;
+    const searchFilter = searchPattern
+      ? sql`AND (
+            email ILIKE ${searchPattern}
+            OR first_name ILIKE ${searchPattern}
+            OR last_name ILIKE ${searchPattern}
+          )`
+      : sql``;
+
+    // Single round-trip: filter, count, paginate over the full user set in
+    // SQL. `COUNT(*) OVER()` gives us the filtered total alongside the
+    // page rows so the UI can render correct page counts even at scale.
+    const pageRows = await db.execute(sql`
+      ${cte}
+      SELECT
+        id, email, first_name, last_name, image_url,
+        created_at, trial_started_at, stripe_customer_id,
+        sub_current_period_end, sub_cancel_at_period_end,
+        last_activity_at, state_kind,
+        COUNT(*) OVER()::int AS total_count
+      FROM user_state
+      WHERE 1 = 1
+        ${statusFilter}
+        ${searchFilter}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+
+    type Row = {
+      id: string;
+      email: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      image_url: string | null;
+      created_at: Date | string;
+      trial_started_at: Date | string | null;
+      stripe_customer_id: string | null;
+      sub_current_period_end: number | string | null;
+      sub_cancel_at_period_end: boolean | null;
+      last_activity_at: Date | string | null;
+      state_kind: string;
+      total_count: number | string;
+    };
+    const rows = pageRows.rows as Row[];
+    const total = rows.length > 0 ? Number(rows[0]!.total_count) : 0;
+
+    const items = rows.map((r) => ({
+      id: r.id,
+      email: r.email,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      createdAt: new Date(r.created_at).toISOString(),
+      stripeCustomerId: r.stripe_customer_id,
+      state: rowToAccessState(r),
+      lastActivityAt: r.last_activity_at
+        ? new Date(r.last_activity_at).toISOString()
+        : null,
+    }));
 
     res.json({ items, total, limit, offset });
   } catch (err) {
@@ -627,15 +805,13 @@ router.post(
 
       // Synchronously mirror the new subscription into stripe.subscriptions
       // so getAccessState reflects "active" *immediately*, without waiting
-      // for the Stripe webhook to land. We look up _account_id from any
-      // existing mirrored row to keep parity with stripe-replit-sync.
+      // for the Stripe webhook to land. _account_id is shared across the
+      // whole stripe.* mirror, so we probe every populated table for it
+      // (subscriptions can be empty on a fresh install — customers/prices/
+      // products are populated by the billing seed).
+      let mirrorInserted = false;
       try {
-        const acct = await db.execute(sql`
-          SELECT _account_id FROM stripe.subscriptions
-          ORDER BY _updated_at DESC LIMIT 1
-        `);
-        const accountId =
-          (acct.rows[0] as { _account_id?: string } | undefined)?._account_id;
+        const accountId = await findStripeAccountId();
         if (accountId) {
           await db.execute(sql`
             INSERT INTO stripe.subscriptions (_account_id, _raw_data, _last_synced_at)
@@ -645,6 +821,12 @@ router.post(
               NOW()
             )
           `);
+          mirrorInserted = true;
+        } else {
+          req.log.warn(
+            { subId: newSub.id },
+            "comp-subscription: no stripe _account_id found in any mirror table",
+          );
         }
       } catch (err) {
         req.log.warn(
@@ -652,6 +834,10 @@ router.post(
           "comp-subscription: mirror insert failed; webhook will catch up",
         );
       }
+      // Bust the user-state Stripe-availability probe so the next list/metrics
+      // request sees the row we just inserted even if the table was empty
+      // before this call.
+      if (mirrorInserted) _stripeSubsCache = null;
 
       const ownerEmail = getOwnerEmail();
       req.log.info(
