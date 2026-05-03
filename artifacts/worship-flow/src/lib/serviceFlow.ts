@@ -3,24 +3,17 @@
  * the Service Builder UI and by the AI generator. A flow is the ordered
  * skeleton (kind + display name) that the AI must follow exactly when
  * generating a service plan.
+ *
+ * `WorshipKind` and `FlowStep` are derived from the generated API client
+ * types (which are themselves derived from openapi.yaml), so this palette
+ * cannot drift from the wire contract — adding/removing a kind in the spec
+ * surfaces here as a typecheck error.
  */
 
-export type WorshipKind =
-  | "song"
-  | "scripture"
-  | "prayer"
-  | "sermon"
-  | "communion"
-  | "offering"
-  | "welcome"
-  | "benediction"
-  | "transition"
-  | "custom";
+import type { ServiceFlowStep } from "@workspace/api-client-react";
 
-export type FlowStep = {
-  stepName: string;
-  kind: WorshipKind;
-};
+export type WorshipKind = ServiceFlowStep["kind"];
+export type FlowStep = ServiceFlowStep;
 
 export type WorshipElementOption = {
   /** Stable id used as data-testid suffix and React key. */
