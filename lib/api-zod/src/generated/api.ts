@@ -1054,7 +1054,7 @@ export const GenerateSongSuggestionsResponse = zod.object({
         .number()
         .nullish()
         .describe(
-          "Estimated tempo in beats per minute. When the suggestion matches a song already in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.",
+          "Tempo in beats per minute. Returned only when the value comes from a trusted source — the user's repertoire (which itself can be sourced from Planning Center or hand-typed). The AI Song Assistant no longer guesses BPMs; rows where the server has no trusted value report `bpm: null` so worship leaders can fill them in deliberately.",
         ),
       themes: zod.array(zod.string()).optional(),
       whyItFits: zod.string(),
@@ -3099,4 +3099,53 @@ export const GenerateSermonToServiceResponse = zod.object({
   smallGroupQuestions: zod.array(zod.string()).nullish(),
   socialSummary: zod.string().nullish(),
   emailSummary: zod.string().nullish(),
+});
+
+/**
+ * @summary Build a Planning Center OAuth authorization URL for the current user
+ */
+export const CreatePcsConnectUrlResponse = zod.object({
+  authUrl: zod
+    .string()
+    .describe(
+      "Full Planning Center authorization URL the browser should redirect to.",
+    ),
+});
+
+/**
+ * @summary Connection status, organization, and last-sync stats
+ */
+export const GetPcsStatusResponse = zod.object({
+  configured: zod
+    .boolean()
+    .describe("True when the server has PCS_CLIENT_ID\/SECRET available."),
+  connected: zod
+    .boolean()
+    .describe(
+      "True when the current user has an active Planning Center connection.",
+    ),
+  organizationName: zod.string().nullish(),
+  lastSyncedAt: zod
+    .string()
+    .nullish()
+    .describe("ISO8601 timestamp of the most recent sync attempt."),
+  lastSyncSongCount: zod.number().nullish(),
+  lastSyncError: zod.string().nullish(),
+});
+
+/**
+ * @summary Re-import songs from Planning Center for the current user
+ */
+export const SyncPcsSongsResponse = zod.object({
+  total: zod
+    .number()
+    .describe("Total songs found in the connected Planning Center library."),
+  inserted: zod
+    .number()
+    .describe("Songs newly imported into WorshipFlow on this run."),
+  updated: zod
+    .number()
+    .describe(
+      "Existing imported songs whose metadata was refreshed on this run.",
+    ),
 });

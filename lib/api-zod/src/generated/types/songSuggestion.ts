@@ -10,7 +10,7 @@ export interface SongSuggestion {
   title: string;
   artist: string;
   style?: string;
-  /** Estimated tempo in beats per minute. When the suggestion matches a song already in the user's repertoire, the server replaces the AI estimate with the user's saved BPM. */
+  /** Tempo in beats per minute. Returned only when the value comes from a trusted source — the user's repertoire (which itself can be sourced from Planning Center or hand-typed). The AI Song Assistant no longer guesses BPMs; rows where the server has no trusted value report `bpm: null` so worship leaders can fill them in deliberately. */
   bpm?: number | null;
   themes?: string[];
   whyItFits: string;

@@ -30,6 +30,8 @@ tags:
     description: Multi-week sermon series (shared big idea + ordered sermons)
   - name: service-templates
     description: Saved reusable service flows (the ordered skeleton of a service)
+  - name: integrations
+    description: Third-party integrations (Planning Center Services, etc.)
 paths:
   /healthz:
     get:
@@ -1369,6 +1371,80 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /integrations/pcs/connect-url:
+    post:
+      operationId: createPcsConnectUrl
+      tags: [integrations]
+      summary: Build a Planning Center OAuth authorization URL for the current user
+      responses:
+        "200":
+          description: Authorization URL the browser should redirect to
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PcsConnectUrl"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Planning Center is not configured on the server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /integrations/pcs/status:
+    get:
+      operationId: getPcsStatus
+      tags: [integrations]
+      summary: Connection status, organization, and last-sync stats
+      responses:
+        "200":
+          description: Connection status payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PcsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /integrations/pcs/sync:
+    post:
+      operationId: syncPcsSongs
+      tags: [integrations]
+      summary: Re-import songs from Planning Center for the current user
+      responses:
+        "200":
+          description: Sync result counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PcsSyncResult"
+        "400":
+          description: Not connected to Planning Center
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: Planning Center returned an error during sync
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /integrations/pcs/disconnect:
+    delete:
+      operationId: disconnectPcs
+      tags: [integrations]
+      summary: Remove the Planning Center connection for the current user
+      responses:
+        "204":
+          description: Disconnected
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
   parameters:
     IdParam:
@@ -1406,6 +1482,52 @@ components:
         error:
           type: string
       required: [error]
+
+    PcsConnectUrl:
+      type: object
+      properties:
+        authUrl:
+          type: string
+          description: Full Planning Center authorization URL the browser should redirect to.
+      required: [authUrl]
+
+    PcsStatus:
+      type: object
+      properties:
+        configured:
+          type: boolean
+          description: True when the server has PCS_CLIENT_ID/SECRET available.
+        connected:
+          type: boolean
+          description: True when the current user has an active Planning Center connection.
+        organizationName:
+          type: string
+          nullable: true
+        lastSyncedAt:
+          type: string
+          nullable: true
+          description: ISO8601 timestamp of the most recent sync attempt.
+        lastSyncSongCount:
+          type: integer
+          nullable: true
+        lastSyncError:
+          type: string
+          nullable: true
+      required: [configured, connected]
+
+    PcsSyncResult:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total songs found in the connected Planning Center library.
+        inserted:
+          type: integer
+          description: Songs newly imported into WorshipFlow on this run.
+        updated:
+          type: integer
+          description: Existing imported songs whose metadata was refreshed on this run.
+      required: [total, inserted, updated]
 
     ChurchProfile:
       type: object
@@ -2113,7 +2235,7 @@ components:
         bpm:
           type: integer
           nullable: true
-          description: Estimated tempo in beats per minute. When the suggestion matches a song already in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.
+          description: "Tempo in beats per minute. Returned only when the value comes from a trusted source — the user's repertoire (which itself can be sourced from Planning Center or hand-typed). The AI Song Assistant no longer guesses BPMs; rows where the server has no trusted value report `bpm: null` so worship leaders can fill them in deliberately."
         themes:
           type: array
           items:

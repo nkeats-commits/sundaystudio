@@ -14,9 +14,9 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
 import { runJob } from "../lib/runJob";
 import { jobManager } from "../lib/jobManager";
+import { lookupBpm } from "../lib/crowdsourceBpm";
 import {
   bpmInRange,
-  coerceBpm,
   describeBpmRange,
   loadRepertoireSongs,
   normalizeBpmRange,
@@ -405,12 +405,22 @@ Keep "whyItFits" to 1-2 short sentences.
     3000,
     "songs",
     undefined,
-    (raw) => {
+    async (raw) => {
       const rawSongs: RawSong[] = Array.isArray(raw?.songs)
         ? (raw.songs as RawSong[])
         : [];
       let droppedOutOfRange = 0;
-      const cleaned = rawSongs.flatMap((s) => {
+      let unknownBpmCount = 0;
+      // First pass: validate shape, decide repertoire match, and look up
+      // a *trusted* BPM. The AI's `s.bpm` is intentionally ignored — the
+      // model is unreliable enough at tempos that we'd rather show the
+      // worship leader an "Add BPM" affordance than a confident wrong
+      // number. Trusted sources, in order of preference:
+      //   1. The user's own saved repertoire row (authoritative).
+      //   2. The crowdsourced average across all WorshipFlow churches,
+      //      gated to ≥3 samples inside lookupBpm so a single typo can't
+      //      poison the well.
+      const candidates = rawSongs.flatMap((s) => {
         if (
           !s ||
           typeof s.title !== "string" ||
@@ -424,25 +434,36 @@ Keep "whyItFits" to 1-2 short sentences.
         // Strict mode is the contract: never let an AI-invented title leak
         // through, no matter what the prompt says.
         if (effectiveMode === "strict" && !inRepertoire) return [];
-        // Prefer the user's saved BPM for repertoire matches so saved songs
-        // always show the user's authoritative tempo; otherwise fall back
-        // to the AI estimate if it looks sane.
-        const repertoireBpm = bpmByTitle.get(normalizedTitle) ?? null;
-        const bpm = repertoireBpm ?? coerceBpm(s.bpm);
-        // Range safety net: drop AI suggestions whose BPM is clearly out
-        // of range. Repertoire songs with no saved BPM still pass (bpm
-        // null), since the user explicitly added them. Strict mode already
-        // pre-filters the prompt list, but the model can still echo back
-        // an out-of-range entry so we double-check here.
+        return [{ s, normalizedTitle, inRepertoire }];
+      });
+
+      const enriched = await Promise.all(
+        candidates.map(async ({ s, normalizedTitle, inRepertoire }) => {
+          const repertoireBpm = bpmByTitle.get(normalizedTitle) ?? null;
+          let bpm: number | null = repertoireBpm;
+          if (bpm === null) {
+            const hint = await lookupBpm(s.title, s.artist);
+            if (hint) bpm = hint.bpm;
+          }
+          return { s, inRepertoire, bpm };
+        }),
+      );
+
+      const cleaned = enriched.flatMap(({ s, inRepertoire, bpm }) => {
+        // Range safety net: drop suggestions whose trusted BPM is clearly
+        // out of range. Songs with no trusted BPM (bpm null) still pass —
+        // the user can fill them in via the inline editor in the result
+        // card. Strict mode already pre-filters the prompt list.
         if (bpmRange && bpm !== null && !bpmInRange(bpm, bpmRange)) {
           droppedOutOfRange += 1;
           return [];
         }
+        if (bpm === null) unknownBpmCount += 1;
         return [
           {
-            title: s.title,
-            artist: s.artist,
-            whyItFits: s.whyItFits,
+            title: s.title as string,
+            artist: s.artist as string,
+            whyItFits: s.whyItFits as string,
             ...(typeof s.style === "string" ? { style: s.style } : {}),
             bpm,
             ...(Array.isArray(s.themes)
@@ -490,6 +511,12 @@ Keep "whyItFits" to 1-2 short sentences.
         // Non-strict path: the model gave us some out-of-range picks. Tell
         // the user we filtered them so a short result list isn't mysterious.
         result.notice = `${droppedOutOfRange} suggestion${droppedOutOfRange === 1 ? " was" : "s were"} dropped for falling outside ${describeBpmRange(bpmRange)}.`;
+      } else if (unknownBpmCount > 0 && cleaned.length > 0) {
+        // Surface honest "unknown tempo" status so worship leaders know
+        // they need to fill in a BPM before planning. Better than the AI
+        // silently inventing a wrong one.
+        const verb = unknownBpmCount === 1 ? "song has" : "songs have";
+        result.notice = `${unknownBpmCount} ${verb} no verified tempo yet. Click "Add BPM" on each card to set one — the value will save with the song and help future suggestions.`;
       }
 
       const finalResult = result as typeof result & { alignmentNotes?: string };

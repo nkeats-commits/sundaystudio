@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { normalizeTitle } from "../lib/repertoire";
+import { recordBpmFromContent } from "../lib/crowdsourceBpm";
 
 const router: IRouter = Router();
 
@@ -60,6 +61,11 @@ router.post("/library", requireAuth, async (req, res) => {
       isRepertoire: data.kind === "song" ? data.isRepertoire ?? false : false,
     })
     .returning();
+  // Crowdsource: every saved song with an explicit BPM contributes one
+  // anonymous data point. Best-effort; failures are logged inside.
+  if (data.kind === "song") {
+    void recordBpmFromContent(data.title, data.content);
+  }
   res.status(201).json(row);
 });
 
@@ -198,6 +204,10 @@ router.post("/library/repertoire/bulk-import", requireAuth, async (req, res) => 
       .values(valuesToInsert)
       .returning({ id: libraryItemsTable.id });
     added = inserted.length;
+    // Bulk import: every row with a typed BPM contributes a sample.
+    for (const v of valuesToInsert) {
+      void recordBpmFromContent(v.title, v.content);
+    }
   }
 
   res.json({ added, skippedDuplicates, invalidLines });
@@ -254,6 +264,11 @@ router.patch("/library/:id", requireAuth, async (req, res) => {
   if (!row) {
     res.status(404).json({ error: "Not found" });
     return;
+  }
+  // Edits to a song's content are also user-vouched data points for the
+  // crowdsource pool. Skips itself silently when no BPM is present.
+  if (row.kind === "song") {
+    void recordBpmFromContent(row.title, row.content);
   }
   res.json(row);
 });

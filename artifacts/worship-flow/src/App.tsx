@@ -28,6 +28,7 @@ import SermonArchive from "./pages/SermonArchive";
 import SermonSeriesArchive from "./pages/SermonSeriesArchive";
 import SermonSeriesDetail from "./pages/SermonSeriesDetail";
 import ResourceLibrary from "./pages/ResourceLibrary";
+import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -316,6 +317,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/sermons/:id">{() => <Protected component={SermonBuilder} />}</Route>
           <Route path="/resources">{() => <Protected component={ResourceLibrary} />}</Route>
           <Route path="/church">{() => <Protected component={ChurchProfile} />}</Route>
+          <Route path="/settings/integrations">{() => <Protected component={Integrations} />}</Route>
           <Route path="/settings">{() => <Protected component={Settings} />}</Route>
           <Route>{() => <Protected component={NotFound} />}</Route>
         </Switch>

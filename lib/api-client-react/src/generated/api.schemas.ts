@@ -13,6 +13,32 @@ export interface ApiError {
   error: string;
 }
 
+export interface PcsConnectUrl {
+  /** Full Planning Center authorization URL the browser should redirect to. */
+  authUrl: string;
+}
+
+export interface PcsStatus {
+  /** True when the server has PCS_CLIENT_ID/SECRET available. */
+  configured: boolean;
+  /** True when the current user has an active Planning Center connection. */
+  connected: boolean;
+  organizationName?: string | null;
+  /** ISO8601 timestamp of the most recent sync attempt. */
+  lastSyncedAt?: string | null;
+  lastSyncSongCount?: number | null;
+  lastSyncError?: string | null;
+}
+
+export interface PcsSyncResult {
+  /** Total songs found in the connected Planning Center library. */
+  total: number;
+  /** Songs newly imported into WorshipFlow on this run. */
+  inserted: number;
+  /** Existing imported songs whose metadata was refreshed on this run. */
+  updated: number;
+}
+
 export interface ChurchProfile {
   id: number;
   userId: string;
@@ -570,7 +596,7 @@ export interface SongSuggestion {
   title: string;
   artist: string;
   style?: string;
-  /** Estimated tempo in beats per minute. When the suggestion matches a song already in the user's repertoire, the server replaces the AI estimate with the user's saved BPM. */
+  /** Tempo in beats per minute. Returned only when the value comes from a trusted source — the user's repertoire (which itself can be sourced from Planning Center or hand-typed). The AI Song Assistant no longer guesses BPMs; rows where the server has no trusted value report `bpm: null` so worship leaders can fill them in deliberately. */
   bpm?: number | null;
   themes?: string[];
   whyItFits: string;

@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ApiError,
   BulkImportRepertoireBody,
   BulkImportRepertoireResult,
   ChurchProfile,
@@ -72,6 +73,9 @@ import type {
   ListLibraryItemsParams,
   MeResponse,
   NotFoundResponse,
+  PcsConnectUrl,
+  PcsStatus,
+  PcsSyncResult,
   Sermon,
   SermonApplicationsOutput,
   SermonBigIdeaOutput,
@@ -4946,4 +4950,324 @@ export const useGenerateSermonToService = <
   TContext
 > => {
   return useMutation(getGenerateSermonToServiceMutationOptions(options));
+};
+
+/**
+ * @summary Build a Planning Center OAuth authorization URL for the current user
+ */
+export const getCreatePcsConnectUrlUrl = () => {
+  return `/api/integrations/pcs/connect-url`;
+};
+
+export const createPcsConnectUrl = async (
+  options?: RequestInit,
+): Promise<PcsConnectUrl> => {
+  return customFetch<PcsConnectUrl>(getCreatePcsConnectUrlUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCreatePcsConnectUrlMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPcsConnectUrl>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPcsConnectUrl>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["createPcsConnectUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPcsConnectUrl>>,
+    void
+  > = () => {
+    return createPcsConnectUrl(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePcsConnectUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPcsConnectUrl>>
+>;
+
+export type CreatePcsConnectUrlMutationError = ErrorType<
+  UnauthorizedResponse | ApiError
+>;
+
+/**
+ * @summary Build a Planning Center OAuth authorization URL for the current user
+ */
+export const useCreatePcsConnectUrl = <
+  TError = ErrorType<UnauthorizedResponse | ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPcsConnectUrl>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPcsConnectUrl>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCreatePcsConnectUrlMutationOptions(options));
+};
+
+/**
+ * @summary Connection status, organization, and last-sync stats
+ */
+export const getGetPcsStatusUrl = () => {
+  return `/api/integrations/pcs/status`;
+};
+
+export const getPcsStatus = async (
+  options?: RequestInit,
+): Promise<PcsStatus> => {
+  return customFetch<PcsStatus>(getGetPcsStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPcsStatusQueryKey = () => {
+  return [`/api/integrations/pcs/status`] as const;
+};
+
+export const getGetPcsStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPcsStatus>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPcsStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPcsStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPcsStatus>>> = ({
+    signal,
+  }) => getPcsStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPcsStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPcsStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPcsStatus>>
+>;
+export type GetPcsStatusQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Connection status, organization, and last-sync stats
+ */
+
+export function useGetPcsStatus<
+  TData = Awaited<ReturnType<typeof getPcsStatus>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPcsStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPcsStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Re-import songs from Planning Center for the current user
+ */
+export const getSyncPcsSongsUrl = () => {
+  return `/api/integrations/pcs/sync`;
+};
+
+export const syncPcsSongs = async (
+  options?: RequestInit,
+): Promise<PcsSyncResult> => {
+  return customFetch<PcsSyncResult>(getSyncPcsSongsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncPcsSongsMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncPcsSongs>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncPcsSongs>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncPcsSongs"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncPcsSongs>>,
+    void
+  > = () => {
+    return syncPcsSongs(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncPcsSongsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncPcsSongs>>
+>;
+
+export type SyncPcsSongsMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Re-import songs from Planning Center for the current user
+ */
+export const useSyncPcsSongs = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncPcsSongs>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncPcsSongs>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncPcsSongsMutationOptions(options));
+};
+
+/**
+ * @summary Remove the Planning Center connection for the current user
+ */
+export const getDisconnectPcsUrl = () => {
+  return `/api/integrations/pcs/disconnect`;
+};
+
+export const disconnectPcs = async (options?: RequestInit): Promise<void> => {
+  return customFetch<void>(getDisconnectPcsUrl(), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDisconnectPcsMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disconnectPcs>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof disconnectPcs>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["disconnectPcs"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof disconnectPcs>>,
+    void
+  > = () => {
+    return disconnectPcs(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DisconnectPcsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof disconnectPcs>>
+>;
+
+export type DisconnectPcsMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Remove the Planning Center connection for the current user
+ */
+export const useDisconnectPcs = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disconnectPcs>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof disconnectPcs>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getDisconnectPcsMutationOptions(options));
 };

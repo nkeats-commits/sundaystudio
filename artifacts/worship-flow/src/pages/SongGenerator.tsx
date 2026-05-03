@@ -19,6 +19,44 @@ import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 type RepertoireMode = 'off' | 'prefer' | 'strict';
 
+/**
+ * Tiny inline editor shown next to suggestions whose BPM the AI did not
+ * return. Captures the typed value in parent state; the parent merges it
+ * into the saved library item on Save (and also feeds the cross-church
+ * crowdsource pool downstream).
+ */
+function BpmInlineEditor({
+  index,
+  value,
+  onChange,
+}: {
+  index: number;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-[var(--worship-cream)] text-[var(--worship-slate)] border border-dashed border-[var(--worship-border)]"
+      data-testid={`bpm-editor-${index}`}
+    >
+      <span className="opacity-70">BPM</span>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={30}
+        max={300}
+        step={1}
+        placeholder="—"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-12 bg-transparent text-[var(--worship-navy)] font-medium outline-none focus:underline"
+        aria-label="Set tempo"
+        data-testid={`input-bpm-${index}`}
+      />
+    </span>
+  );
+}
+
 const REPERTOIRE_OPTIONS: {
   value: RepertoireMode;
   label: string;
@@ -66,6 +104,11 @@ export default function SongGenerator() {
   // Reset on each fresh generation so we never reuse a stale id.
   const [savedSongs, setSavedSongs] = useState<Record<number, LibraryItem>>({});
   const [addToServiceIndex, setAddToServiceIndex] = useState<number | null>(null);
+  // Per-row BPM the user has typed for songs the AI didn't have a verified
+  // tempo for. Captured in the result card so it flows through to the
+  // saved library item AND seeds the crowdsource pool on save. Reset on
+  // each fresh generation alongside savedSongs.
+  const [bpmDrafts, setBpmDrafts] = useState<Record<number, string>>({});
   // Per-row in-flight save promise so a quick Save + Add-to-service can't
   // create two library items for the same generated song.
   const songSavePromisesRef = useRef<Record<number, Promise<LibraryItem>>>({});
@@ -99,6 +142,7 @@ export default function SongGenerator() {
     const safePayload = { ...payload, repertoireMode: safeMode };
     lastSubmittedRef.current = safePayload;
     setSavedSongs({});
+    setBpmDrafts({});
     songSavePromisesRef.current = {};
     const trimmedAlignment = safePayload.alignmentNotes.trim();
     // Coerce the BPM bounds. Empty / non-numeric / out-of-range values
@@ -130,13 +174,26 @@ export default function SongGenerator() {
     });
   };
 
-  const buildSongPayload = (song: SongSuggestion) => {
+  const buildSongPayload = (index: number, song: SongSuggestion) => {
     const alignmentNotes = generate.data?.alignmentNotes;
+    // If the AI didn't return a tempo and the user typed one in the result
+    // card, fold it into the saved content so the row lands in the library
+    // already complete (and the crowdsource pool gets a sample).
+    const draft = bpmDrafts[index]?.trim();
+    const draftBpm = draft ? Number(draft) : NaN;
+    const overrideBpm =
+      typeof song.bpm !== 'number' &&
+      Number.isFinite(draftBpm) &&
+      draftBpm >= 30 &&
+      draftBpm <= 300
+        ? Math.round(draftBpm)
+        : undefined;
     return {
       kind: 'song' as const,
       title: song.title,
       content: {
         ...song,
+        ...(overrideBpm !== undefined ? { bpm: overrideBpm } : {}),
         ...(alignmentNotes ? { alignmentNotes } : {}),
       },
       tags: [song.style ?? 'Song', ...(song.themes ?? [])],
@@ -150,7 +207,7 @@ export default function SongGenerator() {
     if (inFlight) return inFlight;
     const promise = (async () => {
       try {
-        const item = await createLibraryItem.mutateAsync({ data: buildSongPayload(song) });
+        const item = await createLibraryItem.mutateAsync({ data: buildSongPayload(index, song) });
         queryClient.invalidateQueries({ queryKey: getListLibraryItemsQueryKey() });
         setSavedSongs((prev) => ({ ...prev, [index]: item }));
         return item;
@@ -558,13 +615,21 @@ export default function SongGenerator() {
                               {song.style}
                             </span>
                           )}
-                          {typeof song.bpm === 'number' && (
+                          {typeof song.bpm === 'number' ? (
                             <span
                               className="text-xs px-2 py-0.5 rounded-md bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] font-medium border border-[var(--worship-pale-gold)]"
                               data-testid={`badge-bpm-${i}`}
                             >
                               {song.bpm} BPM
                             </span>
+                          ) : (
+                            <BpmInlineEditor
+                              index={i}
+                              value={bpmDrafts[i] ?? ''}
+                              onChange={(v) =>
+                                setBpmDrafts((prev) => ({ ...prev, [i]: v }))
+                              }
+                            />
                           )}
                           {song.themes?.map((t) => (
                             <span

@@ -14,6 +14,7 @@ import {
   Library as LibraryIcon,
   Archive,
   Layers,
+  Plug,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
@@ -42,6 +43,7 @@ export function Sidebar() {
   const bottomItems = [
     { icon: FolderOpen, label: 'Library', href: '/library' },
     { icon: Building, label: 'Your Profile', href: '/church' },
+    { icon: Plug, label: 'Integrations', href: '/settings/integrations' },
     { icon: Settings, label: 'Settings', href: '/settings' },
   ];
 

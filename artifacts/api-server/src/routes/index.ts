@@ -10,6 +10,7 @@ import sermonSeriesRouter from "./sermonSeries";
 import sermonResourcesRouter from "./sermonResources";
 import generateSermonRouter from "./generateSermon";
 import serviceTemplatesRouter from "./serviceTemplates";
+import integrationsPcsRouter from "./integrationsPcs";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(sermonSeriesRouter);
 router.use(sermonResourcesRouter);
 router.use(generateSermonRouter);
 router.use(serviceTemplatesRouter);
+router.use(integrationsPcsRouter);
 
 export default router;
