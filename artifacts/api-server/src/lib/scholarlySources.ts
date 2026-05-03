@@ -12,7 +12,7 @@
  * content never reaches the client — only the AI-generated output that
  * cites it does.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { logger } from "./logger";
@@ -20,21 +20,46 @@ import { logger } from "./logger";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Resolve to the bundled data directory; works in both `tsx`-served dev and
-// the production transpiled artifact (data lives outside src/).
-const DATA_ROOT = resolve(__dirname, "..", "..", "data", "commentaries");
+/**
+ * Resolve the bundled commentary data directory. The data lives at
+ * `artifacts/api-server/data/commentaries/`. We need this to work in three
+ * places:
+ *   1. tsx dev (`__dirname` = `artifacts/api-server/src/lib/`)
+ *   2. esbuild bundle    (`__dirname` = `artifacts/api-server/dist/`)
+ *   3. unit tests run from the package root (`process.cwd()` = api-server)
+ *
+ * We probe a small set of plausible relative paths and use the first that
+ * exists; if none do, fall back to `<cwd>/data/commentaries` and let the
+ * registry loader log a warning.
+ */
+function resolveDataRoot(): string {
+  const candidates = [
+    resolve(__dirname, "..", "..", "data", "commentaries"), // tsx dev: src/lib/* → artifacts/api-server/data
+    resolve(__dirname, "..", "data", "commentaries"),         // esbuild bundle: dist/* → artifacts/api-server/data
+    resolve(process.cwd(), "data", "commentaries"),           // run from package root
+    resolve(process.cwd(), "artifacts", "api-server", "data", "commentaries"), // run from monorepo root
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return candidates[0];
+}
+
+const DATA_ROOT = resolveDataRoot();
 
 const MAX_EXCERPT_CHARS = 1500;
 
 /**
  * Default sources enabled the first time a user touches the Sources panel.
- * Conservative selection (3 sources, well-respected, broad coverage) so
- * default prompt size stays reasonable.
+ *
+ * Only sources with populated book corpora belong here — toggling on a
+ * source with no excerpt data would silently inject nothing and confuse
+ * pastors. v1 ships only Matthew Henry's Concise Commentary with seeded
+ * book files; the other registered manifests are visible in Settings but
+ * default off until their corpora are populated (see follow-up task).
  */
 export const DEFAULT_ENABLED_SOURCE_IDS: string[] = [
   "matthew-henry-concise",
-  "barnes-notes",
-  "keil-delitzsch",
 ];
 
 export interface ScholarlySourceManifest {

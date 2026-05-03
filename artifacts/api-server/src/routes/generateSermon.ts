@@ -86,10 +86,10 @@ async function hydrateSeriesContext<
 const SERMON_GROUND_RULES = `
 Hard rules for sermon content:
 - Be biblically grounded; honor the church's denominational context if provided.
-- Do NOT invent commentary quotes. Do NOT attribute statements to named scholars unless the user supplied that exact citation in the resources.
+- Do NOT invent commentary quotes. Do NOT attribute statements to named scholars unless that scholar's work appears in the supplied resources below — either as a pastor-supplied excerpt or as a "[Public-Domain Source]" excerpt provided automatically by the platform. When you do attribute, use the title and author exactly as supplied, and stay close to the supplied excerpt's actual content.
 - When a historical or cultural claim cannot be verified, mark the relevant illustration with "verifyBeforeUsing": true and add a short note saying what to verify.
-- Do not reproduce extended verbatim copyrighted material. Paraphrase pastorally instead.
-- When the user supplies pasted resources, you MAY draw on them, attribute them by the title and author the user provided, and surface places where they agree or disagree. Never fabricate the contents of a resource that was not provided.
+- Do not reproduce extended verbatim copyrighted material. Paraphrase pastorally instead. Public-domain excerpts may be quoted briefly with attribution but should usually be paraphrased and synthesized.
+- Treat "[Public-Domain Source]" excerpts the same way you would a pastor-supplied resource: lean on them for interpretation, surface where they agree or disagree, and attribute by their stated title and author.
 - Separate observation, interpretation, application, and any resource-derived insights so the pastor can see your reasoning.
 - Surface "interpretiveCautions" where a passage is genuinely contested or easy to misuse.
 - Be concise. Finish within the requested length budget. No padding.
@@ -145,12 +145,33 @@ function resourceBlurb(s: SermonContext): string {
   if (!s.resources?.length) {
     return "No additional resources were attached. Do NOT invent or quote any.";
   }
-  const lines: string[] = ["Pastor-supplied resources (use carefully and attribute to the title/author the pastor provided):"];
-  s.resources.forEach((r, i) => {
-    const author = r.author ? ` — ${r.author}` : "";
-    lines.push(`[${i + 1}] ${r.title}${author}`);
-    lines.push(`Excerpt: ${r.excerpt.slice(0, 1500)}`);
-  });
+  // Synthetic public-domain source entries are tagged in the title with a
+  // leading "[Public-Domain Source]" marker by mergeScholarlyResources.
+  const isPublicDomain = (title: string) => title.startsWith("[Public-Domain Source]");
+  const pd = s.resources.filter((r) => isPublicDomain(r.title));
+  const pastor = s.resources.filter((r) => !isPublicDomain(r.title));
+  const lines: string[] = [];
+  if (pd.length) {
+    lines.push(
+      "Public-domain commentary excerpts (provided by the platform from sources the pastor enabled in Settings — you MAY cite by title and author, paraphrase, and surface where they agree or disagree):",
+    );
+    pd.forEach((r, i) => {
+      const author = r.author ? ` — ${r.author}` : "";
+      lines.push(`[PD${i + 1}] ${r.title}${author}`);
+      lines.push(`Excerpt: ${r.excerpt.slice(0, 1500)}`);
+    });
+  }
+  if (pastor.length) {
+    if (lines.length) lines.push("");
+    lines.push(
+      "Pastor-supplied resources (use carefully and attribute to the title/author the pastor provided):",
+    );
+    pastor.forEach((r, i) => {
+      const author = r.author ? ` — ${r.author}` : "";
+      lines.push(`[${i + 1}] ${r.title}${author}`);
+      lines.push(`Excerpt: ${r.excerpt.slice(0, 1500)}`);
+    });
+  }
   return lines.join("\n");
 }
 
@@ -203,7 +224,7 @@ Return JSON exactly in this shape:
   "application": "string | null — how this passage shapes a contemporary congregation. 3-6 sentences.",
   "crossReferences": ["string", ...]  | null,
   "interpretiveCautions": ["short caution", ...] | null,
-  "resourceInsights": "string | null — ONLY if pastor-supplied resources were provided, surface what they add or where they disagree, attributing by title/author."
+  "resourceInsights": "string | null — ONLY if any resources (pastor-supplied OR public-domain) were provided above, surface what they add or where they disagree, attributing each by the title/author exactly as supplied. List the source titles you actually drew on."
 }`;
   runJob(req, res, prompt, 4000, "sermon study", GenerateSermonStudyResponse);
 });
