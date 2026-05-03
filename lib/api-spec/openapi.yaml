@@ -2996,6 +2996,24 @@ components:
         resourceInsights:
           type: string
           nullable: true
+        consultedSources:
+          type: array
+          nullable: true
+          description: Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer.
+          items:
+            $ref: "#/components/schemas/ConsultedScholarlySource"
+
+    ConsultedScholarlySource:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        author:
+          type: string
+          nullable: true
+      required: [id, title]
 
     SermonBigIdeaOption:
       type: object

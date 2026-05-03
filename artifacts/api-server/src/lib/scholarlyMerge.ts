@@ -28,6 +28,23 @@ export interface MergeableSermonContext {
 }
 
 /**
+ * Server-side, deterministic record of which scholarly sources actually
+ * contributed an excerpt to a generation. Surfaced to the client (e.g. the
+ * Study tab "Sources consulted" footer) so the pastor sees the truth, not
+ * just whatever the model paraphrases.
+ */
+export interface ConsultedSource {
+  id: string;
+  title: string;
+  author?: string;
+}
+
+export interface MergeResult {
+  count: number;
+  consultedSources: ConsultedSource[];
+}
+
+/**
  * Resolve a user's enabled scholarly source ids from their saved preferences,
  * falling back to the curated defaults if they have never opened the panel.
  *
@@ -55,14 +72,14 @@ export async function getEnabledSourceIds(userId: string): Promise<string[]> {
 export async function mergeScholarlyResources(
   userId: string,
   ctx: MergeableSermonContext,
-): Promise<number> {
+): Promise<MergeResult> {
   const enabled = await getEnabledSourceIds(userId);
-  if (!enabled.length) return 0;
+  if (!enabled.length) return { count: 0, consultedSources: [] };
   const passages = [ctx.passage, ...(ctx.secondaryPassages ?? [])].filter(
     (p): p is string => typeof p === "string" && p.trim().length > 0,
   );
   const hits = lookupCommentary(enabled, passages);
-  if (!hits.length) return 0;
+  if (!hits.length) return { count: 0, consultedSources: [] };
   const injected = hits.map((h) => {
     const bookDisplay = h.bookCanonical
       .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -74,5 +91,19 @@ export async function mergeScholarlyResources(
     };
   });
   ctx.resources = [...injected, ...(ctx.resources ?? [])];
-  return injected.length;
+
+  // Dedupe by source id; preserve first-seen order so the UI lists sources
+  // in the order they first matched a passage.
+  const seen = new Set<string>();
+  const consultedSources: ConsultedSource[] = [];
+  for (const h of hits) {
+    if (seen.has(h.sourceId)) continue;
+    seen.add(h.sourceId);
+    consultedSources.push({
+      id: h.sourceId,
+      title: h.sourceTitle,
+      author: h.sourceAuthor,
+    });
+  }
+  return { count: injected.length, consultedSources };
 }

@@ -5,6 +5,7 @@
  * WorshipFlow API
  * OpenAPI spec version: 0.1.0
  */
+import type { ConsultedScholarlySource } from "./consultedScholarlySource";
 
 export interface SermonStudyOutput {
   context?: string | null;
@@ -14,4 +15,6 @@ export interface SermonStudyOutput {
   crossReferences?: string[] | null;
   interpretiveCautions?: string[] | null;
   resourceInsights?: string | null;
+  /** Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer. */
+  consultedSources?: ConsultedScholarlySource[] | null;
 }

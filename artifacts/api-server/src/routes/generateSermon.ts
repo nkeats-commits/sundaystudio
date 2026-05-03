@@ -200,7 +200,7 @@ router.post("/generate/sermon-study", requireAuth, requireActiveAccess, async (r
     existingContent?: unknown;
   };
   await hydrateSeriesContext(req.userId!, d);
-  await mergeScholarlyResources(req.userId!, d);
+  const merge = await mergeScholarlyResources(req.userId!, d);
   const ctx = await getChurchContext(req.userId!);
   const prompt = `Produce a passage study for this sermon as JSON.
 
@@ -226,7 +226,19 @@ Return JSON exactly in this shape:
   "interpretiveCautions": ["short caution", ...] | null,
   "resourceInsights": "string | null — ONLY if any resources (pastor-supplied OR public-domain) were provided above, surface what they add or where they disagree, attributing each by the title/author exactly as supplied. List the source titles you actually drew on."
 }`;
-  runJob(req, res, prompt, 4000, "sermon study", GenerateSermonStudyResponse);
+  // Attach the deterministic, server-side list of public-domain commentaries
+  // that actually matched the sermon's passages. The Study tab renders this
+  // as a "Sources consulted" footer so pastors see ground truth, not just
+  // whatever the model paraphrases. Empty array if no commentary hit.
+  runJob(
+    req,
+    res,
+    prompt,
+    4000,
+    "sermon study",
+    GenerateSermonStudyResponse,
+    (parsed) => ({ ...parsed, consultedSources: merge.consultedSources }),
+  );
 });
 
 router.post("/generate/sermon-big-idea", requireAuth, requireActiveAccess, async (req, res) => {

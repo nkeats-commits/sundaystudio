@@ -1930,13 +1930,30 @@ function StudyView({
           )}
         </div>
       )}
-      {(editing || data.resourceInsights) && (
+      {(editing || data.resourceInsights || (data.consultedSources && data.consultedSources.length > 0)) && (
         <div className="p-3 rounded-xl border bg-[var(--worship-pale-gold)]/40" style={{ borderColor: 'var(--worship-border)' }}>
           <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--worship-gold)] mb-2">Sources consulted</h4>
-          {editing ? (
-            <AutoTextarea value={data.resourceInsights ?? ''} onChange={(v) => set('resourceInsights', v)} />
-          ) : (
-            <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{data.resourceInsights}</p>
+          {(editing || data.resourceInsights) && (
+            editing ? (
+              <AutoTextarea value={data.resourceInsights ?? ''} onChange={(v) => set('resourceInsights', v)} />
+            ) : (
+              <p className="text-sm text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">{data.resourceInsights}</p>
+            )
+          )}
+          {data.consultedSources && data.consultedSources.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-[var(--worship-border)]">
+              <p className="text-[11px] uppercase tracking-wider text-[var(--worship-slate)] font-semibold mb-1.5">
+                Public-domain commentaries matched on this passage
+              </p>
+              <ul className="space-y-1">
+                {data.consultedSources.map((s) => (
+                  <li key={s.id} className="text-xs text-[var(--worship-charcoal)] leading-snug">
+                    <span className="font-medium text-[var(--worship-navy)]">{s.title}</span>
+                    {s.author ? <span className="text-[var(--worship-slate)]"> · {s.author}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           <p className="mt-2 text-[11px] text-[var(--worship-slate)]">
             Includes any pastor-attached resources plus public-domain commentaries you've enabled in <a href="/settings" className="underline">Settings</a>.

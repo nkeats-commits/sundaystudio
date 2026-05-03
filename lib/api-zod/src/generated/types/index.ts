@@ -27,6 +27,7 @@ export * from "./bulkImportRepertoireBody";
 export * from "./bulkImportRepertoireResult";
 export * from "./churchProfile";
 export * from "./compAdminUserSubscription200";
+export * from "./consultedScholarlySource";
 export * from "./createLibraryItemBody";
 export * from "./createLibraryItemBodyContent";
 export * from "./createLibraryItemBodyKind";

@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed-billing": "tsx ./src/seed-billing.ts",
+    "ingest-mhcc": "tsx ./src/ingest-mhcc.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

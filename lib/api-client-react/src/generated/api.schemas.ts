@@ -904,6 +904,12 @@ export interface GeneratedSoulCare {
   intent?: string;
 }
 
+export interface ConsultedScholarlySource {
+  id: string;
+  title: string;
+  author?: string | null;
+}
+
 export interface SermonStudyOutput {
   context?: string | null;
   observation?: string | null;
@@ -912,6 +918,8 @@ export interface SermonStudyOutput {
   crossReferences?: string[] | null;
   interpretiveCautions?: string[] | null;
   resourceInsights?: string | null;
+  /** Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer. */
+  consultedSources?: ConsultedScholarlySource[] | null;
 }
 
 export interface SermonBigIdeaOption {

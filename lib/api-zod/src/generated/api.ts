@@ -1436,6 +1436,18 @@ export const GetSermonSeriesResponse = zod
               crossReferences: zod.array(zod.string()).nullish(),
               interpretiveCautions: zod.array(zod.string()).nullish(),
               resourceInsights: zod.string().nullish(),
+              consultedSources: zod
+                .array(
+                  zod.object({
+                    id: zod.string(),
+                    title: zod.string(),
+                    author: zod.string().nullish(),
+                  }),
+                )
+                .nullish()
+                .describe(
+                  'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+                ),
             })
             .nullish(),
           bigIdea: zod
@@ -1647,6 +1659,18 @@ export const ListSermonsResponseItem = zod.object({
       crossReferences: zod.array(zod.string()).nullish(),
       interpretiveCautions: zod.array(zod.string()).nullish(),
       resourceInsights: zod.string().nullish(),
+      consultedSources: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            title: zod.string(),
+            author: zod.string().nullish(),
+          }),
+        )
+        .nullish()
+        .describe(
+          'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+        ),
     })
     .nullish(),
   bigIdea: zod
@@ -1846,6 +1870,18 @@ export const GetSermonResponse = zod.object({
       crossReferences: zod.array(zod.string()).nullish(),
       interpretiveCautions: zod.array(zod.string()).nullish(),
       resourceInsights: zod.string().nullish(),
+      consultedSources: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            title: zod.string(),
+            author: zod.string().nullish(),
+          }),
+        )
+        .nullish()
+        .describe(
+          'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+        ),
     })
     .nullish(),
   bigIdea: zod
@@ -2016,6 +2052,18 @@ export const UpdateSermonBody = zod.object({
       crossReferences: zod.array(zod.string()).nullish(),
       interpretiveCautions: zod.array(zod.string()).nullish(),
       resourceInsights: zod.string().nullish(),
+      consultedSources: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            title: zod.string(),
+            author: zod.string().nullish(),
+          }),
+        )
+        .nullish()
+        .describe(
+          'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+        ),
     })
     .nullish(),
   bigIdea: zod
@@ -2179,6 +2227,18 @@ export const UpdateSermonResponse = zod.object({
       crossReferences: zod.array(zod.string()).nullish(),
       interpretiveCautions: zod.array(zod.string()).nullish(),
       resourceInsights: zod.string().nullish(),
+      consultedSources: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            title: zod.string(),
+            author: zod.string().nullish(),
+          }),
+        )
+        .nullish()
+        .describe(
+          'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+        ),
     })
     .nullish(),
   bigIdea: zod
@@ -2537,6 +2597,18 @@ export const GenerateSermonStudyBody = zod
           crossReferences: zod.array(zod.string()).nullish(),
           interpretiveCautions: zod.array(zod.string()).nullish(),
           resourceInsights: zod.string().nullish(),
+          consultedSources: zod
+            .array(
+              zod.object({
+                id: zod.string(),
+                title: zod.string(),
+                author: zod.string().nullish(),
+              }),
+            )
+            .nullish()
+            .describe(
+              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
         })
         .optional(),
     }),
@@ -2550,6 +2622,18 @@ export const GenerateSermonStudyResponse = zod.object({
   crossReferences: zod.array(zod.string()).nullish(),
   interpretiveCautions: zod.array(zod.string()).nullish(),
   resourceInsights: zod.string().nullish(),
+  consultedSources: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        title: zod.string(),
+        author: zod.string().nullish(),
+      }),
+    )
+    .nullish()
+    .describe(
+      'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+    ),
 });
 
 /**
@@ -2612,6 +2696,18 @@ export const GenerateSermonBigIdeaBody = zod
           crossReferences: zod.array(zod.string()).nullish(),
           interpretiveCautions: zod.array(zod.string()).nullish(),
           resourceInsights: zod.string().nullish(),
+          consultedSources: zod
+            .array(
+              zod.object({
+                id: zod.string(),
+                title: zod.string(),
+                author: zod.string().nullish(),
+              }),
+            )
+            .nullish()
+            .describe(
+              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
         })
         .optional(),
       refineInstruction: zod.string().optional(),
@@ -2688,6 +2784,18 @@ export const GenerateSermonOutlineBody = zod
           crossReferences: zod.array(zod.string()).nullish(),
           interpretiveCautions: zod.array(zod.string()).nullish(),
           resourceInsights: zod.string().nullish(),
+          consultedSources: zod
+            .array(
+              zod.object({
+                id: zod.string(),
+                title: zod.string(),
+                author: zod.string().nullish(),
+              }),
+            )
+            .nullish()
+            .describe(
+              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
         })
         .optional(),
       bigIdea: zod.string().optional(),
@@ -2790,6 +2898,18 @@ export const GenerateSermonManuscriptBody = zod
           crossReferences: zod.array(zod.string()).nullish(),
           interpretiveCautions: zod.array(zod.string()).nullish(),
           resourceInsights: zod.string().nullish(),
+          consultedSources: zod
+            .array(
+              zod.object({
+                id: zod.string(),
+                title: zod.string(),
+                author: zod.string().nullish(),
+              }),
+            )
+            .nullish()
+            .describe(
+              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
         })
         .optional(),
       bigIdea: zod.string().optional(),
@@ -2885,6 +3005,18 @@ export const GenerateSermonApplicationsBody = zod
           crossReferences: zod.array(zod.string()).nullish(),
           interpretiveCautions: zod.array(zod.string()).nullish(),
           resourceInsights: zod.string().nullish(),
+          consultedSources: zod
+            .array(
+              zod.object({
+                id: zod.string(),
+                title: zod.string(),
+                author: zod.string().nullish(),
+              }),
+            )
+            .nullish()
+            .describe(
+              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
         })
         .optional(),
       bigIdea: zod.string().optional(),
