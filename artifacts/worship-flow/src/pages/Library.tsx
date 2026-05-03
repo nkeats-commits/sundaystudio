@@ -20,10 +20,18 @@ import {
   ClipboardList,
   X,
   Loader2,
+  Copy,
 } from 'lucide-react';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { LibraryItem } from '@workspace/api-client-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 
 /**
  * Per-item badge showing how many service plans pull this library item
@@ -287,6 +295,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
 export default function Library() {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [showPasteModal, setShowPasteModal] = useState(false);
+  const [viewingItem, setViewingItem] = useState<LibraryItem | null>(null);
 
   // Translate the active tab into a query for the list endpoint. The
   // Repertoire tab is just a Songs-with-flag filter under the hood.
@@ -476,8 +485,29 @@ export default function Library() {
             {items.map((item) => (
               <div
                 key={item.id}
-                className="worship-card p-5 group flex flex-col hover:border-[var(--worship-gold)] transition-colors"
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  // Ignore clicks that originated on a nested control
+                  // (Star, Trash) — those handlers already stopPropagation
+                  // but this is defense in depth.
+                  if (e.target !== e.currentTarget && (e.target as HTMLElement).closest('button')) {
+                    return;
+                  }
+                  setViewingItem(item);
+                }}
+                onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+                  // Only open when the card itself has focus, not when
+                  // Enter/Space is fired on a nested button (Star/Trash).
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setViewingItem(item);
+                  }
+                }}
+                className="worship-card p-5 group flex flex-col text-left cursor-pointer hover:border-[var(--worship-gold)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)] focus-visible:border-[var(--worship-gold)]"
                 data-testid={`library-card-${item.id}`}
+                aria-label={`View ${item.title}`}
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2 px-2 py-1 bg-[var(--worship-cream)] rounded-md text-xs font-medium text-[var(--worship-slate)]">
@@ -588,6 +618,326 @@ export default function Library() {
           onImported={invalidateLibrary}
         />
       )}
+
+      <LibraryItemDetailDialog
+        item={viewingItem}
+        onClose={() => setViewingItem(null)}
+        onDeleted={() => {
+          setViewingItem(null);
+          invalidateLibrary();
+        }}
+        deleteItem={deleteItem}
+        getIcon={getIcon}
+        formatKind={formatKind}
+      />
     </AppLayout>
+  );
+}
+
+function buildCopyText(item: LibraryItem): string {
+  const c = item.content as Record<string, unknown>;
+  const str = (k: string) => (typeof c[k] === 'string' ? (c[k] as string) : '');
+  const arr = (k: string) => (Array.isArray(c[k]) ? (c[k] as unknown[]) : []);
+
+  if (item.kind === 'liturgy' || item.kind === 'speaking_moment') {
+    const parts = [item.title, str('body')].filter(Boolean);
+    const notes = str('notes') || str('deliveryNotes');
+    if (notes) parts.push(`\nNotes: ${notes}`);
+    return parts.join('\n\n');
+  }
+  if (item.kind === 'devotional') {
+    const opening = str('opening');
+    const scripture = str('scripture');
+    const body = str('body');
+    const questions = arr('discussionQuestions')
+      .map((q, i) => `${i + 1}. ${String(q)}`)
+      .join('\n');
+    const prayer = str('closingPrayer');
+    return [
+      item.title,
+      scripture,
+      opening,
+      body,
+      questions ? `Discussion:\n${questions}` : '',
+      prayer ? `Closing Prayer:\n${prayer}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
+  // song
+  const artist = str('artist');
+  const style = str('style');
+  const themes = arr('themes').map(String).join(', ');
+  const why = str('whyItFits');
+  return [
+    item.title,
+    artist && `Artist: ${artist}`,
+    style && `Style: ${style}`,
+    themes && `Themes: ${themes}`,
+    why && `Why it fits: ${why}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+function LibraryItemDetailDialog({
+  item,
+  onClose,
+  onDeleted,
+  deleteItem,
+  getIcon,
+  formatKind,
+}: {
+  item: LibraryItem | null;
+  onClose: () => void;
+  onDeleted: () => void;
+  deleteItem: ReturnType<typeof useDeleteLibraryItem>;
+  getIcon: (kind: string) => React.ReactNode;
+  formatKind: (kind: string) => string;
+}) {
+  const open = item !== null;
+
+  const handleCopy = () => {
+    if (!item) return;
+    navigator.clipboard
+      .writeText(buildCopyText(item))
+      .then(() => toast.success('Copied to clipboard'))
+      .catch(() => toast.error('Could not copy'));
+  };
+
+  const handleDelete = () => {
+    if (!item) return;
+    if (!confirm('Are you sure you want to delete this item?')) return;
+    deleteItem.mutate(
+      { id: item.id },
+      {
+        onSuccess: () => {
+          toast.success('Item removed from library');
+          onDeleted();
+        },
+        onError: () => toast.error('Failed to delete item'),
+      },
+    );
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0 bg-white">
+        {item && (
+          <>
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-[var(--worship-border)] space-y-3">
+              <div className="flex items-center gap-2 px-2 py-1 bg-[var(--worship-cream)] rounded-md text-xs font-medium text-[var(--worship-slate)] w-fit">
+                {getIcon(item.kind)}
+                {formatKind(item.kind)}
+              </div>
+              <DialogTitle className="font-serif text-2xl text-[var(--worship-navy)] pr-8">
+                {item.title}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div
+              className="flex-1 overflow-y-auto px-6 py-6"
+              data-testid="library-detail-body"
+            >
+              <ItemDetailBody item={item} />
+            </div>
+
+            <div className="px-6 py-4 border-t border-[var(--worship-border)] flex justify-between items-center gap-2 bg-[var(--worship-cream)]/50">
+              <button
+                onClick={handleDelete}
+                disabled={deleteItem.isPending}
+                className="px-4 py-2 rounded-lg font-medium text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                data-testid="button-detail-delete"
+              >
+                <Trash2 className="w-4 h-4" />
+                {deleteItem.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+              <button
+                onClick={handleCopy}
+                className="px-4 py-2 rounded-lg font-medium text-sm border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-white transition-colors flex items-center gap-2"
+                data-testid="button-detail-copy"
+              >
+                <Copy className="w-4 h-4" />
+                Copy
+              </button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ItemDetailBody({ item }: { item: LibraryItem }) {
+  const c = item.content as Record<string, unknown>;
+  const str = (k: string) =>
+    typeof c[k] === 'string' ? (c[k] as string) : '';
+  const arr = (k: string) =>
+    Array.isArray(c[k]) ? (c[k] as unknown[]) : [];
+
+  if (item.kind === 'liturgy') {
+    const body = str('body');
+    const notes = str('notes');
+    return (
+      <div className="space-y-6">
+        {body ? (
+          <pre className="font-serif text-base leading-relaxed text-[var(--worship-charcoal)] whitespace-pre-wrap font-medium bg-transparent p-0 border-0 m-0">
+            {body}
+          </pre>
+        ) : (
+          <p className="text-sm italic text-[var(--worship-muted-slate)]">
+            No body content saved.
+          </p>
+        )}
+        {notes && (
+          <div className="p-4 bg-[var(--worship-cream)] rounded-lg border-l-2 border-[var(--worship-gold)]">
+            <h4 className="text-xs font-semibold text-[var(--worship-slate)] uppercase mb-1">
+              Pastoral Notes
+            </h4>
+            <p className="text-sm italic font-serif text-[var(--worship-charcoal)]">
+              {notes}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (item.kind === 'speaking_moment') {
+    const body = str('body');
+    const deliveryNotes = str('deliveryNotes');
+    return (
+      <div className="space-y-6">
+        {body ? (
+          <pre className="font-serif text-lg leading-relaxed text-[var(--worship-charcoal)] whitespace-pre-wrap font-medium bg-transparent p-0 border-0 m-0">
+            {body}
+          </pre>
+        ) : (
+          <p className="text-sm italic text-[var(--worship-muted-slate)]">
+            No body content saved.
+          </p>
+        )}
+        {deliveryNotes && (
+          <div className="p-4 bg-[var(--worship-cream)] rounded-lg border-l-2 border-[var(--worship-gold)]">
+            <h4 className="text-xs font-semibold text-[var(--worship-slate)] uppercase mb-1">
+              Delivery Notes
+            </h4>
+            <p className="text-sm text-[var(--worship-charcoal)]">
+              {deliveryNotes}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (item.kind === 'devotional') {
+    const opening = str('opening');
+    const scripture = str('scripture');
+    const body = str('body');
+    const questions = arr('discussionQuestions');
+    const prayer = str('closingPrayer');
+    const hasAny = opening || scripture || body || questions.length > 0 || prayer;
+    if (!hasAny) {
+      return (
+        <p className="text-sm italic text-[var(--worship-muted-slate)]">
+          No devotional content saved.
+        </p>
+      );
+    }
+    return (
+      <div className="space-y-8 text-[var(--worship-charcoal)]">
+        {(opening || scripture) && (
+          <div className="p-5 bg-[var(--worship-cream)] rounded-xl border-l-2 border-[var(--worship-gold)]">
+            {opening && (
+              <p className="font-serif italic text-lg leading-relaxed text-[var(--worship-navy)] mb-3">
+                "{opening}"
+              </p>
+            )}
+            {scripture && (
+              <p className="text-sm font-medium uppercase tracking-widest text-[var(--worship-slate)]">
+                — {scripture}
+              </p>
+            )}
+          </div>
+        )}
+        {body && (
+          <div className="space-y-4 text-base leading-relaxed">
+            {body.split('\n\n').map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
+          </div>
+        )}
+        {questions.length > 0 && (
+          <div className="pt-6 border-t border-[var(--worship-border)]">
+            <h3 className="font-serif text-xl text-[var(--worship-navy)] mb-4">
+              For Discussion
+            </h3>
+            <ol className="list-decimal pl-5 space-y-3 marker:text-[var(--worship-gold)] marker:font-medium">
+              {questions.map((q, i) => (
+                <li key={i} className="pl-2">
+                  {String(q)}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+        {prayer && (
+          <div className="p-6 bg-[var(--worship-navy)] text-white rounded-xl">
+            <h3 className="font-serif text-lg text-[var(--worship-pale-gold)] mb-3">
+              Closing Prayer
+            </h3>
+            <p className="font-serif italic leading-relaxed">{prayer}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // song
+  const artist = str('artist');
+  const style = str('style');
+  const themes = arr('themes');
+  const why = str('whyItFits');
+  return (
+    <div className="space-y-5">
+      {artist && (
+        <p className="text-base text-[var(--worship-slate)] font-medium">
+          {artist}
+        </p>
+      )}
+      {(style || themes.length > 0) && (
+        <div className="flex flex-wrap gap-2">
+          {style && (
+            <span className="text-xs px-2 py-0.5 rounded-md bg-[var(--worship-cream)] text-[var(--worship-slate)] border border-[var(--worship-border)]">
+              {style}
+            </span>
+          )}
+          {themes.map((t, i) => (
+            <span
+              key={i}
+              className="text-xs px-2 py-0.5 rounded-md bg-[var(--worship-sand)] text-[var(--worship-navy)]"
+            >
+              {String(t)}
+            </span>
+          ))}
+        </div>
+      )}
+      {why && (
+        <p className="text-base italic font-serif text-[var(--worship-charcoal)] leading-relaxed">
+          "{why}"
+        </p>
+      )}
+      {!artist && !style && themes.length === 0 && !why && (
+        <p className="text-sm italic text-[var(--worship-muted-slate)]">
+          No additional details saved for this song.
+        </p>
+      )}
+    </div>
   );
 }
