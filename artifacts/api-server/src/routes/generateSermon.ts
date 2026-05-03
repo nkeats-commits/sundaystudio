@@ -347,7 +347,7 @@ Return JSON exactly in this shape:
   "body": "string — the sermon body. Use \\n\\n between paragraphs. Follow the outline if provided.",
   "conclusion": "string | null — landing the big idea, including a clear call to response"
 }`;
-  runJob(req, res, prompt, 6500, "sermon manuscript", GenerateSermonManuscriptResponse);
+  runJob(req, res, prompt, 12000, "sermon manuscript", GenerateSermonManuscriptResponse);
 });
 
 router.post("/generate/sermon-applications", requireAuth, async (req, res) => {
