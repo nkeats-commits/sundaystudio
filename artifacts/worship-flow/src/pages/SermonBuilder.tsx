@@ -350,6 +350,11 @@ export default function SermonBuilder() {
       setPreviewExcluded({ library: [], publicDomain: [] });
       return;
     }
+    // Monotonic token guards against out-of-order responses overwriting
+    // a newer preview when the pastor is editing fast (slow request started
+    // first, fast request resolves first → without this the older payload
+    // would win on arrival and clobber the panel).
+    let cancelled = false;
     const handle = setTimeout(async () => {
       const secondary = parseSecondary(form.secondaryPassagesText);
       setPreviewLoading(true);
@@ -367,6 +372,7 @@ export default function SermonBuilder() {
           }),
           previewSermonResources(baseBody),
         ]);
+        if (cancelled) return;
         setPreview(included);
         const includedLibraryIds = new Set(included.library.map((l) => l.id));
         const includedSourceIds = new Set(included.publicDomain.map((p) => p.sourceId));
@@ -391,10 +397,13 @@ export default function SermonBuilder() {
       } catch {
         // Network glitch — keep last preview so the panel doesn't blink.
       } finally {
-        setPreviewLoading(false);
+        if (!cancelled) setPreviewLoading(false);
       }
     }, 300);
-    return () => clearTimeout(handle);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
   }, [
     form.passage,
     form.secondaryPassagesText,
