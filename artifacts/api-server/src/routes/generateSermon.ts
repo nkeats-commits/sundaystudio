@@ -527,7 +527,7 @@ Return JSON exactly in this shape:
 {
   "themes": ["worship theme", ...],
   "songs": [
-    { "title": "real song or hymn title", "artist": "primary artist or hymn writer", "whyItFits": "1-2 sentences" }
+    { "title": "real song or hymn title", "artist": "primary artist or hymn writer", "bpm": 120, "whyItFits": "1-2 sentences — note tempo fit (e.g. opener vs. response) when relevant" }
   ],
   "callToWorship": "string | null — 2-4 sentences",
   "responseMoment": "string | null — what to invite the congregation into after the sermon",

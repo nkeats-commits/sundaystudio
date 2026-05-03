@@ -1741,6 +1741,11 @@ components:
           type: string
         style:
           type: string
+        bpm:
+          type: integer
+          minimum: 30
+          maximum: 300
+          description: Optional tempo in beats per minute. Helps the AI pick fast songs for upbeat slots and slower songs for reflective ones.
         tags:
           type: array
           items:
@@ -2095,6 +2100,10 @@ components:
           type: string
         style:
           type: string
+        bpm:
+          type: integer
+          nullable: true
+          description: Estimated tempo in beats per minute. When the suggestion matches a song already in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.
         themes:
           type: array
           items:
@@ -2400,6 +2409,10 @@ components:
         artist:
           type: string
           nullable: true
+        bpm:
+          type: integer
+          nullable: true
+          description: Estimated tempo in beats per minute. When the suggestion matches a song in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.
         whyItFits:
           type: string
           nullable: true

@@ -11,5 +11,11 @@ export interface RepertoireImportSong {
   title: string;
   artist?: string;
   style?: string;
+  /**
+   * Optional tempo in beats per minute. Helps the AI pick fast songs for upbeat slots and slower songs for reflective ones.
+   * @minimum 30
+   * @maximum 300
+   */
+  bpm?: number;
   tags?: string[];
 }

@@ -79,8 +79,25 @@ type TabType =
  */
 function parseSongList(
   text: string,
-): { title: string; artist?: string }[] {
-  const out: { title: string; artist?: string }[] = [];
+): { title: string; artist?: string; bpm?: number }[] {
+  const out: { title: string; artist?: string; bpm?: number }[] = [];
+  // Pull a trailing tempo annotation off either the artist or the title.
+  // Accepts "(120 BPM)", "[120bpm]", or "— 120 bpm" at the very end of the
+  // string (case-insensitive). Returns the BPM (clamped to a sane range) and
+  // the cleaned remainder.
+  const extractBpm = (
+    s: string,
+  ): { rest: string; bpm: number | undefined } => {
+    const m = s.match(
+      /\s*(?:[—–-]\s*)?[\(\[]?\s*(\d{2,3})\s*bpm\s*[\)\]]?\s*$/i,
+    );
+    if (!m) return { rest: s, bpm: undefined };
+    const n = Number(m[1]);
+    if (!Number.isFinite(n) || n < 30 || n > 300) {
+      return { rest: s, bpm: undefined };
+    }
+    return { rest: s.slice(0, m.index).trim(), bpm: Math.round(n) };
+  };
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue;
@@ -89,10 +106,20 @@ function parseSongList(
     const dash = line.search(/\s[—–-]\s/);
     if (dash > 0) {
       const title = line.slice(0, dash).trim();
-      const artist = line.slice(dash + 3).trim();
-      if (title) out.push({ title, artist: artist || undefined });
+      const artistRaw = line.slice(dash + 3).trim();
+      const { rest: artist, bpm } = extractBpm(artistRaw);
+      if (title) {
+        out.push({
+          title,
+          artist: artist || undefined,
+          ...(bpm !== undefined ? { bpm } : {}),
+        });
+      }
     } else {
-      out.push({ title: line });
+      const { rest: title, bpm } = extractBpm(line);
+      if (title) {
+        out.push({ title, ...(bpm !== undefined ? { bpm } : {}) });
+      }
     }
   }
   return out;
@@ -149,8 +176,8 @@ function PasteListModal({
               Paste your song list
             </h3>
             <p className="text-xs text-[var(--worship-slate)] mt-1">
-              One song per line. Use <code>Title - Artist</code> if you want
-              both.
+              One song per line. Use <code>Title - Artist</code> for both.
+              Add a tempo like <code>(120 BPM)</code> at the end of any line.
             </p>
           </div>
           <button
@@ -167,7 +194,7 @@ function PasteListModal({
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={`Goodness of God - Bethel Music\nHoly Spirit - Jesus Culture\nIn Christ Alone\n10,000 Reasons — Matt Redman`}
+              placeholder={`Goodness of God - Bethel Music (76 BPM)\nHoly Spirit - Jesus Culture\nIn Christ Alone (66 BPM)\n10,000 Reasons — Matt Redman (73 BPM)`}
               rows={10}
               className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] font-mono text-sm leading-relaxed"
               autoFocus
@@ -212,6 +239,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [style, setStyle] = useState('');
+  const [bpm, setBpm] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const create = useCreateLibraryItem();
 
@@ -221,9 +249,17 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
     if (!t) return;
     const a = artist.trim();
     const s = style.trim();
-    const content: Record<string, string> = {};
+    // BPM is a free-form text input so the user can clear it; coerce to a
+    // sane integer or drop it entirely. Out-of-range values are silently
+    // ignored — the matching number input also caps the range.
+    const bpmTrimmed = bpm.trim();
+    const bpmNum = bpmTrimmed ? Number(bpmTrimmed) : NaN;
+    const content: Record<string, string | number> = {};
     if (a) content.artist = a;
     if (s) content.style = s;
+    if (Number.isFinite(bpmNum) && bpmNum >= 30 && bpmNum <= 300) {
+      content.bpm = Math.round(bpmNum);
+    }
     const tags = tagsInput
       .split(',')
       .map((x) => x.trim())
@@ -242,6 +278,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
       setTitle('');
       setArtist('');
       setStyle('');
+      setBpm('');
       setTagsInput('');
       onAdded();
     } catch (err) {
@@ -277,6 +314,18 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
         placeholder="Style — e.g. Hymn, Modern (optional)"
         className="px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
         data-testid="input-add-song-style"
+      />
+      <input
+        value={bpm}
+        onChange={(e) => setBpm(e.target.value)}
+        placeholder="BPM — e.g. 120 (optional)"
+        type="number"
+        inputMode="numeric"
+        min={30}
+        max={300}
+        step={1}
+        className="px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
+        data-testid="input-add-song-bpm"
       />
       <input
         value={tagsInput}
@@ -572,7 +621,7 @@ export default function Library() {
 
                 <div className="text-sm text-[var(--worship-slate)] line-clamp-3 mb-4 flex-1">
                   {item.kind === 'song' ? (
-                    item.content.artist || item.content.style ? (
+                    item.content.artist || item.content.style || item.content.bpm ? (
                       <>
                         {item.content.artist && (
                           <span className="italic">
@@ -586,6 +635,17 @@ export default function Library() {
                         )}
                         {item.content.style && (
                           <span>{String(item.content.style)}</span>
+                        )}
+                        {(item.content.artist || item.content.style) &&
+                          typeof item.content.bpm === 'number' && (
+                            <span className="text-[var(--worship-muted-slate)]">
+                              {' · '}
+                            </span>
+                          )}
+                        {typeof item.content.bpm === 'number' && (
+                          <span className="font-medium text-[var(--worship-gold)]">
+                            {item.content.bpm} BPM
+                          </span>
                         )}
                       </>
                     ) : (
@@ -855,10 +915,13 @@ function buildCopyText(item: LibraryItem): string {
   const style = str('style');
   const themes = arr('themes').map(String).join(', ');
   const why = str('whyItFits');
+  const bpmRaw = (item.content as Record<string, unknown>).bpm;
+  const bpm = typeof bpmRaw === 'number' ? bpmRaw : null;
   return [
     item.title,
     artist && `Artist: ${artist}`,
     style && `Style: ${style}`,
+    bpm !== null && `Tempo: ${bpm} BPM`,
     themes && `Themes: ${themes}`,
     why && `Why it fits: ${why}`,
   ]
@@ -885,6 +948,7 @@ type EditDraft = {
   // song
   artist: string;
   style: string;
+  bpm: string;
   themes: string;
   whyItFits: string;
 };
@@ -901,6 +965,7 @@ function emptyDraft(): EditDraft {
     closingPrayer: '',
     artist: '',
     style: '',
+    bpm: '',
     themes: '',
     whyItFits: '',
   };
@@ -931,6 +996,10 @@ function draftFromItem(item: LibraryItem): EditDraft {
     closingPrayer: str('closingPrayer'),
     artist: str('artist'),
     style: str('style'),
+    bpm:
+      typeof c.bpm === 'number' && Number.isFinite(c.bpm)
+        ? String(c.bpm)
+        : '',
     themes: songThemes.join(', '),
     whyItFits: str('whyItFits'),
   };
@@ -973,6 +1042,13 @@ function contentFromDraft(
     setOrDelete('artist', draft.artist);
     setOrDelete('style', draft.style);
     setOrDelete('whyItFits', draft.whyItFits);
+    const bpmTrimmed = draft.bpm.trim();
+    const bpmNum = bpmTrimmed ? Number(bpmTrimmed) : NaN;
+    if (Number.isFinite(bpmNum) && bpmNum >= 30 && bpmNum <= 300) {
+      next.bpm = Math.round(bpmNum);
+    } else {
+      delete next.bpm;
+    }
     const themes = draft.themes
       .split(',')
       .map((t) => t.trim())
@@ -1426,6 +1502,21 @@ function ItemEditBody({
         />
       </div>
       <div>
+        <label className={labelClass}>BPM (optional)</label>
+        <input
+          value={draft.bpm}
+          onChange={(e) => setDraft({ ...draft, bpm: e.target.value })}
+          type="number"
+          inputMode="numeric"
+          min={30}
+          max={300}
+          step={1}
+          placeholder="e.g. 120"
+          className={inputClass}
+          data-testid="input-edit-bpm"
+        />
+      </div>
+      <div>
         <label className={labelClass}>Themes (comma-separated)</label>
         <input
           value={draft.themes}
@@ -1578,6 +1669,8 @@ function ItemDetailBody({ item }: { item: LibraryItem }) {
   // song
   const artist = str('artist');
   const style = str('style');
+  const bpmRaw = (item.content as Record<string, unknown>).bpm;
+  const bpm = typeof bpmRaw === 'number' ? bpmRaw : null;
   // Generated songs save themes on `content.themes`; manually added or
   // bulk-imported repertoire songs may only have user tags. Fall back to
   // `item.tags` so the detail panel surfaces something either way.
@@ -1591,11 +1684,16 @@ function ItemDetailBody({ item }: { item: LibraryItem }) {
           {artist}
         </p>
       )}
-      {(style || themes.length > 0) && (
+      {(style || bpm !== null || themes.length > 0) && (
         <div className="flex flex-wrap gap-2">
           {style && (
             <span className="text-xs px-2 py-0.5 rounded-md bg-[var(--worship-cream)] text-[var(--worship-slate)] border border-[var(--worship-border)]">
               {style}
+            </span>
+          )}
+          {bpm !== null && (
+            <span className="text-xs px-2 py-0.5 rounded-md bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] font-medium border border-[var(--worship-pale-gold)]">
+              {bpm} BPM
             </span>
           )}
           {themes.map((t, i) => (

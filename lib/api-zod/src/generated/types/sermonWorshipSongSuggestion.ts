@@ -9,5 +9,7 @@
 export interface SermonWorshipSongSuggestion {
   title: string;
   artist?: string | null;
+  /** Estimated tempo in beats per minute. When the suggestion matches a song in the user's repertoire, the server replaces the AI estimate with the user's saved BPM. */
+  bpm?: number | null;
   whyItFits?: string | null;
 }

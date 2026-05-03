@@ -15,8 +15,10 @@ import { churchContextBlurb, type ChurchContext } from "../lib/anthropicJson";
 import { runJob } from "../lib/runJob";
 import { jobManager } from "../lib/jobManager";
 import {
+  coerceBpm,
   loadRepertoireSongs,
   normalizeTitle,
+  repertoireBpmByTitle,
   repertoirePromptBlock,
   repertoireTitleSet,
   type RepertoireMode,
@@ -331,6 +333,7 @@ router.post("/generate/songs", requireAuth, async (req, res) => {
       ? "off"
       : requestedMode;
   const titleSet = repertoireTitleSet(repertoire);
+  const bpmByTitle = repertoireBpmByTitle(repertoire);
   const repBlock = repertoirePromptBlock(repertoire, effectiveMode);
   // In Strict mode we cap the requested count at the repertoire size — there
   // is no value in asking for 8 songs when the user only knows 3.
@@ -367,6 +370,7 @@ Return JSON exactly in this shape:
       "title": "string — real published worship song title",
       "artist": "string — primary artist or hymn writer",
       "style": "string — e.g. modern worship, hymn, gospel, acoustic",
+      "bpm": 120,
       "themes": ["string", ...],
       "whyItFits": "string — 1-2 sentences pastoring the choice"
     }
@@ -374,12 +378,14 @@ Return JSON exactly in this shape:
 }
 
 Only suggest real, published songs/hymns the pastor can actually find. Do not invent songs.
-Keep "whyItFits" to 1-2 short sentences.`;
+Keep "whyItFits" to 1-2 short sentences.
+"bpm" is the song's tempo in beats per minute as an integer (use null if you genuinely don't know). Use the user's saved BPM from the repertoire above when applicable.`;
 
   type RawSong = {
     title?: unknown;
     artist?: unknown;
     style?: unknown;
+    bpm?: unknown;
     themes?: unknown;
     whyItFits?: unknown;
   };
@@ -405,16 +411,23 @@ Keep "whyItFits" to 1-2 short sentences.`;
         ) {
           return [];
         }
-        const inRepertoire = titleSet.has(normalizeTitle(s.title));
+        const normalizedTitle = normalizeTitle(s.title);
+        const inRepertoire = titleSet.has(normalizedTitle);
         // Strict mode is the contract: never let an AI-invented title leak
         // through, no matter what the prompt says.
         if (effectiveMode === "strict" && !inRepertoire) return [];
+        // Prefer the user's saved BPM for repertoire matches so saved songs
+        // always show the user's authoritative tempo; otherwise fall back
+        // to the AI estimate if it looks sane.
+        const repertoireBpm = bpmByTitle.get(normalizedTitle) ?? null;
+        const bpm = repertoireBpm ?? coerceBpm(s.bpm);
         return [
           {
             title: s.title,
             artist: s.artist,
             whyItFits: s.whyItFits,
             ...(typeof s.style === "string" ? { style: s.style } : {}),
+            bpm,
             ...(Array.isArray(s.themes)
               ? {
                   themes: (s.themes as unknown[]).filter(

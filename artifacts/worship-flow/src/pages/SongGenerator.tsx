@@ -481,6 +481,14 @@ export default function SongGenerator() {
                               {song.style}
                             </span>
                           )}
+                          {typeof song.bpm === 'number' && (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-md bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] font-medium border border-[var(--worship-pale-gold)]"
+                              data-testid={`badge-bpm-${i}`}
+                            >
+                              {song.bpm} BPM
+                            </span>
+                          )}
                           {song.themes?.map((t) => (
                             <span
                               key={t}

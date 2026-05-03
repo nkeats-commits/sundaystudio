@@ -10,6 +10,8 @@ export interface SongSuggestion {
   title: string;
   artist: string;
   style?: string;
+  /** Estimated tempo in beats per minute. When the suggestion matches a song already in the user's repertoire, the server replaces the AI estimate with the user's saved BPM. */
+  bpm?: number | null;
   themes?: string[];
   whyItFits: string;
   /** Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match). */

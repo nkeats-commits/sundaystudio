@@ -179,6 +179,9 @@ router.post("/library/repertoire/bulk-import", requireAuth, async (req, res) => 
     const content: Record<string, unknown> = {};
     if (song.artist?.trim()) content.artist = song.artist.trim();
     if (song.style?.trim()) content.style = song.style.trim();
+    if (typeof song.bpm === "number" && Number.isFinite(song.bpm)) {
+      content.bpm = Math.round(song.bpm);
+    }
     valuesToInsert.push({
       userId: req.userId!,
       kind: "song",

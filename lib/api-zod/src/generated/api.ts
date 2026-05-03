@@ -599,6 +599,9 @@ export const SetLibraryItemRepertoireResponse = zod.object({
  * @summary Bulk-add songs to the user's repertoire from a parsed list.
  */
 
+export const bulkImportRepertoireBodySongsItemBpmMin = 30;
+export const bulkImportRepertoireBodySongsItemBpmMax = 300;
+
 export const BulkImportRepertoireBody = zod.object({
   songs: zod
     .array(
@@ -606,6 +609,14 @@ export const BulkImportRepertoireBody = zod.object({
         title: zod.string().min(1),
         artist: zod.string().optional(),
         style: zod.string().optional(),
+        bpm: zod
+          .number()
+          .min(bulkImportRepertoireBodySongsItemBpmMin)
+          .max(bulkImportRepertoireBodySongsItemBpmMax)
+          .optional()
+          .describe(
+            "Optional tempo in beats per minute. Helps the AI pick fast songs for upbeat slots and slower songs for reflective ones.",
+          ),
         tags: zod.array(zod.string()).optional(),
       }),
     )
@@ -1017,6 +1028,12 @@ export const GenerateSongSuggestionsResponse = zod.object({
       title: zod.string(),
       artist: zod.string(),
       style: zod.string().optional(),
+      bpm: zod
+        .number()
+        .nullish()
+        .describe(
+          "Estimated tempo in beats per minute. When the suggestion matches a song already in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.",
+        ),
       themes: zod.array(zod.string()).optional(),
       whyItFits: zod.string(),
       inRepertoire: zod
@@ -1397,6 +1414,12 @@ export const GetSermonSeriesResponse = zod
                   zod.object({
                     title: zod.string(),
                     artist: zod.string().nullish(),
+                    bpm: zod
+                      .number()
+                      .nullish()
+                      .describe(
+                        "Estimated tempo in beats per minute. When the suggestion matches a song in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.",
+                      ),
                     whyItFits: zod.string().nullish(),
                   }),
                 )
@@ -1602,6 +1625,12 @@ export const ListSermonsResponseItem = zod.object({
           zod.object({
             title: zod.string(),
             artist: zod.string().nullish(),
+            bpm: zod
+              .number()
+              .nullish()
+              .describe(
+                "Estimated tempo in beats per minute. When the suggestion matches a song in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.",
+              ),
             whyItFits: zod.string().nullish(),
           }),
         )
@@ -1795,6 +1824,12 @@ export const GetSermonResponse = zod.object({
           zod.object({
             title: zod.string(),
             artist: zod.string().nullish(),
+            bpm: zod
+              .number()
+              .nullish()
+              .describe(
+                "Estimated tempo in beats per minute. When the suggestion matches a song in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.",
+              ),
             whyItFits: zod.string().nullish(),
           }),
         )
@@ -1959,6 +1994,12 @@ export const UpdateSermonBody = zod.object({
           zod.object({
             title: zod.string(),
             artist: zod.string().nullish(),
+            bpm: zod
+              .number()
+              .nullish()
+              .describe(
+                "Estimated tempo in beats per minute. When the suggestion matches a song in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.",
+              ),
             whyItFits: zod.string().nullish(),
           }),
         )
@@ -2116,6 +2157,12 @@ export const UpdateSermonResponse = zod.object({
           zod.object({
             title: zod.string(),
             artist: zod.string().nullish(),
+            bpm: zod
+              .number()
+              .nullish()
+              .describe(
+                "Estimated tempo in beats per minute. When the suggestion matches a song in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.",
+              ),
             whyItFits: zod.string().nullish(),
           }),
         )
@@ -3011,6 +3058,12 @@ export const GenerateSermonToServiceResponse = zod.object({
       zod.object({
         title: zod.string(),
         artist: zod.string().nullish(),
+        bpm: zod
+          .number()
+          .nullish()
+          .describe(
+            "Estimated tempo in beats per minute. When the suggestion matches a song in the user's repertoire, the server replaces the AI estimate with the user's saved BPM.",
+          ),
         whyItFits: zod.string().nullish(),
       }),
     )
