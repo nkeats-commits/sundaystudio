@@ -5,6 +5,7 @@
  * WorshipFlow API
  * OpenAPI spec version: 0.1.0
  */
+import type { GenerateLiturgyBodyFormat } from "./generateLiturgyBodyFormat";
 import type { GenerateLiturgyBodyKind } from "./generateLiturgyBodyKind";
 
 export interface GenerateLiturgyBody {
@@ -14,4 +15,14 @@ export interface GenerateLiturgyBody {
   season?: string;
   /** e.g. "contemplative", "celebratory" */
   tone?: string;
+  /** Output format style.
+- `call_response` (default): leader/people antiphonal lines.
+- `leader_only`: a single continuous spoken piece in the leader's voice.
+ */
+  format?: GenerateLiturgyBodyFormat;
+  /**
+   * Optional sermon notes, song lyrics, or other text the liturgy should echo in language and imagery.
+   * @maxLength 4000
+   */
+  alignmentNotes?: string;
 }

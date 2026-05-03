@@ -5,10 +5,18 @@
  * WorshipFlow API
  * OpenAPI spec version: 0.1.0
  */
+import type { GeneratedLiturgyFormat } from "./generatedLiturgyFormat";
+import type { RecommendedScripture } from "./recommendedScripture";
 
 export interface GeneratedLiturgy {
   kind: string;
   title: string;
   body: string;
   notes?: string;
+  /** The format the liturgy was generated in (echoes the request). */
+  format?: GeneratedLiturgyFormat;
+  /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
+  alignmentNotes?: string;
+  /** Present only when the user did not supply a scripture; the AI's suggested anchor passage with rationale. */
+  recommendedScripture?: RecommendedScripture;
 }

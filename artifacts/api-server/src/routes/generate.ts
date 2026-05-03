@@ -214,28 +214,97 @@ router.post("/generate/liturgy", requireAuth, async (req, res) => {
   }
   const data = parsed.data;
   const ctx = await getChurchContext(req.userId!);
+  const format = data.format ?? "call_response";
+  const trimmedAlignment = (data.alignmentNotes ?? "").trim();
+  const hasAlignment = trimmedAlignment.length > 0;
+  const hasScripture = (data.scripture ?? "").trim().length > 0;
+
+  const bodyInstruction =
+    format === "leader_only"
+      ? "string — the liturgy itself, ready to be spoken aloud. Use line breaks for cadence. Write it as one continuous spoken piece in the worship leader's voice addressing the congregation. Do NOT include 'Leader:' or 'People:' labels and do NOT use call-and-response."
+      : "string — the liturgy itself, ready to be spoken aloud. Use line breaks for cadence. Include leader/people responses where appropriate using the format 'Leader: ...' and 'People: ...'.";
+
+  const recommendedScriptureField = hasScripture
+    ? ""
+    : `,
+  "recommendedScripture": {
+    "reference": "string — a specific passage that anchors this liturgy, e.g. 'Psalm 95:1-7'",
+    "rationale": "string — one short sentence on why this passage fits the theme and kind"
+  }`;
+
+  const recommendedScriptureGuidance = hasScripture
+    ? ""
+    : `
+Because the user did not supply a scripture, you MUST also pick ONE specific scripture passage that fits this kind, theme, and season, and return it as "recommendedScripture" in the JSON. Anchor the liturgy body in that passage.`;
+
+  const alignmentBlock = hasAlignment
+    ? `
+Alignment notes from the pastor (sermon notes, song lyrics, or other source text the liturgy should echo):
+"""
+${trimmedAlignment}
+"""
+Echo the imagery, refrains, and theological language from these notes in your liturgy. Do NOT quote song lyrics verbatim — paraphrase and weave their themes in to honor copyright. If the notes contradict the kind/theme above, the kind/theme wins.`
+    : "";
+
   const prompt = `Write a piece of worship liturgy as JSON.
 
 Kind: ${data.kind}
 Theme: ${data.theme}
-Scripture: ${data.scripture ?? "(your choice)"}
+Scripture: ${data.scripture ?? "(your choice — see guidance below)"}
 Season: ${data.season ?? "Ordinary Time"}
 Tone: ${data.tone ?? "warm, pastoral, theologically grounded"}
+Format: ${format === "leader_only" ? "leader speaks (no call-and-response)" : "call and response (leader/people antiphonal)"}
 
 Church context:
 ${churchContextBlurb(ctx)}
+${recommendedScriptureGuidance}${alignmentBlock}
 
 Return JSON exactly in this shape:
 {
   "kind": "string",
   "title": "string — a short evocative title",
-  "body": "string — the liturgy itself, ready to be spoken aloud. Use line breaks for cadence. Include leader/people responses where appropriate using the format 'Leader: ...' and 'People: ...'.",
-  "notes": "string — short pastoral notes for the worship leader"
+  "body": "${bodyInstruction}",
+  "notes": "string — short pastoral notes for the worship leader"${recommendedScriptureField}
 }
 
 Be concise: liturgy body should be the natural length for its kind, not padded.`;
 
-  runJob(req, res, prompt, 2000, "liturgy");
+  runJob<Record<string, unknown>>(
+    req,
+    res,
+    prompt,
+    2000,
+    "liturgy",
+    undefined,
+    (result) => {
+      const out: Record<string, unknown> = { ...result, format };
+      if (hasAlignment) {
+        out.alignmentNotes = trimmedAlignment;
+      } else {
+        delete out.alignmentNotes;
+      }
+      if (hasScripture) {
+        // The user supplied a scripture; the AI must not invent a recommendation.
+        delete out.recommendedScripture;
+      } else {
+        const rs = (result as { recommendedScripture?: unknown }).recommendedScripture;
+        if (
+          rs &&
+          typeof rs === "object" &&
+          typeof (rs as { reference?: unknown }).reference === "string" &&
+          typeof (rs as { rationale?: unknown }).rationale === "string"
+        ) {
+          out.recommendedScripture = {
+            reference: (rs as { reference: string }).reference,
+            rationale: (rs as { rationale: string }).rationale,
+          };
+        } else {
+          delete out.recommendedScripture;
+        }
+      }
+      return out;
+    },
+  );
 });
 
 router.post("/generate/songs", requireAuth, async (req, res) => {

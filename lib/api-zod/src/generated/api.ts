@@ -914,6 +914,8 @@ the wire protocol. The final `done` event payload conforms to
 
  * @summary AI-generate a liturgy (call to worship, prayer, benediction, etc.) — streamed over SSE
  */
+export const generateLiturgyBodyAlignmentNotesMax = 4000;
+
 export const GenerateLiturgyBody = zod.object({
   kind: zod.enum([
     "call_to_worship",
@@ -931,6 +933,19 @@ export const GenerateLiturgyBody = zod.object({
     .string()
     .optional()
     .describe('e.g. \"contemplative\", \"celebratory\"'),
+  format: zod
+    .enum(["call_response", "leader_only"])
+    .optional()
+    .describe(
+      "Output format style.\n- `call_response` (default): leader\/people antiphonal lines.\n- `leader_only`: a single continuous spoken piece in the leader's voice.\n",
+    ),
+  alignmentNotes: zod
+    .string()
+    .max(generateLiturgyBodyAlignmentNotesMax)
+    .optional()
+    .describe(
+      "Optional sermon notes, song lyrics, or other text the liturgy should echo in language and imagery.",
+    ),
 });
 
 export const GenerateLiturgyResponse = zod.object({
@@ -938,6 +953,29 @@ export const GenerateLiturgyResponse = zod.object({
   title: zod.string(),
   body: zod.string(),
   notes: zod.string().optional(),
+  format: zod
+    .enum(["call_response", "leader_only"])
+    .optional()
+    .describe("The format the liturgy was generated in (echoes the request)."),
+  alignmentNotes: zod
+    .string()
+    .optional()
+    .describe(
+      "Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.",
+    ),
+  recommendedScripture: zod
+    .object({
+      reference: zod
+        .string()
+        .describe('A specific passage reference, e.g. \"Psalm 95:1-7\".'),
+      rationale: zod
+        .string()
+        .describe("One short sentence on why this passage fits."),
+    })
+    .optional()
+    .describe(
+      "Present only when the user did not supply a scripture; the AI's suggested anchor passage with rationale.",
+    ),
 });
 
 /**

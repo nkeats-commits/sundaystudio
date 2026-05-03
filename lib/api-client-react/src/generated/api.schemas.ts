@@ -407,6 +407,20 @@ export const GenerateLiturgyBodyKind = {
   prayer_of_the_people: "prayer_of_the_people",
 } as const;
 
+/**
+ * Output format style.
+- `call_response` (default): leader/people antiphonal lines.
+- `leader_only`: a single continuous spoken piece in the leader's voice.
+
+ */
+export type GenerateLiturgyBodyFormat =
+  (typeof GenerateLiturgyBodyFormat)[keyof typeof GenerateLiturgyBodyFormat];
+
+export const GenerateLiturgyBodyFormat = {
+  call_response: "call_response",
+  leader_only: "leader_only",
+} as const;
+
 export interface GenerateLiturgyBody {
   kind: GenerateLiturgyBodyKind;
   theme: string;
@@ -414,13 +428,47 @@ export interface GenerateLiturgyBody {
   season?: string;
   /** e.g. "contemplative", "celebratory" */
   tone?: string;
+  /** Output format style.
+- `call_response` (default): leader/people antiphonal lines.
+- `leader_only`: a single continuous spoken piece in the leader's voice.
+ */
+  format?: GenerateLiturgyBodyFormat;
+  /**
+   * Optional sermon notes, song lyrics, or other text the liturgy should echo in language and imagery.
+   * @maxLength 4000
+   */
+  alignmentNotes?: string;
 }
+
+export interface RecommendedScripture {
+  /** A specific passage reference, e.g. "Psalm 95:1-7". */
+  reference: string;
+  /** One short sentence on why this passage fits. */
+  rationale: string;
+}
+
+/**
+ * The format the liturgy was generated in (echoes the request).
+ */
+export type GeneratedLiturgyFormat =
+  (typeof GeneratedLiturgyFormat)[keyof typeof GeneratedLiturgyFormat];
+
+export const GeneratedLiturgyFormat = {
+  call_response: "call_response",
+  leader_only: "leader_only",
+} as const;
 
 export interface GeneratedLiturgy {
   kind: string;
   title: string;
   body: string;
   notes?: string;
+  /** The format the liturgy was generated in (echoes the request). */
+  format?: GeneratedLiturgyFormat;
+  /** Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance. */
+  alignmentNotes?: string;
+  /** Present only when the user did not supply a scripture; the AI's suggested anchor passage with rationale. */
+  recommendedScripture?: RecommendedScripture;
 }
 
 /**

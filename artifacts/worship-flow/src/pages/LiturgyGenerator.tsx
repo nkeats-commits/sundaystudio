@@ -15,8 +15,11 @@ export default function LiturgyGenerator() {
     theme: '',
     scripture: '',
     season: 'Ordinary Time',
-    tone: 'warm, pastoral, theologically grounded'
+    tone: 'warm, pastoral, theologically grounded',
+    format: 'call_response' as 'call_response' | 'leader_only',
+    alignmentNotes: '',
   });
+  const ALIGNMENT_MAX = 4000;
   
   const generate = useJobGenerate<GeneratedLiturgy>('/api/generate/liturgy');
   const createLibraryItem = useCreateLibraryItem();
@@ -44,7 +47,17 @@ export default function LiturgyGenerator() {
     lastSubmittedRef.current = payload;
     setSavedItem(null);
     savePromiseRef.current = null;
-    generate.mutate(payload).catch((err: Error) => {
+    const trimmedAlignment = payload.alignmentNotes.trim();
+    const requestBody = {
+      kind: payload.kind,
+      theme: payload.theme,
+      scripture: payload.scripture || undefined,
+      season: payload.season,
+      tone: payload.tone,
+      format: payload.format,
+      ...(trimmedAlignment ? { alignmentNotes: trimmedAlignment.slice(0, ALIGNMENT_MAX) } : {}),
+    };
+    generate.mutate(requestBody).catch((err: Error) => {
       toast.error(err.message || "Generation failed. Please try again.");
     });
   };
@@ -169,6 +182,56 @@ export default function LiturgyGenerator() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">FORMAT</label>
+              <div role="radiogroup" aria-label="Output format" className="grid grid-cols-2 gap-1 p-1 rounded-lg border border-[var(--worship-border)] bg-[var(--worship-cream)]">
+                {([
+                  { value: 'call_response', label: 'Call & response', hint: 'Leader / People' },
+                  { value: 'leader_only', label: 'Leader speaks', hint: 'Single voice' },
+                ] as const).map(opt => {
+                  const active = formData.format === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setFormData({ ...formData, format: opt.value })}
+                      data-testid={`format-${opt.value}`}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        active
+                          ? 'bg-white text-[var(--worship-navy)] shadow-sm border border-[var(--worship-border)]'
+                          : 'text-[var(--worship-slate)] hover:text-[var(--worship-navy)]'
+                      }`}
+                    >
+                      <div>{opt.label}</div>
+                      <div className="text-[10px] font-normal text-[var(--worship-muted-slate)] mt-0.5">{opt.hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between mb-1">
+                <label className="block text-xs font-semibold text-[var(--worship-slate)]">ALIGNMENT NOTES (OPTIONAL)</label>
+                <span className={`text-[10px] ${formData.alignmentNotes.length > ALIGNMENT_MAX ? 'text-red-600' : 'text-[var(--worship-muted-slate)]'}`}>
+                  {formData.alignmentNotes.length}/{ALIGNMENT_MAX}
+                </span>
+              </div>
+              <textarea
+                value={formData.alignmentNotes}
+                onChange={e => setFormData({ ...formData, alignmentNotes: e.target.value.slice(0, ALIGNMENT_MAX) })}
+                placeholder="Paste sermon notes, song lyrics, or any text the liturgy should echo. The AI will weave its imagery and themes into the result."
+                rows={4}
+                data-testid="input-alignment-notes"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm leading-relaxed resize-y"
+              />
+              <p className="text-[10px] text-[var(--worship-muted-slate)] mt-1 italic">
+                Song lyrics will be paraphrased, not copied verbatim, to honor copyright.
+              </p>
+            </div>
+
             <button 
               type="submit"
               disabled={generate.isPending || !profileReady}
@@ -239,6 +302,34 @@ export default function LiturgyGenerator() {
                   </button>
                 </div>
               </div>
+
+              {(generate.data as GeneratedLiturgy & { recommendedScripture?: { reference: string; rationale: string } }).recommendedScripture && (
+                <div className="mb-6 p-4 rounded-lg border border-[var(--worship-gold)] bg-[var(--worship-pale-gold)]/40">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <h4 className="text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)] mb-1">Suggested scripture</h4>
+                      <p className="font-serif text-base text-[var(--worship-navy)]">
+                        {(generate.data as GeneratedLiturgy & { recommendedScripture?: { reference: string; rationale: string } }).recommendedScripture!.reference}
+                      </p>
+                      <p className="text-xs text-[var(--worship-slate)] mt-1 italic">
+                        {(generate.data as GeneratedLiturgy & { recommendedScripture?: { reference: string; rationale: string } }).recommendedScripture!.rationale}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ref = (generate.data as GeneratedLiturgy & { recommendedScripture?: { reference: string; rationale: string } }).recommendedScripture!.reference;
+                        setFormData({ ...formData, scripture: ref });
+                        toast.success("Scripture added to the form. Click Generate to anchor on it.");
+                      }}
+                      data-testid="button-use-scripture"
+                      className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-white border border-[var(--worship-gold)] text-[var(--worship-navy)] hover:bg-[var(--worship-pale-gold)] transition-colors"
+                    >
+                      Use this scripture
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="prose prose-sm max-w-none flex-1">
                 <pre className="font-serif text-base leading-relaxed text-[var(--worship-charcoal)] whitespace-pre-wrap font-medium bg-transparent p-0 border-0 m-0">

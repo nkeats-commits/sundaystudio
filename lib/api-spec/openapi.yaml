@@ -1927,7 +1927,29 @@ components:
         tone:
           type: string
           description: e.g. "contemplative", "celebratory"
+        format:
+          type: string
+          enum: [call_response, leader_only]
+          description: |
+            Output format style.
+            - `call_response` (default): leader/people antiphonal lines.
+            - `leader_only`: a single continuous spoken piece in the leader's voice.
+        alignmentNotes:
+          type: string
+          maxLength: 4000
+          description: Optional sermon notes, song lyrics, or other text the liturgy should echo in language and imagery.
       required: [kind, theme]
+
+    RecommendedScripture:
+      type: object
+      properties:
+        reference:
+          type: string
+          description: A specific passage reference, e.g. "Psalm 95:1-7".
+        rationale:
+          type: string
+          description: One short sentence on why this passage fits.
+      required: [reference, rationale]
 
     GeneratedLiturgy:
       type: object
@@ -1940,6 +1962,16 @@ components:
           type: string
         notes:
           type: string
+        format:
+          type: string
+          enum: [call_response, leader_only]
+          description: The format the liturgy was generated in (echoes the request).
+        alignmentNotes:
+          type: string
+          description: Echoes the alignment notes the user supplied (if any), so the saved item retains its provenance.
+        recommendedScripture:
+          $ref: "#/components/schemas/RecommendedScripture"
+          description: Present only when the user did not supply a scripture; the AI's suggested anchor passage with rationale.
       required: [kind, title, body]
 
     GenerateSongsBody:
