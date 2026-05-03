@@ -7,6 +7,7 @@ import {
   GenerateLiturgyBody,
   GenerateSongSuggestionsBody,
   GenerateSpeakingMomentBody,
+  GenerateStepContentBody,
   GenerateDevotionalBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -406,6 +407,69 @@ Return JSON exactly in this shape:
 Match the requested duration. Don't exceed the spoken length budget.`;
 
   runJob(req, res, prompt, 1500, "speaking moment");
+});
+
+router.post("/generate/step-content", requireAuth, async (req, res) => {
+  const parsed = GenerateStepContentBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const data = parsed.data;
+  const ctx = await getChurchContext(req.userId!);
+
+  // Per-kind guidance keeps the model on-task. The kind enum is shared
+  // with `ServiceFlowStep.kind` minus `sermon` (sermon content lives in
+  // Sermon Builder and is rejected at the schema level).
+  const kindGuidance: Record<typeof data.kind, string> = {
+    song:
+      "Suggest ONE worship song that fits this slot. Use this exact format:\n" +
+      '"<Song Title> — <Artist or Hymn Writer>\\n\\nWhy it fits: <1-2 sentences pastoring the choice>"\n' +
+      "Only suggest a real, published song or hymn the team can actually find. Do not invent titles.",
+    scripture:
+      "Suggest the scripture passage to read here, with 1-2 sentences of brief framing for the congregation. Use this format:\n" +
+      '"<Passage reference> (NIV)\\n\\n<short framing sentence>"',
+    prayer:
+      "Write a short pastoral prayer (4-8 sentences) suited to this slot. Use leader/people responses with 'Leader:' and 'People:' labels only if the slot title implies a responsive prayer.",
+    communion:
+      "Write the words of institution and invitation for communion in this tradition. Keep it warm, theologically grounded, and ready to be spoken aloud.",
+    offering:
+      "Write a brief (~45-second) spoken transition into the offering — connect the giving moment to the day's theme.",
+    welcome:
+      "Write a brief (~30-60 second) spoken welcome appropriate for this slot. Warm, pastoral, theologically grounded.",
+    benediction:
+      "Write a short closing blessing (3-6 sentences) the worship leader can speak over the congregation.",
+    transition:
+      "Write a brief (~30 second) spoken transition for this slot, connecting what came before to what's next.",
+    custom:
+      "Write the body content for this slot. Match the tone of a worship service. Keep it concise — only as long as the slot needs.",
+  };
+
+  const prompt = `Regenerate the body text for ONE slot in a worship service plan.
+
+Slot kind: ${data.kind}
+Slot title: ${data.stepName}
+Service theme: ${data.theme}
+Service scripture: ${data.scripture ?? "(pastor's choice)"}
+Service season: ${data.season ?? "Ordinary Time"}
+Service length: ${data.serviceLength ?? "60 minutes"}
+Service notes: ${data.notes ?? "(none)"}
+
+Church context:
+${churchContextBlurb(ctx)}
+
+Slot guidance:
+${kindGuidance[data.kind]}
+
+Return JSON exactly in this shape:
+{
+  "body": "string — the body text for this slot, ready to be used in a service order",
+  "durationMinutes": 5
+}
+
+"durationMinutes" is optional (omit or set to null if it doesn't make sense for this slot). Be concise — produce only the body for this single slot, not the whole service.`;
+
+  runJob(req, res, prompt, 1500, "step content");
 });
 
 router.post("/generate/devotional", requireAuth, async (req, res) => {

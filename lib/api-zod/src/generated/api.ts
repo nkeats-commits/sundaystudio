@@ -1018,6 +1018,50 @@ export const GenerateSpeakingMomentResponse = zod.object({
 });
 
 /**
+ * Regenerates the body text for a single step inside a service plan.
+Started as an async job; poll `GET /generate/jobs/{jobId}` for the
+final `GeneratedStepContent` payload. The slot's `kind` MUST NOT be
+`sermon` — sermon content is authored in Sermon Builder and is not
+eligible for inline regeneration.
+
+ * @summary AI-generate body text for a single service-plan slot
+ */
+
+export const GenerateStepContentBody = zod
+  .object({
+    kind: zod.enum([
+      "song",
+      "scripture",
+      "prayer",
+      "communion",
+      "offering",
+      "welcome",
+      "benediction",
+      "transition",
+      "custom",
+    ]),
+    stepName: zod
+      .string()
+      .min(1)
+      .describe(
+        'The slot\'s title as the user named it (e.g. \"Opening Song\").',
+      ),
+    theme: zod.string(),
+    scripture: zod.string().optional(),
+    season: zod.string().optional(),
+    serviceLength: zod.string().optional(),
+    notes: zod.string().optional(),
+  })
+  .describe(
+    "Request body for regenerating the text of a single service-plan slot.\n`kind` must be a valid `ServiceFlowStep.kind` other than `sermon`.\n",
+  );
+
+export const GenerateStepContentResponse = zod.object({
+  body: zod.string().describe("The regenerated body text for the slot."),
+  durationMinutes: zod.number().nullish(),
+});
+
+/**
  * Streams the model output as SSE. See `/generate/service-plan` for
 the wire protocol. The final `done` event payload conforms to
 `GeneratedDevotional`. Validation failures return `400 application/json`.

@@ -642,6 +642,42 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /generate/step-content:
+    post:
+      operationId: generateStepContent
+      tags: [generate]
+      summary: AI-generate body text for a single service-plan slot
+      description: |
+        Regenerates the body text for a single step inside a service plan.
+        Started as an async job; poll `GET /generate/jobs/{jobId}` for the
+        final `GeneratedStepContent` payload. The slot's `kind` MUST NOT be
+        `sermon` — sermon content is authored in Sermon Builder and is not
+        eligible for inline regeneration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateStepContentBody"
+      responses:
+        "200":
+          description: Job started; final result is a `GeneratedStepContent`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedStepContent"
+        "400":
+          description: Invalid request body or unsupported kind.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /generate/devotional:
     post:
       operationId: generateDevotional
@@ -1806,6 +1842,42 @@ components:
         content:
           $ref: "#/components/schemas/ServicePlanContent"
       required: [title, scripture, theme, season, content]
+
+    GenerateStepContentBody:
+      type: object
+      description: |
+        Request body for regenerating the text of a single service-plan slot.
+        `kind` must be a valid `ServiceFlowStep.kind` other than `sermon`.
+      properties:
+        kind:
+          type: string
+          enum: [song, scripture, prayer, communion, offering, welcome, benediction, transition, custom]
+        stepName:
+          type: string
+          minLength: 1
+          description: The slot's title as the user named it (e.g. "Opening Song").
+        theme:
+          type: string
+        scripture:
+          type: string
+        season:
+          type: string
+        serviceLength:
+          type: string
+        notes:
+          type: string
+      required: [kind, stepName, theme]
+
+    GeneratedStepContent:
+      type: object
+      properties:
+        body:
+          type: string
+          description: The regenerated body text for the slot.
+        durationMinutes:
+          type: integer
+          nullable: true
+      required: [body]
 
     GenerateLiturgyBody:
       type: object

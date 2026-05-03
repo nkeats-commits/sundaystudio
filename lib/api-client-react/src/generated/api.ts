@@ -55,11 +55,14 @@ import type {
   GenerateSongsBody,
   GenerateSpeakingMoment400,
   GenerateSpeakingMomentBody,
+  GenerateStepContent400,
+  GenerateStepContentBody,
   GeneratedDevotional,
   GeneratedLiturgy,
   GeneratedServicePlan,
   GeneratedSongs,
   GeneratedSpeakingMoment,
+  GeneratedStepContent,
   HealthStatus,
   LibraryItem,
   LinkedServiceRef,
@@ -2289,6 +2292,100 @@ export const useGenerateSpeakingMoment = <
   TContext
 > => {
   return useMutation(getGenerateSpeakingMomentMutationOptions(options));
+};
+
+/**
+ * Regenerates the body text for a single step inside a service plan.
+Started as an async job; poll `GET /generate/jobs/{jobId}` for the
+final `GeneratedStepContent` payload. The slot's `kind` MUST NOT be
+`sermon` — sermon content is authored in Sermon Builder and is not
+eligible for inline regeneration.
+
+ * @summary AI-generate body text for a single service-plan slot
+ */
+export const getGenerateStepContentUrl = () => {
+  return `/api/generate/step-content`;
+};
+
+export const generateStepContent = async (
+  generateStepContentBody: GenerateStepContentBody,
+  options?: RequestInit,
+): Promise<GeneratedStepContent> => {
+  return customFetch<GeneratedStepContent>(getGenerateStepContentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(generateStepContentBody),
+  });
+};
+
+export const getGenerateStepContentMutationOptions = <
+  TError = ErrorType<GenerateStepContent400 | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateStepContent>>,
+    TError,
+    { data: BodyType<GenerateStepContentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateStepContent>>,
+  TError,
+  { data: BodyType<GenerateStepContentBody> },
+  TContext
+> => {
+  const mutationKey = ["generateStepContent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateStepContent>>,
+    { data: BodyType<GenerateStepContentBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateStepContent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateStepContentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateStepContent>>
+>;
+export type GenerateStepContentMutationBody = BodyType<GenerateStepContentBody>;
+export type GenerateStepContentMutationError = ErrorType<
+  GenerateStepContent400 | UnauthorizedResponse
+>;
+
+/**
+ * @summary AI-generate body text for a single service-plan slot
+ */
+export const useGenerateStepContent = <
+  TError = ErrorType<GenerateStepContent400 | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateStepContent>>,
+    TError,
+    { data: BodyType<GenerateStepContentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateStepContent>>,
+  TError,
+  { data: BodyType<GenerateStepContentBody> },
+  TContext
+> => {
+  return useMutation(getGenerateStepContentMutationOptions(options));
 };
 
 /**

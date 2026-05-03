@@ -23,6 +23,7 @@ import {
   Trash2,
   BookmarkPlus,
   Check,
+  Wand2,
 } from 'lucide-react';
 import {
   useCreateServicePlan,
@@ -30,6 +31,8 @@ import {
   useCreateServiceTemplate,
   getListServiceTemplatesQueryKey,
   type GeneratedServicePlan,
+  type GeneratedStepContent,
+  type GenerateStepContentBody,
   type ServicePlanItem,
   type ServiceTemplate,
 } from '@workspace/api-client-react';
@@ -110,6 +113,20 @@ export default function ServiceBuilder() {
     Record<number, Partial<ServicePlanItem>>
   >({});
   const [pickingIndex, setPickingIndex] = useState<number | null>(null);
+  // Per-slot inline body editor state. `editingIndex` is the row index
+  // currently being edited; `editDraft` is the un-committed text. We only
+  // ever edit one slot at a time to keep the UX focused.
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  // Index of the slot whose body is currently being regenerated, if any.
+  // Driven by the dedicated `regenerateStep` job hook so the spinner stays
+  // local to a single row even while the rest of the plan remains editable.
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(
+    null,
+  );
+  const regenerateStep = useJobGenerate<GeneratedStepContent>(
+    '/api/generate/step-content',
+  );
 
   const mergedOrder: ServicePlanItem[] = (
     generate.data?.content.order ?? []
@@ -254,6 +271,80 @@ export default function ServiceBuilder() {
       return;
     }
     runGeneration({ ...formData }, wireFlow);
+  };
+
+  // ---------- per-slot body editing & regeneration ----------
+
+  const startEdit = (i: number, currentBody: string) => {
+    setEditingIndex(i);
+    setEditDraft(currentBody);
+  };
+
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setEditDraft('');
+  };
+
+  const commitEdit = () => {
+    if (editingIndex === null) return;
+    const idx = editingIndex;
+    const next = editDraft;
+    setSlotOverrides((prev) => ({
+      ...prev,
+      [idx]: { ...(prev[idx] ?? {}), body: next },
+    }));
+    setEditingIndex(null);
+    setEditDraft('');
+  };
+
+  // Map a service-plan slot kind to the regenerator endpoint's accepted
+  // kind enum. Returns null when the slot kind has no regeneration path
+  // (sermons are authored in Sermon Builder).
+  const regenKindFor = (
+    kind: ServicePlanItem['kind'],
+  ): GenerateStepContentBody['kind'] | null => {
+    if (kind === 'sermon') return null;
+    return kind;
+  };
+
+  const regenerateSlot = async (i: number, item: ServicePlanItem) => {
+    const regenKind = regenKindFor(item.kind);
+    if (!regenKind) {
+      toast.error('Sermons are authored in Sermon Builder.');
+      return;
+    }
+    if (regeneratingIndex !== null) return; // single regen at a time
+    setRegeneratingIndex(i);
+    try {
+      const result = await regenerateStep.mutate({
+        kind: regenKind,
+        stepName: item.title,
+        theme: formData.theme,
+        scripture: formData.scripture || undefined,
+        season: formData.season || undefined,
+        serviceLength: formData.serviceLength || undefined,
+        notes: formData.notes || undefined,
+      } satisfies GenerateStepContentBody);
+      if (result && typeof result.body === 'string') {
+        setSlotOverrides((prev) => ({
+          ...prev,
+          [i]: {
+            ...(prev[i] ?? {}),
+            body: result.body,
+            ...(typeof result.durationMinutes === 'number'
+              ? { durationMinutes: result.durationMinutes }
+              : {}),
+          },
+        }));
+        toast.success(`Regenerated "${item.title}"`);
+      }
+    } catch (err) {
+      toast.error(
+        (err as Error)?.message || 'Could not regenerate this step.',
+      );
+    } finally {
+      setRegeneratingIndex(null);
+    }
   };
 
   const handleSave = () => {
@@ -863,6 +954,41 @@ export default function ServiceBuilder() {
                                 <LinkedPill slot={item} />
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
+                                {editingIndex !== i &&
+                                  regenKindFor(item.kind) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => regenerateSlot(i, item)}
+                                      disabled={regeneratingIndex !== null}
+                                      title="Regenerate this step"
+                                      className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-md border text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      style={{
+                                        borderColor: 'var(--worship-border)',
+                                      }}
+                                      data-testid={`button-regen-step-${i}`}
+                                    >
+                                      {regeneratingIndex === i ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <Wand2 className="w-3 h-3" />
+                                      )}{' '}
+                                      Regenerate
+                                    </button>
+                                  )}
+                                {editingIndex !== i && (
+                                  <button
+                                    type="button"
+                                    onClick={() => startEdit(i, item.body)}
+                                    title="Edit text"
+                                    className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-md border text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] flex items-center gap-1"
+                                    style={{
+                                      borderColor: 'var(--worship-border)',
+                                    }}
+                                    data-testid={`button-edit-step-${i}`}
+                                  >
+                                    <Pencil className="w-3 h-3" /> Edit
+                                  </button>
+                                )}
                                 {slotPickerSupported(item.kind) && (
                                   <button
                                     type="button"
@@ -883,8 +1009,61 @@ export default function ServiceBuilder() {
                                 )}
                               </div>
                             </div>
-                            {item.kind === 'song' ? (
-                              <p className="text-sm font-medium text-[var(--worship-charcoal)] leading-relaxed">
+                            {editingIndex === i ? (
+                              <div className="mt-2 space-y-2">
+                                <textarea
+                                  autoFocus
+                                  value={editDraft}
+                                  onChange={(e) =>
+                                    setEditDraft(e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Escape') cancelEdit();
+                                    if (
+                                      e.key === 'Enter' &&
+                                      (e.metaKey || e.ctrlKey)
+                                    ) {
+                                      e.preventDefault();
+                                      commitEdit();
+                                    }
+                                  }}
+                                  rows={Math.min(
+                                    14,
+                                    Math.max(4, editDraft.split('\n').length + 1),
+                                  )}
+                                  className="w-full px-3 py-2 rounded-lg border text-sm font-serif leading-relaxed focus:outline-none focus:ring-2 ring-[var(--worship-gold)] resize-y"
+                                  style={{
+                                    borderColor: 'var(--worship-border)',
+                                    backgroundColor: 'var(--worship-cream)',
+                                  }}
+                                  data-testid={`textarea-edit-step-${i}`}
+                                />
+                                <div className="flex items-center justify-end gap-2">
+                                  <span className="text-[10px] text-[var(--worship-muted-slate)] mr-auto">
+                                    ⌘/Ctrl + Enter to save • Esc to cancel
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={cancelEdit}
+                                    className="px-3 py-1 rounded-md text-xs border bg-white text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]"
+                                    style={{
+                                      borderColor: 'var(--worship-border)',
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={commitEdit}
+                                    className="px-3 py-1 rounded-md text-xs worship-btn-primary text-white"
+                                    data-testid={`button-save-edit-step-${i}`}
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
+                            ) : item.kind === 'song' ? (
+                              <p className="text-sm font-medium text-[var(--worship-charcoal)] leading-relaxed whitespace-pre-wrap">
                                 {item.body}
                               </p>
                             ) : item.kind === 'prayer' ||

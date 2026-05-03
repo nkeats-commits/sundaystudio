@@ -354,6 +354,46 @@ export interface GeneratedServicePlan {
   content: ServicePlanContent;
 }
 
+export type GenerateStepContentBodyKind =
+  (typeof GenerateStepContentBodyKind)[keyof typeof GenerateStepContentBodyKind];
+
+export const GenerateStepContentBodyKind = {
+  song: "song",
+  scripture: "scripture",
+  prayer: "prayer",
+  communion: "communion",
+  offering: "offering",
+  welcome: "welcome",
+  benediction: "benediction",
+  transition: "transition",
+  custom: "custom",
+} as const;
+
+/**
+ * Request body for regenerating the text of a single service-plan slot.
+`kind` must be a valid `ServiceFlowStep.kind` other than `sermon`.
+
+ */
+export interface GenerateStepContentBody {
+  kind: GenerateStepContentBodyKind;
+  /**
+   * The slot's title as the user named it (e.g. "Opening Song").
+   * @minLength 1
+   */
+  stepName: string;
+  theme: string;
+  scripture?: string;
+  season?: string;
+  serviceLength?: string;
+  notes?: string;
+}
+
+export interface GeneratedStepContent {
+  /** The regenerated body text for the slot. */
+  body: string;
+  durationMinutes?: number | null;
+}
+
 export type GenerateLiturgyBodyKind =
   (typeof GenerateLiturgyBodyKind)[keyof typeof GenerateLiturgyBodyKind];
 
@@ -944,6 +984,10 @@ export type GenerateSongSuggestions400 = {
 };
 
 export type GenerateSpeakingMoment400 = {
+  error?: string;
+};
+
+export type GenerateStepContent400 = {
   error?: string;
 };
 
