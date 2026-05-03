@@ -1956,7 +1956,7 @@ function StudyView({
             </div>
           )}
           <p className="mt-2 text-[11px] text-[var(--worship-slate)]">
-            Includes any pastor-attached resources plus public-domain commentaries you've enabled in your <a href="/resources#commentaries" className="underline">Resource Library</a>.
+            Includes any pastor-attached resources plus public-domain commentaries you've enabled in your <Link href="/resources#commentaries" className="underline">Resource Library</Link>.
           </p>
         </div>
       )}

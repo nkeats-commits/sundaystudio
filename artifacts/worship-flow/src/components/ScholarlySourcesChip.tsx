@@ -1,3 +1,4 @@
+import { Link } from 'wouter';
 import { BookOpen, Library as LibraryIcon } from 'lucide-react';
 import { useListScholarlySources } from '@workspace/api-client-react';
 import {
@@ -23,7 +24,7 @@ export function ScholarlySourcesChip() {
   return (
     <HoverCard openDelay={120} closeDelay={80}>
       <HoverCardTrigger asChild>
-        <a
+        <Link
           href="/resources#commentaries"
           className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border bg-[var(--worship-cream)] text-[var(--worship-navy)] hover:bg-white transition-colors"
           style={{ borderColor: 'var(--worship-border)' }}
@@ -32,7 +33,7 @@ export function ScholarlySourcesChip() {
           {enabled === 0
             ? 'No scholarly sources active'
             : `${enabled} of ${total} scholarly sources active`}
-        </a>
+        </Link>
       </HoverCardTrigger>
       <HoverCardContent
         align="start"
@@ -63,13 +64,13 @@ export function ScholarlySourcesChip() {
             ))}
           </ul>
         )}
-        <a
+        <Link
           href="/resources#commentaries"
           className="mt-3 inline-flex items-center gap-1 text-xs text-[var(--worship-navy)] underline"
         >
           <LibraryIcon className="w-3 h-3" />
           Manage sources
-        </a>
+        </Link>
       </HoverCardContent>
     </HoverCard>
   );

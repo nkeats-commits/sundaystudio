@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'wouter';
 import { AppLayout } from '../components/layout/AppLayout';
 import {
   useListSermonResources,
@@ -84,6 +85,36 @@ export default function ResourceLibrary() {
   const [search, setSearch] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(blankDraft());
+
+  // wouter's <Link> uses pushState for navigation, which preserves any
+  // `#hash` in the URL but does NOT trigger native fragment scrolling.
+  // This effect reads the current hash on mount and on hash/location
+  // changes, then scrolls the matching section into view so deep links
+  // from the Sermon Builder chip and Settings card actually land on
+  // #commentaries.
+  const [location] = useLocation();
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    const el = document.getElementById(hash);
+    if (!el) return;
+    const id = window.requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [location]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return;
+      const el = document.getElementById(hash);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
