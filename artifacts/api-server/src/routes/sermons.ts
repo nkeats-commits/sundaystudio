@@ -309,9 +309,13 @@ router.post("/sermons", requireAuth, requireActiveAccess, async (req, res) => {
 /**
  * Predict what the server-side scholarly-resource merge will inject for
  * a given (passage, exclusion-set) tuple. The Sermon Builder calls this
- * on every form change so the "Drawing on N resources" panel mirrors what
- * the prompt will see — see `previewSermonResources` for the matching
- * rules.
+ * (debounced) so the "Drawing on N resources" panel mirrors exactly what
+ * the prompt will see — public-domain coverage data lives only on the
+ * server, so this endpoint is the source of truth for which commentaries
+ * actually have content for the sermon's chapters. The library half of
+ * the contract is also available to the client via
+ * `worship-flow/src/lib/passageMatch.ts`, which mirrors the same matcher
+ * used here (see `previewSermonResources` for the rules).
  *
  * Mounted BEFORE `/sermons/:id` so the literal path takes priority over
  * the param route.

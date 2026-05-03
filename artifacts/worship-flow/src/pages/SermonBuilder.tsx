@@ -10,8 +10,7 @@ import {
   useListSermonSeries,
   useCreateSermonSeries,
   useBuildServiceFromSermon,
-  useListSermonResources,
-  useListScholarlySources,
+  previewSermonResources,
   getListSermonSeriesQueryKey,
   getGetSermonQueryKey,
   getListServicePlansQueryKey,
@@ -29,7 +28,6 @@ import {
   type SermonSectionHashes,
   type PreviewSermonResourcesResponse,
 } from '@workspace/api-client-react';
-import { libraryRowMatches, sermonPassagePairs } from '../lib/passageMatch';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import {
   type SectionKey,
@@ -327,103 +325,83 @@ export default function SermonBuilder() {
 
   /**
    * Live preview of what the server-side merge will inject for the current
-   * sermon context. Computed CLIENT-SIDE so the panel updates instantly as
-   * the pastor types — no debounce, no race between in-flight requests, no
-   * loading flicker. The matcher is `lib/passageMatch.ts`, an exact mirror
-   * of the server's `libraryRowMatches` / `parsePassageRef` (pinned by
-   * unit tests on both sides). The same `mergeScholarlyResources` runs
-   * server-side at generation time, so the panel is what the AI sees.
+   * sermon context. Single source of truth for the "Drawing on" panel —
+   * we POST `/sermons/preview-resources` (debounced) so the panel and the
+   * eventual generation can NEVER drift apart. The server is authoritative
+   * because per-chapter PD commentary coverage data lives only there; the
+   * client mirror in `lib/passageMatch.ts` covers the library half of the
+   * matcher contract and is exercised by unit tests on both sides.
    *
-   * The shape matches `PreviewSermonResourcesResponse` so the existing
-   * render code (and the integration tests covering the server endpoint)
-   * stay 1:1 with the client logic.
-   *
-   * For public-domain commentaries we list the user's enabled set minus
-   * per-sermon excludes. We don't have per-chapter coverage data on the
-   * client, so a source listed here will only end up in the actual prompt
-   * if it has content for one of the sermon's chapters; in practice the
-   * bundled commentaries cover the whole canon, so the panel is accurate.
+   * Pre-applies excludedResourceIds + excludedSourceIds so the response
+   * is exactly the included set. To still let the pastor TOGGLE an
+   * excluded item back in, we also remember the pre-exclusion result and
+   * union the two lists (post-exclusion + opted-out items the pastor can
+   * un-opt-out).
    */
-  const sourcesQuery = useListScholarlySources();
-  const resourcesQuery = useListSermonResources();
-  const { preview, previewExcluded } = useMemo<{
-    preview: PreviewSermonResourcesResponse | null;
-    previewExcluded: {
-      library: { id: number; title: string }[];
-      publicDomain: { sourceId: string; sourceTitle: string }[];
-    };
-  }>(() => {
+  const [preview, setPreview] = useState<PreviewSermonResourcesResponse | null>(null);
+  const [previewExcluded, setPreviewExcluded] = useState<{
+    library: { id: number; title: string }[];
+    publicDomain: { sourceId: string; sourceTitle: string }[];
+  }>({ library: [], publicDomain: [] });
+  const [previewLoading, setPreviewLoading] = useState(false);
+  useEffect(() => {
     if (!form.passage.trim()) {
-      return { preview: null, previewExcluded: { library: [], publicDomain: [] } };
+      setPreview(null);
+      setPreviewExcluded({ library: [], publicDomain: [] });
+      return;
     }
-    const sermonPairs = sermonPassagePairs(
-      form.passage,
-      parseSecondary(form.secondaryPassagesText),
-    );
-    const legacy = (form.attachedResourceIds ?? []).length > 0;
-
-    // ---- Library ----
-    const allRows = resourcesQuery.data ?? [];
-    const excludedRowIds = new Set(form.excludedResourceIds);
-    let libraryAll: typeof allRows;
-    if (legacy) {
-      const allowed = new Set(form.attachedResourceIds);
-      libraryAll = allRows.filter((r) => allowed.has(r.id));
-    } else {
-      libraryAll = allRows.filter((r) => libraryRowMatches(r.relatedPassage, sermonPairs));
-    }
-    const libraryIncluded = libraryAll
-      .filter((r) => !excludedRowIds.has(r.id))
-      .map((r) => ({
-        id: r.id,
-        title: r.title,
-        author: r.author || null,
-        relatedPassage: r.relatedPassage,
-        alwaysRelevant: !r.relatedPassage.trim(),
-      }));
-    const libraryExcluded = libraryAll
-      .filter((r) => excludedRowIds.has(r.id))
-      .map((r) => ({ id: r.id, title: r.title }));
-
-    // ---- Public-domain ----
-    const allSources = sourcesQuery.data?.sources ?? [];
-    const enabled = new Set(sourcesQuery.data?.enabledSourceIds ?? []);
-    const excludedSrcIds = new Set(form.excludedSourceIds);
-    const enabledSources = allSources.filter((s) => enabled.has(s.id));
-    const pdIncluded = enabledSources
-      .filter((s) => !excludedSrcIds.has(s.id))
-      .map((s) => ({
-        sourceId: s.id,
-        sourceTitle: s.title,
-        sourceAuthor: s.author || null,
-        // We surface a representative chapter label; client doesn't have
-        // per-chapter coverage data, so we synthesise one from the first
-        // sermon pair purely for display.
-        bookCanonical: sermonPairs[0]?.book ?? '',
-        chapter: sermonPairs[0]?.chapter ?? 0,
-      }));
-    const pdExcluded = enabledSources
-      .filter((s) => excludedSrcIds.has(s.id))
-      .map((s) => ({ sourceId: s.id, sourceTitle: s.title }));
-
-    return {
-      preview: {
-        publicDomain: pdIncluded,
-        library: libraryIncluded,
-        legacyMode: legacy,
-      },
-      previewExcluded: { library: libraryExcluded, publicDomain: pdExcluded },
-    };
+    const handle = setTimeout(async () => {
+      const secondary = parseSecondary(form.secondaryPassagesText);
+      setPreviewLoading(true);
+      try {
+        const baseBody = {
+          passage: form.passage,
+          secondaryPassages: secondary,
+          attachedResourceIds: form.attachedResourceIds,
+        };
+        const [included, candidates] = await Promise.all([
+          previewSermonResources({
+            ...baseBody,
+            excludedResourceIds: form.excludedResourceIds,
+            excludedSourceIds: form.excludedSourceIds,
+          }),
+          previewSermonResources(baseBody),
+        ]);
+        setPreview(included);
+        const includedLibraryIds = new Set(included.library.map((l) => l.id));
+        const includedSourceIds = new Set(included.publicDomain.map((p) => p.sourceId));
+        const excludedLibrary = candidates.library
+          .filter((l) => !includedLibraryIds.has(l.id) && form.excludedResourceIds.includes(l.id))
+          .map((l) => ({ id: l.id, title: l.title }));
+        const excludedSourcesMap = new Map<string, string>();
+        for (const c of candidates.publicDomain) {
+          if (includedSourceIds.has(c.sourceId)) continue;
+          if (!form.excludedSourceIds.includes(c.sourceId)) continue;
+          if (!excludedSourcesMap.has(c.sourceId)) {
+            excludedSourcesMap.set(c.sourceId, c.sourceTitle);
+          }
+        }
+        setPreviewExcluded({
+          library: excludedLibrary,
+          publicDomain: Array.from(excludedSourcesMap, ([sourceId, sourceTitle]) => ({
+            sourceId,
+            sourceTitle,
+          })),
+        });
+      } catch {
+        // Network glitch — keep last preview so the panel doesn't blink.
+      } finally {
+        setPreviewLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
   }, [
     form.passage,
     form.secondaryPassagesText,
     form.excludedResourceIds,
     form.excludedSourceIds,
     form.attachedResourceIds,
-    resourcesQuery.data,
-    sourcesQuery.data,
   ]);
-  const previewLoading = resourcesQuery.isLoading || sourcesQuery.isLoading;
 
   const ensureSermonId = async (): Promise<number | null> => {
     if (sermon) return sermon.id;
@@ -1091,50 +1069,50 @@ export default function SermonBuilder() {
                           </button>
                         </div>
                       )}
-                      <div className="text-xs text-[var(--worship-slate)]">
-                        Drawing on <span className="font-semibold text-[var(--worship-navy)]">{totalIncluded}</span> {totalIncluded === 1 ? 'resource' : 'resources'} for this sermon.
-                        {previewLoading && <span className="ml-1 text-[10px] text-[var(--worship-muted-slate)]">refreshing…</span>}
-                      </div>
+                      <details className="group">
+                        <summary className="flex items-center gap-2 text-xs text-[var(--worship-slate)] cursor-pointer select-none list-none">
+                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90 shrink-0" />
+                          <span>
+                            Drawing on <span className="font-semibold text-[var(--worship-navy)]">{totalIncluded}</span> {totalIncluded === 1 ? 'resource' : 'resources'} for this sermon.
+                          </span>
+                          {previewLoading && <span className="text-[10px] text-[var(--worship-muted-slate)]">refreshing…</span>}
+                        </summary>
                       {(totalIncluded > 0 || hasAnyExcluded) && (
-                        <div className="border rounded-lg max-h-72 overflow-y-auto bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
+                        <div className="mt-2 border rounded-lg max-h-72 overflow-y-auto bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
                           {preview.publicDomain.length > 0 && (
                             <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)] bg-white border-b" style={{ borderColor: 'var(--worship-border)' }}>
                               Public-domain commentaries
                             </div>
                           )}
                           {preview.publicDomain.map((p, i) => (
-                            <div key={`pd-${p.sourceId}-${p.bookCanonical}-${p.chapter}-${i}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0" style={{ borderColor: 'var(--worship-border)' }}>
+                            <label key={`pd-${p.sourceId}-${p.bookCanonical}-${p.chapter}-${i}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0 cursor-pointer hover:bg-white" style={{ borderColor: 'var(--worship-border)' }}>
+                              <input
+                                type="checkbox"
+                                checked
+                                onChange={() => toggleExcludeSource(p.sourceId)}
+                                className="mt-0.5 shrink-0"
+                                title="Uncheck to skip this commentary source for this sermon only"
+                              />
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold text-[var(--worship-navy)] truncate">{p.sourceTitle}</div>
                                 <div className="text-[10px] text-[var(--worship-slate)] truncate">{[p.sourceAuthor, `${p.bookCanonical.replace(/\b\w/g, (c) => c.toUpperCase())} ${p.chapter}`].filter(Boolean).join(' · ')}</div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => toggleExcludeSource(p.sourceId)}
-                                className="text-[10px] px-2 py-0.5 rounded border text-[var(--worship-slate)] hover:bg-white shrink-0"
-                                style={{ borderColor: 'var(--worship-border)' }}
-                                title="Skip this commentary source for this sermon only"
-                              >
-                                Exclude
-                              </button>
-                            </div>
+                            </label>
                           ))}
                           {previewExcluded.publicDomain.map((p) => (
-                            <div key={`pd-ex-${p.sourceId}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0 opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                            <label key={`pd-ex-${p.sourceId}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0 opacity-60 cursor-pointer hover:opacity-100 hover:bg-white" style={{ borderColor: 'var(--worship-border)' }}>
+                              <input
+                                type="checkbox"
+                                checked={false}
+                                onChange={() => toggleExcludeSource(p.sourceId)}
+                                className="mt-0.5 shrink-0"
+                                title="Re-include this commentary source"
+                              />
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold text-[var(--worship-navy)] truncate line-through">{p.sourceTitle}</div>
                                 <div className="text-[10px] text-[var(--worship-slate)] truncate">Excluded for this sermon</div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => toggleExcludeSource(p.sourceId)}
-                                className="text-[10px] px-2 py-0.5 rounded border text-[var(--worship-gold)] hover:bg-white shrink-0"
-                                style={{ borderColor: 'var(--worship-border)' }}
-                                title="Re-include this commentary source"
-                              >
-                                Include
-                              </button>
-                            </div>
+                            </label>
                           ))}
                           {preview.library.length > 0 && (
                             <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)] bg-white border-b" style={{ borderColor: 'var(--worship-border)' }}>
@@ -1142,41 +1120,38 @@ export default function SermonBuilder() {
                             </div>
                           )}
                           {preview.library.map((r) => (
-                            <div key={`lib-${r.id}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0" style={{ borderColor: 'var(--worship-border)' }}>
+                            <label key={`lib-${r.id}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0 cursor-pointer hover:bg-white" style={{ borderColor: 'var(--worship-border)' }}>
+                              <input
+                                type="checkbox"
+                                checked
+                                onChange={() => toggleExcludeResource(r.id)}
+                                className="mt-0.5 shrink-0"
+                                title="Uncheck to skip this entry for this sermon"
+                              />
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold text-[var(--worship-navy)] truncate">{r.title}</div>
                                 <div className="text-[10px] text-[var(--worship-slate)] truncate">{[r.author, r.alwaysRelevant ? 'always relevant' : (r.relatedPassage || 'always relevant')].filter(Boolean).join(' · ')}</div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => toggleExcludeResource(r.id)}
-                                className="text-[10px] px-2 py-0.5 rounded border text-[var(--worship-slate)] hover:bg-white shrink-0"
-                                style={{ borderColor: 'var(--worship-border)' }}
-                                title="Don't use this entry for this sermon"
-                              >
-                                Exclude
-                              </button>
-                            </div>
+                            </label>
                           ))}
                           {previewExcluded.library.map((r) => (
-                            <div key={`lib-ex-${r.id}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0 opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                            <label key={`lib-ex-${r.id}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0 opacity-60 cursor-pointer hover:opacity-100 hover:bg-white" style={{ borderColor: 'var(--worship-border)' }}>
+                              <input
+                                type="checkbox"
+                                checked={false}
+                                onChange={() => toggleExcludeResource(r.id)}
+                                className="mt-0.5 shrink-0"
+                                title="Re-include this entry"
+                              />
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold text-[var(--worship-navy)] truncate line-through">{r.title}</div>
                                 <div className="text-[10px] text-[var(--worship-slate)] truncate">Excluded for this sermon</div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => toggleExcludeResource(r.id)}
-                                className="text-[10px] px-2 py-0.5 rounded border text-[var(--worship-gold)] hover:bg-white shrink-0"
-                                style={{ borderColor: 'var(--worship-border)' }}
-                                title="Re-include this entry"
-                              >
-                                Include
-                              </button>
-                            </div>
+                            </label>
                           ))}
                         </div>
                       )}
+                      </details>
                       {totalIncluded === 0 && !hasAnyExcluded && (
                         <p className="text-[11px] text-[var(--worship-muted-slate)] italic">
                           Nothing matches this sermon's passages yet. Add commentary excerpts in your Resource Library, or enable more public-domain sources in Settings.
