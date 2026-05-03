@@ -54,7 +54,7 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--worship-muted-slate)' }}>Quick Actions</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
-              { icon: Layers, label: "Build Service", href: "/service-builder" },
+              { icon: Layers, label: "Build a Service", href: "/service-builder" },
               { icon: BookOpen, label: "Generate Liturgy", href: "/generators/liturgy" },
               { icon: Music, label: "Find Songs", href: "/generators/songs" },
               { icon: Users, label: "Team Devotional", href: "/generators/devotional" },
