@@ -715,6 +715,9 @@ export default function Library() {
         <CsvImportModal
           onClose={() => setShowCsvModal(false)}
           onImported={invalidateLibrary}
+          existingTitles={
+            repertoireQuery.data?.map((it) => it.title) ?? []
+          }
         />
       )}
 

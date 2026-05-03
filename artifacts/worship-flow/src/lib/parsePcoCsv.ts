@@ -35,14 +35,22 @@ const PCO_TOP_LEVEL_HEADERS = [
   'Song Tag 2',
 ] as const;
 
-/** Sniff the format from the parsed header row. */
+/**
+ * Sniff the format from the parsed header row.
+ *
+ * - PCO: detected by the presence of `Arrangement 1 Name` + `Title`.
+ * - Generic: detected by an exact (case-insensitive) `title` header.
+ *   We deliberately do NOT accept `song` or `name` as aliases — that
+ *   would let us silently mis-import contact lists, song service-list
+ *   exports, etc. The user's spec is "any sheet with a `title` column",
+ *   so we hold them to it.
+ */
 export function detectFormat(headers: string[]): CsvFormat {
   if (headers.includes('Arrangement 1 Name') && headers.includes('Title')) {
     return 'pco';
   }
-  // Generic format requires *some* title-ish column.
   const lower = headers.map((h) => h.trim().toLowerCase());
-  if (lower.includes('title') || lower.includes('song') || lower.includes('name')) {
+  if (lower.includes('title')) {
     return 'generic';
   }
   return 'unknown';
@@ -204,7 +212,9 @@ export function mapGenericRow(
   row: Record<string, string>,
   lookup: Map<string, string>,
 ): RepertoireImportSong | null {
-  const title = pickCell(row, lookup, 'title', 'song', 'name');
+  // Title column is required and must be literally `title` (any casing).
+  // Other column names are flexible aliases.
+  const title = pickCell(row, lookup, 'title');
   if (!title) return null;
   const song: RepertoireImportSong = { title };
   const artist = pickCell(row, lookup, 'artist', 'author');
@@ -256,6 +266,17 @@ export function mapRowsByFormat(
 }
 
 /**
+ * Normalize a title the same way the server does
+ * (`artifacts/api-server/src/lib/repertoire.ts` → `normalizeTitle`).
+ * Keeping these in lock-step matters: the on-screen "new vs duplicate"
+ * count must reflect exactly which rows the server will skip when the
+ * import lands. If the two diverge, the preview lies to the user.
+ */
+export function normalizeTitleForDedupe(title: string): string {
+  return title.trim().toLowerCase();
+}
+
+/**
  * Drop rows whose normalized title duplicates a title we've already seen
  * earlier in the same import, so the on-screen "new vs duplicate" count
  * is honest before the server even sees the payload.
@@ -267,7 +288,7 @@ export function dedupeByTitle(
   const unique: RepertoireImportSong[] = [];
   let intraFileDupes = 0;
   for (const s of songs) {
-    const k = s.title.trim().toLowerCase().replace(/\s+/g, ' ');
+    const k = normalizeTitleForDedupe(s.title);
     if (seen.has(k)) {
       intraFileDupes += 1;
       continue;
@@ -276,4 +297,32 @@ export function dedupeByTitle(
     unique.push(s);
   }
   return { unique, intraFileDupes };
+}
+
+/**
+ * Split parsed songs into "new" vs "already in repertoire" using the
+ * user's current repertoire titles. Uses the same normalization the
+ * server uses, so the preview counts match what the server will actually
+ * insert vs skip on submit.
+ */
+export function splitNewVsDuplicate(
+  songs: RepertoireImportSong[],
+  existingTitles: string[],
+): {
+  newSongs: RepertoireImportSong[];
+  existingMatches: RepertoireImportSong[];
+} {
+  const existing = new Set(
+    existingTitles.map((t) => normalizeTitleForDedupe(t)),
+  );
+  const newSongs: RepertoireImportSong[] = [];
+  const existingMatches: RepertoireImportSong[] = [];
+  for (const s of songs) {
+    if (existing.has(normalizeTitleForDedupe(s.title))) {
+      existingMatches.push(s);
+    } else {
+      newSongs.push(s);
+    }
+  }
+  return { newSongs, existingMatches };
 }

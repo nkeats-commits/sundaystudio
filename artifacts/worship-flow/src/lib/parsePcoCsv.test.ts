@@ -12,6 +12,8 @@ import {
   mapPcoRows,
   mapGenericRows,
   dedupeByTitle,
+  splitNewVsDuplicate,
+  normalizeTitleForDedupe,
 } from './parsePcoCsv';
 
 test('detectFormat: recognises PCO export by Arrangement 1 Name header', () => {
@@ -24,12 +26,20 @@ test('detectFormat: recognises PCO export by Arrangement 1 Name header', () => {
 test('detectFormat: falls back to generic when "title" header is present (any casing)', () => {
   assert.equal(detectFormat(['Title', 'Artist', 'BPM']), 'generic');
   assert.equal(detectFormat(['title', 'artist']), 'generic');
-  assert.equal(detectFormat(['Song', 'Tempo']), 'generic');
+  assert.equal(detectFormat(['  TITLE  ', 'Artist']), 'generic');
 });
 
 test('detectFormat: returns "unknown" when no usable title-ish column exists', () => {
   assert.equal(detectFormat(['foo', 'bar', 'baz']), 'unknown');
   assert.equal(detectFormat([]), 'unknown');
+});
+
+test('detectFormat: rejects "song" / "name" lookalikes — title column is required', () => {
+  // Without an explicit `title` column, we refuse to auto-import — too
+  // easy to confuse a contact list ("Name, Email") for a song list.
+  assert.equal(detectFormat(['Song', 'Tempo']), 'unknown');
+  assert.equal(detectFormat(['Name', 'Email']), 'unknown');
+  assert.equal(detectFormat(['song name', 'artist']), 'unknown');
 });
 
 test('normalizeDate: PCO "May 03, 2026" → ISO date (calendar day, not UTC)', () => {
@@ -181,15 +191,43 @@ test('mapGenericRows: tags + themes columns merge and dedupe', () => {
   assert.deepEqual(out[0].tags, ['Worship', 'Praise', 'Joy']);
 });
 
-test('dedupeByTitle: drops intra-file duplicates case-insensitively', () => {
+test('dedupeByTitle: drops intra-file duplicates case-insensitively (server-aligned)', () => {
+  // Mirrors server's normalizeTitle = trim + toLowerCase. Internal
+  // whitespace is NOT collapsed (so "Amazing Grace" and "Amazing  Grace"
+  // are distinct), matching what the server will actually do on insert.
   const songs = [
     { title: 'Amazing Grace' },
     { title: 'amazing grace' },
     { title: 'In Christ Alone' },
-    { title: '  Amazing  Grace  ' }, // whitespace variant
+    { title: '  Amazing Grace  ' }, // surrounding whitespace only
   ];
   const { unique, intraFileDupes } = dedupeByTitle(songs);
   assert.equal(unique.length, 2);
   assert.equal(intraFileDupes, 2);
   assert.equal(unique[0].title, 'Amazing Grace');
+});
+
+test('normalizeTitleForDedupe: matches server normalizeTitle (trim + lowercase only)', () => {
+  assert.equal(normalizeTitleForDedupe('Amazing Grace'), 'amazing grace');
+  assert.equal(normalizeTitleForDedupe('  Amazing Grace  '), 'amazing grace');
+  // Internal whitespace is preserved, mirroring the server.
+  assert.equal(normalizeTitleForDedupe('Amazing  Grace'), 'amazing  grace');
+});
+
+test('splitNewVsDuplicate: separates rows already in the user repertoire', () => {
+  const songs = [
+    { title: 'Amazing Grace' },
+    { title: 'In Christ Alone' },
+    { title: 'Goodness Of God' },
+  ];
+  const existing = ['Amazing Grace', 'goodness of god', '  10,000 Reasons  '];
+  const { newSongs, existingMatches } = splitNewVsDuplicate(songs, existing);
+  assert.deepEqual(
+    newSongs.map((s) => s.title),
+    ['In Christ Alone'],
+  );
+  assert.deepEqual(
+    existingMatches.map((s) => s.title),
+    ['Amazing Grace', 'Goodness Of God'],
+  );
 });

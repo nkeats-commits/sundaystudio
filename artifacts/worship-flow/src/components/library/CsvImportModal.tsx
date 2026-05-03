@@ -23,6 +23,7 @@ import {
   detectFormat,
   mapRowsByFormat,
   dedupeByTitle,
+  splitNewVsDuplicate,
   type CsvFormat,
 } from '../../lib/parsePcoCsv';
 
@@ -39,6 +40,8 @@ type ParseResult =
       totalRows: number;
       droppedRows: number;
       intraFileDupes: number;
+      newCount: number;
+      duplicateCount: number;
       sample: RepertoireImportSong[];
       fileName: string;
     };
@@ -54,9 +57,18 @@ type ImportProgress = {
 export function CsvImportModal({
   onClose,
   onImported,
+  existingTitles,
 }: {
   onClose: () => void;
   onImported: () => void;
+  /**
+   * Titles of songs already in the user's repertoire. Used to compute
+   * the "X new · Y already in repertoire" preview counts so the user
+   * knows exactly what will land before they click Import. Order and
+   * casing don't matter — comparison is case-insensitive and trimmed,
+   * matching the server's normalizeTitle.
+   */
+  existingTitles: string[];
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parse, setParse] = useState<ParseResult>({ status: 'idle' });
@@ -101,6 +113,13 @@ export function CsvImportModal({
           });
           return;
         }
+        const { newSongs, existingMatches } = splitNewVsDuplicate(
+          unique,
+          existingTitles,
+        );
+        // Surface a few "new" rows in the sample if any exist; otherwise
+        // fall back to whatever's there so the preview isn't blank.
+        const sampleSource = newSongs.length > 0 ? newSongs : unique;
         setParse({
           status: 'ready',
           format,
@@ -108,7 +127,9 @@ export function CsvImportModal({
           totalRows: rows.length,
           droppedRows,
           intraFileDupes,
-          sample: unique.slice(0, 5),
+          newCount: newSongs.length,
+          duplicateCount: existingMatches.length,
+          sample: sampleSource.slice(0, 5),
           fileName: file.name,
         });
       },
@@ -279,22 +300,33 @@ export function CsvImportModal({
                         : 'a generic CSV'}
                       .
                     </div>
+                    <div
+                      className="text-xs text-emerald-800/90"
+                      data-testid="csv-preview-counts"
+                    >
+                      <strong>{parse.newCount}</strong> new
+                      {' · '}
+                      <strong>{parse.duplicateCount}</strong> already in
+                      repertoire
+                      {' · '}
+                      <strong>{parse.songs.length}</strong> total in file
+                    </div>
                     <div className="text-xs text-emerald-800/80">
-                      <strong>{parse.songs.length}</strong> song
-                      {parse.songs.length === 1 ? '' : 's'} ready to import
-                      from <em>{parse.fileName}</em>
+                      From <em>{parse.fileName}</em>
                       {parse.droppedRows > 0
                         ? ` · ${parse.droppedRows} row${parse.droppedRows === 1 ? '' : 's'} skipped (no title)`
                         : ''}
                       {parse.intraFileDupes > 0
-                        ? ` · ${parse.intraFileDupes} duplicate title${parse.intraFileDupes === 1 ? '' : 's'} merged`
+                        ? ` · ${parse.intraFileDupes} duplicate title${parse.intraFileDupes === 1 ? '' : 's'} merged within file`
                         : ''}
                       .
                     </div>
-                    <div className="text-xs text-emerald-800/80">
-                      Titles already in your repertoire will be skipped on
-                      the server.
-                    </div>
+                    {parse.newCount === 0 && (
+                      <div className="text-xs text-emerald-800/80 italic">
+                        Every song in this file is already in your
+                        repertoire — nothing new to add.
+                      </div>
+                    )}
                   </div>
                 </div>
                 {parse.format === 'pco' && (
@@ -383,8 +415,17 @@ export function CsvImportModal({
                 </>
               ) : parse.status === 'ready' ? (
                 <>
-                  Import {parse.songs.length} song
-                  {parse.songs.length === 1 ? '' : 's'}
+                  {parse.newCount > 0 ? (
+                    <>
+                      Import {parse.newCount} new song
+                      {parse.newCount === 1 ? '' : 's'}
+                    </>
+                  ) : (
+                    <>
+                      Import {parse.songs.length} song
+                      {parse.songs.length === 1 ? '' : 's'}
+                    </>
+                  )}
                 </>
               ) : (
                 <>Import</>
