@@ -171,7 +171,9 @@ export function repertoirePromptBlock(
       return `- ${s.title}${s.artist ? ` (${s.artist})` : ""}${bpmTag}${rangeTag}`;
     })
     .join("\n");
-  const tempoGuidance = `Tempo guidance: when a slot's intent or title implies energy (e.g. "opener", "upbeat", "celebration", "sending"), favor faster songs (roughly 100+ BPM). When a slot implies reflection, lament, communion, confession, or response, favor slower songs (roughly under 90 BPM). For each suggested song, return a "bpm" integer estimate when known, or null when you genuinely don't know.`;
+  const tempoGuidance = `Tempo guidance: when a slot's intent or title implies energy (e.g. "opener", "upbeat", "celebration", "sending"), favor faster songs (roughly 100+ BPM). When a slot implies reflection, lament, communion, confession, or response, favor slower songs (roughly under 90 BPM).
+
+BPM accuracy is critical: ONLY return a numeric "bpm" when you are highly confident in the recording's actual tempo. If you are unsure, return "bpm": null. A wrong BPM is much worse than a missing one — pastors plan their service tempo around this number. Do NOT estimate, guess, or invent. The user's verified repertoire BPMs (shown above when set) are always preferred over your own knowledge.`;
   if (mode === "strict") {
     return `THE USER'S TEAM REPERTOIRE — this is the EXHAUSTIVE list of songs they know (BPM shown when set):
 ${list}

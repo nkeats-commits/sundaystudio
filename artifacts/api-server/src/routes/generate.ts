@@ -377,7 +377,7 @@ Return JSON exactly in this shape:
       "title": "string — real published worship song title",
       "artist": "string — primary artist or hymn writer",
       "style": "string — e.g. modern worship, hymn, gospel, acoustic",
-      "bpm": 120,
+      "bpm": null,
       "themes": ["string", ...],
       "whyItFits": "string — 1-2 sentences pastoring the choice"
     }
@@ -386,7 +386,7 @@ Return JSON exactly in this shape:
 
 Only suggest real, published songs/hymns the pastor can actually find. Do not invent songs.
 Keep "whyItFits" to 1-2 short sentences.
-"bpm" is the song's tempo in beats per minute as an integer (use null if you genuinely don't know). Use the user's saved BPM from the repertoire above when applicable.`;
+"bpm" — return null UNLESS you are highly confident in the recording's actual tempo. Wrong BPMs derail real services; missing BPMs are easy for a worship leader to fill in. The user's saved repertoire BPMs (above) are always preferred over your knowledge — if a title appears there with a BPM, the server will substitute it automatically, so you can safely return null for those rows too.`;
 
   type RawSong = {
     title?: unknown;

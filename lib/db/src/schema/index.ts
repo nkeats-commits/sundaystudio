@@ -4,3 +4,6 @@ export * from "./servicePlans";
 export * from "./libraryItems";
 export * from "./sermons";
 export * from "./serviceTemplates";
+export * from "./crowdsourceBpm";
+export * from "./pcsConnections";
+export * from "./externalSongLinks";
