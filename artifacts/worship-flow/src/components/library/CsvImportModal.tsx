@@ -98,7 +98,7 @@ export function CsvImportModal({
           setParse({
             status: 'error',
             message:
-              "We couldn't recognize this CSV. Expected a Planning Center export, or any CSV with at least a 'title' column.",
+              "We couldn't recognize this CSV. Expected either a Planning Center Services export (must include an 'Arrangement 1 Name' column) or a generic CSV with at least a 'title' column. Other recognized columns: artist, bpm, key, ccli, tags (or themes), notes, arrangement notes, last scheduled date.",
           });
           return;
         }
@@ -117,9 +117,6 @@ export function CsvImportModal({
           unique,
           existingTitles,
         );
-        // Surface a few "new" rows in the sample if any exist; otherwise
-        // fall back to whatever's there so the preview isn't blank.
-        const sampleSource = newSongs.length > 0 ? newSongs : unique;
         setParse({
           status: 'ready',
           format,
@@ -129,7 +126,10 @@ export function CsvImportModal({
           intraFileDupes,
           newCount: newSongs.length,
           duplicateCount: existingMatches.length,
-          sample: sampleSource.slice(0, 5),
+          // Preview shows the first 5 mapped rows verbatim — i.e. what
+          // the file actually contains at the top — rather than filtering
+          // to "new only", so the user can sanity-check parsing.
+          sample: unique.slice(0, 5),
           fileName: file.name,
         });
       },

@@ -85,7 +85,12 @@ export function normalizeDate(raw: string | undefined): string | undefined {
   // Already-ISO dates pass through unchanged.
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
   const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) return trimmed;
+  // Drop unparseable strings entirely — `lastScheduledDate` is documented
+  // as ISO `YYYY-MM-DD` in the API spec, and storing free-form text like
+  // "soon" would silently break date filters/sorts on the server. If the
+  // user has a malformed date, dropping it is safer than corrupting the
+  // contract.
+  if (Number.isNaN(parsed.getTime())) return undefined;
   const yyyy = parsed.getFullYear();
   const mm = String(parsed.getMonth() + 1).padStart(2, '0');
   const dd = String(parsed.getDate()).padStart(2, '0');

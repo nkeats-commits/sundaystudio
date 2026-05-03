@@ -57,8 +57,13 @@ test('normalizeDate: already-ISO dates pass through unchanged', () => {
   assert.equal(normalizeDate('2026-05-03'), '2026-05-03');
 });
 
-test('normalizeDate: passes through unparseable strings unchanged', () => {
-  assert.equal(normalizeDate('soon'), 'soon');
+test('normalizeDate: drops unparseable strings (ISO contract enforcement)', () => {
+  // The API contract says lastScheduledDate is ISO `YYYY-MM-DD`. A
+  // free-form value like "soon" would silently break date filters and
+  // sorts on the server, so we drop it rather than store garbage.
+  assert.equal(normalizeDate('soon'), undefined);
+  assert.equal(normalizeDate('TBD'), undefined);
+  assert.equal(normalizeDate('next week'), undefined);
 });
 
 test('normalizeDate: handles undefined and empty', () => {
