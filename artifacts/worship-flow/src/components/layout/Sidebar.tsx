@@ -28,6 +28,13 @@ export function Sidebar() {
   const { user } = useUser();
   const { isOwner } = useIsOwner();
 
+  const sermonItems = [
+    { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
+    { icon: Archive, label: 'Sermon Archive', href: '/sermons' },
+    { icon: Layers, label: 'Series', href: '/sermons/series' },
+    { icon: LibraryIcon, label: 'Resource Library', href: '/resources' },
+  ];
+
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
     { icon: ListVideo, label: 'Service Builder', href: '/service-builder' },
@@ -38,17 +45,6 @@ export function Sidebar() {
     { icon: Sprout, label: 'Soul Care', href: '/generators/soul-care' },
     { icon: LibraryIcon, label: 'Library', href: '/library' },
     { icon: FolderOpen, label: 'Saved Services', href: '/services' },
-    { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
-    { icon: Archive, label: 'Sermon Archive', href: '/sermons' },
-    { icon: Layers, label: 'Series', href: '/sermons/series' },
-    { icon: LibraryIcon, label: 'Resource Library', href: '/resources' },
-  ];
-
-  const sermonItems = [
-    { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
-    { icon: Archive, label: 'Sermon Archive', href: '/sermons' },
-    { icon: Layers, label: 'Series', href: '/sermons/series' },
-    { icon: LibraryIcon, label: 'Resource Library', href: '/resources' },
   ];
 
   const bottomItems = [
