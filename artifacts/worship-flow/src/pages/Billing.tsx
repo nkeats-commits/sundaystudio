@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { Loader2, ExternalLink, Sparkles, AlertCircle, Check } from "lucide-react";
+import {
+  Loader2,
+  ExternalLink,
+  Sparkles,
+  AlertCircle,
+  Check,
+  Calendar,
+  Zap,
+  Users,
+  BookOpen,
+  Link2,
+  FileText,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   useCreateBillingCheckoutSession,
@@ -22,13 +34,37 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
-const PRO_FEATURES = [
-  "Unlimited service plans + AI generators",
-  "Sermon Builder, Series, and Resource Library",
-  "Liturgy, songs, speaking moments, devotionals, soul-care",
-  "Save and reuse repertoire and templates",
-  "Planning Center Services integration",
-  "Export to Markdown, plain text, and email",
+const OUTCOMES = [
+  {
+    icon: Calendar,
+    headline: "Walk into Sunday prepared, not scrambling",
+    body: "Build complete service plans in minutes — order of worship, transitions, speaking cues — all in one place.",
+  },
+  {
+    icon: Zap,
+    headline: "Generate liturgy, songs, and moments instantly",
+    body: "AI-powered tools for every part of the service: call to worship, benedictions, speaking moments, and more.",
+  },
+  {
+    icon: BookOpen,
+    headline: "Preach with depth, not just bullet points",
+    body: "The Sermon Builder gives you commentary, cross-references, and structured outlines — right where you write.",
+  },
+  {
+    icon: Users,
+    headline: "Keep your whole team aligned",
+    body: "Share service plans, assign roles, and send devotionals that spiritually prepare your team before Sunday.",
+  },
+  {
+    icon: Link2,
+    headline: "Sync directly with Planning Center",
+    body: "No more copy-pasting. Push your finalized service plan straight to Planning Center Services.",
+  },
+  {
+    icon: FileText,
+    headline: "Export anything, anytime",
+    body: "Send your order of worship as Markdown, plain text, or email — formatted and ready to share.",
+  },
 ];
 
 export default function Billing() {
@@ -60,7 +96,9 @@ export default function Billing() {
       }
     } catch (err: unknown) {
       const data = (err as { data?: { error?: unknown } } | undefined)?.data;
-      toast.error(typeof data?.error === "string" ? data.error : "Could not start checkout");
+      toast.error(
+        typeof data?.error === "string" ? data.error : "Could not start checkout",
+      );
       setBusy(false);
     }
   };
@@ -76,7 +114,11 @@ export default function Billing() {
       }
     } catch (err: unknown) {
       const data = (err as { data?: { error?: unknown } } | undefined)?.data;
-      toast.error(typeof data?.error === "string" ? data.error : "Could not open billing portal");
+      toast.error(
+        typeof data?.error === "string"
+          ? data.error
+          : "Could not open billing portal",
+      );
       setBusy(false);
     }
   };
@@ -85,56 +127,115 @@ export default function Billing() {
     return (
       <AppLayout title="Billing">
         <div className="flex items-center gap-2 text-sm text-[var(--worship-muted-slate)]">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading billing status…
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading billing
+          status…
         </div>
       </AppLayout>
     );
   }
 
-  // --- Trial state: full pricing layout ---
-  if (state.kind === "trial" || state.kind === "expired" || state.kind === "canceled") {
+  // ── Trial / expired / canceled: full StoryBrand upsell layout ──────────
+  if (
+    state.kind === "trial" ||
+    state.kind === "expired" ||
+    state.kind === "canceled"
+  ) {
+    const isExpiredOrCanceled =
+      state.kind === "expired" || state.kind === "canceled";
+
     return (
       <AppLayout title="Billing">
-        <div className="max-w-2xl">
-          <div className="text-center mb-8">
+        <div className="max-w-2xl space-y-10">
+
+          {/* ── Trial countdown / expired badge ── */}
+          <div className="flex justify-center">
             {state.kind === "trial" ? (
               <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
                 style={{
                   backgroundColor: "var(--worship-pale-gold)",
                   color: "var(--worship-navy)",
                 }}
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-4 h-4" style={{ color: "var(--worship-gold)" }} />
                 {state.daysLeft === 1
-                  ? "1 day left in your trial"
-                  : `${state.daysLeft} days left in your trial`}
+                  ? "1 day left in your free trial"
+                  : `${state.daysLeft} days left in your free trial`}
               </div>
             ) : (
               <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
                 style={{ backgroundColor: "#FEF2F2", color: "#991B1B" }}
               >
                 {state.kind === "expired"
-                  ? "Your trial has ended — subscribe to keep building."
-                  : "Your subscription is canceled — resubscribe to restore access."}
+                  ? "Your free trial has ended"
+                  : "Your subscription is canceled"}
               </div>
             )}
+          </div>
 
+          {/* ── StoryBrand hero: problem + guide ── */}
+          <div className="text-center space-y-3">
             <h1
-              className="text-4xl font-medium mb-3"
+              className="text-4xl font-medium leading-tight"
               style={{
                 color: "var(--worship-navy)",
                 fontFamily: "var(--font-serif)",
               }}
             >
-              One simple plan.
+              {isExpiredOrCanceled
+                ? "Ready to plan with confidence again?"
+                : "Sunday keeps coming.\nWorshipFlow keeps you ready."}
             </h1>
-            <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
-              Try every feature free for {trialDays} days. No card required.
+            <p
+              className="text-base max-w-lg mx-auto"
+              style={{ color: "var(--worship-muted-slate)" }}
+            >
+              {isExpiredOrCanceled
+                ? "Pick up right where you left off. Everything you need to plan, preach, and lead with depth — for less than a cup of coffee a week."
+                : "We know what it feels like to face Sunday morning with a half-formed plan. WorshipFlow gives you the tools to lead with depth, not just survive the week."}
             </p>
           </div>
 
+          {/* ── Outcome cards ── */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {OUTCOMES.map(({ icon: Icon, headline, body }) => (
+              <div
+                key={headline}
+                className="rounded-xl border p-5 flex gap-4"
+                style={{
+                  backgroundColor: "var(--worship-white)",
+                  borderColor: "var(--worship-border)",
+                }}
+              >
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: "var(--worship-pale-gold)" }}
+                >
+                  <Icon
+                    className="w-4 h-4"
+                    style={{ color: "var(--worship-gold)" }}
+                  />
+                </div>
+                <div>
+                  <p
+                    className="text-sm font-semibold mb-1"
+                    style={{ color: "var(--worship-navy)" }}
+                  >
+                    {headline}
+                  </p>
+                  <p
+                    className="text-xs leading-relaxed"
+                    style={{ color: "var(--worship-muted-slate)" }}
+                  >
+                    {body}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Pricing + CTA card ── */}
           <div
             className="rounded-2xl border p-8 shadow-sm"
             style={{
@@ -142,15 +243,17 @@ export default function Billing() {
               borderColor: "var(--worship-border)",
             }}
           >
-            <p
-              className="text-2xl font-semibold mb-2"
-              style={{
-                color: "var(--worship-navy)",
-                fontFamily: "var(--font-serif)",
-              }}
-            >
-              WorshipFlow Pro
-            </p>
+            <div className="flex items-baseline gap-2 mb-1">
+              <span
+                className="text-2xl font-semibold"
+                style={{
+                  color: "var(--worship-navy)",
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                WorshipFlow Pro
+              </span>
+            </div>
             <div className="flex items-baseline gap-2 mb-6">
               <span
                 className="text-5xl font-bold"
@@ -158,14 +261,16 @@ export default function Billing() {
               >
                 $9.99
               </span>
-              <span style={{ color: "var(--worship-muted-slate)" }}>/ month</span>
+              <span style={{ color: "var(--worship-muted-slate)" }}>
+                / month
+              </span>
             </div>
 
             <button
               type="button"
               onClick={startCheckout}
               disabled={busy}
-              className="w-full py-3 rounded-xl text-base font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-3"
+              className="w-full py-3.5 rounded-xl text-base font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-3"
               style={{
                 backgroundColor: "var(--worship-navy)",
                 color: "var(--worship-white)",
@@ -173,7 +278,8 @@ export default function Billing() {
             >
               {busy ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Starting checkout…
+                  <Loader2 className="w-4 h-4 animate-spin" /> Starting
+                  checkout…
                 </>
               ) : state.kind === "trial" ? (
                 "Subscribe — billing starts when your trial ends"
@@ -183,21 +289,29 @@ export default function Billing() {
             </button>
 
             <p
-              className="text-xs text-center"
+              className="text-xs text-center mb-6"
               style={{ color: "var(--worship-muted-slate)" }}
             >
-              Cancel anytime from the billing portal. Secure checkout via Stripe.
+              Cancel anytime from the billing portal. Secure checkout via
+              Stripe.
             </p>
 
-            <ul className="mt-8 space-y-3">
-              {PRO_FEATURES.map((feat) => (
+            <ul className="space-y-2.5">
+              {[
+                "Unlimited service plans + AI generators",
+                "Sermon Builder, Series, and Resource Library",
+                "Liturgy, songs, speaking moments, devotionals, soul-care",
+                "Save and reuse repertoire and templates",
+                "Planning Center Services integration",
+                "Export to Markdown, plain text, and email",
+              ].map((feat) => (
                 <li
                   key={feat}
                   className="flex items-start gap-3 text-sm"
                   style={{ color: "var(--worship-charcoal)" }}
                 >
                   <Check
-                    className="w-5 h-5 shrink-0 mt-0.5"
+                    className="w-4 h-4 shrink-0 mt-0.5"
                     style={{ color: "var(--worship-gold)" }}
                   />
                   <span>{feat}</span>
@@ -205,12 +319,27 @@ export default function Billing() {
               ))}
             </ul>
           </div>
+
+          {/* ── Failure stakes (only during active trial) ── */}
+          {state.kind === "trial" && (
+            <p
+              className="text-xs text-center pb-4"
+              style={{ color: "var(--worship-muted-slate)" }}
+            >
+              When your trial ends on{" "}
+              <span style={{ color: "var(--worship-navy)", fontWeight: 500 }}>
+                {formatDate(state.trialEndsAt)}
+              </span>
+              , access to all generators, service planning, and the Sermon
+              Builder will be paused until you subscribe.
+            </p>
+          )}
         </div>
       </AppLayout>
     );
   }
 
-  // --- Active / trialing / past_due states ---
+  // ── Active / trialing / past_due: compact management card ──────────────
   return (
     <AppLayout title="Billing">
       <div className="max-w-2xl">
