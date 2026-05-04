@@ -10,7 +10,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { data: dashboard, isLoading } = useGetDashboard();
 
-  const firstName = user?.firstName || 'Pastor';
+  const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'Pastor';
 
   if (isLoading) {
     return (
