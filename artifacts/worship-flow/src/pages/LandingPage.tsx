@@ -377,7 +377,7 @@ export default function LandingPage() {
               The vision
             </p>
             <h2
-              className="text-4xl font-medium mb-6 text-[#fff]"
+              className="text-4xl font-medium mb-6 text-[#ffffff]"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
               Imagine walking into Sunday morning fully ready.
