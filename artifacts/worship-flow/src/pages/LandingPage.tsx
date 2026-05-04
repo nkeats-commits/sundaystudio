@@ -318,9 +318,7 @@ export default function LandingPage() {
             <h2
               className="text-4xl font-medium mb-4"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
-            >
-              Everything your ministry needs. In one workspace.
-            </h2>
+            >Everything you need to thrive. In one workspace.</h2>
             <p className="text-base max-w-2xl mx-auto" style={{ color: 'var(--worship-slate)' }}>
               Whether you're writing a sermon, planning a service, preparing your team, or simply trying to stay grounded — WorshipFlow has the tool.
             </p>
