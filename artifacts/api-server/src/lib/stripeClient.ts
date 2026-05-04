@@ -2,14 +2,28 @@ import Stripe from "stripe";
 import { StripeSync } from "stripe-replit-sync";
 
 /**
- * Fetches Stripe credentials from the Replit connection API.
- * Not cached -- tokens can rotate, so fetch fresh each time.
+ * Fetches Stripe credentials.
+ *
+ * Sources, in order:
+ *   1. Direct env vars (STRIPE_SECRET_KEY / STRIPE_PUBLISHABLE_KEY /
+ *      STRIPE_WEBHOOK_SECRET) — set these in Production app secrets.
+ *   2. Replit connector API (REPLIT_CONNECTORS_HOSTNAME) — used automatically
+ *      in development when the Stripe integration is connected.
  */
 async function getStripeCredentials(): Promise<{
   secretKey: string;
   publishableKey?: string;
   webhookSecret?: string;
 }> {
+  const directSecret = process.env["STRIPE_SECRET_KEY"]?.trim();
+  if (directSecret) {
+    return {
+      secretKey: directSecret,
+      publishableKey: process.env["STRIPE_PUBLISHABLE_KEY"]?.trim(),
+      webhookSecret: process.env["STRIPE_WEBHOOK_SECRET"]?.trim(),
+    };
+  }
+
   const hostname = process.env["REPLIT_CONNECTORS_HOSTNAME"];
   const xReplitToken = process.env["REPL_IDENTITY"]
     ? "repl " + process.env["REPL_IDENTITY"]
@@ -19,8 +33,8 @@ async function getStripeCredentials(): Promise<{
 
   if (!hostname || !xReplitToken) {
     throw new Error(
-      "Missing Replit environment variables. " +
-        "Ensure the Stripe integration is connected via the Integrations tab.",
+      "No Stripe credentials found. Set STRIPE_SECRET_KEY in your app secrets, " +
+        "or connect Stripe via the Integrations tab.",
     );
   }
 
@@ -57,7 +71,7 @@ async function getStripeCredentials(): Promise<{
   if (!settings?.secret) {
     throw new Error(
       "Stripe integration not connected or missing secret key. " +
-        "Connect Stripe via the Integrations tab first.",
+        "Connect Stripe via the Integrations tab or set STRIPE_SECRET_KEY in app secrets.",
     );
   }
 
