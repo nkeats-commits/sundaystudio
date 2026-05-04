@@ -197,44 +197,6 @@ export default function Billing() {
             </p>
           </div>
 
-          {/* ── Outcome cards ── */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {OUTCOMES.map(({ icon: Icon, headline, body }) => (
-              <div
-                key={headline}
-                className="rounded-xl border p-5 flex gap-4"
-                style={{
-                  backgroundColor: "var(--worship-white)",
-                  borderColor: "var(--worship-border)",
-                }}
-              >
-                <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "var(--worship-pale-gold)" }}
-                >
-                  <Icon
-                    className="w-4 h-4"
-                    style={{ color: "var(--worship-gold)" }}
-                  />
-                </div>
-                <div>
-                  <p
-                    className="text-sm font-semibold mb-1"
-                    style={{ color: "var(--worship-navy)" }}
-                  >
-                    {headline}
-                  </p>
-                  <p
-                    className="text-xs leading-relaxed"
-                    style={{ color: "var(--worship-muted-slate)" }}
-                  >
-                    {body}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* ── Pricing + CTA card ── */}
           <div
             className="rounded-2xl border p-8 shadow-sm"
@@ -289,35 +251,50 @@ export default function Billing() {
             </button>
 
             <p
-              className="text-xs text-center mb-6"
+              className="text-xs text-center"
               style={{ color: "var(--worship-muted-slate)" }}
             >
               Cancel anytime from the billing portal. Secure checkout via
               Stripe.
             </p>
+          </div>
 
-            <ul className="space-y-2.5">
-              {[
-                "Unlimited service plans + AI generators",
-                "Sermon Builder, Series, and Resource Library",
-                "Liturgy, songs, speaking moments, devotionals, soul-care",
-                "Save and reuse repertoire and templates",
-                "Planning Center Services integration",
-                "Export to Markdown, plain text, and email",
-              ].map((feat) => (
-                <li
-                  key={feat}
-                  className="flex items-start gap-3 text-sm"
-                  style={{ color: "var(--worship-charcoal)" }}
+          {/* ── Outcome cards ── */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {OUTCOMES.map(({ icon: Icon, headline, body }) => (
+              <div
+                key={headline}
+                className="rounded-xl border p-5 flex gap-4"
+                style={{
+                  backgroundColor: "var(--worship-white)",
+                  borderColor: "var(--worship-border)",
+                }}
+              >
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: "var(--worship-pale-gold)" }}
                 >
-                  <Check
-                    className="w-4 h-4 shrink-0 mt-0.5"
+                  <Icon
+                    className="w-4 h-4"
                     style={{ color: "var(--worship-gold)" }}
                   />
-                  <span>{feat}</span>
-                </li>
-              ))}
-            </ul>
+                </div>
+                <div>
+                  <p
+                    className="text-sm font-semibold mb-1"
+                    style={{ color: "var(--worship-navy)" }}
+                  >
+                    {headline}
+                  </p>
+                  <p
+                    className="text-xs leading-relaxed"
+                    style={{ color: "var(--worship-muted-slate)" }}
+                  >
+                    {body}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* ── Failure stakes (only during active trial) ── */}
