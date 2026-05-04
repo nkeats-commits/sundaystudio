@@ -86,7 +86,6 @@ const BADGE_COLORS: Record<string, string> = {
 export default function LandingPage() {
   return (
     <div className="worship-theme min-h-screen flex flex-col" style={{ backgroundColor: 'var(--worship-cream)' }}>
-
       {/* ── Navbar ── */}
       <nav
         className="flex items-center justify-between px-8 py-5 sticky top-0 z-50"
@@ -117,7 +116,6 @@ export default function LandingPage() {
           </Link>
         </div>
       </nav>
-
       {/* ── Hero — Character + Stakes ── */}
       <section className="relative overflow-hidden" style={{ backgroundColor: 'var(--worship-cream)' }}>
         <div className="max-w-7xl mx-auto px-8 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
@@ -200,7 +198,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* ── Problem — External + Internal + Philosophical ── */}
       <section className="py-24 px-8" style={{ backgroundColor: 'var(--worship-white)' }}>
         <div className="max-w-4xl mx-auto">
@@ -258,7 +255,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* ── Guide — Empathy + Authority ── */}
       <section className="py-24 px-8 overflow-hidden" style={{ backgroundColor: 'var(--worship-cream)' }}>
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
@@ -277,9 +273,7 @@ export default function LandingPage() {
             <p
               className="text-sm font-semibold uppercase tracking-widest mb-6"
               style={{ color: 'var(--worship-gold)' }}
-            >
-              WorshipFlow as your guide
-            </p>
+            >WorshipFlow is here to help</p>
             <h2
               className="text-4xl font-medium mb-5"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
@@ -311,7 +305,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* ── All Features ── */}
       <section className="py-24 px-8" style={{ backgroundColor: 'var(--worship-white)' }}>
         <div className="max-w-7xl mx-auto">
@@ -366,7 +359,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* ── Full-bleed photo band ── */}
       <section className="relative overflow-hidden" style={{ minHeight: '440px' }}>
         <img
@@ -404,7 +396,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* ── Plan — How it works ── */}
       <section className="py-24 px-8" style={{ backgroundColor: 'var(--worship-navy)' }}>
         <div className="max-w-5xl mx-auto">
@@ -455,7 +446,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* ── Success + Failure stakes ── */}
       <section className="py-24 px-8" style={{ backgroundColor: 'var(--worship-cream)' }}>
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8">
@@ -531,7 +521,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* ── CTA ── */}
       <section className="py-24 px-8" style={{ backgroundColor: 'var(--worship-white)' }}>
         <div className="max-w-3xl mx-auto text-center">
@@ -572,7 +561,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* ── Footer ── */}
       <footer
         className="py-10 px-8"
