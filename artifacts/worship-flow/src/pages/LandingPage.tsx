@@ -180,8 +180,8 @@ export default function LandingPage() {
           <div className="relative hidden lg:block">
             <div className="relative rounded-3xl overflow-hidden shadow-2xl" style={{ aspectRatio: '4/3' }}>
               <img
-                src="https://images.pexels.com/photos/17030042/pexels-photo-17030042/free-photo-of-a-group-of-people-standing-in-a-room-with-their-hands-raised.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                alt="Congregation in worship"
+                src="https://images.pexels.com/photos/34612687/pexels-photo-34612687.jpeg?auto=compress&cs=tinysrgb&w=1200"
+                alt="Person in worship"
                 className="w-full h-full object-cover"
               />
               <div
