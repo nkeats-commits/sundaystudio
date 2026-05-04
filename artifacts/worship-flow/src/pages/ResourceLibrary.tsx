@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@clerk/react';
 import { AppLayout } from '../components/layout/AppLayout';
 import {
   useListSermonResources,
@@ -25,6 +26,9 @@ import {
   Pencil,
   Save,
   ShieldCheck,
+  Upload,
+  Globe,
+  Loader2,
 } from 'lucide-react';
 import { AddCommentaryModal } from '../components/AddCommentaryModal';
 
@@ -101,11 +105,28 @@ export default function ResourceLibrary() {
   const sources = useListScholarlySources();
   const updateSources = useUpdateScholarlySourcePreferences();
   const qc = useQueryClient();
+  const { getToken } = useAuth();
 
   const [search, setSearch] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(blankDraft());
   const [addCommentaryOpen, setAddCommentaryOpen] = useState(false);
+
+  // Loading states for the two utility actions
+  const [extracting, setExtracting] = useState(false);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!editorOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEditorOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editorOpen]);
 
   // wouter's <Link> uses pushState for navigation, which preserves any
   // `#hash` in the URL but does NOT trigger native fragment scrolling.
@@ -263,6 +284,82 @@ export default function ResourceLibrary() {
         },
       },
     );
+  };
+
+  // ── Task #77: Upload a PDF or .txt file and extract its text ───────────────
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = '';
+    if (!file) return;
+
+    const allowed = ['application/pdf', 'text/plain'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Only PDF and plain-text (.txt) files are supported.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File must be 5 MB or smaller.');
+      return;
+    }
+
+    setExtracting(true);
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+      formData.append('file', file);
+      const resp = await fetch('/api/sermon-resources/extract-text', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+        body: formData,
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `Server error (${resp.status})`);
+      }
+      const { text } = await resp.json() as { text: string };
+      setDraft((d) => ({ ...d, excerpt: text }));
+      toast.success('Text extracted — review and trim as needed.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to extract text from file.');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  // ── Task #78: Fetch webpage content from the URL field ────────────────────
+  const handleFetchUrl = async () => {
+    if (!draft.url.trim()) return;
+    setFetchingUrl(true);
+    try {
+      const token = await getToken();
+      const resp = await fetch('/api/sermon-resources/fetch-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ url: draft.url.trim() }),
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `Server error (${resp.status})`);
+      }
+      const data = await resp.json() as { title: string; author: string; text: string };
+      setDraft((d) => ({
+        ...d,
+        title: d.title.trim() || data.title,
+        author: d.author.trim() || data.author,
+        excerpt: d.excerpt.trim() || data.text,
+      }));
+      toast.success('Page content fetched — review and trim as needed.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to fetch page content.');
+    } finally {
+      setFetchingUrl(false);
+    }
   };
 
   return (
@@ -484,14 +581,82 @@ export default function ResourceLibrary() {
                   <input value={draft.pageOrLocation} onChange={(e) => setDraft({ ...draft, pageOrLocation: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }} />
                 </div>
               </div>
+
+              {/* URL field with "Fetch content" button — Task #78 */}
               <div>
                 <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">URL</label>
-                <input value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://…" className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }} />
+                <div className="flex gap-2">
+                  <input
+                    value={draft.url}
+                    onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+                    placeholder="https://…"
+                    className="flex-1 px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]"
+                    style={{ borderColor: 'var(--worship-border)' }}
+                  />
+                  {draft.url.trim() && (
+                    <button
+                      type="button"
+                      onClick={handleFetchUrl}
+                      disabled={fetchingUrl}
+                      title="Fetch page content and pre-fill Excerpt"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium text-[var(--worship-navy)] bg-[var(--worship-cream)] hover:bg-[var(--worship-sand)] disabled:opacity-60 disabled:cursor-not-allowed shrink-0 transition-colors"
+                      style={{ borderColor: 'var(--worship-border)' }}
+                    >
+                      {fetchingUrl ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Globe className="w-3.5 h-3.5" />
+                      )}
+                      {fetchingUrl ? 'Fetching…' : 'Fetch content'}
+                    </button>
+                  )}
+                </div>
+                {draft.url.trim() && (
+                  <p className="text-[11px] text-[var(--worship-slate)] mt-1">
+                    Fetch will pre-fill Title, Author, and Excerpt from the page. Existing values won't be overwritten.
+                  </p>
+                )}
               </div>
+
+              {/* Excerpt field with "Upload file" button — Task #77 */}
               <div>
-                <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">EXCERPT (the actual quoted text you want available to draw on)</label>
-                <textarea value={draft.excerpt} onChange={(e) => setDraft({ ...draft, excerpt: e.target.value })} rows={6} className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)] resize-y" style={{ borderColor: 'var(--worship-border)' }} />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-[var(--worship-slate)]">EXCERPT (the actual quoted text you want available to draw on)</label>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={extracting}
+                    title="Upload a PDF or .txt file to extract text into this field"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium text-[var(--worship-navy)] bg-[var(--worship-cream)] hover:bg-[var(--worship-sand)] disabled:opacity-60 disabled:cursor-not-allowed transition-colors shrink-0"
+                    style={{ borderColor: 'var(--worship-border)' }}
+                  >
+                    {extracting ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Upload className="w-3 h-3" />
+                    )}
+                    {extracting ? 'Extracting…' : 'Upload file'}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.txt,application/pdf,text/plain"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </div>
+                <textarea
+                  value={draft.excerpt}
+                  onChange={(e) => setDraft({ ...draft, excerpt: e.target.value })}
+                  rows={6}
+                  className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)] resize-y"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                />
+                <p className="text-[11px] text-[var(--worship-slate)] mt-1">
+                  Upload a PDF or .txt file to extract its text automatically, or type / paste directly.
+                </p>
               </div>
+
               <div>
                 <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">SUMMARY</label>
                 <textarea value={draft.summary} onChange={(e) => setDraft({ ...draft, summary: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)] resize-y" style={{ borderColor: 'var(--worship-border)' }} />
