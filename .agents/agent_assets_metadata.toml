@@ -1,8 +1,31 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "0EJFEb7uPMChlmi7tDc_H"
 uri = "file://artifacts/mockup-sandbox/public/images/worship-hero.png"
 type = "image"
 title = "warm abstract background texture"
+
+[[outputs]]
+id = "6lvtDgdJcjBSNUIQjSLiq"
+uri = "file://attached_assets/image_search/option_1.jpg"
+type = "image"
+title = "Joyful group of friends smiling together outdoors"
+
+[[outputs]]
+id = "lU54GNuSoZL8g0fYSH0Wc"
+uri = "file://attached_assets/image_search/option_2.jpg"
+type = "image"
+title = "Smiling women in church setting"
+
+[[outputs]]
+id = "l9IREvq8rhKGmRroJp_-5"
+uri = "file://attached_assets/image_search/option_3.jpg"
+type = "image"
+title = "Diverse group smiling together, togetherness and joy"
+
+[[outputs]]
+id = "hq3l9aTfw2MPxPHuRiDbX"
+uri = "file://attached_assets/image_search/option_4.jpg"
+type = "image"
+title = "Joyful group sharing a meal together, diversity and friendship"
