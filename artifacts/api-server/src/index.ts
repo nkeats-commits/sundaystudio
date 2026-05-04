@@ -2,6 +2,7 @@ import { runMigrations } from "stripe-replit-sync";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { getStripeSync, isStripeConfigured } from "./lib/stripeClient";
+import { runTrialEmailCron } from "./lib/trialEmails";
 
 const rawPort = process.env["PORT"];
 
@@ -62,6 +63,28 @@ async function initStripe() {
 }
 
 await initStripe();
+
+/**
+ * Trial lifecycle email cron.
+ * Runs once immediately on boot (catches any missed sends from downtime),
+ * then every 24 hours. handle.unref() prevents the interval from keeping
+ * the process alive in tests.
+ */
+function initTrialEmailCron() {
+  const runSafe = () =>
+    runTrialEmailCron().catch((err) =>
+      logger.error({ err }, "Trial email cron failed"),
+    );
+
+  // Run once immediately (non-blocking — don't await so server boot isn't delayed)
+  void runSafe();
+
+  const handle = setInterval(runSafe, 24 * 60 * 60 * 1000);
+  handle.unref();
+  logger.info("Trial email cron scheduled (every 24 h)");
+}
+
+initTrialEmailCron();
 
 app.listen(port, (err) => {
   if (err) {
