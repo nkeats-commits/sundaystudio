@@ -32,22 +32,21 @@ export function Sidebar() {
     { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
     { icon: Archive, label: 'Sermon Archive', href: '/sermons' },
     { icon: Layers, label: 'Series', href: '/sermons/series' },
-    { icon: LibraryIcon, label: 'Resource Library', href: '/resources' },
   ];
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
     { icon: ListVideo, label: 'Service Builder', href: '/service-builder' },
+    { icon: FolderOpen, label: 'Saved Services', href: '/services' },
     { icon: BookOpen, label: 'Liturgy Generator', href: '/generators/liturgy' },
     { icon: Music, label: 'Song Assistant', href: '/generators/songs' },
     { icon: Mic, label: 'Speaking Moments', href: '/generators/speaking-moment' },
     { icon: Users, label: 'Team Devotionals', href: '/generators/devotional' },
     { icon: Sprout, label: 'Soul Care', href: '/generators/soul-care' },
-    { icon: FolderOpen, label: 'Saved Services', href: '/services' },
+    { icon: LibraryIcon, label: 'Resource Library', href: '/resources' },
   ];
 
   const bottomItems = [
-    { icon: FolderOpen, label: 'Library', href: '/library' },
     { icon: Building, label: 'Your Profile', href: '/church' },
     { icon: Plug, label: 'Integrations', href: '/settings/integrations' },
     { icon: CreditCard, label: 'Billing', href: '/billing' },
