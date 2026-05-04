@@ -13,8 +13,6 @@
 import { Resend } from "resend";
 import type { Logger } from "pino";
 
-let _cachedSettings: { apiKey: string; fromEmail: string } | null = null;
-
 async function getResendCredentials(): Promise<{ apiKey: string; fromEmail: string }> {
   const directKey = process.env["RESEND_API_KEY"]?.trim();
   if (directKey) {
@@ -71,7 +69,6 @@ export async function getResendClient(
 ): Promise<{ client: Resend; fromEmail: string } | null> {
   try {
     const creds = await getResendCredentials();
-    _cachedSettings = creds;
     return { client: new Resend(creds.apiKey), fromEmail: creds.fromEmail };
   } catch (err) {
     (log ?? console).warn?.(

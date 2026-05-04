@@ -89,7 +89,7 @@ export async function runTrialEmailCron(): Promise<void> {
         isNull(usersTable.trialReminderSentAt),
         isNotNull(usersTable.email),
         lte(usersTable.trialStartedAt, reminderWindowEnd),
-        gte(usersTable.trialStartedAt, reminderWindowStart),
+        gt(usersTable.trialStartedAt, reminderWindowStart),
       ),
     );
 
