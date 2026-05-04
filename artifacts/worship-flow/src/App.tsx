@@ -97,6 +97,7 @@ const clerkAppearance = {
     logoBox: "",
     logoImage: "h-12 w-auto",
     socialButtonsBlockButton: "border border-[#E5E1D8] hover:bg-[#F8F4EA]",
+    alternativeMethodsBlockButton: "text-[#fff]",
     formButtonPrimary: "bg-[#1F2A44] hover:bg-[#161e30] text-white",
     formFieldInput: "bg-[#F8F4EA] border-[#E5E1D8] text-[#1E293B]",
     footerAction: "",
