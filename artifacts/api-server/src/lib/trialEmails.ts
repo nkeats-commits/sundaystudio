@@ -40,20 +40,27 @@ function getPricingUrl(): string {
 }
 
 /**
- * Returns true if this user has an active/trialing Stripe subscription.
- * Soft-fails to false (allow email) if stripe schema doesn't exist yet.
+ * Returns true if we should skip sending a trial email to this user.
+ *
+ * Fail-closed: if the user has a stripeCustomerId but the subscription
+ * lookup fails for any reason (schema missing, DB hiccup, etc.), we skip
+ * the email rather than risk emailing an active subscriber.
  */
-async function hasActiveStripeSubscription(stripeCustomerId: string): Promise<boolean> {
+async function shouldSkipEmail(user: { stripeCustomerId: string | null }): Promise<boolean> {
+  if (!user.stripeCustomerId) return false; // no Stripe record → free trial, send email
+
   try {
     const result = await db.execute(sql`
       SELECT id FROM stripe.subscriptions
-      WHERE customer = ${stripeCustomerId}
+      WHERE customer = ${user.stripeCustomerId}
         AND status IN ('active', 'trialing')
       LIMIT 1
     `);
+    // Active/trialing subscriber → skip
     return (result.rows.length ?? 0) > 0;
   } catch {
-    return false;
+    // Stripe schema missing or DB error → fail-closed, skip the email
+    return true;
   }
 }
 
@@ -91,8 +98,8 @@ export async function runTrialEmailCron(): Promise<void> {
   for (const user of reminderCandidates) {
     if (!user.email) continue;
 
-    // Skip paying users
-    if (user.stripeCustomerId && (await hasActiveStripeSubscription(user.stripeCustomerId))) {
+    // Skip paying users (fail-closed: skip on lookup error)
+    if (await shouldSkipEmail(user)) {
       cronLog.info({ userId: user.id }, "Skipping reminder — user has active subscription");
       continue;
     }
@@ -138,8 +145,8 @@ export async function runTrialEmailCron(): Promise<void> {
   for (const user of expiredCandidates) {
     if (!user.email) continue;
 
-    // Skip paying users
-    if (user.stripeCustomerId && (await hasActiveStripeSubscription(user.stripeCustomerId))) {
+    // Skip paying users (fail-closed: skip on lookup error)
+    if (await shouldSkipEmail(user)) {
       cronLog.info({ userId: user.id }, "Skipping expiry email — user has active subscription");
       continue;
     }

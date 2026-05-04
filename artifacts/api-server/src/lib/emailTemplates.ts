@@ -44,7 +44,7 @@ function wrap(body: string): string {
               <p style="margin:0;font-size:12px;color:${SLATE};line-height:1.6;">
                 WorshipFlow · Built for the Church<br/>
                 You're receiving this because you signed up for a free trial.<br/>
-                <a href="{{{unsubscribe_url}}}" style="color:${GOLD};">Unsubscribe</a>
+                To stop receiving these emails, reply with "unsubscribe".
               </p>
             </td>
           </tr>
