@@ -2,15 +2,20 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { Layers, Music, BookOpen, Mic, Users, Calendar, ChevronRight, FileText, Sparkles } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
-import { useGetDashboard } from '@workspace/api-client-react';
+import { useGetDashboard, useGetMe } from '@workspace/api-client-react';
 import { OnboardingBanner } from '../components/OnboardingBanner';
 
 export default function Dashboard() {
   const { user } = useUser();
   const [, setLocation] = useLocation();
   const { data: dashboard, isLoading } = useGetDashboard();
+  const { data: me } = useGetMe();
 
-  const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'Pastor';
+  const firstName =
+    me?.profile?.leaderName?.split(' ')[0] ||
+    user?.firstName ||
+    user?.fullName?.split(' ')[0] ||
+    'Pastor';
 
   if (isLoading) {
     return (
