@@ -77,9 +77,12 @@ export async function runTrialEmailCron(): Promise<void> {
   const pricingUrl = getPricingUrl();
   const now = new Date();
 
-  // ── Reminder: users whose trial entered day 11 but haven't been reminded ──
-  const reminderWindowStart = new Date(now.getTime() - (REMINDER_DAY + 1) * DAY_MS);
+  // ── Reminder: users on day 11–13 who haven't been reminded yet ──
+  // Wide window (11d–14d) so a day of downtime doesn't permanently skip a user.
+  // Idempotency is guaranteed by the trialReminderSentAt stamp.
+  // Upper bound stops at the trial end so we never send a reminder after expiry.
   const reminderWindowEnd = new Date(now.getTime() - REMINDER_DAY * DAY_MS);
+  const reminderWindowStart = new Date(now.getTime() - TRIAL_DAYS * DAY_MS);
 
   const reminderCandidates = await db
     .select()
@@ -124,8 +127,9 @@ export async function runTrialEmailCron(): Promise<void> {
     }
   }
 
-  // ── Expired: users whose trial passed day 14 but haven't received expiry email ──
-  const expiredWindowStart = new Date(now.getTime() - (TRIAL_DAYS + 1) * DAY_MS);
+  // ── Expired: all users past day 14 who haven't received the expiry email ──
+  // No upper bound: catches anyone who was missed due to downtime or send errors.
+  // Idempotency is guaranteed by the trialExpiredEmailSentAt stamp.
   const expiredWindowEnd = new Date(now.getTime() - TRIAL_DAYS * DAY_MS);
 
   const expiredCandidates = await db
@@ -136,7 +140,6 @@ export async function runTrialEmailCron(): Promise<void> {
         isNull(usersTable.trialExpiredEmailSentAt),
         isNotNull(usersTable.email),
         lte(usersTable.trialStartedAt, expiredWindowEnd),
-        gt(usersTable.trialStartedAt, expiredWindowStart),
       ),
     );
 
