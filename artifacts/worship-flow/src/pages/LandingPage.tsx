@@ -405,8 +405,8 @@ export default function LandingPage() {
               The plan
             </p>
             <h2
-              className="text-4xl font-medium text-white"
-              style={{ fontFamily: 'var(--font-serif)' }}
+              className="text-4xl font-medium"
+              style={{ fontFamily: 'var(--font-serif)', color: '#ffffff' }}
             >
               Three steps to leading well.
             </h2>
@@ -437,7 +437,7 @@ export default function LandingPage() {
                 >
                   {s.step}
                 </div>
-                <h3 className="text-lg font-semibold mb-3 text-white">{s.title}</h3>
+                <h3 className="text-lg font-semibold mb-3" style={{ color: '#ffffff' }}>{s.title}</h3>
                 <p style={{ color: 'rgba(255,255,255,0.62)', lineHeight: '1.75' }}>{s.desc}</p>
               </div>
             ))}
