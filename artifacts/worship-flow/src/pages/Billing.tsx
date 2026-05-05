@@ -185,7 +185,7 @@ export default function Billing() {
             >
               {isExpiredOrCanceled
                 ? "Ready to plan with confidence again?"
-                : "Sunday keeps coming.\nWorshipFlow keeps you ready."}
+                : "Sunday keeps coming.\nSunday Studio keeps you ready."}
             </h1>
             <p
               className="text-base max-w-lg mx-auto"
@@ -193,7 +193,7 @@ export default function Billing() {
             >
               {isExpiredOrCanceled
                 ? "Pick up right where you left off. Everything you need to plan, preach, and lead with depth — for less than a cup of coffee a week."
-                : "We know what it feels like to face Sunday morning with a half-formed plan. WorshipFlow gives you the tools to lead with depth, not just survive the week."}
+                : "We know what it feels like to face Sunday morning with a half-formed plan. Sunday Studio gives you the tools to lead with depth, not just survive the week."}
             </p>
           </div>
 
@@ -213,7 +213,7 @@ export default function Billing() {
                   fontFamily: "var(--font-serif)",
                 }}
               >
-                WorshipFlow Pro
+                Sunday Studio Pro
               </span>
             </div>
             <div className="flex items-baseline gap-2 mb-6">
@@ -246,7 +246,7 @@ export default function Billing() {
               ) : state.kind === "trial" ? (
                 "Subscribe — billing starts when your trial ends"
               ) : (
-                "Subscribe to WorshipFlow Pro"
+                "Subscribe to Sunday Studio Pro"
               )}
             </button>
 
@@ -334,7 +334,7 @@ export default function Billing() {
               fontFamily: "var(--font-serif)",
             }}
           >
-            WorshipFlow Pro
+            Sunday Studio Pro
           </h2>
           <p
             className="text-sm mb-6"

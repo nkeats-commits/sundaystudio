@@ -222,7 +222,7 @@ export default function SoulCareGenerator() {
     <span class="badge alt">${d.durationMinutes} min</span>
     <span class="badge alt">${audienceLabel}</span>
   </div>
-  <p class="meta">Soul Care · printed from WorshipFlow · ${esc(new Date().toLocaleDateString())}</p>
+  <p class="meta">Soul Care · printed from Sunday Studio · ${esc(new Date().toLocaleDateString())}</p>
   ${d.leaderNotes ? `<div class="leader-notes">${esc(d.leaderNotes)}</div>` : ''}
   <section>
     <h2>Opening</h2>

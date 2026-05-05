@@ -109,7 +109,7 @@ export async function runTrialEmailCron(): Promise<void> {
       await resend.client.emails.send({
         from: resend.fromEmail,
         to: user.email,
-        subject: "Your WorshipFlow trial ends in 3 days",
+        subject: "Your Sunday Studio trial ends in 3 days",
         html: trialReminderHtml({ firstName: user.firstName, pricingUrl }),
         text: trialReminderText({ firstName: user.firstName, pricingUrl }),
       });
@@ -157,7 +157,7 @@ export async function runTrialEmailCron(): Promise<void> {
       await resend.client.emails.send({
         from: resend.fromEmail,
         to: user.email,
-        subject: "Your WorshipFlow trial has ended",
+        subject: "Your Sunday Studio trial has ended",
         html: trialExpiredHtml({ firstName: user.firstName, pricingUrl }),
         text: trialExpiredText({ firstName: user.firstName, pricingUrl }),
       });

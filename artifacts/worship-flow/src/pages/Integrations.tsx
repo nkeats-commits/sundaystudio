@@ -98,7 +98,7 @@ export default function Integrations() {
             Integrations
           </h1>
           <p className="text-[var(--worship-slate)]">
-            Connect WorshipFlow to your church's other tools so song tempos,
+            Connect Sunday Studio to your church's other tools so song tempos,
             keys, and arrangements stay in sync.
           </p>
         </div>

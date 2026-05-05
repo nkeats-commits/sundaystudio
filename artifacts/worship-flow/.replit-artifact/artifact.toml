@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "WorshipFlow"
+title = "Sunday Studio"
 version = "1.0.0"
 id = "artifacts/worship-flow"
 router = "path"

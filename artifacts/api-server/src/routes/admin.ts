@@ -800,7 +800,7 @@ router.post(
       );
       if (!coupon) {
         coupon = await stripe.coupons.create({
-          name: "WorshipFlow Owner Comp",
+          name: "Sunday Studio Owner Comp",
           percent_off: 100,
           duration: "forever",
           metadata: { lookup_key: COMP_COUPON_LOOKUP },

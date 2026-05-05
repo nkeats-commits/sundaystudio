@@ -115,7 +115,7 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
       <div className="hidden md:flex flex-1 flex-col items-center justify-center p-12 bg-gradient-to-b from-[#1F2A44] to-[#161e30] text-[#FFFDF8] relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] mix-blend-overlay"></div>
         <div className="relative z-10 max-w-lg text-center">
-          <img src={`${basePath}/logo.svg`} alt="WorshipFlow" className="w-16 h-16 mx-auto mb-8 opacity-90" />
+          <img src={`${basePath}/logo.svg`} alt="Sunday Studio" className="w-16 h-16 mx-auto mb-8 opacity-90" />
           <blockquote className="text-3xl font-serif italic leading-relaxed text-[#F3E7C6] mb-6">
             "Let the message of Christ dwell among you richly as you teach and admonish one another with all wisdom through psalms, hymns, and songs from the Spirit."
           </blockquote>
@@ -125,8 +125,8 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex items-center justify-center px-4 md:px-8 py-12">
         <div className="w-full max-w-[440px]">
           <div className="md:hidden flex flex-col items-center justify-center mb-8">
-            <img src={`${basePath}/logo.svg`} alt="WorshipFlow" className="w-12 h-12 mb-4" />
-            <h1 className="font-serif text-2xl text-[#1F2A44]">WorshipFlow</h1>
+            <img src={`${basePath}/logo.svg`} alt="Sunday Studio" className="w-12 h-12 mb-4" />
+            <h1 className="font-serif text-2xl text-[#1F2A44]">Sunday Studio</h1>
           </div>
           {children}
         </div>
@@ -320,7 +320,7 @@ function ClerkProviderWithRoutes() {
         },
         signUp: {
           start: {
-            title: "Begin planning with WorshipFlow",
+            title: "Begin planning with Sunday Studio",
             subtitle: "Create your account to get started",
           },
         },
@@ -406,7 +406,7 @@ class ErrorBoundary extends Component<
     return { error };
   }
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
-    console.error("[WorshipFlow ErrorBoundary]", error, info?.componentStack);
+    console.error("[Sunday Studio ErrorBoundary]", error, info?.componentStack);
   }
   render() {
     if (this.state.error) {

@@ -206,7 +206,7 @@ export default function ServicePlanPrint() {
         )}
 
         <footer className="mt-12 pt-4 border-t border-slate-200 text-xs text-slate-400 text-center print:block">
-          Prepared with WorshipFlow
+          Prepared with Sunday Studio
         </footer>
       </article>
     </div>

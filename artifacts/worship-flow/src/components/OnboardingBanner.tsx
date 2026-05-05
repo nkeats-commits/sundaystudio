@@ -61,7 +61,7 @@ export function OnboardingBanner() {
       key: 'first-content',
       label: 'Draft your first sermon or service',
       description:
-        'Pick a passage and let WorshipFlow draft your big idea, outline, or service flow.',
+        'Pick a passage and let Sunday Studio draft your big idea, outline, or service flow.',
       done: hasAnyContent,
       href: '/sermons/new',
       cta: 'Start a sermon',
@@ -103,7 +103,7 @@ export function OnboardingBanner() {
           </div>
           <div>
             <h2 className="font-serif text-xl text-[var(--worship-navy)]">
-              Get started with WorshipFlow
+              Get started with Sunday Studio
             </h2>
             <p className="text-sm text-[var(--worship-slate)]">
               {completed} of {steps.length} complete · a couple of minutes to a

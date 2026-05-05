@@ -1,8 +1,8 @@
-# WorshipFlow
+# Sunday Studio
 
 ## Overview
 
-WorshipFlow is an AI worship-planning tool for Christian pastors and worship leaders. Built as a pnpm monorepo with a contract-first OpenAPI workflow.
+Sunday Studio is an AI worship-planning tool for Christian pastors and worship leaders. Built as a pnpm monorepo with a contract-first OpenAPI workflow.
 
 Brand: warm pastoral aesthetic — navy `#1F2A44`, gold `#C99A3D`, cream `#F8F4EA`, Playfair Display + Inter.
 

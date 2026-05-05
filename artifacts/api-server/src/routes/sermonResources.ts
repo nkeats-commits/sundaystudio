@@ -229,7 +229,7 @@ router.post("/sermon-resources/fetch-url", requireAuth, async (req, res) => {
       signal: AbortSignal.timeout(10_000),
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; WorshipFlow/1.0; +https://worshipflow.app)",
+          "Mozilla/5.0 (compatible; Sunday Studio/1.0; +https://worshipflow.app)",
         Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
       },
     });

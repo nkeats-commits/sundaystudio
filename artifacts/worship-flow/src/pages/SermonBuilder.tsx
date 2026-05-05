@@ -221,7 +221,7 @@ function printExportContent(exportContent: { content: string; format: string }):
 </head>
 <body>
   <h1>${escapeHtml(title)}</h1>
-  <p class="meta">Printed from WorshipFlow · ${escapeHtml(new Date().toLocaleDateString())}</p>
+  <p class="meta">Printed from Sunday Studio · ${escapeHtml(new Date().toLocaleDateString())}</p>
   <pre>${escapeHtml(exportContent.content)}</pre>
   <script>
     window.addEventListener('load', function () {

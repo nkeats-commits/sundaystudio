@@ -32,7 +32,7 @@ export default function Services() {
             </div>
             <h3 className="text-xl font-serif text-[var(--worship-navy)] mb-2">No services yet</h3>
             <p className="text-[var(--worship-slate)] mb-6 max-w-sm">
-              Your saved service plans will appear here. Start building your first service to see how WorshipFlow can help you lead.
+              Your saved service plans will appear here. Start building your first service to see how Sunday Studio can help you lead.
             </p>
             <Link href="/service-builder" className="worship-btn-outline px-6 py-2.5 rounded-xl font-medium">
               Build your first service

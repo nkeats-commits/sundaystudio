@@ -419,7 +419,7 @@ Keep "whyItFits" to 1-2 short sentences.
       // worship leader an "Add BPM" affordance than a confident wrong
       // number. Trusted sources, in order of preference:
       //   1. The user's own saved repertoire row (authoritative).
-      //   2. The crowdsourced average across all WorshipFlow churches,
+      //   2. The crowdsourced average across all Sunday Studio churches,
       //      gated to ≥3 samples inside lookupBpm so a single typo can't
       //      poison the well.
       const candidates = rawSongs.flatMap((s) => {

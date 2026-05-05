@@ -20,7 +20,7 @@ import {
 import { importPcsSongs } from "../lib/pcsImport";
 
 /**
- * Routes for connecting WorshipFlow to a church's Planning Center Services
+ * Routes for connecting Sunday Studio to a church's Planning Center Services
  * account. The flow:
  *
  *  1. Browser hits POST /integrations/pcs/connect-url to get an
@@ -48,7 +48,7 @@ function stateSecret(): string {
   // required to start the server and is a high-entropy long-lived value.
   // We fail loud rather than silently using a constant — a forgeable
   // OAuth state would let an attacker bind their PCS account to another
-  // user's WorshipFlow session via a CSRF-style callback.
+  // user's Sunday Studio session via a CSRF-style callback.
   const s = process.env["SESSION_SECRET"];
   if (!s || s.length < 16) {
     throw new Error(

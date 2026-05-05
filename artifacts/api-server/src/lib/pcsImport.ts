@@ -10,7 +10,7 @@ import { logger } from "./logger";
 
 /**
  * Import every song from a connected church's Planning Center Services
- * library into WorshipFlow as repertoire items.
+ * library into Sunday Studio as repertoire items.
  *
  * Strategy:
  *  1. Page through `/services/v2/songs?include=arrangements` (PCO returns

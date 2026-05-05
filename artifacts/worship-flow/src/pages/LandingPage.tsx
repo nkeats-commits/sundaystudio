@@ -97,7 +97,7 @@ export default function LandingPage() {
             className="text-xl font-semibold tracking-tight"
             style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
           >
-            WorshipFlow
+            Sunday Studio
           </span>
         </div>
         <div className="flex items-center gap-6">
@@ -144,7 +144,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-lg leading-relaxed mb-10" style={{ color: 'var(--worship-slate)' }}>
-              WorshipFlow gives teaching pastors, worship leaders, discipleship directors, and lay leaders AI-powered tools to prepare deeply — without giving up every free hour you have.
+              Sunday Studio gives teaching pastors, worship leaders, discipleship directors, and lay leaders AI-powered tools to prepare deeply — without giving up every free hour you have.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
@@ -273,7 +273,7 @@ export default function LandingPage() {
             <p
               className="text-sm font-semibold uppercase tracking-widest mb-6"
               style={{ color: 'var(--worship-gold)' }}
-            >WorshipFlow is here to help</p>
+            >Sunday Studio is here to help</p>
             <h2
               className="text-4xl font-medium mb-5"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
@@ -281,7 +281,7 @@ export default function LandingPage() {
               Built for every leader who prepares people to encounter God.
             </h2>
             <p className="text-base leading-relaxed mb-8" style={{ color: 'var(--worship-slate)' }}>
-              We know what it feels like to walk into Sunday with more preparation to do than time allows. WorshipFlow was built by ministry leaders, for ministry leaders — combining AI with the structure your specific role actually needs, so your best work happens more often.
+              We know what it feels like to walk into Sunday with more preparation to do than time allows. Sunday Studio was built by ministry leaders, for ministry leaders — combining AI with the structure your specific role actually needs, so your best work happens more often.
             </p>
             <ul className="space-y-4">
               {[
@@ -320,7 +320,7 @@ export default function LandingPage() {
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
             >Everything you need to thrive. In one workspace.</h2>
             <p className="text-base max-w-2xl mx-auto" style={{ color: 'var(--worship-slate)' }}>
-              Whether you're writing a sermon, planning a service, preparing your team, or simply trying to stay grounded — WorshipFlow has the tool.
+              Whether you're writing a sermon, planning a service, preparing your team, or simply trying to stay grounded — Sunday Studio has the tool.
             </p>
           </div>
 
@@ -417,7 +417,7 @@ export default function LandingPage() {
               {
                 step: '1',
                 title: 'Set your context',
-                desc: 'Tell WorshipFlow what you\'re preparing — a sermon, a service, a team devotional. Add your scripture, theme, and tradition.',
+                desc: 'Tell Sunday Studio what you\'re preparing — a sermon, a service, a team devotional. Add your scripture, theme, and tradition.',
               },
               {
                 step: '2',
@@ -456,7 +456,7 @@ export default function LandingPage() {
               className="text-xs font-bold uppercase tracking-widest mb-6"
               style={{ color: 'var(--worship-muted-green)' }}
             >
-              With WorshipFlow
+              With Sunday Studio
             </p>
             <h3
               className="text-2xl font-medium mb-6"
@@ -535,7 +535,7 @@ export default function LandingPage() {
             Your best ministry is closer than you think.
           </h2>
           <p className="text-lg mb-3" style={{ color: 'var(--worship-slate)' }}>
-            Try WorshipFlow free for 14 days. Then just{' '}
+            Try Sunday Studio free for 14 days. Then just{' '}
             <strong style={{ color: 'var(--worship-navy)' }}>$9.99/month</strong> — for everything.
           </p>
           <p className="text-sm mb-10" style={{ color: 'var(--worship-muted-slate)' }}>
@@ -571,7 +571,7 @@ export default function LandingPage() {
               className="font-semibold"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
             >
-              WorshipFlow
+              Sunday Studio
             </span>
             <span className="text-sm ml-2" style={{ color: 'var(--worship-muted-slate)' }}>
               © {new Date().getFullYear()} · Built for the Church.

@@ -96,7 +96,7 @@ export default function Pricing() {
                 fontFamily: "var(--font-serif)",
               }}
             >
-              WorshipFlow Pro
+              Sunday Studio Pro
             </span>
           </div>
           <div className="flex items-baseline gap-2 mb-6">
@@ -126,7 +126,7 @@ export default function Pricing() {
             ) : state?.kind === "trial" ? (
               "Subscribe — billing starts when your trial ends"
             ) : (
-              "Subscribe to WorshipFlow Pro"
+              "Subscribe to Sunday Studio Pro"
             )}
           </button>
 

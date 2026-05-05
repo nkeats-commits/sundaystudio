@@ -16,7 +16,7 @@ import type { Logger } from "pino";
 async function getResendCredentials(): Promise<{ apiKey: string; fromEmail: string }> {
   const directKey = process.env["RESEND_API_KEY"]?.trim();
   if (directKey) {
-    const from = process.env["RESEND_FROM_EMAIL"]?.trim() ?? "WorshipFlow <noreply@worshipflow.app>";
+    const from = process.env["RESEND_FROM_EMAIL"]?.trim() ?? "Sunday Studio <noreply@worshipflow.app>";
     return { apiKey: directKey, fromEmail: from };
   }
 
@@ -56,7 +56,7 @@ async function getResendCredentials(): Promise<{ apiKey: string; fromEmail: stri
 
   return {
     apiKey: settings.api_key,
-    fromEmail: settings.from_email?.trim() || "WorshipFlow <noreply@worshipflow.app>",
+    fromEmail: settings.from_email?.trim() || "Sunday Studio <noreply@worshipflow.app>",
   };
 }
 

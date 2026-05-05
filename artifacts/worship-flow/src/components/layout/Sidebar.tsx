@@ -68,7 +68,7 @@ export function Sidebar() {
       <div className="p-6 flex items-center gap-3">
         <Flame className="w-6 h-6" style={{ color: 'var(--worship-gold)' }} />
         <span className="text-xl font-semibold tracking-tight" style={{ color: 'var(--worship-gold)', fontFamily: 'var(--font-serif)' }}>
-          WorshipFlow
+          Sunday Studio
         </span>
       </div>
       

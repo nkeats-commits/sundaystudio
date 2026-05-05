@@ -18,7 +18,7 @@ function wrap(body: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WorshipFlow</title>
+  <title>Sunday Studio</title>
 </head>
 <body style="margin:0;padding:0;background-color:${CREAM};font-family:Inter,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:${CREAM};padding:32px 16px;">
@@ -30,7 +30,7 @@ function wrap(body: string): string {
           <tr>
             <td style="background-color:${NAVY};padding:28px 40px;text-align:center;">
               <span style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:600;color:${WHITE};letter-spacing:-0.3px;">
-                🔥 WorshipFlow
+                🔥 Sunday Studio
               </span>
             </td>
           </tr>
@@ -42,7 +42,7 @@ function wrap(body: string): string {
           <tr>
             <td style="padding:24px 40px;text-align:center;border-top:1px solid #E5E1D8;">
               <p style="margin:0;font-size:12px;color:${SLATE};line-height:1.6;">
-                WorshipFlow · Built for the Church<br/>
+                Sunday Studio · Built for the Church<br/>
                 You're receiving this because you signed up for a free trial.<br/>
                 To stop receiving these emails, reply with "unsubscribe".
               </p>
@@ -79,7 +79,7 @@ export function trialReminderHtml({ firstName, pricingUrl }: TrialEmailData): st
           ${greeting}
         </p>
         <p style="margin:0 0 16px;font-size:16px;color:${SLATE};line-height:1.7;">
-          Your WorshipFlow free trial wraps up in 3 days. If you've been using it to plan services, write sermons, or prepare your team — you know how much time it saves.
+          Your Sunday Studio free trial wraps up in 3 days. If you've been using it to plan services, write sermons, or prepare your team — you know how much time it saves.
         </p>
         <p style="margin:0 0 32px;font-size:16px;color:${SLATE};line-height:1.7;">
           Subscribe now for <strong style="color:${NAVY};">$9.99/month</strong> and keep everything — your service plans, sermons, liturgy, devotionals, and soul care — right where you left it.
@@ -151,7 +151,7 @@ export function trialExpiredHtml({ firstName, pricingUrl }: TrialEmailData): str
           ${greeting}
         </p>
         <p style="margin:0 0 16px;font-size:16px;color:${SLATE};line-height:1.7;">
-          Your WorshipFlow trial has ended. Your saved plans and content are safe — you just won't be able to generate new content or create new services until you subscribe.
+          Your Sunday Studio trial has ended. Your saved plans and content are safe — you just won't be able to generate new content or create new services until you subscribe.
         </p>
         <p style="margin:0 0 32px;font-size:16px;color:${SLATE};line-height:1.7;">
           Subscribe for <strong style="color:${NAVY};">$9.99/month</strong> and pick up right where you left off. No new setup. No lost work.
@@ -188,7 +188,7 @@ export function trialReminderText({ firstName, pricingUrl }: TrialEmailData): st
   const greeting = firstName ? `Hi ${firstName},` : "Hi there,";
   return `${greeting}
 
-Your WorshipFlow free trial ends in 3 days.
+Your Sunday Studio free trial ends in 3 days.
 
 Subscribe now for $9.99/month to keep your service plans, sermons, liturgy, devotionals, and soul care tools — right where you left them.
 
@@ -196,14 +196,14 @@ Subscribe here: ${pricingUrl}
 
 No card was required during your trial. Cancel any time.
 
-— The WorshipFlow Team`;
+— The Sunday Studio Team`;
 }
 
 export function trialExpiredText({ firstName, pricingUrl }: TrialEmailData): string {
   const greeting = firstName ? `Hi ${firstName},` : "Hi there,";
   return `${greeting}
 
-Your WorshipFlow free trial has ended.
+Your Sunday Studio free trial has ended.
 
 Your saved content is still here — you just won't be able to generate new content until you subscribe. Subscribe for $9.99/month to pick up right where you left off.
 
@@ -211,5 +211,5 @@ Subscribe here: ${pricingUrl}
 
 Cancel any time. Secure checkout via Stripe.
 
-— The WorshipFlow Team`;
+— The Sunday Studio Team`;
 }

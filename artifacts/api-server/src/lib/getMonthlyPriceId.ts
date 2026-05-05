@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 
-const PRODUCT_NAME = "WorshipFlow Pro";
+const PRODUCT_NAME = "Sunday Studio Pro";
 
 let _cachedConfigPriceId: string | null | undefined;
 function getPriceIdFromConfigFile(): string | null {

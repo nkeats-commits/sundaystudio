@@ -31,7 +31,7 @@ export default function Paywalled({ component: Component }: PaywalledProps) {
 
   const body =
     state?.kind === 'past_due'
-      ? 'Update your payment method to keep using WorshipFlow.'
+      ? 'Update your payment method to keep using Sunday Studio.'
       : 'You can still view and edit, but new generations and saves are paused until you subscribe.';
 
   const ctaHref = state?.kind === 'past_due' ? '/billing' : '/pricing';

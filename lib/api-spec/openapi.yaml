@@ -3,7 +3,7 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: WorshipFlow API
+  description: Sunday Studio API
 servers:
   - url: /api
     description: Base API path
@@ -2072,7 +2072,7 @@ components:
           description: Total songs found in the connected Planning Center library.
         inserted:
           type: integer
-          description: Songs newly imported into WorshipFlow on this run.
+          description: Songs newly imported into Sunday Studio on this run.
         updated:
           type: integer
           description: Existing imported songs whose metadata was refreshed on this run.
