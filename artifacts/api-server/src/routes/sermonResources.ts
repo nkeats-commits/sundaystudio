@@ -9,17 +9,24 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import multer from "multer";
 import { parse as parseHtml } from "node-html-parser";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { writeFile, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 
-// Lazy-load pdf-parse to avoid the test-file side-effect on import
-let _pdfParse: ((buf: Buffer) => Promise<{ text: string }>) | null = null;
+const execFileAsync = promisify(execFile);
+
 async function extractPdf(buf: Buffer): Promise<string> {
-  if (!_pdfParse) {
-    // pdf-parse v2 ships native ESM; the module itself is the callable function
-    const mod = await import("pdf-parse");
-    _pdfParse = mod as unknown as (buf: Buffer) => Promise<{ text: string }>;
+  const tmp = join(tmpdir(), `pdf-${randomBytes(8).toString("hex")}.pdf`);
+  try {
+    await writeFile(tmp, buf);
+    const { stdout } = await execFileAsync("pdftotext", ["-layout", tmp, "-"]);
+    return stdout;
+  } finally {
+    await unlink(tmp).catch(() => undefined);
   }
-  const result = await _pdfParse(buf);
-  return result.text;
 }
 
 const upload = multer({
@@ -198,7 +205,7 @@ router.post("/sermon-resources/extract-text", requireAuth, upload.single("file")
       const raw = await extractPdf(file.buffer);
       res.json({ text: raw.slice(0, 50_000) });
     } catch (err) {
-      req.log.warn({ err }, "pdf-parse failed");
+      req.log.warn({ err }, "pdftotext extraction failed");
       res.status(422).json({
         error:
           "Could not extract text from this PDF. It may be encrypted or image-only.",
