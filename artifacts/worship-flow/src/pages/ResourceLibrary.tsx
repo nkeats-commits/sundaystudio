@@ -10,6 +10,7 @@ import {
   useDeleteSermonResource,
   useListScholarlySources,
   useUpdateScholarlySourcePreferences,
+  getListSermonResourcesQueryKey,
   getListScholarlySourcesQueryKey,
   type SermonResource,
   type ScholarlySourceManifest,
@@ -224,6 +225,7 @@ export default function ResourceLibrary() {
         { id: draft.id, data: payload },
         {
           onSuccess: () => {
+            void qc.invalidateQueries({ queryKey: getListSermonResourcesQueryKey() });
             toast.success('Resource updated');
             setEditorOpen(false);
           },
@@ -235,6 +237,7 @@ export default function ResourceLibrary() {
         { data: payload },
         {
           onSuccess: () => {
+            void qc.invalidateQueries({ queryKey: getListSermonResourcesQueryKey() });
             toast.success('Resource added');
             setEditorOpen(false);
           },
@@ -249,7 +252,10 @@ export default function ResourceLibrary() {
     deleteResource.mutate(
       { id: r.id },
       {
-        onSuccess: () => toast.success('Resource deleted'),
+        onSuccess: () => {
+          void qc.invalidateQueries({ queryKey: getListSermonResourcesQueryKey() });
+          toast.success('Resource deleted');
+        },
         onError: () => toast.error('Failed to delete resource'),
       },
     );
