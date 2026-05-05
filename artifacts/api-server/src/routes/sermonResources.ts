@@ -22,7 +22,12 @@ async function extractPdf(buf: Buffer): Promise<string> {
   const tmp = join(tmpdir(), `pdf-${randomBytes(8).toString("hex")}.pdf`);
   try {
     await writeFile(tmp, buf);
-    const { stdout } = await execFileAsync("pdftotext", ["-layout", tmp, "-"]);
+    const { stdout } = await execFileAsync("pdftotext", ["-layout", tmp, "-"], {
+      maxBuffer: 50 * 1024 * 1024,
+    });
+    if (!stdout.trim()) {
+      throw new Error("pdftotext returned no text");
+    }
     return stdout;
   } finally {
     await unlink(tmp).catch(() => undefined);
