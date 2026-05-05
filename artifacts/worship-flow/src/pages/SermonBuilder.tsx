@@ -17,6 +17,7 @@ import {
   type Sermon,
   type SermonSeries,
   type SermonStudyOutput,
+  type WordStudyEntry,
   type SermonBigIdeaOutput,
   type SermonOutlineOutput,
   type SermonOutlineOption,
@@ -2180,6 +2181,30 @@ function StudyView({
               {(data.interpretiveCautions ?? []).map((c, i) => <li key={i} className="text-xs text-amber-900 leading-relaxed">• {c}</li>)}
             </ul>
           )}
+        </div>
+      )}
+      {data.wordStudies && data.wordStudies.length > 0 && (
+        <div>
+          <h4 className="font-serif text-base text-[var(--worship-navy)] mb-3">Word Studies</h4>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {data.wordStudies.map((ws: WordStudyEntry, i: number) => (
+              <div key={i} className="rounded-xl border border-[var(--worship-border)] bg-[var(--worship-cream)] p-3.5 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-sm text-[var(--worship-navy)]">{ws.term}</span>
+                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--worship-navy)]/10 text-[var(--worship-navy)]">{ws.language}</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-serif text-lg text-[var(--worship-charcoal)]">{ws.originalWord}</span>
+                  <span className="text-xs text-[var(--worship-slate)] italic">{ws.transliteration}</span>
+                  {ws.strongsNumber && (
+                    <span className="text-[10px] text-[var(--worship-slate)] ml-auto">{ws.strongsNumber}</span>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--worship-charcoal)] leading-relaxed">{ws.definition}</p>
+                <p className="text-xs text-[var(--worship-slate)] italic leading-relaxed border-t border-[var(--worship-border)] pt-2">{ws.significance}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {(editing || data.resourceInsights || (data.consultedSources && data.consultedSources.length > 0)) && (

@@ -245,7 +245,19 @@ Return JSON exactly in this shape:
   "application": "string | null — how this passage shapes a contemporary congregation. 3-6 sentences.",
   "crossReferences": ["string", ...]  | null,
   "interpretiveCautions": ["short caution", ...] | null,
-  "resourceInsights": "string | null — ONLY if any resources (pastor-supplied OR public-domain) were provided above, surface what they add or where they disagree, attributing each by the title/author exactly as supplied. List the source titles you actually drew on."
+  "resourceInsights": "string | null — ONLY if any resources (pastor-supplied OR public-domain) were provided above, surface what they add or where they disagree, attributing each by the title/author exactly as supplied. List the source titles you actually drew on.",
+  "wordStudies": [
+    {
+      "term": "string — the English word as it appears in a common translation",
+      "originalWord": "string — Greek or Hebrew in Unicode script (e.g. χάρις or חֶסֶד)",
+      "transliteration": "string — phonetic (e.g. charis, chesed)",
+      "language": "Greek" | "Hebrew",
+      "strongsNumber": "string | null — e.g. G5485 or H2617; use null if you are not certain",
+      "definition": "string — 2-3 sentences covering the word's semantic range and use in biblical literature",
+      "significance": "string — 1-2 sentences on why THIS word's original meaning matters for this particular sermon"
+    }
+    // 3–7 entries total. Choose ONLY terms whose original-language meaning meaningfully shapes the sermon's interpretation or application — theological weight, not frequency or word length. Use Greek for NT passages, Hebrew for OT; include both for passages that quote across testaments. Do NOT include every word.
+  ]
 }`;
   // Attach the deterministic, server-side list of public-domain commentaries
   // that actually matched the sermon's passages. The Study tab renders this

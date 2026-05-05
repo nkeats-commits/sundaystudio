@@ -3009,6 +3009,33 @@ components:
           description: Echoes the "what's on your heart" intent the user supplied (if any), so the saved item retains its provenance.
       required: [title, durationMinutes, practiceTradition, opening, scripture, practices, journalingPrompts, closing, takeHomePractice]
 
+    WordStudyEntry:
+      type: object
+      properties:
+        term:
+          type: string
+          description: The English word as it appears in the translation (e.g. "grace", "love").
+        originalWord:
+          type: string
+          description: The Greek or Hebrew word in Unicode script (e.g. "χάρις", "חֶסֶד").
+        transliteration:
+          type: string
+          description: Phonetic transliteration (e.g. "charis", "chesed").
+        language:
+          type: string
+          enum: [Greek, Hebrew]
+        strongsNumber:
+          type: string
+          nullable: true
+          description: Strong's Concordance number (e.g. "G5485"). Null if uncertain.
+        definition:
+          type: string
+          description: 2–3 sentence definition covering the word's semantic range.
+        significance:
+          type: string
+          description: 1–2 sentences on why this word's original meaning matters for this sermon.
+      required: [term, originalWord, transliteration, language, definition, significance]
+
     SermonStudyOutput:
       type: object
       properties:
@@ -3037,6 +3064,12 @@ components:
         resourceInsights:
           type: string
           nullable: true
+        wordStudies:
+          type: array
+          nullable: true
+          description: 3–7 key terms from the passage whose original Greek or Hebrew meaning contributes to the sermon. AI-selected based on theological weight, not frequency.
+          items:
+            $ref: "#/components/schemas/WordStudyEntry"
         consultedSources:
           type: array
           nullable: true
