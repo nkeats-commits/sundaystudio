@@ -80,7 +80,7 @@ const PATHS: {
   {
     id: 'soul-care',
     Icon: Heart,
-    title: 'Soul Care',
+    title: 'Craft a Soul Care Practice',
     description: 'A guided practice to care for your own spiritual life',
     href: '/generators/soul-care',
     cta: 'Open Soul Care',
