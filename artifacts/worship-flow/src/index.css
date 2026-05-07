@@ -49,47 +49,47 @@
   --worship-navy: #111b34;
   --worship-gold: #c5a471;
   --worship-cream: #fbf8f4;
-  --worship-white: #FFFDF8;
-  --worship-charcoal: #1E293B;
-  --worship-slate: #475569;
-  --worship-muted-slate: #64748B;
-  --worship-muted-green: #6E8B74;
-  --worship-sand: #E8DDC7;
-  --worship-pale-gold: #F3E7C6;
-  --worship-border: #E5E1D8;
+  --worship-white: #ffffff;
+  --worship-charcoal: #1a1612;
+  --worship-slate: #6b5e52;
+  --worship-muted-slate: #9c8c7a;
+  --worship-muted-warm: #7a6b5a;
+  --worship-sand: #e8d8c0;
+  --worship-pale-gold: #f0e2c8;
+  --worship-border: #ddd0be;
   --worship-error: #B42318;
-  --worship-success: #3F6B4F;
+  --worship-success: #4a6741;
 
   /* HSL Mappings */
-  --background: 40 43% 94%; /* F8F4EA */
-  --foreground: 217 33% 17%; /* 1E293B */
+  --background: 34 47% 97%; /* fbf8f4 */
+  --foreground: 25 18% 15%; /* warm charcoal */
   
-  --card: 43 100% 98%; /* FFFDF8 */
-  --card-foreground: 217 33% 17%;
-  --card-border: 42 21% 87%; /* E5E1D8 */
+  --card: 36 50% 99%; /* near-white warm */
+  --card-foreground: 25 18% 15%;
+  --card-border: 35 28% 85%; /* ddd0be */
   
-  --popover: 43 100% 98%;
-  --popover-foreground: 217 33% 17%;
-  --popover-border: 42 21% 87%;
+  --popover: 36 50% 99%;
+  --popover-foreground: 25 18% 15%;
+  --popover-border: 35 28% 85%;
   
-  --primary: 222 37% 19%; /* 1F2A44 */
+  --primary: 222 51% 14%; /* 111b34 */
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 40 43% 94%; /* F8F4EA */
-  --secondary-foreground: 217 33% 17%;
+  --secondary: 34 47% 97%; /* same as background */
+  --secondary-foreground: 25 18% 15%;
   
-  --muted: 42 21% 87%; /* E5E1D8 */
-  --muted-foreground: 215 16% 47%; /* 64748B */
+  --muted: 35 28% 85%; /* warm sand muted */
+  --muted-foreground: 28 16% 55%; /* warm muted text */
   
-  --accent: 40 55% 51%; /* C99A3D */
+  --accent: 36 42% 61%; /* c5a471 */
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 76% 39%; /* B42318 */
   --destructive-foreground: 0 0% 100%;
   
-  --border: 42 21% 87%; /* E5E1D8 */
-  --input: 42 21% 87%;
-  --ring: 40 55% 51%;
+  --border: 35 28% 85%; /* ddd0be */
+  --input: 35 28% 85%;
+  --ring: 36 42% 61%;
 
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: 'Playfair Display', serif;
@@ -136,7 +136,7 @@
     transition: background-color 0.2s;
   }
   .worship-btn-primary:hover {
-    background-color: #161e30;
+    background-color: #1a2a4a;
   }
 
   .worship-btn-gold {
@@ -145,7 +145,7 @@
     transition: background-color 0.2s;
   }
   .worship-btn-gold:hover {
-    background-color: #b58935;
+    background-color: #b08d58;
   }
 
   .worship-btn-outline {

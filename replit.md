@@ -4,7 +4,7 @@
 
 Sunday Studio is an AI worship-planning tool for Christian pastors and worship leaders. Built as a pnpm monorepo with a contract-first OpenAPI workflow.
 
-Brand: warm pastoral aesthetic — navy `#111b34`, gold `#c5a471`, cream `#fbf8f4`, Playfair Display + Inter.
+Brand: warm pastoral aesthetic — navy `#111b34`, gold `#c5a471`, cream `#fbf8f4`, sand `#e8d8c0`, border `#ddd0be`, Playfair Display + Inter.
 
 ## Artifacts
 
