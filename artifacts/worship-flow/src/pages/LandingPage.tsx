@@ -139,8 +139,7 @@ export default function LandingPage() {
               className="text-5xl lg:text-6xl font-medium leading-tight mb-6"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
             >
-              <span style={{ color: 'var(--worship-navy)' }}>Plan Spiritually Rich Services</span>
-              <br />
+              <span style={{ color: 'var(--worship-navy)' }}>Plan Spiritually Rich Services </span>
               <span style={{ color: 'var(--worship-gold)' }}>Without Losing Your Week</span>
             </h1>
 
