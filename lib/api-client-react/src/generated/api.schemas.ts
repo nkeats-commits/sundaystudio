@@ -209,6 +209,7 @@ export interface MeResponse {
   firstName?: string | null;
   lastName?: string | null;
   imageUrl?: string | null;
+  onboardingCompletedAt?: string | null;
   profile?: ChurchProfile | null;
 }
 
@@ -1516,6 +1517,10 @@ export type UnauthorizedResponse = ApiError;
  * Not found
  */
 export type NotFoundResponse = ApiError;
+
+export type CompleteOnboarding200 = {
+  onboardingCompletedAt: string;
+};
 
 export type ListLibraryItemsParams = {
   kind?: ListLibraryItemsKind;

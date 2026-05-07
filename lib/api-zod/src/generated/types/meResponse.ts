@@ -13,5 +13,6 @@ export interface MeResponse {
   firstName?: string | null;
   lastName?: string | null;
   imageUrl?: string | null;
+  onboardingCompletedAt?: Date | null;
   profile?: ChurchProfile | null;
 }

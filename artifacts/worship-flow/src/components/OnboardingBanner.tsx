@@ -47,6 +47,10 @@ export function OnboardingBanner() {
     meQ.isLoading || sermonsQ.isLoading || servicesQ.isLoading;
   if (stillLoading) return null;
 
+  // Users who completed the onboarding wizard already set up their profile —
+  // no need to show the checklist banner.
+  if (meQ.data?.onboardingCompletedAt) return null;
+
   const steps: Step[] = [
     {
       key: 'profile',

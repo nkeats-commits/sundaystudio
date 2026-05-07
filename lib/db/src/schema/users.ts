@@ -16,6 +16,7 @@ export const usersTable = pgTable("users", {
     .defaultNow(),
   trialReminderSentAt: timestamp("trial_reminder_sent_at", { withTimezone: true }),
   trialExpiredEmailSentAt: timestamp("trial_expired_email_sent_at", { withTimezone: true }),
+  onboardingCompletedAt: timestamp("onboarding_completed_at", { withTimezone: true }),
 });
 
 export type User = typeof usersTable.$inferSelect;

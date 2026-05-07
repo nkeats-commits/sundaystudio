@@ -23,6 +23,7 @@ export const GetMeResponse = zod.object({
   firstName: zod.string().nullish(),
   lastName: zod.string().nullish(),
   imageUrl: zod.string().nullish(),
+  onboardingCompletedAt: zod.coerce.date().nullish(),
   profile: zod
     .object({
       id: zod.number(),
@@ -40,6 +41,13 @@ export const GetMeResponse = zod.object({
       updatedAt: zod.coerce.date(),
     })
     .nullish(),
+});
+
+/**
+ * @summary Mark onboarding as complete for the current user
+ */
+export const CompleteOnboardingResponse = zod.object({
+  onboardingCompletedAt: zod.coerce.date(),
 });
 
 /**

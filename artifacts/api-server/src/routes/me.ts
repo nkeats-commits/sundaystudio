@@ -25,6 +25,7 @@ router.get("/me", requireAuth, async (req, res) => {
     firstName: user?.firstName ?? null,
     lastName: user?.lastName ?? null,
     imageUrl: user?.imageUrl ?? null,
+    onboardingCompletedAt: user?.onboardingCompletedAt?.toISOString() ?? null,
     profile: profile ?? null,
   });
 });
@@ -67,6 +68,16 @@ router.put("/me/church", requireAuth, async (req, res) => {
     [result] = await db.insert(churchProfilesTable).values(values).returning();
   }
   res.json(result);
+});
+
+router.post("/onboarding/complete", requireAuth, async (req, res) => {
+  const userId = req.userId!;
+  const now = new Date();
+  await db
+    .update(usersTable)
+    .set({ onboardingCompletedAt: now })
+    .where(eq(usersTable.id, userId));
+  res.json({ onboardingCompletedAt: now.toISOString() });
 });
 
 export default router;

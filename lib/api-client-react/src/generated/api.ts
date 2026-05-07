@@ -28,6 +28,7 @@ import type {
   BulkImportRepertoireResult,
   ChurchProfile,
   CompAdminUserSubscription200,
+  CompleteOnboarding200,
   CreateLibraryItemBody,
   CreateSermonBody,
   CreateSermonResourceBody,
@@ -269,6 +270,87 @@ export function useGetMe<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Mark onboarding as complete for the current user
+ */
+export const getCompleteOnboardingUrl = () => {
+  return `/api/onboarding/complete`;
+};
+
+export const completeOnboarding = async (
+  options?: RequestInit,
+): Promise<CompleteOnboarding200> => {
+  return customFetch<CompleteOnboarding200>(getCompleteOnboardingUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCompleteOnboardingMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeOnboarding>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["completeOnboarding"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    void
+  > = () => {
+    return completeOnboarding(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteOnboardingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeOnboarding>>
+>;
+
+export type CompleteOnboardingMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Mark onboarding as complete for the current user
+ */
+export const useCompleteOnboarding = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeOnboarding>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCompleteOnboardingMutationOptions(options));
+};
 
 /**
  * @summary Create or update the church profile

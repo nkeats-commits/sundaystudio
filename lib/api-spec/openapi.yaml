@@ -36,6 +36,8 @@ tags:
     description: Subscription billing (trial + Stripe)
   - name: admin
     description: Owner-only admin panel (single-admin model gated by OWNER_EMAIL)
+  - name: onboarding
+    description: First-run onboarding wizard state
 paths:
   /healthz:
     get:
@@ -62,6 +64,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /onboarding/complete:
+    post:
+      operationId: completeOnboarding
+      tags: [onboarding]
+      summary: Mark onboarding as complete for the current user
+      responses:
+        "200":
+          description: Onboarding marked complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  onboardingCompletedAt:
+                    type: string
+                    format: date-time
+                required: [onboardingCompletedAt]
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -2168,6 +2190,10 @@ components:
           nullable: true
         imageUrl:
           type: string
+          nullable: true
+        onboardingCompletedAt:
+          type: string
+          format: date-time
           nullable: true
         profile:
           allOf:
