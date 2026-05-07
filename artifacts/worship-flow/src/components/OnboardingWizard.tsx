@@ -311,10 +311,12 @@ function Step2Paths({
 function Step3Ready({
   selectedPath,
   onFinish,
+  onSkip,
   isFinishing,
 }: {
   selectedPath: PathId | null;
   onFinish: (href: string) => void;
+  onSkip: () => void;
   isFinishing: boolean;
 }) {
   const path = PATHS.find((p) => p.id === selectedPath);
@@ -335,20 +337,31 @@ function Step3Ready({
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onFinish(path?.href ?? '/dashboard')}
-        disabled={isFinishing}
-        className="worship-btn-primary px-8 py-3 rounded-xl font-medium flex items-center gap-2 mx-auto disabled:opacity-50"
-      >
-        {isFinishing ? (
-          'Opening...'
-        ) : (
-          <>
-            {path ? path.cta : 'Go to Dashboard'} <ChevronRight className="w-4 h-4" />
-          </>
-        )}
-      </button>
+      <div className="flex flex-col items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onFinish(path?.href ?? '/dashboard')}
+          disabled={isFinishing}
+          className="worship-btn-primary px-8 py-3 rounded-xl font-medium flex items-center gap-2 disabled:opacity-50"
+        >
+          {isFinishing ? (
+            'Opening...'
+          ) : (
+            <>
+              {path ? path.cta : 'Go to Dashboard'} <ChevronRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={isFinishing}
+          className="text-sm text-[var(--worship-slate)] hover:text-[var(--worship-navy)] underline underline-offset-2 disabled:opacity-50"
+        >
+          Skip for now
+        </button>
+      </div>
     </div>
   );
 }
@@ -450,6 +463,7 @@ export function OnboardingWizard() {
             <Step3Ready
               selectedPath={selectedPath}
               onFinish={handleComplete}
+              onSkip={handleSkip}
               isFinishing={completeOnboarding.isPending}
             />
           )}
