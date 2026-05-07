@@ -76,6 +76,9 @@ Currently wired sources:
 - `jamieson-fausset-brown` → `https://biblehub.com/commentaries/jfb/`
 - `barnes-notes`           → `https://biblehub.com/commentaries/barnes/`
 - `pulpit-commentary`      → `https://biblehub.com/commentaries/pulpit/`
+- `adam-clarke`            → `https://biblehub.com/commentaries/clarke/`
+- `john-gill`              → `https://biblehub.com/commentaries/gill/`
+- `keil-delitzsch`         → `https://biblehub.com/commentaries/kad/` (OT only — pass `otOnly=true`)
 
 Why BibleHub: CCEL only publishes plain-text dumps for a few works, and the
 JFB dump's per-book headers vary across the canon (`THE FIRST BOOK OF MOSES,

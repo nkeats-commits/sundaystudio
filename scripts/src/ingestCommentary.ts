@@ -8,6 +8,9 @@
  *   - jamieson-fausset-brown   → /commentaries/jfb/<book>/<ch>.htm
  *   - barnes-notes             → /commentaries/barnes/<book>/<ch>.htm
  *   - pulpit-commentary        → /commentaries/pulpit/<book>/<ch>.htm
+ *   - adam-clarke              → /commentaries/clarke/<book>/<ch>.htm
+ *   - john-gill                → /commentaries/gill/<book>/<ch>.htm
+ *   - keil-delitzsch           → /commentaries/kad/<book>/<ch>.htm (OT only)
  *
  * Why BibleHub and not CCEL? CCEL serves a per-work plain-text dump only for
  * a few commentaries (Henry, JFB) and the JFB dump's per-book headers vary
@@ -326,16 +329,28 @@ async function fetchWithRetry(url: string, attempts = 3): Promise<string> {
   throw lastErr ?? new Error("fetch failed");
 }
 
+/** OT books only (first 39 entries = Genesis through Malachi). */
+const OT_BOOKS = BOOKS.slice(0, 39);
+
 async function ingestBibleHub(
-  sourceId: "jamieson-fausset-brown" | "barnes-notes" | "pulpit-commentary",
-  bhPath: "jfb" | "barnes" | "pulpit",
+  sourceId:
+    | "jamieson-fausset-brown"
+    | "barnes-notes"
+    | "pulpit-commentary"
+    | "adam-clarke"
+    | "john-gill"
+    | "keil-delitzsch",
+  bhPath: "jfb" | "barnes" | "pulpit" | "clarke" | "gill" | "kad",
+  /** When true, only OT books are fetched (for OT-only commentaries like K&D). */
+  otOnly = false,
 ): Promise<void> {
+  const booksScope = otOnly ? OT_BOOKS : BOOKS;
   const books = new Map<string, BookOut>();
   const concurrency = 12;
 
   // Build flat work list of (book, chapter).
   const work: { spec: BookSpec; ch: number }[] = [];
-  for (const spec of BOOKS) {
+  for (const spec of booksScope) {
     for (let c = 1; c <= spec.chapters; c++) work.push({ spec, ch: c });
   }
   console.log(`[${sourceId}] fetching ${work.length} chapter pages…`);
@@ -380,14 +395,18 @@ async function ingestBibleHub(
   };
   await Promise.all(Array.from({ length: concurrency }, () => next()));
   console.log(`[${sourceId}] done: ${done} fetched, ${kept} kept across ${books.size} books`);
-  writeBooks(sourceId, books);
+  writeBooks(sourceId, books, booksScope);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Output writer                                                              */
 /* -------------------------------------------------------------------------- */
 
-function writeBooks(sourceId: string, books: Map<string, BookOut>): void {
+function writeBooks(
+  sourceId: string,
+  books: Map<string, BookOut>,
+  booksScope: BookSpec[] = BOOKS,
+): void {
   const outDir = join(DATA_ROOT, sourceId);
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
@@ -423,13 +442,12 @@ function writeBooks(sourceId: string, books: Map<string, BookOut>): void {
     ).toFixed(2)} MB → ${outDir}`,
   );
 
-  // Strict completeness gate. Required totals = canon (66 books, 1189
-  // chapters) minus known upstream omissions per source. If we land below
-  // these floors, BibleHub's DOM has likely drifted (or we're rate-limited).
-  const TOTAL_CANON_CHAPTERS = BOOKS.reduce((s, b) => s + b.chapters, 0); // 1189
-  const expectedChapters =
-    TOTAL_CANON_CHAPTERS - KNOWN_EMPTY_UPSTREAM[sourceId].length;
-  const expectedBooks = BOOKS.length;
+  // Strict completeness gate. Required totals = scope (all of booksScope
+  // minus known upstream omissions). If we land below the floor, BibleHub's
+  // DOM has likely drifted or we're rate-limited.
+  const scopeChapters = booksScope.reduce((s, b) => s + b.chapters, 0);
+  const expectedChapters = scopeChapters - KNOWN_EMPTY_UPSTREAM[sourceId].length;
+  const expectedBooks = booksScope.length;
 
   if (books.size < expectedBooks) {
     throw new Error(
@@ -443,7 +461,7 @@ function writeBooks(sourceId: string, books: Map<string, BookOut>): void {
       for (const ch of Object.keys(b.chapters)) got.add(`${c} ${ch}`);
     }
     const missing: string[] = [];
-    for (const spec of BOOKS) {
+    for (const spec of booksScope) {
       for (let ch = 1; ch <= spec.chapters; ch++) {
         const key = `${spec.canonical} ${ch}`;
         if (
@@ -480,6 +498,25 @@ const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
     "2 chronicles 10",
   ],
   "pulpit-commentary": [],
+  "adam-clarke": [],
+  "john-gill": [
+    "1 chronicles 11",
+    "1 chronicles 14",
+    "1 chronicles 17",
+    "1 chronicles 18",
+    "1 chronicles 19",
+    "1 chronicles 20",
+    "2 chronicles 3",
+    "2 chronicles 4",
+    "2 chronicles 5",
+    "2 chronicles 6",
+    "2 chronicles 9",
+    "2 chronicles 10",
+  ],
+  "keil-delitzsch": [
+    "1 chronicles 19",
+    "1 chronicles 20",
+  ],
 };
 
 /* -------------------------------------------------------------------------- */
@@ -490,7 +527,7 @@ async function main() {
   const sourceId = process.argv[2];
   if (!sourceId) {
     console.error(
-      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary>",
+      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch>",
     );
     process.exit(1);
   }
@@ -503,6 +540,17 @@ async function main() {
       break;
     case "pulpit-commentary":
       await ingestBibleHub("pulpit-commentary", "pulpit");
+      break;
+    case "adam-clarke":
+      await ingestBibleHub("adam-clarke", "clarke");
+      break;
+    case "john-gill":
+      await ingestBibleHub("john-gill", "gill");
+      break;
+    case "keil-delitzsch":
+      // K&D covers OT only — pass otOnly=true so the work list and
+      // completeness gate are restricted to the 39 OT books.
+      await ingestBibleHub("keil-delitzsch", "kad", true);
       break;
     default:
       console.error(`Unknown source id: ${sourceId}`);
