@@ -355,7 +355,9 @@ function Step3Ready({
 
 export function OnboardingWizard() {
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
-  const { data: me, isLoading: meLoading } = useGetMe();
+  const { data: me, isLoading: meLoading } = useGetMe({
+    query: { enabled: authLoaded && !!isSignedIn, queryKey: getGetMeQueryKey() },
+  });
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedPath, setSelectedPath] = useState<PathId | null>(null);
   const [dismissed, setDismissed] = useState(false);
