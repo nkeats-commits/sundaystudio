@@ -11,6 +11,8 @@
  *   - adam-clarke              → /commentaries/clarke/<book>/<ch>.htm
  *   - john-gill                → /commentaries/gill/<book>/<ch>.htm
  *   - keil-delitzsch           → /commentaries/kad/<book>/<ch>.htm (OT only)
+ *   - calvin-commentaries      → /commentaries/calvin/<book>/<ch>.htm (whole Bible except Revelation)
+ *   - spurgeon-treasury        → /commentaries/tod/<book>/<ch>.htm (Psalms only)
  *
  * Why BibleHub and not CCEL? CCEL serves a per-work plain-text dump only for
  * a few commentaries (Henry, JFB) and the JFB dump's per-book headers vary
@@ -332,6 +334,12 @@ async function fetchWithRetry(url: string, attempts = 3): Promise<string> {
 /** OT books only (first 39 entries = Genesis through Malachi). */
 const OT_BOOKS = BOOKS.slice(0, 39);
 
+/** Psalms only — for Spurgeon's Treasury of David. */
+const PSALMS_BOOKS = BOOKS.filter((b) => b.canonical === "psalms");
+
+/** NT books minus Revelation — for Calvin (who wrote no Revelation commentary). */
+const BOOKS_EXCEPT_REVELATION = BOOKS.filter((b) => b.canonical !== "revelation");
+
 async function ingestBibleHub(
   sourceId:
     | "jamieson-fausset-brown"
@@ -339,12 +347,37 @@ async function ingestBibleHub(
     | "pulpit-commentary"
     | "adam-clarke"
     | "john-gill"
-    | "keil-delitzsch",
-  bhPath: "jfb" | "barnes" | "pulpit" | "clarke" | "gill" | "kad",
+    | "keil-delitzsch"
+    | "calvin-commentaries"
+    | "spurgeon-treasury",
+  bhPath: "jfb" | "barnes" | "pulpit" | "clarke" | "gill" | "kad" | "calvin" | "tod",
   /** When true, only OT books are fetched (for OT-only commentaries like K&D). */
   otOnly = false,
+  /** When true, only Psalms is fetched (for Spurgeon's Treasury of David). */
+  psalmsOnly = false,
+  /** When true, Revelation is excluded (for Calvin's Commentaries). */
+  skipRevelation = false,
+  /**
+   * Passed through to writeBooks — minimum book count the gate accepts.
+   * Set when the commentary intentionally skips certain books.
+   */
+  minBooksOverride?: number,
+  /**
+   * Passed through to writeBooks — minimum chapter count the gate accepts.
+   * Set alongside minBooksOverride for partial-canon commentaries.
+   */
+  minChaptersOverride?: number,
 ): Promise<void> {
-  const booksScope = otOnly ? OT_BOOKS : BOOKS;
+  let booksScope: BookSpec[];
+  if (psalmsOnly) {
+    booksScope = PSALMS_BOOKS;
+  } else if (otOnly) {
+    booksScope = OT_BOOKS;
+  } else if (skipRevelation) {
+    booksScope = BOOKS_EXCEPT_REVELATION;
+  } else {
+    booksScope = BOOKS;
+  }
   const books = new Map<string, BookOut>();
   const concurrency = 12;
 
@@ -395,7 +428,7 @@ async function ingestBibleHub(
   };
   await Promise.all(Array.from({ length: concurrency }, () => next()));
   console.log(`[${sourceId}] done: ${done} fetched, ${kept} kept across ${books.size} books`);
-  writeBooks(sourceId, books, booksScope);
+  writeBooks(sourceId, books, booksScope, minBooksOverride, minChaptersOverride);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -406,6 +439,18 @@ function writeBooks(
   sourceId: string,
   books: Map<string, BookOut>,
   booksScope: BookSpec[] = BOOKS,
+  /**
+   * Override the minimum expected book count in the completeness gate.
+   * Use for commentaries that intentionally skip certain books (e.g. Calvin).
+   * When undefined, the gate expects all books in booksScope.
+   */
+  minBooksOverride?: number,
+  /**
+   * Override the minimum expected chapter count in the completeness gate.
+   * Use alongside minBooksOverride for commentaries with a known partial canon.
+   * When undefined, the gate expects all scope chapters minus KNOWN_EMPTY_UPSTREAM.
+   */
+  minChaptersOverride?: number,
 ): void {
   const outDir = join(DATA_ROOT, sourceId);
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
@@ -446,8 +491,10 @@ function writeBooks(
   // minus known upstream omissions). If we land below the floor, BibleHub's
   // DOM has likely drifted or we're rate-limited.
   const scopeChapters = booksScope.reduce((s, b) => s + b.chapters, 0);
-  const expectedChapters = scopeChapters - KNOWN_EMPTY_UPSTREAM[sourceId].length;
-  const expectedBooks = booksScope.length;
+  const expectedChapters =
+    minChaptersOverride ??
+    scopeChapters - KNOWN_EMPTY_UPSTREAM[sourceId].length;
+  const expectedBooks = minBooksOverride ?? booksScope.length;
 
   if (books.size < expectedBooks) {
     throw new Error(
@@ -517,6 +564,12 @@ const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
     "1 chronicles 19",
     "1 chronicles 20",
   ],
+  // Calvin did not write on Revelation (scope excludes it via skipRevelation).
+  // A handful of chapters in lesser-covered OT books may be empty upstream;
+  // verified by spot-checking BibleHub — add to this list if the gate fires.
+  "calvin-commentaries": [],
+  // Spurgeon covers all 150 Psalms; no known upstream gaps.
+  "spurgeon-treasury": [],
 };
 
 /* -------------------------------------------------------------------------- */
@@ -527,7 +580,7 @@ async function main() {
   const sourceId = process.argv[2];
   if (!sourceId) {
     console.error(
-      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch>",
+      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury>",
     );
     process.exit(1);
   }
@@ -551,6 +604,27 @@ async function main() {
       // K&D covers OT only — pass otOnly=true so the work list and
       // completeness gate are restricted to the 39 OT books.
       await ingestBibleHub("keil-delitzsch", "kad", true);
+      break;
+    case "calvin-commentaries":
+      // Calvin wrote formal commentaries on 48 of the 65 non-Revelation books.
+      // skipRevelation=true restricts the fetch scope; minBooksOverride=45 and
+      // minChaptersOverride=750 set a gate well below the known actual totals
+      // (48 books, 817 chapters) so the gate catches regressions without
+      // failing on Calvin's intentionally incomplete canon.
+      await ingestBibleHub(
+        "calvin-commentaries",
+        "calvin",
+        false,
+        false,
+        true,
+        45,
+        750,
+      );
+      break;
+    case "spurgeon-treasury":
+      // Spurgeon's Treasury covers Psalms only — psalmsOnly=true restricts
+      // both the work list and the completeness gate to 150 chapters.
+      await ingestBibleHub("spurgeon-treasury", "tod", false, true);
       break;
     default:
       console.error(`Unknown source id: ${sourceId}`);

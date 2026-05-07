@@ -79,6 +79,8 @@ Currently wired sources:
 - `adam-clarke`            → `https://biblehub.com/commentaries/clarke/`
 - `john-gill`              → `https://biblehub.com/commentaries/gill/`
 - `keil-delitzsch`         → `https://biblehub.com/commentaries/kad/` (OT only — pass `otOnly=true`)
+- `calvin-commentaries`    → `https://biblehub.com/commentaries/calvin/` (48 of 65 non-Revelation books — Calvin wrote no Revelation commentary and skipped Chronicles, Samuel, Kings, Ruth, Judges, Esther, Ezra, Nehemiah, Job, Proverbs, Ecclesiastes, Song of Songs, 2-3 John; the gate uses `minBooksOverride=45, minChaptersOverride=750`)
+- `spurgeon-treasury`      → `https://biblehub.com/commentaries/tod/` (Psalms only — pass `psalmsOnly=true`)
 
 Why BibleHub: CCEL only publishes plain-text dumps for a few works, and the
 JFB dump's per-book headers vary across the canon (`THE FIRST BOOK OF MOSES,
