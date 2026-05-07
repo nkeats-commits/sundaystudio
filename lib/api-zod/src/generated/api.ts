@@ -1108,6 +1108,12 @@ export const GenerateSongSuggestionsBody = zod.object({
     .describe(
       "Optional upper bound for the suggested songs' tempo. Bounds out of order are auto-swapped.",
     ),
+  preferredKeys: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      'Optional list of preferred musical keys (e.g. [\"G\", \"A\", \"Bb\"]). The AI will bias toward these keys when choosing songs; other keys are still allowed when no repertoire fit exists.',
+    ),
 });
 
 export const GenerateSongSuggestionsResponse = zod.object({
@@ -1122,6 +1128,18 @@ export const GenerateSongSuggestionsResponse = zod.object({
         .nullish()
         .describe(
           "Tempo in beats per minute. Returned only when the value comes from a trusted source — the user's repertoire (which itself can be sourced from Planning Center or hand-typed). The AI Song Assistant no longer guesses BPMs; rows where the server has no trusted value report `bpm: null` so worship leaders can fill them in deliberately.",
+        ),
+      key: zod
+        .string()
+        .nullish()
+        .describe(
+          "Musical key of the song (e.g. 'G', 'Bb', 'F#m'). Returned when known from the user's repertoire (Planning Center import) or suggested by the AI based on the song's well-known recording.",
+        ),
+      keyFromLibrary: zod
+        .boolean()
+        .optional()
+        .describe(
+          "True when the key value was sourced from the user's saved repertoire (authoritative). False or absent when the key is an AI suggestion.",
         ),
       themes: zod.array(zod.string()).optional(),
       whyItFits: zod.string(),

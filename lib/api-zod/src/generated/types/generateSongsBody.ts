@@ -36,4 +36,6 @@ export interface GenerateSongsBody {
    * @maximum 300
    */
   bpmMax?: number;
+  /** Optional list of preferred musical keys (e.g. ["G", "A", "Bb"]). The AI will bias toward these keys when choosing songs; other keys are still allowed when no repertoire fit exists. */
+  preferredKeys?: string[];
 }

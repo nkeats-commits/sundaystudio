@@ -24,6 +24,7 @@ import {
   normalizeBpmRange,
   normalizeTitle,
   repertoireBpmByTitle,
+  repertoireKeyByTitle,
   repertoirePromptBlock,
   repertoireTitleSet,
   type RepertoireMode,
@@ -339,11 +340,19 @@ router.post("/generate/songs", requireAuth, requireActiveAccess, async (req, res
       : requestedMode;
   const titleSet = repertoireTitleSet(repertoire);
   const bpmByTitle = repertoireBpmByTitle(repertoire);
+  const keyByTitle = repertoireKeyByTitle(repertoire);
   const bpmRange = normalizeBpmRange(data.bpmMin, data.bpmMax);
+  const preferredKeys: string[] = Array.isArray(data.preferredKeys)
+    ? (data.preferredKeys as unknown[]).filter((k): k is string => typeof k === "string" && k.trim().length > 0).map((k) => k.trim())
+    : [];
   const repBlock = repertoirePromptBlock(repertoire, effectiveMode, bpmRange);
   const tempoConstraintLine = bpmRange
     ? `Tempo constraint: only suggest songs whose tempo falls within ${describeBpmRange(bpmRange)}. If you don't know a song's BPM with confidence, prefer one whose well-known recording fits this range.\n`
     : "";
+  const preferredKeysLine =
+    preferredKeys.length > 0
+      ? `Preferred keys: ${preferredKeys.join(", ")}. Bias toward songs commonly performed in these keys. Other keys are fine when no repertoire fit or thematic fit exists in the preferred keys.\n`
+      : "";
   // In Strict mode we cap the requested count at the repertoire size — there
   // is no value in asking for 8 songs when the user only knows 3.
   const promptCount =
@@ -370,7 +379,7 @@ Style preference: ${data.style ?? "mixed (modern worship and hymns)"}
 
 Church context:
 ${churchContextBlurb(ctx)}
-${repBlock ? `\n${repBlock}\n` : ""}${alignmentBlock}${tempoConstraintLine}
+${repBlock ? `\n${repBlock}\n` : ""}${alignmentBlock}${tempoConstraintLine}${preferredKeysLine}
 Return JSON exactly in this shape:
 {
   "theme": "string",
@@ -380,6 +389,7 @@ Return JSON exactly in this shape:
       "artist": "string — primary artist or hymn writer",
       "style": "string — e.g. modern worship, hymn, gospel, acoustic",
       "bpm": null,
+      "key": "string or null — the key this song is most commonly performed in (e.g. 'G', 'Bb', 'F#m'). Return your best knowledge of the well-known recording's key; null if genuinely uncertain.",
       "themes": ["string", ...],
       "whyItFits": "string — 1-2 sentences pastoring the choice"
     }
@@ -388,13 +398,15 @@ Return JSON exactly in this shape:
 
 Only suggest real, published songs/hymns the pastor can actually find. Do not invent songs.
 Keep "whyItFits" to 1-2 short sentences.
-"bpm" — return null UNLESS you are highly confident in the recording's actual tempo. Wrong BPMs derail real services; missing BPMs are easy for a worship leader to fill in. The user's saved repertoire BPMs (above) are always preferred over your knowledge — if a title appears there with a BPM, the server will substitute it automatically, so you can safely return null for those rows too.`;
+"bpm" — return null UNLESS you are highly confident in the recording's actual tempo. Wrong BPMs derail real services; missing BPMs are easy for a worship leader to fill in. The user's saved repertoire BPMs (above) are always preferred over your knowledge — if a title appears there with a BPM, the server will substitute it automatically, so you can safely return null for those rows too.
+"key" — return your best knowledge of the common recording key. The user's verified repertoire keys (above, when set) are always authoritative; the server will override your key value for repertoire matches automatically.`;
 
   type RawSong = {
     title?: unknown;
     artist?: unknown;
     style?: unknown;
     bpm?: unknown;
+    key?: unknown;
     themes?: unknown;
     whyItFits?: unknown;
   };
@@ -447,11 +459,20 @@ Keep "whyItFits" to 1-2 short sentences.
             const hint = await lookupBpm(s.title, s.artist);
             if (hint) bpm = hint.bpm;
           }
-          return { s, inRepertoire, bpm };
+          // Key: prefer the user's saved repertoire key (authoritative, from
+          // Planning Center or hand-entered). Fall back to the AI's suggestion.
+          const repertoireKey = keyByTitle.get(normalizedTitle) ?? null;
+          const aiKey =
+            typeof s.key === "string" && s.key.trim().length > 0
+              ? s.key.trim()
+              : null;
+          const key = repertoireKey ?? aiKey;
+          const keyFromLibrary = repertoireKey !== null;
+          return { s, inRepertoire, bpm, key, keyFromLibrary };
         }),
       );
 
-      const cleaned = enriched.flatMap(({ s, inRepertoire, bpm }) => {
+      const cleaned = enriched.flatMap(({ s, inRepertoire, bpm, key, keyFromLibrary }) => {
         // Range safety net: drop suggestions whose trusted BPM is clearly
         // out of range. Songs with no trusted BPM (bpm null) still pass —
         // the user can fill them in via the inline editor in the result
@@ -468,6 +489,7 @@ Keep "whyItFits" to 1-2 short sentences.
             whyItFits: s.whyItFits as string,
             ...(typeof s.style === "string" ? { style: s.style } : {}),
             bpm,
+            ...(key !== null ? { key, keyFromLibrary } : {}),
             ...(Array.isArray(s.themes)
               ? {
                   themes: (s.themes as unknown[]).filter(

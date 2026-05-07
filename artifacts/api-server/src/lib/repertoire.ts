@@ -8,6 +8,7 @@ export type RepertoireSong = {
   artist: string | null;
   style: string | null;
   bpm: number | null;
+  key: string | null;
 };
 
 /**
@@ -125,6 +126,10 @@ export async function loadRepertoireSongs(
           ? content.style
           : null,
       bpm: coerceBpm(content.bpm),
+      key:
+        typeof content.key === "string" && content.key.trim().length > 0
+          ? content.key.trim()
+          : null,
     };
   });
 }
@@ -136,6 +141,17 @@ export function repertoireBpmByTitle(
   const out = new Map<string, number>();
   for (const s of songs) {
     if (s.bpm !== null) out.set(normalizeTitle(s.title), s.bpm);
+  }
+  return out;
+}
+
+/** Look up a repertoire song's musical key by title (case-insensitive). */
+export function repertoireKeyByTitle(
+  songs: RepertoireSong[],
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const s of songs) {
+    if (s.key !== null) out.set(normalizeTitle(s.title), s.key);
   }
   return out;
 }
@@ -162,13 +178,14 @@ export function repertoirePromptBlock(
   const list = filteredSongs
     .map((s) => {
       const bpmTag = s.bpm !== null ? ` — ${s.bpm} BPM` : "";
+      const keyTag = s.key !== null ? `, Key: ${s.key}` : "";
       // Mark which prefer-mode entries fit the requested range so the
       // model has an unambiguous signal to favor them.
       const rangeTag =
         mode === "prefer" && range && s.bpm !== null && bpmInRange(s.bpm, range)
           ? " ✓ in tempo range"
           : "";
-      return `- ${s.title}${s.artist ? ` (${s.artist})` : ""}${bpmTag}${rangeTag}`;
+      return `- ${s.title}${s.artist ? ` (${s.artist})` : ""}${bpmTag}${keyTag}${rangeTag}`;
     })
     .join("\n");
   const tempoGuidance = `Tempo guidance: when a slot's intent or title implies energy (e.g. "opener", "upbeat", "celebration", "sending"), favor faster songs (roughly 100+ BPM). When a slot implies reflection, lament, communion, confession, or response, favor slower songs (roughly under 90 BPM).

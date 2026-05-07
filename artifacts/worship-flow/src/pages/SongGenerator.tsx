@@ -81,6 +81,8 @@ const REPERTOIRE_OPTIONS: {
 ];
 
 export default function SongGenerator() {
+  const MUSICAL_KEYS = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'Bb', 'Eb', 'Ab', 'F#', 'Db'];
+
   const [formData, setFormData] = useState({
     theme: '',
     scripture: '',
@@ -93,6 +95,8 @@ export default function SongGenerator() {
     // ints at submit time.
     bpmMin: '',
     bpmMax: '',
+    // Preferred musical keys — empty means no preference.
+    preferredKeys: [] as string[],
   });
   const ALIGNMENT_MAX = 4000;
 
@@ -170,6 +174,7 @@ export default function SongGenerator() {
       ...(trimmedAlignment ? { alignmentNotes: trimmedAlignment.slice(0, ALIGNMENT_MAX) } : {}),
       ...(bpmMin !== undefined ? { bpmMin } : {}),
       ...(bpmMax !== undefined ? { bpmMax } : {}),
+      ...(safePayload.preferredKeys.length > 0 ? { preferredKeys: safePayload.preferredKeys } : {}),
     };
     generate.mutate(requestBody).catch((err: Error) => {
       toast.error(err.message || 'Generation failed. Please try again.');
@@ -387,6 +392,54 @@ export default function SongGenerator() {
               </div>
               <p className="mt-1.5 text-[11px] leading-snug text-[var(--worship-slate)]">
                 Optional. Leave a side blank for no limit. Range 30–300.
+              </p>
+            </div>
+
+            {/* Preferred musical keys chip selector */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-[var(--worship-slate)]">
+                  PREFERRED KEYS
+                </label>
+                {formData.preferredKeys.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, preferredKeys: [] })}
+                    className="text-[10px] text-[var(--worship-slate)] hover:text-[var(--worship-navy)] underline"
+                    data-testid="button-clear-keys"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Preferred musical keys">
+                {MUSICAL_KEYS.map((k) => {
+                  const selected = formData.preferredKeys.includes(k);
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        const next = selected
+                          ? formData.preferredKeys.filter((pk) => pk !== k)
+                          : [...formData.preferredKeys, k];
+                        setFormData({ ...formData, preferredKeys: next });
+                      }}
+                      data-testid={`button-key-${k}`}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
+                        selected
+                          ? 'bg-[var(--worship-navy)] text-white border-[var(--worship-navy)]'
+                          : 'bg-white text-[var(--worship-slate)] border-[var(--worship-border)] hover:border-[var(--worship-navy)] hover:text-[var(--worship-navy)]'
+                      }`}
+                    >
+                      {k}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-[11px] leading-snug text-[var(--worship-slate)]">
+                Optional. Bias suggestions toward these keys; other keys are fine when no fit exists.
               </p>
             </div>
 
@@ -634,6 +687,19 @@ export default function SongGenerator() {
                                 setBpmDrafts((prev) => ({ ...prev, [i]: v }))
                               }
                             />
+                          )}
+                          {song.key && (
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-md font-medium border ${
+                                song.keyFromLibrary
+                                  ? 'bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] border-[var(--worship-pale-gold)]'
+                                  : 'bg-[var(--worship-cream)] text-[var(--worship-slate)] border-[var(--worship-border)]'
+                              }`}
+                              title={song.keyFromLibrary ? 'Key confirmed from your library' : 'Key suggested by AI'}
+                              data-testid={`badge-key-${i}`}
+                            >
+                              Key: {song.key}{song.keyFromLibrary ? ' ✓' : ''}
+                            </span>
                           )}
                           {song.themes?.map((t) => (
                             <span

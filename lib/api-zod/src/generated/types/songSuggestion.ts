@@ -12,6 +12,10 @@ export interface SongSuggestion {
   style?: string;
   /** Tempo in beats per minute. Returned only when the value comes from a trusted source — the user's repertoire (which itself can be sourced from Planning Center or hand-typed). The AI Song Assistant no longer guesses BPMs; rows where the server has no trusted value report `bpm: null` so worship leaders can fill them in deliberately. */
   bpm?: number | null;
+  /** Musical key of the song (e.g. 'G', 'Bb', 'F#m'). Returned when known from the user's repertoire (Planning Center import) or suggested by the AI based on the song's well-known recording. */
+  key?: string | null;
+  /** True when the key value was sourced from the user's saved repertoire (authoritative). False or absent when the key is an AI suggestion. */
+  keyFromLibrary?: boolean;
   themes?: string[];
   whyItFits: string;
   /** Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match). */
