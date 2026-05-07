@@ -62,7 +62,12 @@ export const DEFAULT_ENABLED_SOURCE_IDS: string[] = [
   "matthew-henry-concise",
 ];
 
-export interface ScholarlySourceManifest {
+/**
+ * Raw on-disk MANIFEST.json shape — only the fields the file actually
+ * contains. Coverage fields (`bookCount`, `scope`, `coveredBooks`) are
+ * derived at runtime from the loaded book corpus, not stored on disk.
+ */
+export interface ScholarlySourceDiskManifest {
   id: string;
   title: string;
   author: string;
@@ -70,6 +75,106 @@ export interface ScholarlySourceManifest {
   license: string;
   sourceUrl: string;
   description: string;
+}
+
+/**
+ * Full API-surface manifest: the disk fields plus server-derived coverage
+ * metadata that is always present in `GET /api/sources` responses.
+ */
+export interface ScholarlySourceManifest extends ScholarlySourceDiskManifest {
+  bookCount: number;
+  scope: string;
+  coveredBooks: string[];
+}
+
+/* -------------------------------------------------------------------------- */
+/* Bible book canon + coverage helpers                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * All 66 canonical Bible books in canonical order, title-cased.
+ * Used to sort `coveredBooks` and to compute testament membership.
+ */
+const BIBLE_CANON_ORDER: readonly string[] = [
+  // Old Testament (39)
+  "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
+  "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel",
+  "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra",
+  "Nehemiah", "Esther", "Job", "Psalms", "Proverbs",
+  "Ecclesiastes", "Song of Songs", "Isaiah", "Jeremiah", "Lamentations",
+  "Ezekiel", "Daniel", "Hosea", "Joel", "Amos",
+  "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk",
+  "Zephaniah", "Haggai", "Zechariah", "Malachi",
+  // New Testament (27)
+  "Matthew", "Mark", "Luke", "John", "Acts",
+  "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians",
+  "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy",
+  "2 Timothy", "Titus", "Philemon", "Hebrews", "James",
+  "1 Peter", "2 Peter", "1 John", "2 John", "3 John",
+  "Jude", "Revelation",
+];
+
+const OT_SET = new Set(BIBLE_CANON_ORDER.slice(0, 39).map((b) => b.toLowerCase()));
+const NT_SET = new Set(BIBLE_CANON_ORDER.slice(39).map((b) => b.toLowerCase()));
+
+const CANONICAL_DISPLAY: Record<string, string> = (() => {
+  const m: Record<string, string> = {};
+  for (const b of BIBLE_CANON_ORDER) m[b.toLowerCase()] = b;
+  return m;
+})();
+
+const CANON_INDEX: Record<string, number> = (() => {
+  const m: Record<string, number> = {};
+  BIBLE_CANON_ORDER.forEach((b, i) => { m[b.toLowerCase()] = i; });
+  return m;
+})();
+
+/**
+ * Derive human-readable coverage metadata from the set of loaded book keys.
+ */
+function computeCoverage(books: Map<string, unknown>): {
+  bookCount: number;
+  scope: string;
+  coveredBooks: string[];
+} {
+  const keys = Array.from(books.keys());
+  const bookCount = keys.length;
+
+  // Sort books in canonical Bible order; unknown books go to the end.
+  const sorted = [...keys].sort((a, b) => {
+    const ia = CANON_INDEX[a] ?? 999;
+    const ib = CANON_INDEX[b] ?? 999;
+    return ia - ib;
+  });
+
+  const coveredBooks = sorted.map((k) => CANONICAL_DISPLAY[k] ?? toTitleCase(k));
+
+  let scope: string;
+  if (bookCount === 66) {
+    scope = "Whole Bible";
+  } else if (bookCount === 39 && keys.every((k) => OT_SET.has(k))) {
+    scope = "Old Testament";
+  } else if (bookCount === 27 && keys.every((k) => NT_SET.has(k))) {
+    scope = "New Testament";
+  } else if (bookCount === 1) {
+    scope = `${coveredBooks[0]} only`;
+  } else {
+    const hasOt = keys.some((k) => OT_SET.has(k));
+    const hasNt = keys.some((k) => NT_SET.has(k));
+    if (hasOt && !hasNt) {
+      scope = `${bookCount} OT book${bookCount === 1 ? "" : "s"}`;
+    } else if (!hasOt && hasNt) {
+      scope = `${bookCount} NT book${bookCount === 1 ? "" : "s"}`;
+    } else {
+      scope = `${bookCount} books`;
+    }
+  }
+
+  return { bookCount, scope, coveredBooks };
+}
+
+function toTitleCase(s: string): string {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export interface CommentaryChapterEntry {
@@ -82,7 +187,7 @@ interface CommentaryBookFile {
   chapters: Record<string, CommentaryChapterEntry>;
 }
 
-export interface LoadedSource extends ScholarlySourceManifest {
+export interface LoadedSource extends ScholarlySourceDiskManifest {
   /** Map of canonical-lowercase book name → book data. Empty for stub sources. */
   books: Map<string, CommentaryBookFile>;
 }
@@ -312,10 +417,10 @@ export function parsePassageRef(
 
 function loadSource(sourceId: string): LoadedSource | null {
   const dir = join(DATA_ROOT, sourceId);
-  let manifest: ScholarlySourceManifest;
+  let manifest: ScholarlySourceDiskManifest;
   try {
     const raw = readFileSync(join(dir, "MANIFEST.json"), "utf8");
-    manifest = JSON.parse(raw) as ScholarlySourceManifest;
+    manifest = JSON.parse(raw) as ScholarlySourceDiskManifest;
   } catch (err) {
     logger.warn({ err, sourceId }, "scholarlySources: failed to load manifest");
     return null;
@@ -396,15 +501,21 @@ const REGISTRY: Map<string, LoadedSource> = (() => {
 export function listRegisteredSources(): ScholarlySourceManifest[] {
   // Stable alphabetical-by-title order so Settings UI is deterministic.
   return Array.from(REGISTRY.values())
-    .map((s) => ({
-      id: s.id,
-      title: s.title,
-      author: s.author,
-      year: s.year,
-      license: s.license,
-      sourceUrl: s.sourceUrl,
-      description: s.description,
-    }))
+    .map((s) => {
+      const { bookCount, scope, coveredBooks } = computeCoverage(s.books);
+      return {
+        id: s.id,
+        title: s.title,
+        author: s.author,
+        year: s.year,
+        license: s.license,
+        sourceUrl: s.sourceUrl,
+        description: s.description,
+        bookCount,
+        scope,
+        coveredBooks,
+      };
+    })
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 

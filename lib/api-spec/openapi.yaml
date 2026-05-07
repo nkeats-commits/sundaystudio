@@ -4175,7 +4175,7 @@ components:
     ScholarlySourceManifest:
       type: object
       description: Metadata for a single bundled public-domain commentary source.
-      required: [id, title, author, year, license, sourceUrl, description]
+      required: [id, title, author, year, license, sourceUrl, description, bookCount, scope, coveredBooks]
       properties:
         id:
           type: string
@@ -4195,6 +4195,21 @@ components:
           description: Canonical URL where the underlying public-domain text lives.
         description:
           type: string
+        bookCount:
+          type: integer
+          description: Number of Bible books this source has commentary data for.
+        scope:
+          type: string
+          description: >
+            Human-readable coverage summary derived from the corpus.
+            Examples: "Whole Bible", "New Testament", "39 books", "Psalms only".
+        coveredBooks:
+          type: array
+          description: >
+            Canonical title-cased book names covered by this source, in canonical
+            Bible order. Used to render a tooltip breakdown in the UI.
+          items:
+            type: string
 
     SourcesResponse:
       type: object

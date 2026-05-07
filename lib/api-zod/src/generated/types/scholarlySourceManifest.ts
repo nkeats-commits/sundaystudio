@@ -21,4 +21,12 @@ export interface ScholarlySourceManifest {
   /** Canonical URL where the underlying public-domain text lives. */
   sourceUrl: string;
   description: string;
+  /** Number of Bible books this source has commentary data for. */
+  bookCount: number;
+  /** Human-readable coverage summary derived from the corpus. Examples: "Whole Bible", "New Testament", "39 books", "Psalms only".
+   */
+  scope: string;
+  /** Canonical title-cased book names covered by this source, in canonical Bible order. Used to render a tooltip breakdown in the UI.
+   */
+  coveredBooks: string[];
 }

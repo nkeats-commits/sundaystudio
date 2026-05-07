@@ -32,6 +32,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { AddCommentaryModal } from '../components/AddCommentaryModal';
+import { CoverageBadge } from '../components/CoverageBadge';
 
 const RESOURCE_TYPES = [
   { value: 'commentary', label: 'Commentary' },
@@ -453,9 +454,12 @@ export default function ResourceLibrary() {
                     <div className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold mb-0.5 flex items-center gap-1.5">
                       <ShieldCheck className="w-3 h-3" /> Public domain · auto-consulted
                     </div>
-                    <h3 className="font-serif text-lg text-[var(--worship-navy)] leading-tight truncate">
-                      {s.title}
-                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <h3 className="font-serif text-lg text-[var(--worship-navy)] leading-tight">
+                        {s.title}
+                      </h3>
+                      <CoverageBadge source={s} />
+                    </div>
                     <p className="text-xs text-[var(--worship-slate)] mt-0.5 truncate">
                       {[s.author, s.year].filter(Boolean).join(' · ')}
                     </p>

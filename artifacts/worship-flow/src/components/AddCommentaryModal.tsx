@@ -7,6 +7,7 @@ import {
   type SourcesResponse,
 } from '@workspace/api-client-react';
 import { X, Loader2, Check, Plus, BookOpen } from 'lucide-react';
+import { CoverageBadge } from './CoverageBadge';
 import { toast } from 'sonner';
 
 /**
@@ -145,14 +146,15 @@ export function AddCommentaryModal({
                 return (
                   <li key={s.id} className="py-4 flex items-start gap-4 first:pt-0">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-[var(--worship-navy)]">
                           {s.title}
                         </span>
-                        <span className="text-xs text-[var(--worship-slate)]">
-                          {s.author} · {s.year}
-                        </span>
+                        <CoverageBadge source={s} />
                       </div>
+                      <p className="text-xs text-[var(--worship-slate)] mt-0.5">
+                        {s.author} · {s.year}
+                      </p>
                       <p className="text-sm text-[var(--worship-slate)] mt-1">
                         {s.description}
                       </p>

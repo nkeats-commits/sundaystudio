@@ -4638,6 +4638,21 @@ export const ListScholarlySourcesResponse = zod.object({
               "Canonical URL where the underlying public-domain text lives.",
             ),
           description: zod.string(),
+          bookCount: zod
+            .number()
+            .describe(
+              "Number of Bible books this source has commentary data for.",
+            ),
+          scope: zod
+            .string()
+            .describe(
+              'Human-readable coverage summary derived from the corpus. Examples: \"Whole Bible\", \"New Testament\", \"39 books\", \"Psalms only\".\n',
+            ),
+          coveredBooks: zod
+            .array(zod.string())
+            .describe(
+              "Canonical title-cased book names covered by this source, in canonical Bible order. Used to render a tooltip breakdown in the UI.\n",
+            ),
         })
         .describe(
           "Metadata for a single bundled public-domain commentary source.",
@@ -4693,6 +4708,21 @@ export const UpdateScholarlySourcePreferencesResponse = zod.object({
               "Canonical URL where the underlying public-domain text lives.",
             ),
           description: zod.string(),
+          bookCount: zod
+            .number()
+            .describe(
+              "Number of Bible books this source has commentary data for.",
+            ),
+          scope: zod
+            .string()
+            .describe(
+              'Human-readable coverage summary derived from the corpus. Examples: \"Whole Bible\", \"New Testament\", \"39 books\", \"Psalms only\".\n',
+            ),
+          coveredBooks: zod
+            .array(zod.string())
+            .describe(
+              "Canonical title-cased book names covered by this source, in canonical Bible order. Used to render a tooltip breakdown in the UI.\n",
+            ),
         })
         .describe(
           "Metadata for a single bundled public-domain commentary source.",
