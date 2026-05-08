@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, libraryItemsTable } from "@workspace/db";
+import { coerceBpm as sharedCoerceBpm } from "@workspace/song-field-parsers";
 
 export type RepertoireMode = "off" | "prefer" | "strict";
 
@@ -74,21 +75,13 @@ export function describeBpmRange(range: BpmRange): string {
 /**
  * Coerce a stored content.bpm value (which can be a number or a numeric
  * string from older imports) into a clean integer in our valid range, or
- * null when the value is missing/unusable. We mirror the same 30-300 range
- * the OpenAPI schema validates on input so the prompt never sees nonsense.
+ * null when the value is missing/unusable.
+ *
+ * Delegates to the canonical shared implementation so the server and the
+ * client CSV importer always use identical logic.
  */
 export function coerceBpm(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  const n =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value.trim())
-        : NaN;
-  if (!Number.isFinite(n)) return null;
-  const rounded = Math.round(n);
-  if (rounded < 30 || rounded > 300) return null;
-  return rounded;
+  return sharedCoerceBpm(value);
 }
 
 export function normalizeTitle(title: string): string {

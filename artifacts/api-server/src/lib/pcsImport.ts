@@ -5,15 +5,15 @@ import {
   libraryItemsTable,
 } from "@workspace/db";
 import { pcsAuthedFetch } from "./pcsClient";
-import { coerceBpm } from "./repertoire";
-import { logger } from "./logger";
 import {
+  coerceBpm,
   splitList,
   dedupeCaseInsensitive,
-  normalizePcoDate,
+  normalizePcoDateString,
   collectArrangementKeys,
   lyricsExcerpt,
 } from "./songFieldParsers";
+import { logger } from "./logger";
 
 /**
  * Import songs from a connected church's Planning Center Services library
@@ -69,9 +69,9 @@ type PcsListResponse = {
 };
 
 /**
- * Paginated song list URL. We request sparse fieldsets so the PCO API only
- * returns attributes we actually use, keeping the payload smaller and avoiding
- * undocumented attribute changes breaking the import silently.
+ * Paginated song list URL. Sparse fieldsets ensure we only receive attributes
+ * we actually use, reducing payload size and avoiding silent breakage if PCO
+ * adds required-only attributes in the future.
  */
 const SONGS_BASE_URL =
   "/services/v2/songs" +
@@ -280,7 +280,9 @@ export async function importPcsSongs(
       // Duration in seconds ("length" is PCO's attribute name on arrangements).
       const durationRaw = aa["length"];
       const duration =
-        typeof durationRaw === "number" && Number.isFinite(durationRaw) && durationRaw > 0
+        typeof durationRaw === "number" &&
+        Number.isFinite(durationRaw) &&
+        durationRaw > 0
           ? Math.round(durationRaw)
           : typeof durationRaw === "string" && durationRaw.trim()
             ? (() => {
@@ -309,9 +311,7 @@ export async function importPcsSongs(
         typeof sa["themes"] === "string" ? (sa["themes"] as string) : null;
       const themes = dedupeCaseInsensitive(splitList(rawThemes));
 
-      // Tags: from included Tag resources linked via the song's tag relationship.
-      // Kept separate from themes so consumers can distinguish song-level
-      // thematic labels (curated by PCO) from user-applied free-form tags.
+      // Tags: from included Tag resources (separate from song-level themes).
       const tags = dedupeCaseInsensitive(tagNamesForSong(song, tagsById));
 
       // Full lyrics text (stored for AI context; not displayed in the UI).
@@ -322,15 +322,14 @@ export async function importPcsSongs(
       // A short excerpt for inline AI prompt use.
       const excerpt = lyricsExcerpt(rawLyrics);
 
-      // Last scheduled date.
-      const lastScheduledDate = normalizePcoDate(
+      // Last scheduled date — shared normalizePcoDateString handles API ISO datetime.
+      const lastScheduledDate = normalizePcoDateString(
         typeof sa["last_scheduled_at"] === "string"
           ? (sa["last_scheduled_at"] as string)
           : null,
       );
 
-      // Build content JSONB. Only include keys that have a non-null/non-empty
-      // value so we don't bloat the row with null fields.
+      // Build content JSONB. Only include keys with non-null/non-empty values.
       const content: Record<string, unknown> = { source: "planning-center" };
       if (artist) content["artist"] = artist;
       if (bpm !== null) content["bpm"] = bpm;

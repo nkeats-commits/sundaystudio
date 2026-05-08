@@ -1,37 +1,34 @@
 /**
  * Server-side field-parsing helpers for PCS song data.
  *
- * Pure list utilities (`splitList`, `dedupeCaseInsensitive`) come from the
- * shared `@workspace/song-field-parsers` lib so both the OAuth sync and the
- * client-side CSV importer stay in sync with a single canonical implementation.
+ * Core pure utilities (splitList, dedupeCaseInsensitive, coerceBpm,
+ * normalizePcoDateString, parseKeyList) live in the shared
+ * `@workspace/song-field-parsers` lib so both the OAuth sync (server) and
+ * the CSV importer (client) use identical implementations.
+ *
+ * This module re-exports the shared helpers for server callers that import
+ * from `./songFieldParsers`, and adds server-only helpers that operate on
+ * PCO API resource objects.
  */
 
-import {
-  splitList as _splitList,
-  dedupeCaseInsensitive as _dedupe,
+export {
+  splitList,
+  dedupeCaseInsensitive,
+  coerceBpm,
+  normalizePcoDateString,
+  parseKeyList,
 } from "@workspace/song-field-parsers";
 
-export { splitList, dedupeCaseInsensitive } from "@workspace/song-field-parsers";
+import {
+  dedupeCaseInsensitive,
+  parseKeyList,
+} from "@workspace/song-field-parsers";
 
 /**
- * Coerce a PCO datetime string (ISO 8601 with time, e.g.
- * "2024-03-17T07:00:00Z") or date-only string into ISO YYYY-MM-DD.
- * Returns null when the value is missing or unparseable.
+ * Backwards-compatible alias — existing code may import normalizePcoDate
+ * from this module. Delegates to the shared normalizePcoDateString.
  */
-export function normalizePcoDate(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-  const isoDatePart = trimmed.match(/^(\d{4}-\d{2}-\d{2})T/);
-  if (isoDatePart) return isoDatePart[1]!;
-  const d = new Date(trimmed);
-  if (Number.isNaN(d.getTime())) return null;
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
+export { normalizePcoDateString as normalizePcoDate } from "@workspace/song-field-parsers";
 
 /**
  * Collect all unique chord keys from an array of PCO arrangement attribute
@@ -39,11 +36,12 @@ export function normalizePcoDate(raw: string | null | undefined): string | null 
  *
  * PCO exposes keys in two places per arrangement:
  *  - `chord_chart_key` (string) — the primary/default key
- *  - `keys` — may be a comma-separated string ("G, A, Bb") OR an array of
- *    objects with a `startingKey` property, depending on which API version
- *    is in use. Both forms are handled.
+ *  - `keys` — may be a comma-separated string ("G, A, Bb", sometimes with
+ *    PCO annotations like "F: Original Key, G") OR an array of strings or
+ *    objects with a `startingKey` property depending on API version.
  *
- * All values are deduplicated case-insensitively, preserving first-seen casing.
+ * Uses the shared `parseKeyList` for consistent comma/annotation parsing.
+ * All values are deduplicated case-insensitively.
  */
 export function collectArrangementKeys(
   arrangements: Array<{ attributes?: Record<string, unknown> }>,
@@ -58,14 +56,11 @@ export function collectArrangementKeys(
       keys.push(chartKey.trim());
     }
 
-    // 2. keys — comma-separated string or array of strings/objects.
+    // 2. keys — comma string or array (API version dependent).
     const keysAttr = attrs["keys"];
-    if (typeof keysAttr === "string" && keysAttr.trim()) {
-      for (const k of keysAttr.split(",")) {
-        // Strip PCO-style annotations like "G: Original Key".
-        const clean = k.split(":")[0]?.trim();
-        if (clean) keys.push(clean);
-      }
+    if (typeof keysAttr === "string") {
+      // Use shared parseKeyList for consistent annotation stripping.
+      keys.push(...parseKeyList(keysAttr));
     } else if (Array.isArray(keysAttr)) {
       for (const entry of keysAttr) {
         if (typeof entry === "string" && entry.trim()) {
@@ -81,7 +76,7 @@ export function collectArrangementKeys(
       }
     }
   }
-  return _dedupe(keys);
+  return dedupeCaseInsensitive(keys);
 }
 
 /**
@@ -97,7 +92,3 @@ export function lyricsExcerpt(raw: string | null | undefined): string | null {
   const lastSpace = cut.lastIndexOf(" ");
   return (lastSpace > 200 ? cut.slice(0, lastSpace) : cut) + "…";
 }
-
-// Expose the raw shared helpers under their original names for callers that
-// imported them from this module before the shared-lib refactor.
-export { _splitList as splitListHelper, _dedupe as dedupeHelper };

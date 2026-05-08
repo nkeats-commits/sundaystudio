@@ -21,7 +21,13 @@
  */
 
 import type { RepertoireImportSong } from '@workspace/api-client-react';
-import { splitList, dedupeCaseInsensitive } from '@workspace/song-field-parsers';
+import {
+  splitList,
+  dedupeCaseInsensitive,
+  coerceBpm as sharedCoerceBpm,
+  normalizePcoDateString,
+  parseKeyList,
+} from '@workspace/song-field-parsers';
 
 export type CsvFormat = 'pco' | 'generic' | 'unknown';
 
@@ -57,45 +63,18 @@ export function detectFormat(headers: string[]): CsvFormat {
   return 'unknown';
 }
 
-/** PCO BPM range matches the API spec: 30..300 inclusive, integer. */
-function coerceBpm(raw: string | undefined): number | undefined {
-  if (!raw) return undefined;
-  const n = Number(String(raw).trim());
-  if (!Number.isFinite(n) || n < 30 || n > 300) return undefined;
-  return Math.round(n);
-}
-
 /**
- * Try to coerce a date-ish string into ISO `YYYY-MM-DD`. PCO emits dates
- * like "May 03, 2026" with no timezone — the date *is* the calendar day,
- * not an instant. Returns the original (trimmed) string if we can't
- * parse it — the server stores it as-is, so a fallback is safer than
- * dropping the data.
+ * Thin wrapper over the shared `normalizePcoDateString` that preserves the
+ * historical `string | undefined` return type (rather than `string | null`)
+ * so existing callers and tests need no changes.
  *
- * Implementation note: we deliberately avoid `new Date(s).toISOString()`
- * for timezone-less strings because JS parses them in *local* time, and
- * round-tripping through UTC can shift the calendar day backward or
- * forward depending on the user's timezone (e.g. "March 29, 2026"
- * parsed at UTC-7 becomes "2026-03-28" via getUTC*). Use the local
- * getters instead so the calendar day round-trips deterministically.
+ * Both server (ISO 8601 API timestamps) and client (human-readable PCO CSV
+ * dates like "May 03, 2026") now use the same underlying implementation,
+ * eliminating the divergence that caused day-offset bugs in non-UTC timezones
+ * with the previous UTC-based approach.
  */
 export function normalizeDate(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
-  const trimmed = raw.trim();
-  if (!trimmed) return undefined;
-  // Already-ISO dates pass through unchanged.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-  const parsed = new Date(trimmed);
-  // Drop unparseable strings entirely — `lastScheduledDate` is documented
-  // as ISO `YYYY-MM-DD` in the API spec, and storing free-form text like
-  // "soon" would silently break date filters/sorts on the server. If the
-  // user has a malformed date, dropping it is safer than corrupting the
-  // contract.
-  if (Number.isNaN(parsed.getTime())) return undefined;
-  const yyyy = parsed.getFullYear();
-  const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-  const dd = String(parsed.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  return normalizePcoDateString(raw) ?? undefined;
 }
 
 /**
@@ -115,27 +94,17 @@ function pickDefaultArrangementSlot(row: Record<string, string>): number {
   return 1;
 }
 
-/** Pull the first key out of a comma/space-separated PCO `Keys` cell. */
-function firstKeyFromList(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
-  // PCO `Keys` cells look like "A, Bb, D" — sometimes with annotations
-  // like "F: Original Key, G". Take everything before the first comma,
-  // then strip any "X: ..." annotation.
-  const first = raw.split(',')[0]?.trim();
-  if (!first) return undefined;
-  const withoutAnnotation = first.split(':')[0]?.trim();
-  return withoutAnnotation || undefined;
-}
-
 /** Map one PCO row into a RepertoireImportSong (or `null` if no usable title). */
 export function mapPcoRow(row: Record<string, string>): RepertoireImportSong | null {
   const title = row['Title']?.trim();
   if (!title) return null;
 
   const slot = pickDefaultArrangementSlot(row);
-  const bpm = coerceBpm(row[`Arrangement ${slot} BPM`]);
+  const bpmRaw = sharedCoerceBpm(row[`Arrangement ${slot} BPM`]);
+  const bpm = bpmRaw !== null ? bpmRaw : undefined;
   const keyFromChart = row[`Arrangement ${slot} Chord Chart Key`]?.trim();
-  const keyFromList = firstKeyFromList(row[`Arrangement ${slot} Keys`]);
+  // Use shared parseKeyList for consistent annotation stripping ("F: Original Key, G" → ["F", "G"]).
+  const keyFromList = parseKeyList(row[`Arrangement ${slot} Keys`])[0];
   const key = keyFromChart || keyFromList;
   const arrangementNotes = row[`Arrangement ${slot} Notes`]?.trim();
 
@@ -209,8 +178,8 @@ export function mapGenericRow(
   if (artist) song.artist = artist;
   const style = pickCell(row, lookup, 'style', 'genre');
   if (style) song.style = style;
-  const bpm = coerceBpm(pickCell(row, lookup, 'bpm', 'tempo'));
-  if (bpm !== undefined) song.bpm = bpm;
+  const bpmRaw = sharedCoerceBpm(pickCell(row, lookup, 'bpm', 'tempo'));
+  if (bpmRaw !== null) song.bpm = bpmRaw;
   const key = pickCell(row, lookup, 'key');
   if (key) song.key = key;
   const ccli = pickCell(row, lookup, 'ccli', 'ccli #', 'ccli number');
