@@ -236,11 +236,54 @@ test("lookupCommentary: gracefully ignores unknown source ids", () => {
   assert.equal(hits[0].sourceId, "matthew-henry-concise");
 });
 
-test("lookupCommentary: respects maxHits cap", () => {
+test("lookupCommentary: total chars never exceed totalBudgetChars", () => {
+  // Even with many chapters, total injected text must stay within ceiling.
+  const budget = 900;
   const hits = lookupCommentary(
     ["matthew-henry-concise"],
     ["John 1; John 3; John 14; John 15"],
-    2,
+    budget,
   );
-  assert.equal(hits.length, 2);
+  const totalChars = hits.reduce((sum, h) => sum + h.text.length, 0);
+  assert.ok(
+    totalChars <= budget,
+    `expected total chars ≤ ${budget}, got ${totalChars}`,
+  );
+});
+
+test("lookupCommentary: last excerpt is trimmed to fit remaining budget, not dropped", () => {
+  // Use a budget that fits one full excerpt plus a small slice of a second.
+  // With a tiny budget that is definitely less than a single full excerpt,
+  // we should still get exactly one hit whose text length equals the budget
+  // (rather than being dropped entirely or exceeding the budget).
+  const budget = 100;
+  const hits = lookupCommentary(
+    ["matthew-henry-concise"],
+    ["Romans 8:28"],
+    budget,
+  );
+  assert.equal(hits.length, 1, "should still yield one hit when budget is small");
+  assert.ok(
+    hits[0].text.length <= budget,
+    `expected text ≤ ${budget} chars, got ${hits[0].text.length}`,
+  );
+  assert.ok(hits[0].text.length > 0, "trimmed hit must not be empty");
+});
+
+test("lookupCommentary: multiple sources share the budget, total stays bounded", () => {
+  const budget = 1200;
+  const allSources = [
+    "matthew-henry-concise",
+    "jamieson-fausset-brown",
+    "barnes-notes",
+    "pulpit-commentary",
+  ];
+  const hits = lookupCommentary(allSources, ["Romans 8:28"], budget);
+  const totalChars = hits.reduce((sum, h) => sum + h.text.length, 0);
+  assert.ok(
+    totalChars <= budget,
+    `expected total chars ≤ ${budget} across all sources, got ${totalChars}`,
+  );
+  // At least one source should have contributed.
+  assert.ok(hits.length >= 1, "expected at least one hit");
 });

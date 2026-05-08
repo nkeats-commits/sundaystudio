@@ -47,7 +47,25 @@ function resolveDataRoot(): string {
 
 const DATA_ROOT = resolveDataRoot();
 
-const MAX_EXCERPT_CHARS = 600;
+/**
+ * Hard ceiling on the total number of characters of public-domain commentary
+ * that `lookupCommentary` may inject into a single generation prompt.
+ *
+ * This is intentionally ONE constant — not two separate knobs for
+ * "max hits" and "chars per excerpt" — so that adding more sources (or
+ * enabling more of them) cannot silently re-inflate prompts.  The budget is
+ * spread greedily across however many source-chapter pairs match: a pastor
+ * with 4 sources enabled gets the same total context ceiling as one with 1.
+ * The last matched excerpt is trimmed to fit whatever budget remains rather
+ * than being dropped entirely.  Budget is consumed in source-priority order,
+ * so an earlier source with a long excerpt may use up the ceiling before
+ * later sources get a turn — enabling more sources does not re-expand the
+ * total, it merely changes who gets priority within the fixed ceiling.
+ *
+ * ~1 800 chars ≈ 300 words — enough for meaningful scholarly grounding
+ * without crowding the rest of the generation prompt.
+ */
+const TOTAL_COMMENTARY_BUDGET_CHARS = 1800;
 
 /**
  * Default sources enabled the first time a user touches the Sources panel.
@@ -524,16 +542,25 @@ export function isRegisteredSource(id: string): boolean {
 }
 
 /**
- * Look up commentary entries for a passage from the given enabled sources.
+ * Look up commentary entries for a passage from the given enabled sources,
+ * staying within a single `totalBudgetChars` character ceiling.
  *
- * Returns at most `maxHits` hits total, in the order: enabled-source order,
- * then passage-parse order, then chapter order. Each hit's text is truncated
- * to ≤ 1500 chars to mirror the existing `resourceBlurb` cap.
+ * Hits are produced in source-priority order (enabled-source order → passage
+ * order → chapter order), which keeps the most relevant excerpts first.
+ * Each hit consumes however many characters its raw text occupies, up to the
+ * remaining budget; the very last hit that fits is trimmed to fill the
+ * remaining space rather than being dropped entirely.  Budget is consumed in
+ * source-priority order — an earlier source with a long excerpt may exhaust
+ * the ceiling before later sources get a turn.
+ *
+ * Using one budget instead of separate `maxHits` + per-excerpt char caps
+ * means the total injected commentary is bounded regardless of how many
+ * sources the user enables or how many chapters a sermon spans.
  */
 export function lookupCommentary(
   enabledSourceIds: readonly string[],
   passageRefs: readonly string[],
-  maxHits = 3,
+  totalBudgetChars = TOTAL_COMMENTARY_BUDGET_CHARS,
 ): CommentaryHit[] {
   if (!enabledSourceIds.length || !passageRefs.length) return [];
   const parsed = passageRefs.flatMap((ref) => parsePassageRef(ref));
@@ -541,10 +568,14 @@ export function lookupCommentary(
 
   const hits: CommentaryHit[] = [];
   const seen = new Set<string>();
+  let remaining = totalBudgetChars;
+
   for (const sourceId of enabledSourceIds) {
+    if (remaining <= 0) break;
     const src = REGISTRY.get(sourceId);
     if (!src) continue;
     for (const { book, chapter } of parsed) {
+      if (remaining <= 0) break;
       const bookFile =
         src.books.get(book) ?? src.books.get(bookSlug(book));
       if (!bookFile) continue;
@@ -553,6 +584,7 @@ export function lookupCommentary(
       const dedupeKey = `${sourceId}|${book}|${chapter}`;
       if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
+      const text = entry.text.slice(0, remaining);
       hits.push({
         sourceId,
         sourceTitle: src.title,
@@ -560,13 +592,19 @@ export function lookupCommentary(
         bookCanonical: book,
         chapter,
         title: entry.title,
-        text: entry.text.slice(0, MAX_EXCERPT_CHARS),
+        text,
       });
-      if (hits.length >= maxHits) return hits;
+      remaining -= text.length;
     }
   }
   return hits;
 }
+
+/**
+ * The character budget used by `lookupCommentary` by default.
+ * Exported so the UI can display "up to ~N words of context per generation".
+ */
+export { TOTAL_COMMENTARY_BUDGET_CHARS };
 
 /**
  * Validate a list of source ids — throws if any id is unknown.

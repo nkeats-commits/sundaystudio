@@ -176,6 +176,9 @@ export async function mergeScholarlyResources(
   const enabledRaw = await getEnabledSourceIds(userId);
   // Layer per-sermon source opt-outs ON TOP of the global preferences.
   const enabled = enabledRaw.filter((id) => !excludedSources.has(id));
+  // lookupCommentary enforces a single total-character budget across all
+  // sources (TOTAL_COMMENTARY_BUDGET_CHARS), so prompt size stays bounded
+  // regardless of how many sources the pastor has enabled.
   const pdHits = enabled.length ? lookupCommentary(enabled, passages) : [];
   const pdInjected = pdHits.map((h) => {
     const bookDisplay = h.bookCanonical
@@ -332,9 +335,8 @@ export async function previewSermonResources(
   // ---- Public-domain ----
   const enabledRaw = await getEnabledSourceIds(userId);
   const enabled = enabledRaw.filter((id) => !excludedSources.has(id));
-  // Use a generous maxHits — preview should reflect the full set the merge
-  // would inject (the merge itself uses lookupCommentary's default cap of 8,
-  // so this matches behavior 1:1).
+  // Use the same default budget as the merge path so the preview accurately
+  // reflects which sources will actually contribute to the prompt.
   const pdHits = enabled.length ? lookupCommentary(enabled, passages) : [];
   const sourceMeta = new Map(
     listRegisteredSources().map((s) => [s.id, s] as const),

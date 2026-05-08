@@ -393,6 +393,10 @@ export default function ResourceLibrary() {
                       {addedCommentaries.length} of {totalCommentaries} added.
                     </span>
                   ) : null}
+                  {' '}
+                  <span className="text-[var(--worship-muted-slate)]">
+                    Up to ~300 words of scholarly context per generation, shared across all active sources.
+                  </span>
                 </p>
               </div>
             </div>
