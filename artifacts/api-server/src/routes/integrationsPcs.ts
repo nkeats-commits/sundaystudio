@@ -205,29 +205,28 @@ router.get("/integrations/pcs/service-types", requireAuth, async (req, res) => {
     return;
   }
   try {
-    const r = await pcsAuthedFetch(
-      req.userId!,
-      "/services/v2/service_types?per_page=100",
-    );
-    if (!r.ok) {
-      const text = await r.text().catch(() => "");
-      req.log.warn({ status: r.status, body: text }, "PCS service_types fetch failed");
-      res.status(502).json({ error: "Could not fetch service types from Planning Center" });
-      return;
-    }
-    const body = (await r.json()) as {
-      data?: Array<{
-        id: string;
-        type: string;
-        attributes?: { name?: string };
-      }>;
+    type StBody = {
+      data?: Array<{ id: string; type: string; attributes?: { name?: string } }>;
+      links?: { next?: string };
     };
-    const serviceTypes = (body.data ?? [])
-      .filter((st) => st.type === "ServiceType")
-      .map((st) => ({
-        id: st.id,
-        name: st.attributes?.name ?? st.id,
-      }));
+    const serviceTypes: Array<{ id: string; name: string }> = [];
+    let next: string | null = "/services/v2/service_types?per_page=100";
+    for (let page = 0; page < 20 && next; page += 1) {
+      const r = await pcsAuthedFetch(req.userId!, next);
+      if (!r.ok) {
+        const text = await r.text().catch(() => "");
+        req.log.warn({ status: r.status, body: text }, "PCS service_types fetch failed");
+        res.status(502).json({ error: "Could not fetch service types from Planning Center" });
+        return;
+      }
+      const body = (await r.json()) as StBody;
+      for (const st of body.data ?? []) {
+        if (st.type === "ServiceType") {
+          serviceTypes.push({ id: st.id, name: st.attributes?.name ?? st.id });
+        }
+      }
+      next = body.links?.next ?? null;
+    }
     res.json(serviceTypes);
   } catch (err) {
     req.log.error({ err }, "PCS service-types fetch threw");
@@ -250,11 +249,18 @@ router.post("/integrations/pcs/sync", requireAuth, async (req, res) => {
       .filter((id): id is string => typeof id === "string" && id.trim().length > 0)
       .map((id) => id.trim());
   }
-  if (
-    typeof body?.["lastUsedSince"] === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(body["lastUsedSince"])
-  ) {
-    options.lastUsedSince = body["lastUsedSince"];
+  if (typeof body?.["lastUsedSince"] === "string") {
+    const raw = body["lastUsedSince"];
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      res.status(400).json({ error: "lastUsedSince must be an ISO date (YYYY-MM-DD)" });
+      return;
+    }
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) {
+      res.status(400).json({ error: `lastUsedSince "${raw}" is not a valid calendar date` });
+      return;
+    }
+    options.lastUsedSince = raw;
   }
 
   try {
