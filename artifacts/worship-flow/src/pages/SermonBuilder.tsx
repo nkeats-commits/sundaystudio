@@ -78,6 +78,55 @@ const FORMATS: Array<{ value: 'manuscript' | 'notes' | 'outline'; label: string 
   { value: 'outline', label: 'Outline only' },
 ];
 
+const STUDY_PHASES = [
+  'Reading the passage in context…',
+  'Consulting scholarly sources…',
+  'Building observations and interpretations…',
+  'Checking for interpretive cautions…',
+];
+const BIG_IDEA_PHASES = [
+  'Reviewing the passage study…',
+  'Distilling the central truth…',
+  'Crafting the preachable statement…',
+  'Shaping options for you to choose from…',
+];
+const OUTLINE_PHASES = [
+  'Working from your big idea…',
+  'Structuring the sermon arc…',
+  'Drafting section movements…',
+  'Shaping options for your review…',
+];
+const MANUSCRIPT_PHASES = [
+  'Anchoring to your outline…',
+  'Drafting the full manuscript…',
+  'Weaving in illustrations and applications…',
+  'Finishing up…',
+];
+const APPLICATIONS_PHASES = [
+  'Grounding in your big idea…',
+  'Thinking through life situations…',
+  'Drafting practical next steps…',
+  'Almost there…',
+];
+const ILLUSTRATIONS_PHASES = [
+  'Reviewing outline and theme…',
+  'Generating story and analogy ideas…',
+  'Flagging anything needing verification…',
+  'Finishing up…',
+];
+const WORSHIP_PHASES = [
+  'Reading the sermon arc…',
+  'Consulting your repertoire…',
+  'Pairing songs to sermon moments…',
+  'Drafting liturgy and prayer prompts…',
+];
+const SMALL_GROUP_PHASES = [
+  'Working from the sermon…',
+  'Drafting discussion questions…',
+  'Balancing observation and application…',
+  'Finishing up…',
+];
+
 type FormState = {
   title: string;
   sermonDate: string;
@@ -1247,6 +1296,7 @@ export default function SermonBuilder() {
                 <SectionPanel
                   title="Passage Study"
                   subtitle="Context, observation, interpretation, application — and what your saved resources contribute."
+                  phases={STUDY_PHASES}
                   pending={studyGen.isPending}
                   partial={studyGen.partialText}
                   error={studyGen.error}
@@ -1284,6 +1334,7 @@ export default function SermonBuilder() {
                 <SectionPanel
                   title="Big Idea"
                   subtitle="Choose the central truth your sermon will preach."
+                  phases={BIG_IDEA_PHASES}
                   pending={bigIdeaGen.isPending}
                   partial={bigIdeaGen.partialText}
                   error={bigIdeaGen.error}
@@ -1322,6 +1373,7 @@ export default function SermonBuilder() {
                 <SectionPanel
                   title="Outline"
                   subtitle="Pick the shape that best preaches your big idea."
+                  phases={OUTLINE_PHASES}
                   pending={outlineGen.isPending}
                   partial={outlineGen.partialText}
                   error={outlineGen.error}
@@ -1360,6 +1412,7 @@ export default function SermonBuilder() {
                 <SectionPanel
                   title="Manuscript"
                   subtitle={`Drafted as ${form.outputFormat === 'manuscript' ? 'a full manuscript' : form.outputFormat === 'notes' ? 'speaking notes' : 'an outline'} — change format in the left panel before regenerating.`}
+                  phases={MANUSCRIPT_PHASES}
                   pending={manuscriptGen.isPending}
                   partial={manuscriptGen.partialText}
                   error={manuscriptGen.error}
@@ -1398,6 +1451,7 @@ export default function SermonBuilder() {
                 <SectionPanel
                   title="Applications"
                   subtitle="Concrete, specific applications across many parts of your congregation."
+                  phases={APPLICATIONS_PHASES}
                   pending={applicationsGen.isPending}
                   partial={applicationsGen.partialText}
                   error={applicationsGen.error}
@@ -1436,6 +1490,7 @@ export default function SermonBuilder() {
                 <SectionPanel
                   title="Illustrations"
                   subtitle="Story, analogy, historical, or cultural illustrations. Anything unverifiable will be flagged."
+                  phases={ILLUSTRATIONS_PHASES}
                   pending={illustrationsGen.isPending}
                   partial={illustrationsGen.partialText}
                   error={illustrationsGen.error}
@@ -1474,6 +1529,7 @@ export default function SermonBuilder() {
                 <SectionPanel
                   title="Small Group Questions"
                   subtitle="Bible-study discussion questions in the classic observation / interpretation / application arc — plus an icebreaker and a closing prayer prompt."
+                  phases={SMALL_GROUP_PHASES}
                   pending={smallGroupGen.isPending}
                   partial={smallGroupGen.partialText}
                   error={smallGroupGen.error}
@@ -1551,6 +1607,7 @@ export default function SermonBuilder() {
                 <SectionPanel
                   title="Worship Integration"
                   subtitle="Take this sermon to Sunday: songs, liturgy, response, and team prep."
+                  phases={WORSHIP_PHASES}
                   pending={worshipGen.isPending}
                   partial={worshipGen.partialText}
                   error={worshipGen.error}
@@ -1650,11 +1707,12 @@ function SectionPanel({
   title,
   subtitle,
   pending,
-  partial,
+  partial: _partial,
   error,
   hasContent,
   stale = false,
   prereqHint = null,
+  phases = [],
   refineValue,
   onRefineChange,
   onGenerate,
@@ -1680,6 +1738,8 @@ function SectionPanel({
   stale?: boolean;
   /** When set, show a soft hint above Generate that an upstream step is missing. */
   prereqHint?: string | null;
+  /** Rotating phase messages shown while pending. */
+  phases?: string[];
   refineValue: string;
   onRefineChange: (v: string) => void;
   onGenerate: () => void;
@@ -1698,6 +1758,13 @@ function SectionPanel({
   undoing?: boolean;
   children?: React.ReactNode;
 }) {
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  useEffect(() => {
+    if (!pending) { setPhaseIdx(0); return; }
+    if (phases.length === 0) return;
+    const t = setInterval(() => setPhaseIdx((i) => (i + 1) % phases.length), 3000);
+    return () => clearInterval(t);
+  }, [pending, phases.length]);
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -1792,13 +1859,18 @@ function SectionPanel({
       )}
 
       {pending && (
-        <div className="p-4 rounded-xl border border-dashed bg-[var(--worship-cream)] text-xs text-[var(--worship-slate)]" style={{ borderColor: 'var(--worship-border)' }}>
-          <div className="flex items-center gap-2 mb-2 font-semibold text-[var(--worship-navy)]"><Loader2 className="w-4 h-4 animate-spin" /> Generating…</div>
-          {partial.length > 0 ? (
-            <div className="font-mono text-[11px] whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">{partial}</div>
-          ) : (
-            <div>Streaming from the model — this can take 10–30 seconds for longer sections.</div>
-          )}
+        <div className="p-5 rounded-xl border border-dashed bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
+          <style>{`@keyframes sermProgressSlide{0%{transform:translateX(-200%)}100%{transform:translateX(350%)}}`}</style>
+          <div className="flex items-center gap-2 mb-3 font-semibold text-sm text-[var(--worship-navy)]">
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+            {phases.length > 0 ? phases[phaseIdx % phases.length] : 'Generating…'}
+          </div>
+          <div className="w-full h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: 'var(--worship-sand)' }}>
+            <div style={{ height: '100%', width: '38%', backgroundColor: 'var(--worship-gold)', borderRadius: '9999px', animation: 'sermProgressSlide 1.8s ease-in-out infinite' }} />
+          </div>
+          <p className="text-xs italic leading-relaxed" style={{ color: 'var(--worship-slate)' }}>
+            Taking time to be thorough — cross-referencing your passage, scholarly sources, and church context before writing.
+          </p>
         </div>
       )}
 
