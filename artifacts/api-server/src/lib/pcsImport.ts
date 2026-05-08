@@ -137,40 +137,40 @@ function tagNamesForSong(
 
 /**
  * Fetch the set of song IDs used in the given PCS service types via the
- * song_schedules endpoint. Returns null on any API failure (so the caller
- * can fall back to no filter rather than crashing the whole import).
+ * song_schedules endpoint.
+ *
+ * FAIL-CLOSED: throws a descriptive error on any API failure so that a
+ * caller who explicitly requested service-type filtering never silently
+ * falls back to importing the whole library. The route handler catches
+ * this and returns a 502 to the client.
  */
 async function fetchServiceTypeSongIds(
   userId: string,
   serviceTypeIds: string[],
-): Promise<Set<string> | null> {
+): Promise<Set<string>> {
   const songIds = new Set<string>();
-  try {
-    for (const stId of serviceTypeIds) {
-      let next: string | null =
-        `/services/v2/service_types/${stId}/song_schedules?per_page=100`;
-      for (let page = 0; page < 50 && next; page += 1) {
-        const res = await pcsAuthedFetch(userId, next);
-        if (!res.ok) {
-          logger.warn(
-            { status: res.status, stId },
-            "PCS song_schedules fetch failed — skipping service type filter",
-          );
-          return null;
-        }
-        const body = (await res.json()) as PcsListResponse;
-        for (const item of body.data ?? []) {
-          const songRel = item.relationships?.["song"]?.data;
-          if (songRel && !Array.isArray(songRel) && songRel.id) {
-            songIds.add(songRel.id);
-          }
-        }
-        next = body.links?.next ?? null;
+  for (const stId of serviceTypeIds) {
+    let next: string | null =
+      `/services/v2/service_types/${stId}/song_schedules?per_page=100`;
+    for (let page = 0; page < 50 && next; page += 1) {
+      const res = await pcsAuthedFetch(userId, next);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(
+          `Could not resolve service-type filter for service type ${stId} ` +
+            `(PCS returned ${res.status}). Sync aborted to avoid importing ` +
+            `songs outside your selected service types. ${text}`.trim(),
+        );
       }
+      const body = (await res.json()) as PcsListResponse;
+      for (const item of body.data ?? []) {
+        const songRel = item.relationships?.["song"]?.data;
+        if (songRel && !Array.isArray(songRel) && songRel.id) {
+          songIds.add(songRel.id);
+        }
+      }
+      next = body.links?.next ?? null;
     }
-  } catch (err) {
-    logger.warn({ err }, "PCS service type filter failed — falling back to no filter");
-    return null;
   }
   return songIds;
 }
@@ -187,13 +187,15 @@ export async function importPcsSongs(
   };
 
   // Optional service-type pre-filter: collect allowed song IDs.
-  let allowedSongIds: Set<string> | null = null;
+  // fetchServiceTypeSongIds throws on any PCS API failure (fail-closed) so
+  // a filter that cannot be resolved aborts the sync rather than silently
+  // importing the full library.
+  let allowedSongIds: Set<string> | undefined;
   if (options?.serviceTypeIds && options.serviceTypeIds.length > 0) {
     allowedSongIds = await fetchServiceTypeSongIds(
       userId,
       options.serviceTypeIds,
     );
-    // null means the filter call failed — fall back to importing everything.
   }
 
   // Optional date pre-filter cutoff.
@@ -228,7 +230,7 @@ export async function importPcsSongs(
   // actually process, not the raw PCS library size.
   const filteredSongs = songs.filter((song) => {
     // Service-type filter.
-    if (allowedSongIds !== null && !allowedSongIds.has(song.id)) return false;
+    if (allowedSongIds !== undefined && !allowedSongIds.has(song.id)) return false;
 
     // Last-used-since filter: skip songs never scheduled or scheduled before cutoff.
     if (lastUsedCutoff) {
