@@ -9,6 +9,9 @@ export type RepertoireSong = {
   style: string | null;
   bpm: number | null;
   key: string | null;
+  availableKeys: string[] | null;
+  themes: string[] | null;
+  lyricsExcerpt: string | null;
 };
 
 /**
@@ -94,8 +97,8 @@ export function normalizeTitle(title: string): string {
 
 /**
  * Load every song the user has marked as part of their repertoire.
- * Returns a small projection — we only need title/artist/style for the prompt
- * and for matching titles against AI output.
+ * Returns a projection that includes all fields useful for AI prompt
+ * context: BPM, key, available keys, themes, and a lyrics excerpt.
  */
 export async function loadRepertoireSongs(
   userId: string,
@@ -115,20 +118,43 @@ export async function loadRepertoireSongs(
     );
   return rows.map((r) => {
     const content = (r.content ?? {}) as Record<string, unknown>;
+
+    const availableKeys = Array.isArray(content["availableKeys"])
+      ? (content["availableKeys"] as unknown[]).filter(
+          (k): k is string => typeof k === "string" && k.trim().length > 0,
+        )
+      : null;
+
+    const themes = Array.isArray(content["tags"])
+      ? (content["tags"] as unknown[]).filter(
+          (t): t is string => typeof t === "string" && t.trim().length > 0,
+        )
+      : null;
+
     return {
       title: r.title,
       artist:
-        typeof content.artist === "string" && content.artist.trim().length > 0
-          ? content.artist
+        typeof content["artist"] === "string" &&
+        content["artist"].trim().length > 0
+          ? content["artist"]
           : null,
       style:
-        typeof content.style === "string" && content.style.trim().length > 0
-          ? content.style
+        typeof content["style"] === "string" &&
+        content["style"].trim().length > 0
+          ? content["style"]
           : null,
-      bpm: coerceBpm(content.bpm),
+      bpm: coerceBpm(content["bpm"]),
       key:
-        typeof content.key === "string" && content.key.trim().length > 0
-          ? content.key.trim()
+        typeof content["key"] === "string" && content["key"].trim().length > 0
+          ? content["key"].trim()
+          : null,
+      availableKeys:
+        availableKeys && availableKeys.length > 0 ? availableKeys : null,
+      themes: themes && themes.length > 0 ? themes : null,
+      lyricsExcerpt:
+        typeof content["lyricsExcerpt"] === "string" &&
+        content["lyricsExcerpt"].trim().length > 0
+          ? content["lyricsExcerpt"].trim()
           : null,
     };
   });
@@ -159,6 +185,12 @@ export function repertoireKeyByTitle(
 /**
  * Build the prompt fragment that tells the model how to use the user's
  * repertoire. Returns an empty string when there is nothing useful to add.
+ *
+ * Each song line is formatted as:
+ *   - Title (Artist) — BPM BPM, Key: X [also: Y, Z] | Themes: a, b
+ *
+ * When a lyrics excerpt is available and the song has no themes, a brief
+ * lyrical cue is appended after a pipe so the model can assess thematic fit.
  */
 export function repertoirePromptBlock(
   songs: RepertoireSong[],
@@ -166,31 +198,52 @@ export function repertoirePromptBlock(
   range: BpmRange | null = null,
 ): string {
   if (mode === "off") return "";
-  // In strict mode + a range, drop out-of-range songs from the prompt
-  // entirely so the model never even considers them. In prefer mode we
-  // keep the full list so the model still has the wider repertoire as
-  // context, but we'll annotate which ones are in range.
   const filteredSongs =
     mode === "strict" && range
       ? songs.filter((s) => bpmInRange(s.bpm, range))
       : songs;
   if (filteredSongs.length === 0) return "";
+
   const list = filteredSongs
     .map((s) => {
       const bpmTag = s.bpm !== null ? ` — ${s.bpm} BPM` : "";
       const keyTag = s.key !== null ? `, Key: ${s.key}` : "";
-      // Mark which prefer-mode entries fit the requested range so the
-      // model has an unambiguous signal to favor them.
+
+      // Other keys this song can be played in.
+      const otherKeys = s.availableKeys
+        ? s.availableKeys.filter((k) => k !== s.key)
+        : [];
+      const availableKeysTag =
+        otherKeys.length > 0 ? ` [also: ${otherKeys.join(", ")}]` : "";
+
+      // Themes or a lyrical cue.
+      let contextTag = "";
+      if (s.themes && s.themes.length > 0) {
+        contextTag = ` | Themes: ${s.themes.join(", ")}`;
+      } else if (s.lyricsExcerpt) {
+        // Brief lyrical hint — first 80 chars so the line stays readable.
+        const hint =
+          s.lyricsExcerpt.length > 80
+            ? s.lyricsExcerpt.slice(0, 80).trimEnd() + "…"
+            : s.lyricsExcerpt;
+        contextTag = ` | "${hint}"`;
+      }
+
       const rangeTag =
-        mode === "prefer" && range && s.bpm !== null && bpmInRange(s.bpm, range)
+        mode === "prefer" &&
+        range &&
+        s.bpm !== null &&
+        bpmInRange(s.bpm, range)
           ? " ✓ in tempo range"
           : "";
-      return `- ${s.title}${s.artist ? ` (${s.artist})` : ""}${bpmTag}${keyTag}${rangeTag}`;
+      return `- ${s.title}${s.artist ? ` (${s.artist})` : ""}${bpmTag}${keyTag}${availableKeysTag}${contextTag}${rangeTag}`;
     })
     .join("\n");
+
   const tempoGuidance = `Tempo guidance: when a slot's intent or title implies energy (e.g. "opener", "upbeat", "celebration", "sending"), favor faster songs (roughly 100+ BPM). When a slot implies reflection, lament, communion, confession, or response, favor slower songs (roughly under 90 BPM).
 
 BPM accuracy is critical: ONLY return a numeric "bpm" when you are highly confident in the recording's actual tempo. If you are unsure, return "bpm": null. A wrong BPM is much worse than a missing one — pastors plan their service tempo around this number. Do NOT estimate, guess, or invent. The user's verified repertoire BPMs (shown above when set) are always preferred over your own knowledge.`;
+
   if (mode === "strict") {
     return `THE USER'S TEAM REPERTOIRE — this is the EXHAUSTIVE list of songs they know (BPM shown when set):
 ${list}

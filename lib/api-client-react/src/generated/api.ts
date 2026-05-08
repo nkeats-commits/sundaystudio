@@ -88,7 +88,9 @@ import type {
   MeResponse,
   NotFoundResponse,
   PcsConnectUrl,
+  PcsServiceType,
   PcsStatus,
+  PcsSyncBody,
   PcsSyncResult,
   PreviewSermonResourcesBody,
   PreviewSermonResourcesResponse,
@@ -5403,6 +5405,83 @@ export function useGetPcsStatus<
 }
 
 /**
+ * @summary List service types from the connected Planning Center account
+ */
+export const getGetPcsServiceTypesUrl = () => {
+  return `/api/integrations/pcs/service-types`;
+};
+
+export const getPcsServiceTypes = async (
+  options?: RequestInit,
+): Promise<PcsServiceType[]> => {
+  return customFetch<PcsServiceType[]>(getGetPcsServiceTypesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPcsServiceTypesQueryKey = () => {
+  return [`/api/integrations/pcs/service-types`] as const;
+};
+
+export const getGetPcsServiceTypesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPcsServiceTypes>>,
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPcsServiceTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPcsServiceTypesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPcsServiceTypes>>
+  > = ({ signal }) => getPcsServiceTypes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPcsServiceTypes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPcsServiceTypesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPcsServiceTypes>>
+>;
+export type GetPcsServiceTypesQueryError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary List service types from the connected Planning Center account
+ */
+
+export function useGetPcsServiceTypes<
+  TData = Awaited<ReturnType<typeof getPcsServiceTypes>>,
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPcsServiceTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPcsServiceTypesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Re-import songs from Planning Center for the current user
  */
 export const getSyncPcsSongsUrl = () => {
@@ -5410,11 +5489,14 @@ export const getSyncPcsSongsUrl = () => {
 };
 
 export const syncPcsSongs = async (
+  pcsSyncBody?: PcsSyncBody,
   options?: RequestInit,
 ): Promise<PcsSyncResult> => {
   return customFetch<PcsSyncResult>(getSyncPcsSongsUrl(), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(pcsSyncBody),
   });
 };
 
@@ -5425,14 +5507,14 @@ export const getSyncPcsSongsMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof syncPcsSongs>>,
     TError,
-    void,
+    { data: BodyType<PcsSyncBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof syncPcsSongs>>,
   TError,
-  void,
+  { data: BodyType<PcsSyncBody> },
   TContext
 > => {
   const mutationKey = ["syncPcsSongs"];
@@ -5446,9 +5528,11 @@ export const getSyncPcsSongsMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof syncPcsSongs>>,
-    void
-  > = () => {
-    return syncPcsSongs(requestOptions);
+    { data: BodyType<PcsSyncBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return syncPcsSongs(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -5457,7 +5541,7 @@ export const getSyncPcsSongsMutationOptions = <
 export type SyncPcsSongsMutationResult = NonNullable<
   Awaited<ReturnType<typeof syncPcsSongs>>
 >;
-
+export type SyncPcsSongsMutationBody = BodyType<PcsSyncBody>;
 export type SyncPcsSongsMutationError = ErrorType<
   ApiError | UnauthorizedResponse
 >;
@@ -5472,14 +5556,14 @@ export const useSyncPcsSongs = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof syncPcsSongs>>,
     TError,
-    void,
+    { data: BodyType<PcsSyncBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof syncPcsSongs>>,
   TError,
-  void,
+  { data: BodyType<PcsSyncBody> },
   TContext
 > => {
   return useMutation(getSyncPcsSongsMutationOptions(options));

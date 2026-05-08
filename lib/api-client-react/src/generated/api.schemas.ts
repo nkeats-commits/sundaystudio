@@ -173,6 +173,26 @@ export interface PcsSyncResult {
   updated: number;
 }
 
+export interface PcsServiceType {
+  /** Planning Center service type ID. */
+  id: string;
+  /** Human-readable name (e.g. "Sunday Morning"). */
+  name: string;
+}
+
+/**
+ * Optional filters for the Planning Center sync. Omit entirely (or send {}) to import the full library as before.
+ */
+export interface PcsSyncBody {
+  /** When set, only import songs that have been used in at least one of these Planning Center service types. */
+  serviceTypeIds?: string[];
+  /**
+   * Optional ISO YYYY-MM-DD date. When set, only import songs whose last_scheduled_at is on or after this date. Songs that have never been scheduled are also excluded.
+   * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+   */
+  lastUsedSince?: string;
+}
+
 export interface ChurchProfile {
   id: number;
   userId: string;

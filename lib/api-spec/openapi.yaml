@@ -1498,11 +1498,46 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /integrations/pcs/service-types:
+    get:
+      operationId: getPcsServiceTypes
+      tags: [integrations]
+      summary: List service types from the connected Planning Center account
+      responses:
+        "200":
+          description: List of PCS service types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PcsServiceType"
+        "400":
+          description: Not connected to Planning Center
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: Planning Center returned an error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /integrations/pcs/sync:
     post:
       operationId: syncPcsSongs
       tags: [integrations]
       summary: Re-import songs from Planning Center for the current user
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PcsSyncBody"
       responses:
         "200":
           description: Sync result counts
@@ -2099,6 +2134,31 @@ components:
           type: integer
           description: Existing imported songs whose metadata was refreshed on this run.
       required: [total, inserted, updated]
+
+    PcsServiceType:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Planning Center service type ID.
+        name:
+          type: string
+          description: Human-readable name (e.g. "Sunday Morning").
+      required: [id, name]
+
+    PcsSyncBody:
+      type: object
+      description: Optional filters for the Planning Center sync. Omit entirely (or send {}) to import the full library as before.
+      properties:
+        serviceTypeIds:
+          type: array
+          items:
+            type: string
+          description: When set, only import songs that have been used in at least one of these Planning Center service types.
+        lastUsedSince:
+          type: string
+          pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          description: "Optional ISO YYYY-MM-DD date. When set, only import songs whose last_scheduled_at is on or after this date. Songs that have never been scheduled are also excluded."
 
     ChurchProfile:
       type: object

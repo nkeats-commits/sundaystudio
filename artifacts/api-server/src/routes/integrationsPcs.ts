@@ -11,13 +11,14 @@ import {
   exchangeToken,
   fetchOrganization,
   getConnection,
+  pcsAuthedFetch,
   pcsConfigured,
   pcsCredentials,
   pcsRedirectUri,
   persistTokens,
   publicOrigin,
 } from "../lib/pcsClient";
-import { importPcsSongs } from "../lib/pcsImport";
+import { importPcsSongs, type PcsSyncOptions } from "../lib/pcsImport";
 
 /**
  * Routes for connecting Sunday Studio to a church's Planning Center Services
@@ -33,10 +34,12 @@ import { importPcsSongs } from "../lib/pcsImport";
  *     the org name, kicks off an initial song import, and finally 302s
  *     the user back to /settings/integrations with success/error query
  *     params the UI can render.
- *  4. GET /integrations/pcs/status returns connection metadata for the
- *     UI; POST /integrations/pcs/sync re-runs the import; DELETE
- *     /integrations/pcs/disconnect wipes tokens (and orphans existing
- *     external links so re-connecting can re-link by externalId).
+ *  4. GET /integrations/pcs/status — connection metadata for the UI.
+ *  5. GET /integrations/pcs/service-types — lists the church's PCS service
+ *     types so the UI can offer a filter during sync.
+ *  6. POST /integrations/pcs/sync — re-runs the import, optionally
+ *     filtered by service type IDs and/or a last-used-since date.
+ *  7. DELETE /integrations/pcs/disconnect — wipes tokens and link rows.
  */
 
 const router: IRouter = Router();
@@ -44,11 +47,6 @@ const router: IRouter = Router();
 const STATE_TTL_MS = 10 * 60 * 1000;
 
 function stateSecret(): string {
-  // Reuse SESSION_SECRET as the HMAC key for OAuth state. It's already
-  // required to start the server and is a high-entropy long-lived value.
-  // We fail loud rather than silently using a constant — a forgeable
-  // OAuth state would let an attacker bind their PCS account to another
-  // user's Sunday Studio session via a CSRF-style callback.
   const s = process.env["SESSION_SECRET"];
   if (!s || s.length < 16) {
     throw new Error(
@@ -80,7 +78,6 @@ function verifyState(
     .createHmac("sha256", stateSecret())
     .update(payload)
     .digest("base64url");
-  // Constant-time comparison to avoid leaking timing info.
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
@@ -125,7 +122,6 @@ router.get("/integrations/pcs/callback", async (req, res) => {
     return;
   }
 
-  // Caller may have arrived with an OAuth error directly from PCO.
   const errorParam = typeof req.query["error"] === "string" ? req.query["error"] : null;
   if (errorParam) {
     res.redirect(finishUrl("error", errorParam));
@@ -148,16 +144,12 @@ router.get("/integrations/pcs/callback", async (req, res) => {
       redirect_uri: pcsRedirectUri(),
     });
     await persistTokens(userId, tokens);
-    // Fetch org name so the UI can label the connection. Best-effort.
     try {
       const org = await fetchOrganization(userId);
       await persistTokens(userId, tokens, org);
     } catch (err) {
       req.log.warn({ err }, "PCS org fetch failed (non-fatal)");
     }
-    // Fire off an initial import. Done synchronously so the user sees the
-    // count when they land back on the page, but capped to keep first
-    // connection responsive.
     try {
       const importResult = await importPcsSongs(userId);
       await db
@@ -202,14 +194,71 @@ router.get("/integrations/pcs/status", requireAuth, async (req, res) => {
   });
 });
 
-router.post("/integrations/pcs/sync", requireAuth, async (req, res) => {
+/**
+ * List the connected church's Planning Center service types.
+ * The UI uses this to populate the service-type filter in the sync panel.
+ */
+router.get("/integrations/pcs/service-types", requireAuth, async (req, res) => {
   const conn = await getConnection(req.userId!);
   if (!conn) {
     res.status(400).json({ error: "Not connected to Planning Center" });
     return;
   }
   try {
-    const result = await importPcsSongs(req.userId!);
+    const r = await pcsAuthedFetch(
+      req.userId!,
+      "/services/v2/service_types?per_page=100",
+    );
+    if (!r.ok) {
+      const text = await r.text().catch(() => "");
+      req.log.warn({ status: r.status, body: text }, "PCS service_types fetch failed");
+      res.status(502).json({ error: "Could not fetch service types from Planning Center" });
+      return;
+    }
+    const body = (await r.json()) as {
+      data?: Array<{
+        id: string;
+        type: string;
+        attributes?: { name?: string };
+      }>;
+    };
+    const serviceTypes = (body.data ?? [])
+      .filter((st) => st.type === "ServiceType")
+      .map((st) => ({
+        id: st.id,
+        name: st.attributes?.name ?? st.id,
+      }));
+    res.json(serviceTypes);
+  } catch (err) {
+    req.log.error({ err }, "PCS service-types fetch threw");
+    res.status(502).json({ error: "Could not fetch service types from Planning Center" });
+  }
+});
+
+router.post("/integrations/pcs/sync", requireAuth, async (req, res) => {
+  const conn = await getConnection(req.userId!);
+  if (!conn) {
+    res.status(400).json({ error: "Not connected to Planning Center" });
+    return;
+  }
+
+  // Parse optional sync filters from the request body.
+  const body = req.body as Record<string, unknown> | undefined;
+  const options: PcsSyncOptions = {};
+  if (Array.isArray(body?.["serviceTypeIds"]) && body["serviceTypeIds"].length > 0) {
+    options.serviceTypeIds = (body["serviceTypeIds"] as unknown[])
+      .filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+      .map((id) => id.trim());
+  }
+  if (
+    typeof body?.["lastUsedSince"] === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(body["lastUsedSince"])
+  ) {
+    options.lastUsedSince = body["lastUsedSince"];
+  }
+
+  try {
+    const result = await importPcsSongs(req.userId!, options);
     await db
       .update(pcsConnectionsTable)
       .set({
@@ -239,12 +288,6 @@ router.post("/integrations/pcs/sync", requireAuth, async (req, res) => {
 });
 
 router.delete("/integrations/pcs/disconnect", requireAuth, async (req, res) => {
-  // Wipe the tokens AND the link rows. The library_items themselves stay
-  // — the user added those songs to their repertoire and we don't want to
-  // silently delete their data. If they reconnect, songs will re-link by
-  // (source, externalId) on the next import only if they re-import the
-  // same external id, which means duplicates are possible. Documented
-  // tradeoff: prefer keeping user data over a perfect re-link.
   await db
     .delete(externalSongLinksTable)
     .where(eq(externalSongLinksTable.userId, req.userId!));

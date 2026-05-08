@@ -4265,8 +4265,43 @@ export const GetPcsStatusResponse = zod.object({
 });
 
 /**
+ * @summary List service types from the connected Planning Center account
+ */
+export const GetPcsServiceTypesResponseItem = zod.object({
+  id: zod.string().describe("Planning Center service type ID."),
+  name: zod.string().describe('Human-readable name (e.g. \"Sunday Morning\").'),
+});
+export const GetPcsServiceTypesResponse = zod.array(
+  GetPcsServiceTypesResponseItem,
+);
+
+/**
  * @summary Re-import songs from Planning Center for the current user
  */
+export const syncPcsSongsBodyLastUsedSinceRegExp = new RegExp(
+  "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+);
+
+export const SyncPcsSongsBody = zod
+  .object({
+    serviceTypeIds: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "When set, only import songs that have been used in at least one of these Planning Center service types.",
+      ),
+    lastUsedSince: zod
+      .string()
+      .regex(syncPcsSongsBodyLastUsedSinceRegExp)
+      .optional()
+      .describe(
+        "Optional ISO YYYY-MM-DD date. When set, only import songs whose last_scheduled_at is on or after this date. Songs that have never been scheduled are also excluded.",
+      ),
+  })
+  .describe(
+    "Optional filters for the Planning Center sync. Omit entirely (or send {}) to import the full library as before.",
+  );
+
 export const SyncPcsSongsResponse = zod.object({
   total: zod
     .number()
