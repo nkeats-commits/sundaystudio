@@ -53,7 +53,7 @@ export default function Settings() {
             </div>
             <div>
               <h2 className="text-lg font-medium text-[var(--worship-navy)]">
-                {user?.fullName || "Worship Leader"}
+                {user?.fullName || me?.profile?.leaderName || "Worship Leader"}
               </h2>
               <p className="text-[var(--worship-slate)]">{user?.primaryEmailAddress?.emailAddress}</p>
             </div>
