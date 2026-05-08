@@ -20,18 +20,17 @@ import {
  * into Sunday Studio as repertoire items.
  *
  * Strategy:
- *  1. Page through `/services/v2/songs?include=arrangements,tags` (PCO
- *     returns up to 100 per page). The included array carries full
- *     arrangement and tag resources.
- *  2. For each song, extract: title, author, CCLI, copyright, themes,
- *     lyrics excerpt, lastScheduledDate, all arrangement keys
- *     (availableKeys), BPM and primary key from the default arrangement,
- *     and tag names from included Tag resources.
+ *  1. Page through `/services/v2/songs` with sparse fieldsets and
+ *     `include=arrangements,tags` so the PCO API returns exactly the fields
+ *     we need in a single round-trip.
+ *  2. For each song extract: title, author, CCLI, copyright, themes (song-
+ *     level), lyrics (full text), lastScheduledDate, all arrangement keys
+ *     (availableKeys), BPM, primary key, meter, and duration (seconds) from
+ *     the default arrangement, and tag names from included Tag resources.
  *  3. Optionally filter by service type (fetch song IDs used in the given
- *     service types from `/song_schedules`) and/or by last-used date.
- *  4. Upsert into `library_items` keyed by the `external_song_links` row
- *     for `(source: "pcs", externalId: <pcs song id>, userId)`. Planning
- *     Center is the trusted source for every imported song.
+ *     service types via `/song_schedules`) and/or by last-used date.
+ *  4. Upsert into `library_items` keyed via `external_song_links`
+ *     for `(source: "pcs", externalId: <pcs song id>, userId)`.
  *
  * Returns counts so the UI can show "Imported 47 songs (3 new, 44 updated)".
  */
@@ -68,6 +67,19 @@ type PcsListResponse = {
   included?: PcsResource[];
   links?: { next?: string };
 };
+
+/**
+ * Paginated song list URL. We request sparse fieldsets so the PCO API only
+ * returns attributes we actually use, keeping the payload smaller and avoiding
+ * undocumented attribute changes breaking the import silently.
+ */
+const SONGS_BASE_URL =
+  "/services/v2/songs" +
+  "?include=arrangements,tags" +
+  "&per_page=100" +
+  "&fields[Song]=title,author,ccli_number,copyright,themes,lyrics,last_scheduled_at" +
+  "&fields[Arrangement]=bpm,chord_chart_key,keys,meter,length,default" +
+  "&fields[Tag]=name";
 
 function pickArrangementForSong(
   song: PcsResource,
@@ -190,9 +202,7 @@ export async function importPcsSongs(
     : null;
 
   // First pass: collect all songs + arrangements + tags across paginated pages.
-  // PCS caps per_page at 100; include=arrangements,tags carries full resources.
-  let next: string | null =
-    "/services/v2/songs?include=arrangements,tags&per_page=100";
+  let next: string | null = SONGS_BASE_URL;
   const songs: PcsResource[] = [];
   const arrangements = new Map<string, PcsResource>();
   const tagsById = new Map<string, PcsResource>();
@@ -244,7 +254,7 @@ export async function importPcsSongs(
           : null;
       if (!title) continue;
 
-      // Default arrangement → primary BPM and key.
+      // Default arrangement → primary BPM, key, meter, and duration.
       const defaultArrangement = pickArrangementForSong(song, arrangements);
       const allArrs = allArrangementsForSong(song, arrangements);
       const aa = defaultArrangement?.attributes ?? {};
@@ -261,7 +271,25 @@ export async function importPcsSongs(
           ? (aa["chord_chart_key"] as string)
           : null;
 
-      // All unique keys across every arrangement.
+      // Meter (time signature, e.g. "4/4") from the default arrangement.
+      const meter =
+        typeof aa["meter"] === "string" && aa["meter"].trim()
+          ? aa["meter"].trim()
+          : null;
+
+      // Duration in seconds ("length" is PCO's attribute name on arrangements).
+      const durationRaw = aa["length"];
+      const duration =
+        typeof durationRaw === "number" && Number.isFinite(durationRaw) && durationRaw > 0
+          ? Math.round(durationRaw)
+          : typeof durationRaw === "string" && durationRaw.trim()
+            ? (() => {
+                const n = Number(durationRaw.trim());
+                return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+              })()
+            : null;
+
+      // All unique keys across every arrangement (chord_chart_key + keys[]).
       const availableKeys = collectArrangementKeys(allArrs);
 
       // Song-level metadata.
@@ -276,21 +304,23 @@ export async function importPcsSongs(
           ? (sa["copyright"] as string)
           : null;
 
-      // Themes: PCS stores as a comma-separated string.
+      // Themes: PCS stores as a comma-separated string at the song level.
       const rawThemes =
         typeof sa["themes"] === "string" ? (sa["themes"] as string) : null;
       const themes = dedupeCaseInsensitive(splitList(rawThemes));
 
       // Tags: from included Tag resources linked via the song's tag relationship.
-      const tagNames = dedupeCaseInsensitive(tagNamesForSong(song, tagsById));
+      // Kept separate from themes so consumers can distinguish song-level
+      // thematic labels (curated by PCO) from user-applied free-form tags.
+      const tags = dedupeCaseInsensitive(tagNamesForSong(song, tagsById));
 
-      // Merge themes + tags into a single deduplicated list.
-      const allTags = dedupeCaseInsensitive([...themes, ...tagNames]);
-
-      // Lyrics excerpt (stored for AI context, not displayed in UI).
+      // Full lyrics text (stored for AI context; not displayed in the UI).
       const rawLyrics =
         typeof sa["lyrics"] === "string" ? (sa["lyrics"] as string) : null;
-      const lyrics = lyricsExcerpt(rawLyrics);
+      const lyrics = rawLyrics?.trim() || null;
+
+      // A short excerpt for inline AI prompt use.
+      const excerpt = lyricsExcerpt(rawLyrics);
 
       // Last scheduled date.
       const lastScheduledDate = normalizePcoDate(
@@ -299,18 +329,22 @@ export async function importPcsSongs(
           : null,
       );
 
-      // Build content JSONB. Only include keys that have a non-null value so
-      // we don't bloat the row with null fields.
+      // Build content JSONB. Only include keys that have a non-null/non-empty
+      // value so we don't bloat the row with null fields.
       const content: Record<string, unknown> = { source: "planning-center" };
       if (artist) content["artist"] = artist;
       if (bpm !== null) content["bpm"] = bpm;
       if (key) content["key"] = key;
       if (availableKeys.length > 0) content["availableKeys"] = availableKeys;
-      if (allTags.length > 0) content["tags"] = allTags;
-      if (lyrics) content["lyricsExcerpt"] = lyrics;
+      if (themes.length > 0) content["themes"] = themes;
+      if (tags.length > 0) content["tags"] = tags;
+      if (lyrics) content["lyrics"] = lyrics;
+      if (excerpt) content["lyricsExcerpt"] = excerpt;
       if (ccli) content["ccli"] = ccli;
       if (copyright) content["copyright"] = copyright;
       if (lastScheduledDate) content["lastScheduledDate"] = lastScheduledDate;
+      if (meter) content["meter"] = meter;
+      if (duration !== null) content["duration"] = duration;
 
       // Upsert via the external_song_links table.
       const existingLink = await db

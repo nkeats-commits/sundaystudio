@@ -21,6 +21,7 @@
  */
 
 import type { RepertoireImportSong } from '@workspace/api-client-react';
+import { splitList, dedupeCaseInsensitive } from '@workspace/song-field-parsers';
 
 export type CsvFormat = 'pco' | 'generic' | 'unknown';
 
@@ -95,28 +96,6 @@ export function normalizeDate(raw: string | undefined): string | undefined {
   const mm = String(parsed.getMonth() + 1).padStart(2, '0');
   const dd = String(parsed.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
-}
-
-/** Split a comma-separated tag/theme cell, trim each piece, drop empties. */
-function splitList(raw: string | undefined): string[] {
-  if (!raw) return [];
-  return raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/** Dedupe a list of strings case-insensitively, preserving first-seen casing. */
-function dedupeCaseInsensitive(list: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const item of list) {
-    const k = item.toLowerCase();
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(item);
-  }
-  return out;
 }
 
 /**

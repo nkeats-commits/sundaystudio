@@ -125,8 +125,8 @@ export async function loadRepertoireSongs(
         )
       : null;
 
-    const themes = Array.isArray(content["tags"])
-      ? (content["tags"] as unknown[]).filter(
+    const themes = Array.isArray(content["themes"])
+      ? (content["themes"] as unknown[]).filter(
           (t): t is string => typeof t === "string" && t.trim().length > 0,
         )
       : null;
@@ -221,10 +221,10 @@ export function repertoirePromptBlock(
       if (s.themes && s.themes.length > 0) {
         contextTag = ` | Themes: ${s.themes.join(", ")}`;
       } else if (s.lyricsExcerpt) {
-        // Brief lyrical hint — first 80 chars so the line stays readable.
+        // Brief lyrical hint — first 200 chars so the model can assess thematic fit.
         const hint =
-          s.lyricsExcerpt.length > 80
-            ? s.lyricsExcerpt.slice(0, 80).trimEnd() + "…"
+          s.lyricsExcerpt.length > 200
+            ? s.lyricsExcerpt.slice(0, 200).trimEnd() + "…"
             : s.lyricsExcerpt;
         contextTag = ` | "${hint}"`;
       }
