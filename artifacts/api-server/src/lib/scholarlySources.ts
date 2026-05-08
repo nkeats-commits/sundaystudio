@@ -47,7 +47,7 @@ function resolveDataRoot(): string {
 
 const DATA_ROOT = resolveDataRoot();
 
-const MAX_EXCERPT_CHARS = 1500;
+const MAX_EXCERPT_CHARS = 600;
 
 /**
  * Default sources enabled the first time a user touches the Sources panel.
@@ -533,7 +533,7 @@ export function isRegisteredSource(id: string): boolean {
 export function lookupCommentary(
   enabledSourceIds: readonly string[],
   passageRefs: readonly string[],
-  maxHits = 8,
+  maxHits = 3,
 ): CommentaryHit[] {
   if (!enabledSourceIds.length || !passageRefs.length) return [];
   const parsed = passageRefs.flatMap((ref) => parsePassageRef(ref));
