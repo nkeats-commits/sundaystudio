@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Save, Loader2, Users, Copy, AlertCircle, CalendarPlus } from 'lucide-react';
 import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedDevotional, type LibraryItem } from '@workspace/api-client-react';
@@ -9,6 +9,13 @@ import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
+
+const DEVOTIONAL_PHASES = [
+  'Reading your theme and passage…',
+  'Grounding the reflection in scripture…',
+  'Drafting the devotional and questions…',
+  'Writing the closing prayer…',
+];
 
 export default function DevotionalGenerator() {
   const [formData, setFormData] = useState({
@@ -24,6 +31,12 @@ export default function DevotionalGenerator() {
   const createLibraryItem = useCreateLibraryItem();
   const queryClient = useQueryClient();
   const lastSubmittedRef = useRef<typeof formData | null>(null);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  useEffect(() => {
+    if (!generate.isPending) { setPhaseIdx(0); return; }
+    const t = setInterval(() => setPhaseIdx((i) => (i + 1) % DEVOTIONAL_PHASES.length), 3000);
+    return () => clearInterval(t);
+  }, [generate.isPending]);
   const { ready: profileReady } = useChurchProfileReady();
   const { allowed: subAllowed } = useSubscriptionStatus();
   const [savedItem, setSavedItem] = useState<LibraryItem | null>(null);
@@ -206,21 +219,19 @@ export default function DevotionalGenerator() {
           )}
 
           {generate.isPending && (
-            <div className="absolute inset-0 flex flex-col p-8 bg-[var(--worship-cream)]/80 backdrop-blur-sm rounded-2xl z-10">
-               <div className="flex flex-col items-center text-center mb-4">
-                 <Loader2 className="w-10 h-10 animate-spin text-[var(--worship-gold)] mb-4" />
-                 <h3 className="font-serif text-xl text-[var(--worship-navy)]">Writing devotional...</h3>
-                 {generate.partialText.length > 0 && (
-                   <p className="text-xs text-[var(--worship-slate)] mt-2">
-                     {generate.partialText.length} characters received
-                   </p>
-                 )}
-               </div>
-               {generate.partialText.length > 0 && (
-                 <div className="flex-1 overflow-y-auto rounded-lg bg-white/70 border border-[var(--worship-border)] p-4 text-sm font-mono text-[var(--worship-charcoal)] whitespace-pre-wrap leading-relaxed">
-                   {generate.partialText}
-                 </div>
-               )}
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-[var(--worship-cream)]/80 backdrop-blur-sm rounded-2xl z-10">
+              <div className="w-full max-w-sm">
+                <div className="flex items-center gap-2 mb-3 font-semibold text-sm text-[var(--worship-navy)]">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  {DEVOTIONAL_PHASES[phaseIdx % DEVOTIONAL_PHASES.length]}
+                </div>
+                <div className="w-full h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: 'var(--worship-sand)' }}>
+                  <div style={{ height: '100%', width: '38%', backgroundColor: 'var(--worship-gold)', borderRadius: '9999px', animation: 'genProgressSlide 1.8s ease-in-out infinite' }} />
+                </div>
+                <p className="text-xs italic leading-relaxed text-center" style={{ color: 'var(--worship-slate)' }}>
+                  Taking time to be thorough — this usually takes 20–30 seconds.
+                </p>
+              </div>
             </div>
           )}
 

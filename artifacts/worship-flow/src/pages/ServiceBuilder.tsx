@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
 import {
   Save,
@@ -59,6 +59,13 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 
+const SERVICE_PHASES = [
+  'Reading your thematic focus…',
+  'Mapping your service flow…',
+  'Composing each worship element…',
+  'Assembling the full plan…',
+];
+
 type EditableFlowStep = FlowStep & { uid: string };
 
 function uid(): string {
@@ -109,6 +116,12 @@ export default function ServiceBuilder() {
   const lastSubmittedRef = useRef<typeof formData | null>(null);
   const lastSubmittedFlowRef = useRef<FlowStep[] | null>(null);
   const dragUidRef = useRef<string | null>(null);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  useEffect(() => {
+    if (!generate.isPending) { setPhaseIdx(0); return; }
+    const t = setInterval(() => setPhaseIdx((i) => (i + 1) % SERVICE_PHASES.length), 3000);
+    return () => clearInterval(t);
+  }, [generate.isPending]);
 
   const [slotOverrides, setSlotOverrides] = useState<
     Record<number, Partial<ServicePlanItem>>
@@ -831,27 +844,19 @@ export default function ServiceBuilder() {
           )}
 
           {generate.isPending && (
-            <div className="absolute inset-0 flex flex-col p-8 bg-[var(--worship-cream)]/90 backdrop-blur-sm z-10">
-              <div className="flex flex-col items-center text-center mb-4">
-                <Loader2 className="w-10 h-10 animate-spin mb-4 text-[var(--worship-gold)]" />
-                <h3 className="text-xl mb-1 font-serif text-[var(--worship-navy)]">
-                  Weaving your service...
-                </h3>
-                <p className="text-sm text-[var(--worship-slate)]">
-                  Curating songs, writing liturgy, and forming the service
-                  arc.
-                </p>
-                {generate.partialText.length > 0 && (
-                  <p className="text-xs text-[var(--worship-slate)] mt-2 opacity-70">
-                    {generate.partialText.length} characters received
-                  </p>
-                )}
-              </div>
-              {generate.partialText.length > 0 && (
-                <div className="flex-1 overflow-y-auto rounded-lg bg-white/70 border border-[var(--worship-border)] p-4 text-sm font-mono text-[var(--worship-charcoal)] whitespace-pre-wrap leading-relaxed">
-                  {generate.partialText}
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-[var(--worship-cream)]/90 backdrop-blur-sm z-10">
+              <div className="w-full max-w-sm">
+                <div className="flex items-center gap-2 mb-3 font-semibold text-sm text-[var(--worship-navy)]">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  {SERVICE_PHASES[phaseIdx % SERVICE_PHASES.length]}
                 </div>
-              )}
+                <div className="w-full h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: 'var(--worship-sand)' }}>
+                  <div style={{ height: '100%', width: '38%', backgroundColor: 'var(--worship-gold)', borderRadius: '9999px', animation: 'genProgressSlide 1.8s ease-in-out infinite' }} />
+                </div>
+                <p className="text-xs italic leading-relaxed text-center" style={{ color: 'var(--worship-slate)' }}>
+                  Taking time to be thorough — this usually takes 20–30 seconds.
+                </p>
+              </div>
             </div>
           )}
 
