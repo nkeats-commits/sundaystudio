@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, libraryItemsTable } from "@workspace/db";
 import { coerceBpm as sharedCoerceBpm } from "@workspace/song-field-parsers";
 
@@ -89,9 +89,14 @@ export function normalizeTitle(title: string): string {
 }
 
 /**
- * Load every song the user has marked as part of their repertoire.
- * Returns a projection that includes all fields useful for AI prompt
- * context: BPM, key, available keys, themes, and a lyrics excerpt.
+ * Load every song the user has marked as part of their repertoire, ordered
+ * by recency so callers can limit AI context to the most recently used songs.
+ *
+ * Ordering: songs are sorted by `lastScheduledDate` (the date the song was
+ * last used in a Planning Center service, stored in `content`) descending,
+ * with songs that have no scheduled date falling back to `createdAt` order.
+ * This surfaces the most actively used songs first so `repertoirePromptBlock`
+ * can include richer lyrical context for them without blowing the token budget.
  */
 export async function loadRepertoireSongs(
   userId: string,
@@ -100,6 +105,7 @@ export async function loadRepertoireSongs(
     .select({
       title: libraryItemsTable.title,
       content: libraryItemsTable.content,
+      createdAt: libraryItemsTable.createdAt,
     })
     .from(libraryItemsTable)
     .where(
@@ -108,8 +114,39 @@ export async function loadRepertoireSongs(
         eq(libraryItemsTable.kind, "song"),
         eq(libraryItemsTable.isRepertoire, true),
       ),
-    );
-  return rows.map((r) => {
+    )
+    .orderBy(desc(libraryItemsTable.createdAt));
+
+  // Secondary sort: prefer songs with a lastScheduledDate (most recent first).
+  // Rows with no lastScheduledDate keep their createdAt order.
+  const sorted = rows.slice().sort((a, b) => {
+    const aDate =
+      typeof (a.content as Record<string, unknown>)["lastScheduledDate"] ===
+      "string"
+        ? new Date(
+            (a.content as Record<string, unknown>)[
+              "lastScheduledDate"
+            ] as string,
+          ).getTime()
+        : NaN;
+    const bDate =
+      typeof (b.content as Record<string, unknown>)["lastScheduledDate"] ===
+      "string"
+        ? new Date(
+            (b.content as Record<string, unknown>)[
+              "lastScheduledDate"
+            ] as string,
+          ).getTime()
+        : NaN;
+    const aHas = Number.isFinite(aDate);
+    const bHas = Number.isFinite(bDate);
+    if (aHas && bHas) return bDate - aDate;
+    if (aHas) return -1; // a has a date, b doesn't → a first
+    if (bHas) return 1;
+    return 0; // both missing — preserve createdAt order from the DB query
+  });
+
+  return sorted.map((r) => {
     const content = (r.content ?? {}) as Record<string, unknown>;
 
     const availableKeys = Array.isArray(content["availableKeys"])
@@ -153,6 +190,9 @@ export async function loadRepertoireSongs(
   });
 }
 
+/** Maximum number of songs for which lyrics excerpts are included in the prompt. */
+const LYRICS_EXCERPT_SONG_LIMIT = 10;
+
 /** Look up a repertoire song's BPM by title (case-insensitive). */
 export function repertoireBpmByTitle(
   songs: RepertoireSong[],
@@ -180,10 +220,12 @@ export function repertoireKeyByTitle(
  * repertoire. Returns an empty string when there is nothing useful to add.
  *
  * Each song line is formatted as:
- *   - Title (Artist) — BPM BPM, Key: X [also: Y, Z] | Themes: a, b
+ *   - Title (Artist) — BPM BPM, Key: X [also: Y, Z] | Themes: a, b | "verse…"
  *
- * When a lyrics excerpt is available and the song has no themes, a brief
- * lyrical cue is appended after a pipe so the model can assess thematic fit.
+ * Lyrics excerpts are included for the first LYRICS_EXCERPT_SONG_LIMIT songs
+ * only (the most recently used, since loadRepertoireSongs returns songs ordered
+ * by recency). This caps the per-request token cost for large repertoires while
+ * giving the model rich lyrical context for the songs the team plays most often.
  */
 export function repertoirePromptBlock(
   songs: RepertoireSong[],
@@ -198,7 +240,7 @@ export function repertoirePromptBlock(
   if (filteredSongs.length === 0) return "";
 
   const list = filteredSongs
-    .map((s) => {
+    .map((s, idx) => {
       const bpmTag = s.bpm !== null ? ` — ${s.bpm} BPM` : "";
       const keyTag = s.key !== null ? `, Key: ${s.key}` : "";
 
@@ -209,19 +251,15 @@ export function repertoirePromptBlock(
       const availableKeysTag =
         otherKeys.length > 0 ? ` [also: ${otherKeys.join(", ")}]` : "";
 
-      // Themes and/or a lyrical cue — include both when available so the
-      // model has the richest possible context to assess thematic fit.
+      // Themes and/or a lyrical cue. Include the full excerpt only for the
+      // top LYRICS_EXCERPT_SONG_LIMIT songs (by recency — loadRepertoireSongs
+      // returns them most-recently-used first) to stay within token budget.
       let contextTag = "";
       if (s.themes && s.themes.length > 0) {
         contextTag = ` | Themes: ${s.themes.join(", ")}`;
       }
-      if (s.lyricsExcerpt) {
-        // Brief lyrical hint — first 200 chars so the model can assess thematic fit.
-        const hint =
-          s.lyricsExcerpt.length > 200
-            ? s.lyricsExcerpt.slice(0, 200).trimEnd() + "…"
-            : s.lyricsExcerpt;
-        contextTag += ` | "${hint}"`;
+      if (s.lyricsExcerpt && idx < LYRICS_EXCERPT_SONG_LIMIT) {
+        contextTag += ` | "${s.lyricsExcerpt}"`;
       }
 
       const rangeTag =

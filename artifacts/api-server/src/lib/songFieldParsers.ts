@@ -79,16 +79,68 @@ export function collectArrangementKeys(
   return dedupeCaseInsensitive(keys);
 }
 
+const LYRICS_EXCERPT_MAX = 400;
+
 /**
- * Extract a lyrics excerpt (up to 500 chars, trimmed to the last complete
- * word). Returns null when the input is empty or missing.
+ * Extract a lyrics excerpt using a first-verse + chorus heuristic (~400 chars).
+ *
+ * Strategy:
+ *  1. Split the text into sections by double newlines or labelled headers
+ *     like [Verse 1] / [Chorus] / [Refrain].
+ *  2. Take the first non-chorus section as the verse and the first section
+ *     labelled "chorus" or "refrain" as the chorus.
+ *  3. Combine them (verse then chorus) and return up to LYRICS_EXCERPT_MAX
+ *     chars, truncated at the last word boundary.
+ *  4. Fall back to a plain word-boundary truncation when no section structure
+ *     is detected.
+ *
+ * Returns null when the input is empty or missing.
  */
 export function lyricsExcerpt(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const text = raw.replace(/\r\n/g, "\n").trim();
   if (!text) return null;
-  if (text.length <= 500) return text;
-  const cut = text.slice(0, 500);
+
+  // Split on blank lines (one or more). Each element is a section candidate.
+  const sections = text
+    .split(/\n[ \t]*\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  let verse: string | null = null;
+  let chorus: string | null = null;
+
+  for (const section of sections) {
+    // Optional bracketed header on the first line: [Verse], [Chorus 1], etc.
+    const firstLine = section.split("\n")[0]?.trim() ?? "";
+    const hasHeader = /^\[.+\]/.test(firstLine);
+    const headerText = hasHeader ? firstLine.slice(1, firstLine.indexOf("]")).toLowerCase() : "";
+    const isChorusHeader =
+      headerText === "chorus" ||
+      headerText.startsWith("chorus ") ||
+      headerText === "refrain";
+    const body = hasHeader
+      ? section.slice(firstLine.length).trim()
+      : section;
+
+    if (!verse && !isChorusHeader) {
+      verse = body.length > 0 ? body : section;
+    } else if (!chorus && isChorusHeader && body.length > 0) {
+      chorus = body;
+    }
+    if (verse && chorus) break;
+  }
+
+  // Build combined excerpt: verse first, then chorus when distinct.
+  const parts: string[] = [];
+  if (verse) parts.push(verse);
+  if (chorus && chorus !== verse) parts.push(chorus);
+
+  const combined = parts.length > 0 ? parts.join("\n\n") : text;
+
+  if (combined.length <= LYRICS_EXCERPT_MAX) return combined;
+
+  const cut = combined.slice(0, LYRICS_EXCERPT_MAX);
   const lastSpace = cut.lastIndexOf(" ");
-  return (lastSpace > 200 ? cut.slice(0, lastSpace) : cut) + "…";
+  return (lastSpace > LYRICS_EXCERPT_MAX * 0.6 ? cut.slice(0, lastSpace) : cut) + "…";
 }
