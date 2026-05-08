@@ -136,13 +136,16 @@ function tagNamesForSong(
 }
 
 /**
- * Fetch the set of song IDs used in the given PCS service types via the
- * song_schedules endpoint.
+ * Fetch the set of song IDs used in the given PCS service types.
  *
- * FAIL-CLOSED: throws a descriptive error on any API failure so that a
- * caller who explicitly requested service-type filtering never silently
- * falls back to importing the whole library. The route handler catches
- * this and returns a 502 to the client.
+ * Approach: paginate through plans for each service type with `include=items`,
+ * then collect IDs from items where `item_type == "song"`. This is the
+ * universally-supported PCO path — the nested `song_schedules` relationship
+ * returns 404 on some organisations/service-type configurations and is not
+ * reliable for this purpose.
+ *
+ * FAIL-CLOSED: throws on any API error so a caller who explicitly requested
+ * service-type filtering never silently imports the full library.
  */
 async function fetchServiceTypeSongIds(
   userId: string,
@@ -150,9 +153,12 @@ async function fetchServiceTypeSongIds(
 ): Promise<Set<string>> {
   const songIds = new Set<string>();
   for (const stId of serviceTypeIds) {
+    // Sparse fieldsets: we only need Plan IDs and Item item_type/song relationship.
     let next: string | null =
-      `/services/v2/service_types/${stId}/song_schedules?per_page=100`;
-    for (let page = 0; page < 50 && next; page += 1) {
+      `/services/v2/service_types/${stId}/plans` +
+      `?per_page=100&include=items` +
+      `&fields[Plan]=id&fields[Item]=item_type`;
+    for (let page = 0; page < 100 && next; page += 1) {
       const res = await pcsAuthedFetch(userId, next);
       if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -163,7 +169,10 @@ async function fetchServiceTypeSongIds(
         );
       }
       const body = (await res.json()) as PcsListResponse;
-      for (const item of body.data ?? []) {
+      // Included items: pick those with item_type "song" and extract song ID.
+      for (const item of body.included ?? []) {
+        if (item.type !== "Item") continue;
+        if (item.attributes?.["item_type"] !== "song") continue;
         const songRel = item.relationships?.["song"]?.data;
         if (songRel && !Array.isArray(songRel) && songRel.id) {
           songIds.add(songRel.id);
