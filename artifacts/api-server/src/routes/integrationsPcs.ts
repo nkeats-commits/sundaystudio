@@ -251,12 +251,20 @@ router.post("/integrations/pcs/sync", requireAuth, async (req, res) => {
   }
   if (typeof body?.["lastUsedSince"] === "string") {
     const raw = body["lastUsedSince"];
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
       res.status(400).json({ error: "lastUsedSince must be an ISO date (YYYY-MM-DD)" });
       return;
     }
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) {
+    // Parse as UTC midnight and round-trip the year/month/day to reject
+    // rollover dates like "2026-02-30" which JS silently advances to March 2.
+    const d = new Date(`${raw}T00:00:00Z`);
+    if (
+      Number.isNaN(d.getTime()) ||
+      d.getUTCFullYear() !== Number(match[1]) ||
+      d.getUTCMonth() + 1 !== Number(match[2]) ||
+      d.getUTCDate() !== Number(match[3])
+    ) {
       res.status(400).json({ error: `lastUsedSince "${raw}" is not a valid calendar date` });
       return;
     }

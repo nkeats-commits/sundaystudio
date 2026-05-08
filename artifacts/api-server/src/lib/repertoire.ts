@@ -209,17 +209,19 @@ export function repertoirePromptBlock(
       const availableKeysTag =
         otherKeys.length > 0 ? ` [also: ${otherKeys.join(", ")}]` : "";
 
-      // Themes or a lyrical cue.
+      // Themes and/or a lyrical cue — include both when available so the
+      // model has the richest possible context to assess thematic fit.
       let contextTag = "";
       if (s.themes && s.themes.length > 0) {
         contextTag = ` | Themes: ${s.themes.join(", ")}`;
-      } else if (s.lyricsExcerpt) {
+      }
+      if (s.lyricsExcerpt) {
         // Brief lyrical hint — first 200 chars so the model can assess thematic fit.
         const hint =
           s.lyricsExcerpt.length > 200
             ? s.lyricsExcerpt.slice(0, 200).trimEnd() + "…"
             : s.lyricsExcerpt;
-        contextTag = ` | "${hint}"`;
+        contextTag += ` | "${hint}"`;
       }
 
       const rangeTag =
