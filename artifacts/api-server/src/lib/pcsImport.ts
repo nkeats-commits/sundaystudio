@@ -153,11 +153,17 @@ async function fetchServiceTypeSongIds(
 ): Promise<Set<string>> {
   const songIds = new Set<string>();
   for (const stId of serviceTypeIds) {
-    // Sparse fieldsets: we only need Plan IDs and Item item_type/song relationship.
+    // NOTE: Do NOT add &fields[Item]=... sparse fieldsets here.
+    // PCO's JSON:API implementation suppresses relationships when sparse
+    // fieldsets are applied to included resources, so the `song` relationship
+    // on Item objects would never be returned — yielding an empty allowedSongIds
+    // set and filtering out every song. We only sparse-fieldset Plan (id only)
+    // to keep plan payloads small; Item resources are returned in full so their
+    // `song` relationship is always present.
     let next: string | null =
       `/services/v2/service_types/${stId}/plans` +
       `?per_page=100&include=items` +
-      `&fields[Plan]=id&fields[Item]=item_type`;
+      `&fields[Plan]=id`;
     for (let page = 0; page < 100 && next; page += 1) {
       const res = await pcsAuthedFetch(userId, next);
       if (!res.ok) {
