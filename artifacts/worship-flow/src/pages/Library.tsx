@@ -362,6 +362,7 @@ export default function Library() {
   const csvFileInputRef = useRef<HTMLInputElement>(null);
   const [pendingCsvFile, setPendingCsvFile] = useState<File | null>(null);
   const [viewingItem, setViewingItem] = useState<LibraryItem | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
 
   // Translate the active tab into a query for the list endpoint. The
   // Repertoire tab is just a Songs-with-flag filter under the hood.
@@ -467,6 +468,31 @@ export default function Library() {
   const isRepertoireTab = activeTab === 'repertoire';
   const isFlowsTab = activeTab === 'flows';
 
+  // Collect unique PCS content.tags across all loaded items for the theme
+  // filter chip bar. Only meaningful on the Repertoire tab.
+  const allThemes = useMemo(() => {
+    if (!isRepertoireTab || !items) return [];
+    const set = new Set<string>();
+    items.forEach((item) => {
+      const ct = (item.content as Record<string, unknown>).tags;
+      if (Array.isArray(ct)) ct.forEach((t) => typeof t === 'string' && set.add(t));
+    });
+    return Array.from(set).sort();
+  }, [isRepertoireTab, items]);
+
+  // Apply optional theme filter for the Repertoire tab only (client-side, no
+  // extra network request needed since all repertoire songs are already loaded).
+  // Other tabs bypass filtering entirely so non-repertoire empty states are
+  // never affected by a stale selectedTheme value.
+  const displayItems = useMemo(() => {
+    if (!items) return [];
+    if (!isRepertoireTab || !selectedTheme) return items;
+    return items.filter((item) => {
+      const ct = (item.content as Record<string, unknown>).tags;
+      return Array.isArray(ct) && ct.includes(selectedTheme);
+    });
+  }, [items, isRepertoireTab, selectedTheme]);
+
   return (
     <AppLayout title="Library">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -484,7 +510,7 @@ export default function Library() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setActiveTab(tab.id); setSelectedTheme(null); }}
               data-testid={`tab-${tab.id}`}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                 activeTab === tab.id
@@ -564,13 +590,43 @@ export default function Library() {
           </div>
         )}
 
+        {isRepertoireTab && allThemes.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              onClick={() => setSelectedTheme(null)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                selectedTheme === null
+                  ? 'bg-[var(--worship-navy)] text-white border-[var(--worship-navy)]'
+                  : 'bg-white text-[var(--worship-slate)] border-[var(--worship-border)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)]'
+              }`}
+            >
+              All themes
+            </button>
+            {allThemes.map((theme) => (
+              <button
+                key={theme}
+                onClick={() =>
+                  setSelectedTheme((prev) => (prev === theme ? null : theme))
+                }
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                  selectedTheme === theme
+                    ? 'bg-[var(--worship-gold)] text-white border-[var(--worship-gold)]'
+                    : 'bg-white text-[var(--worship-slate)] border-[var(--worship-border)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)]'
+                }`}
+              >
+                {theme}
+              </button>
+            ))}
+          </div>
+        )}
+
         {isFlowsTab ? (
           <SavedFlowsPanel />
         ) : isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C99A3D]"></div>
           </div>
-        ) : !items?.length ? (
+        ) : !items?.length || !displayItems.length ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-full bg-[var(--worship-cream)] flex items-center justify-center mb-4 text-[var(--worship-gold)]">
               {isRepertoireTab ? (
@@ -580,19 +636,23 @@ export default function Library() {
               )}
             </div>
             <h3 className="text-lg font-serif text-[var(--worship-navy)] mb-2">
-              {isRepertoireTab
-                ? 'Your repertoire is empty'
-                : 'Nothing here yet'}
+              {isRepertoireTab && selectedTheme
+                ? `No songs tagged "${selectedTheme}"`
+                : isRepertoireTab
+                  ? 'Your repertoire is empty'
+                  : 'Nothing here yet'}
             </h3>
             <p className="text-[var(--worship-slate)] max-w-sm">
-              {isRepertoireTab
-                ? 'Add songs your team already knows so the Song Assistant can prefer or restrict to them.'
-                : 'Use the generators from the Dashboard or Sidebar to create and save content to your library.'}
+              {isRepertoireTab && selectedTheme
+                ? 'Try a different theme or clear the filter to see all your songs.'
+                : isRepertoireTab
+                  ? 'Add songs your team already knows so the Song Assistant can prefer or restrict to them.'
+                  : 'Use the generators from the Dashboard or Sidebar to create and save content to your library.'}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
-            {items.map((item) => (
+            {displayItems.map((item) => (
               <div
                 key={item.id}
                 role="button"
@@ -666,42 +726,106 @@ export default function Library() {
                   {item.title}
                 </h3>
 
-                <div className="text-sm text-[var(--worship-slate)] line-clamp-3 mb-4 flex-1">
+                <div className="text-sm text-[var(--worship-slate)] mb-2 flex-1">
                   {item.kind === 'song' ? (
-                    item.content.artist || item.content.style || item.content.bpm ? (
-                      <>
-                        {item.content.artist && (
-                          <span className="italic">
-                            {String(item.content.artist)}
-                          </span>
-                        )}
-                        {item.content.artist && item.content.style && (
-                          <span className="text-[var(--worship-muted-slate)]">
-                            {' · '}
-                          </span>
-                        )}
-                        {item.content.style && (
-                          <span>{String(item.content.style)}</span>
-                        )}
-                        {(item.content.artist || item.content.style) &&
-                          typeof item.content.bpm === 'number' && (
+                    <div className="space-y-2">
+                      {!!(item.content.artist || item.content.style || item.content.bpm) && (
+                        <p className="line-clamp-1">
+                          {!!item.content.artist && (
+                            <span className="italic">
+                              {String(item.content.artist)}
+                            </span>
+                          )}
+                          {!!(item.content.artist && item.content.style) && (
                             <span className="text-[var(--worship-muted-slate)]">
                               {' · '}
                             </span>
                           )}
-                        {typeof item.content.bpm === 'number' && (
-                          <span className="font-medium text-[var(--worship-gold)]">
-                            {item.content.bpm} BPM
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      'No preview available'
-                    )
+                          {!!item.content.style && (
+                            <span>{String(item.content.style)}</span>
+                          )}
+                          {!!(item.content.artist || item.content.style) &&
+                            typeof item.content.bpm === 'number' && (
+                              <span className="text-[var(--worship-muted-slate)]">
+                                {' · '}
+                              </span>
+                            )}
+                          {typeof item.content.bpm === 'number' && (
+                            <span className="font-medium text-[var(--worship-gold)]">
+                              {item.content.bpm} BPM
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {(() => {
+                        const availableKeys = Array.isArray((item.content as Record<string, unknown>).availableKeys)
+                          ? ((item.content as Record<string, unknown>).availableKeys as unknown[]).filter(k => typeof k === 'string') as string[]
+                          : [];
+                        const primaryKey = typeof (item.content as Record<string, unknown>).key === 'string'
+                          ? ((item.content as Record<string, unknown>).key as string)
+                          : null;
+                        const displayKeys = availableKeys.length > 0 ? availableKeys : primaryKey ? [primaryKey] : [];
+                        if (displayKeys.length === 0) return null;
+                        return (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[10px] uppercase tracking-wide text-[var(--worship-muted-slate)] font-semibold">Keys:</span>
+                            {displayKeys.slice(0, 6).map((k) => (
+                              <span
+                                key={k}
+                                className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-medium border ${
+                                  k === primaryKey
+                                    ? 'bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] border-[var(--worship-pale-gold)]'
+                                    : 'bg-[var(--worship-cream)] text-[var(--worship-slate)] border-[var(--worship-border)]'
+                                }`}
+                              >
+                                {k}
+                              </span>
+                            ))}
+                            {displayKeys.length > 6 && (
+                              <span className="text-[10px] text-[var(--worship-muted-slate)]">
+                                +{displayKeys.length - 6}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {(() => {
+                        // Prefer content.tags (PCS organizational tags); fall back to
+                        // top-level item.tags so manually-tagged songs still show labels.
+                        const contentTags = Array.isArray((item.content as Record<string, unknown>).tags)
+                          ? ((item.content as Record<string, unknown>).tags as unknown[]).filter(t => typeof t === 'string') as string[]
+                          : [];
+                        const displayTags = contentTags.length > 0 ? contentTags : (item.tags ?? []);
+                        if (displayTags.length === 0) return null;
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {displayTags.slice(0, 3).map((t) => (
+                              <span
+                                key={t}
+                                className="text-[10px] px-2 py-0.5 bg-[var(--worship-sand)] text-[var(--worship-navy)] rounded-full font-medium"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                            {displayTags.length > 3 && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full text-[var(--worship-muted-slate)]">
+                                +{displayTags.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {!item.content.artist && !item.content.style && !item.content.bpm &&
+                        !(Array.isArray((item.content as Record<string, unknown>).availableKeys) && ((item.content as Record<string, unknown>).availableKeys as unknown[]).length > 0) &&
+                        !(Array.isArray((item.content as Record<string, unknown>).tags) && ((item.content as Record<string, unknown>).tags as unknown[]).length > 0) &&
+                        !(item.tags && item.tags.length > 0) && (
+                        <span className="text-[var(--worship-muted-slate)] italic text-xs">No preview available</span>
+                      )}
+                    </div>
                   ) : item.content.body ? (
-                    String(item.content.body)
+                    <p className="line-clamp-3">{String(item.content.body)}</p>
                   ) : item.content.reflection ? (
-                    String(item.content.reflection)
+                    <p className="line-clamp-3">{String(item.content.reflection)}</p>
                   ) : (
                     'No preview available'
                   )}
@@ -713,7 +837,7 @@ export default function Library() {
                   </span>
                   <div className="flex items-center gap-1.5">
                     <UsedInBadge itemId={item.id} />
-                    {item.tags && item.tags.length > 0 && (
+                    {item.kind !== 'song' && item.tags && item.tags.length > 0 && (
                       <div className="flex gap-1">
                         {item.tags.slice(0, 2).map((t) => (
                           <span
@@ -1996,6 +2120,18 @@ function ItemDetailBody({ item }: { item: LibraryItem }) {
   const contentThemes = arr('themes');
   const themes = contentThemes.length > 0 ? contentThemes : (item.tags ?? []);
   const why = str('whyItFits');
+
+  // PCS-synced fields
+  const primaryKey = typeof (item.content as Record<string, unknown>).key === 'string'
+    ? ((item.content as Record<string, unknown>).key as string)
+    : null;
+  const availableKeys = arr('availableKeys').filter(k => typeof k === 'string') as string[];
+  const contentTags = arr('tags').filter(t => typeof t === 'string') as string[];
+  const ccli = str('ccli');
+  const copyright = str('copyright');
+
+  const hasAnyInfo = !!(artist || style || bpm !== null || themes.length > 0 || availableKeys.length > 0 || primaryKey || contentTags.length > 0 || ccli || copyright || why);
+
   return (
     <div className="space-y-5">
       {artist && (
@@ -2025,12 +2161,69 @@ function ItemDetailBody({ item }: { item: LibraryItem }) {
           ))}
         </div>
       )}
+
+      {(availableKeys.length > 0 || primaryKey) && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--worship-slate)] mb-2">
+            Available Keys
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {(availableKeys.length > 0 ? availableKeys : primaryKey ? [primaryKey] : []).map((k) => (
+              <span
+                key={k}
+                className={`text-xs px-2 py-0.5 rounded font-mono font-medium border ${
+                  k === primaryKey
+                    ? 'bg-[var(--worship-pale-gold)] text-[var(--worship-gold)] border-[var(--worship-pale-gold)]'
+                    : 'bg-[var(--worship-cream)] text-[var(--worship-slate)] border-[var(--worship-border)]'
+                }`}
+              >
+                {k}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {contentTags.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--worship-slate)] mb-2">
+            Tags
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {contentTags.map((t) => (
+              <span
+                key={t}
+                className="text-xs px-2 py-0.5 rounded-full bg-[var(--worship-sand)] text-[var(--worship-navy)] font-medium"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {why && (
         <p className="text-base italic font-serif text-[var(--worship-charcoal)] leading-relaxed">
           "{why}"
         </p>
       )}
-      {!artist && !style && themes.length === 0 && !why && (
+
+      {(ccli || copyright) && (
+        <div className="pt-4 border-t border-[var(--worship-border)] space-y-1">
+          {ccli && (
+            <p className="text-xs text-[var(--worship-muted-slate)]">
+              <span className="font-semibold">CCLI #</span> {ccli}
+            </p>
+          )}
+          {copyright && (
+            <p className="text-xs text-[var(--worship-muted-slate)]">
+              {copyright}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!hasAnyInfo && (
         <p className="text-sm italic text-[var(--worship-muted-slate)]">
           No additional details saved for this song.
         </p>
