@@ -468,7 +468,7 @@ export default function ServiceBuilder() {
       <ProfileRequiredBanner variant="inline" />
       <div className="flex flex-col lg:flex-row gap-8 h-auto min-h-[calc(100vh-8rem)]">
         {/* LEFT PANEL: INPUT FORM */}
-        <div className="w-full lg:w-[40%] flex flex-col worship-card overflow-hidden !p-0 shrink-0 self-start sticky top-8 max-h-[calc(100vh-8rem)]">
+        <div className="w-full lg:w-[40%] flex flex-col worship-card overflow-hidden !p-0 shrink-0 lg:self-start lg:sticky lg:top-8 lg:max-h-[calc(100vh-8rem)]">
           <div
             className="p-6 border-b bg-white"
             style={{ borderColor: 'var(--worship-border)' }}

@@ -513,10 +513,10 @@ export default function SoulCareGenerator() {
           )}
 
           {generate.data && !generate.isPending && (
-            <div className="p-8 h-full flex flex-col max-h-[calc(100vh-10rem)] overflow-y-auto">
-              <div className="flex justify-between items-start mb-6 gap-4">
+            <div className="p-4 sm:p-8 h-full flex flex-col max-h-[calc(100vh-10rem)] overflow-y-auto">
+              <div className="flex flex-wrap justify-between items-start mb-4 sm:mb-6 gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-2xl font-serif text-[var(--worship-navy)]">
+                  <h2 className="text-xl sm:text-2xl font-serif text-[var(--worship-navy)]">
                     {generate.data.title}
                   </h2>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -531,7 +531,7 @@ export default function SoulCareGenerator() {
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex flex-wrap gap-2 shrink-0">
                   <button
                     onClick={handleCopy}
                     className="p-2 rounded-lg border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-slate-50 transition-colors"

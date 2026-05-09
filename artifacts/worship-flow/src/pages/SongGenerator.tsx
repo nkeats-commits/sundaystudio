@@ -634,9 +634,9 @@ export default function SongGenerator() {
           )}
 
           {generate.data && !generate.isPending && (
-            <div className="p-6 h-full flex flex-col">
-              <div className="flex justify-between items-center mb-6">
-                <div>
+            <div className="p-4 sm:p-6 h-full flex flex-col">
+              <div className="flex flex-wrap justify-between items-center mb-4 sm:mb-6 gap-2">
+                <div className="min-w-0">
                   <h2 className="text-xl font-serif text-[var(--worship-navy)]">
                     Suggested Songs
                   </h2>
@@ -665,7 +665,7 @@ export default function SongGenerator() {
                     data-testid={`card-song-${i}`}
                   >
                     <div className="flex justify-between items-start gap-4">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-lg font-serif font-medium text-[var(--worship-navy)]">
                             {song.title}

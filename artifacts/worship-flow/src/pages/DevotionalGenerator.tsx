@@ -259,10 +259,10 @@ export default function DevotionalGenerator() {
           )}
 
           {generate.data && !generate.isPending && (
-            <div className="p-8 h-full flex flex-col max-h-[calc(100vh-10rem)] overflow-y-auto">
-              <div className="flex justify-between items-start mb-8">
-                <h2 className="text-2xl font-serif text-[var(--worship-navy)]">{generate.data.title}</h2>
-                <div className="flex gap-2 shrink-0">
+            <div className="p-4 sm:p-8 h-full flex flex-col max-h-[calc(100vh-10rem)] overflow-y-auto">
+              <div className="flex flex-wrap justify-between items-start mb-4 sm:mb-8 gap-3">
+                <h2 className="text-xl sm:text-2xl font-serif text-[var(--worship-navy)] min-w-0">{generate.data.title}</h2>
+                <div className="flex flex-wrap gap-2 shrink-0">
                   <button onClick={handleCopy} className="p-2 rounded-lg border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-slate-50 transition-colors" title="Copy">
                     <Copy className="w-4 h-4" />
                   </button>
