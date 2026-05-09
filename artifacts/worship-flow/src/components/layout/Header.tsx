@@ -28,18 +28,70 @@ function useDebounced<T>(value: T, delay = 150): T {
   return debounced;
 }
 
+function SearchResultsList({
+  hits,
+  query,
+  onSelect,
+}: {
+  hits: SearchHit[];
+  query: string;
+  onSelect: (hit: SearchHit) => void;
+}) {
+  const iconFor = (kind: SearchHit['kind']) => {
+    if (kind === 'sermon') return <Mic className="w-3.5 h-3.5" />;
+    if (kind === 'service') return <FileText className="w-3.5 h-3.5" />;
+    return <Music className="w-3.5 h-3.5" />;
+  };
+
+  return hits.length === 0 ? (
+    <div className="px-4 py-6 text-center text-sm text-[var(--worship-muted-slate)]">
+      <BookOpen className="w-5 h-5 mx-auto mb-2 opacity-50" />
+      No matches for "{query}"
+    </div>
+  ) : (
+    <ul className="py-1">
+      {hits.map((hit) => (
+        <li key={hit.id}>
+          <button
+            type="button"
+            onClick={() => onSelect(hit)}
+            className="w-full text-left px-4 py-2.5 hover:bg-[var(--worship-cream)] flex items-start gap-3 transition-colors"
+          >
+            <span
+              className="mt-0.5 w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+              style={{
+                backgroundColor: 'var(--worship-pale-gold)',
+                color: 'var(--worship-navy)',
+              }}
+            >
+              {iconFor(hit.kind)}
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-medium text-[var(--worship-navy)] truncate">
+                {hit.title}
+              </span>
+              <span className="block text-xs text-[var(--worship-muted-slate)] truncate">
+                {hit.subtitle}
+              </span>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; onMenuClick?: () => void }) {
   const [, setLocation] = useLocation();
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
   const debounced = useDebounced(query.trim().toLowerCase(), 150);
 
-  // Only fetch lists once the user starts searching, to avoid unnecessary
-  // network on every page nav. React Query caches them across the session.
+  // Only fetch lists once the user starts searching.
   const enabled = debounced.length >= 2;
   const sermonsQ = useListSermons({
     query: { enabled, queryKey: getListSermonsQueryKey() },
@@ -63,9 +115,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
           id: `sermon-${s.id}`,
           href: `/sermons/${s.id}`,
           title: s.title,
-          subtitle:
-            [s.passage, s.theme, s.series].filter(Boolean).join(' · ') ||
-            'Sermon',
+          subtitle: [s.passage, s.theme, s.series].filter(Boolean).join(' · ') || 'Sermon',
           kind: 'sermon',
         });
       }
@@ -76,9 +126,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
           id: `service-${sp.id}`,
           href: `/services/${sp.id}`,
           title: sp.title,
-          subtitle:
-            [sp.scripture, sp.theme, sp.season].filter(Boolean).join(' · ') ||
-            'Service plan',
+          subtitle: [sp.scripture, sp.theme, sp.season].filter(Boolean).join(' · ') || 'Service plan',
           kind: 'service',
         });
       }
@@ -99,42 +147,49 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
 
   // Close desktop dropdown on outside click.
   useEffect(() => {
-    if (!open) return;
+    if (!dropdownOpen) return;
     const onDocClick = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [open]);
+  }, [dropdownOpen]);
+
+  // Auto-close mobile search when viewport crosses the md breakpoint.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) closeMobileSearch();
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // Focus mobile input when search overlay opens.
   useEffect(() => {
-    if (mobileSearchOpen) {
-      setTimeout(() => mobileInputRef.current?.focus(), 50);
-    }
+    if (!mobileSearchOpen) return;
+    const t = setTimeout(() => mobileInputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
   }, [mobileSearchOpen]);
 
   const closeMobileSearch = () => {
     setMobileSearchOpen(false);
     setQuery('');
-    setOpen(false);
+    setDropdownOpen(false);
   };
 
   const go = (hit: SearchHit) => {
     setLocation(hit.href);
-    setOpen(false);
+    setDropdownOpen(false);
     setQuery('');
     setMobileSearchOpen(false);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
-      setOpen(false);
+      setDropdownOpen(false);
       if (mobileSearchOpen) {
         closeMobileSearch();
       } else {
@@ -146,58 +201,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
     }
   };
 
-  const iconFor = (kind: SearchHit['kind']) => {
-    if (kind === 'sermon') return <Mic className="w-3.5 h-3.5" />;
-    if (kind === 'service') return <FileText className="w-3.5 h-3.5" />;
-    return <Music className="w-3.5 h-3.5" />;
-  };
-
-  const searchResults = debounced.length >= 2 && (open || mobileSearchOpen) && (
-    <div
-      className="absolute left-0 right-0 top-[110%] max-h-[60vh] overflow-y-auto rounded-xl shadow-lg border z-50"
-      style={{
-        backgroundColor: 'var(--worship-white)',
-        borderColor: 'var(--worship-border)',
-      }}
-    >
-      {hits.length === 0 ? (
-        <div className="px-4 py-6 text-center text-sm text-[var(--worship-muted-slate)]">
-          <BookOpen className="w-5 h-5 mx-auto mb-2 opacity-50" />
-          No matches for "{query}"
-        </div>
-      ) : (
-        <ul className="py-1">
-          {hits.map((hit) => (
-            <li key={hit.id}>
-              <button
-                type="button"
-                onClick={() => go(hit)}
-                className="w-full text-left px-4 py-2.5 hover:bg-[var(--worship-cream)] flex items-start gap-3 transition-colors"
-              >
-                <span
-                  className="mt-0.5 w-6 h-6 rounded-md flex items-center justify-center shrink-0"
-                  style={{
-                    backgroundColor: 'var(--worship-pale-gold)',
-                    color: 'var(--worship-navy)',
-                  }}
-                >
-                  {iconFor(hit.kind)}
-                </span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-medium text-[var(--worship-navy)] truncate">
-                    {hit.title}
-                  </span>
-                  <span className="block text-xs text-[var(--worship-muted-slate)] truncate">
-                    {hit.subtitle}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+  const showResults = debounced.length >= 2;
 
   return (
     <header
@@ -207,7 +211,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
         borderColor: 'var(--worship-border)',
       }}
     >
-      {/* Mobile search overlay — shown when mobileSearchOpen */}
+      {/* Mobile search overlay */}
       {mobileSearchOpen && (
         <div className="md:hidden flex items-center gap-2 h-full px-3 relative">
           <button
@@ -227,11 +231,8 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
               ref={mobileInputRef}
               type="text"
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setOpen(true);
-              }}
-              onFocus={() => setOpen(true)}
+              onChange={(e) => { setQuery(e.target.value); setDropdownOpen(true); }}
+              onFocus={() => setDropdownOpen(true)}
               onKeyDown={onKeyDown}
               placeholder="Search sermons, services, library..."
               className="w-full pl-9 pr-8 py-2 rounded-full text-sm outline-none"
@@ -244,10 +245,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
             {query && (
               <button
                 type="button"
-                onClick={() => {
-                  setQuery('');
-                  setOpen(false);
-                }}
+                onClick={() => { setQuery(''); setDropdownOpen(false); }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-white"
                 aria-label="Clear search"
               >
@@ -256,11 +254,21 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
             )}
           </div>
 
-          {searchResults}
+          {showResults && (
+            <div
+              className="absolute left-0 right-0 top-[calc(100%+1px)] max-h-[60vh] overflow-y-auto rounded-xl shadow-lg border z-50 mx-3"
+              style={{
+                backgroundColor: 'var(--worship-white)',
+                borderColor: 'var(--worship-border)',
+              }}
+            >
+              <SearchResultsList hits={hits} query={query} onSelect={go} />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Normal header — hamburger + title + icons */}
+      {/* Normal header row */}
       {!mobileSearchOpen && (
         <div className="flex items-center justify-between h-full px-4 md:px-8">
           <div className="flex items-center gap-3">
@@ -275,10 +283,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
             )}
             <h2
               className="text-lg md:text-xl font-medium"
-              style={{
-                color: 'var(--worship-navy)',
-                fontFamily: 'var(--font-serif)',
-              }}
+              style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
             >
               {title}
             </h2>
@@ -287,7 +292,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
           <div className="flex items-center gap-2 md:gap-4">
             <TrialPill />
 
-            {/* Mobile: search icon button */}
+            {/* Mobile: search icon opens overlay */}
             <button
               onClick={() => setMobileSearchOpen(true)}
               className="md:hidden p-1.5 rounded-lg text-[var(--worship-slate)] hover:bg-[var(--worship-cream)] transition-colors"
@@ -305,11 +310,8 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
               <input
                 type="text"
                 value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setOpen(true);
-                }}
-                onFocus={() => setOpen(true)}
+                onChange={(e) => { setQuery(e.target.value); setDropdownOpen(true); }}
+                onFocus={() => setDropdownOpen(true)}
                 onKeyDown={onKeyDown}
                 placeholder="Search sermons, services, library..."
                 className="pl-9 pr-8 py-1.5 rounded-full text-sm outline-none w-64 transition-all focus:w-80"
@@ -322,10 +324,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
               {query && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setQuery('');
-                    setOpen(false);
-                  }}
+                  onClick={() => { setQuery(''); setDropdownOpen(false); }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-white"
                   aria-label="Clear search"
                 >
@@ -333,7 +332,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
                 </button>
               )}
 
-              {open && debounced.length >= 2 && (
+              {dropdownOpen && showResults && (
                 <div
                   className="absolute right-0 top-[110%] w-96 max-h-96 overflow-y-auto rounded-xl shadow-lg border z-50"
                   style={{
@@ -341,42 +340,7 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
                     borderColor: 'var(--worship-border)',
                   }}
                 >
-                  {hits.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-sm text-[var(--worship-muted-slate)]">
-                      <BookOpen className="w-5 h-5 mx-auto mb-2 opacity-50" />
-                      No matches for "{query}"
-                    </div>
-                  ) : (
-                    <ul className="py-1">
-                      {hits.map((hit) => (
-                        <li key={hit.id}>
-                          <button
-                            type="button"
-                            onClick={() => go(hit)}
-                            className="w-full text-left px-4 py-2.5 hover:bg-[var(--worship-cream)] flex items-start gap-3 transition-colors"
-                          >
-                            <span
-                              className="mt-0.5 w-6 h-6 rounded-md flex items-center justify-center shrink-0"
-                              style={{
-                                backgroundColor: 'var(--worship-pale-gold)',
-                                color: 'var(--worship-navy)',
-                              }}
-                            >
-                              {iconFor(hit.kind)}
-                            </span>
-                            <span className="flex-1 min-w-0">
-                              <span className="block text-sm font-medium text-[var(--worship-navy)] truncate">
-                                {hit.title}
-                              </span>
-                              <span className="block text-xs text-[var(--worship-muted-slate)] truncate">
-                                {hit.subtitle}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <SearchResultsList hits={hits} query={query} onSelect={go} />
                 </div>
               )}
             </div>
