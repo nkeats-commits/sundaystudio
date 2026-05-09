@@ -12,6 +12,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import { normalizeTitle } from "../lib/repertoire";
 import { recordBpmFromContent } from "../lib/crowdsourceBpm";
+import { lyricsExcerpt } from "../lib/songFieldParsers";
 
 const router: IRouter = Router();
 
@@ -49,13 +50,25 @@ router.post("/library", requireAuth, requireActiveAccess, async (req, res) => {
     return;
   }
   const data = parsed.data;
+  // For songs: compute a lyric excerpt from the pasted lyrics so the AI
+  // has a concise passage to work with in prompt context.
+  let contentWithExcerpt = data.content as Record<string, unknown>;
+  if (data.kind === "song") {
+    const rawLyrics = (contentWithExcerpt as Record<string, unknown>).lyrics;
+    if (typeof rawLyrics === "string" && rawLyrics.trim()) {
+      contentWithExcerpt = {
+        ...contentWithExcerpt,
+        lyricsExcerpt: lyricsExcerpt(rawLyrics),
+      };
+    }
+  }
   const [row] = await db
     .insert(libraryItemsTable)
     .values({
       userId: req.userId!,
       kind: data.kind,
       title: data.title,
-      content: data.content,
+      content: contentWithExcerpt,
       tags: data.tags ?? [],
       // Only songs can be in the repertoire — silently drop the flag for any
       // other kind so we don't leak it through the UI later.
@@ -255,8 +268,18 @@ router.patch("/library/:id", requireAuth, requireActiveAccess, async (req, res) 
     }
     updates.title = trimmed;
   }
-  if (parsed.data.content !== undefined)
-    updates.content = parsed.data.content as Record<string, unknown>;
+  if (parsed.data.content !== undefined) {
+    const incoming = parsed.data.content as Record<string, unknown>;
+    // Re-derive the lyric excerpt whenever lyrics are present; clear it when
+    // the user has removed lyrics from the content blob.
+    const rawLyrics = incoming.lyrics;
+    if (typeof rawLyrics === "string" && rawLyrics.trim()) {
+      incoming.lyricsExcerpt = lyricsExcerpt(rawLyrics);
+    } else {
+      delete incoming.lyricsExcerpt;
+    }
+    updates.content = incoming;
+  }
   if (parsed.data.tags !== undefined) updates.tags = parsed.data.tags;
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No fields to update" });

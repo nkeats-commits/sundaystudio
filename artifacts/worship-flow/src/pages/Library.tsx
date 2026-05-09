@@ -246,6 +246,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
   const [style, setStyle] = useState('');
   const [bpm, setBpm] = useState('');
   const [tagsInput, setTagsInput] = useState('');
+  const [lyrics, setLyrics] = useState('');
   const create = useCreateLibraryItem();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -254,6 +255,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
     if (!t) return;
     const a = artist.trim();
     const s = style.trim();
+    const l = lyrics.trim();
     // BPM is a free-form text input so the user can clear it; coerce to a
     // sane integer or drop it entirely. Out-of-range values are silently
     // ignored — the matching number input also caps the range.
@@ -265,6 +267,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
     if (Number.isFinite(bpmNum) && bpmNum >= 30 && bpmNum <= 300) {
       content.bpm = Math.round(bpmNum);
     }
+    if (l) content.lyrics = l;
     const tags = tagsInput
       .split(',')
       .map((x) => x.trim())
@@ -285,6 +288,7 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
       setStyle('');
       setBpm('');
       setTagsInput('');
+      setLyrics('');
       onAdded();
     } catch (err) {
       toast.error(
@@ -338,6 +342,14 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
         placeholder="Tags, comma-separated (optional)"
         className="px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm"
         data-testid="input-add-song-tags"
+      />
+      <textarea
+        value={lyrics}
+        onChange={(e) => setLyrics(e.target.value)}
+        placeholder="Paste lyrics (optional) — helps the AI match songs to your sermon theme"
+        rows={4}
+        className="sm:col-span-2 px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)] text-sm font-sans leading-relaxed resize-y"
+        data-testid="input-add-song-lyrics"
       />
       <button
         type="submit"
@@ -1223,6 +1235,7 @@ type EditDraft = {
   bpm: string;
   themes: string;
   whyItFits: string;
+  lyrics: string;
 };
 
 function emptyDraft(): EditDraft {
@@ -1243,6 +1256,7 @@ function emptyDraft(): EditDraft {
     bpm: '',
     themes: '',
     whyItFits: '',
+    lyrics: '',
   };
 }
 
@@ -1280,6 +1294,7 @@ function draftFromItem(item: LibraryItem): EditDraft {
         : '',
     themes: songThemes.join(', '),
     whyItFits: str('whyItFits'),
+    lyrics: str('lyrics'),
   };
 }
 
@@ -1338,6 +1353,14 @@ function contentFromDraft(
       .filter(Boolean);
     if (themes.length > 0) next.themes = themes;
     else delete next.themes;
+    // lyrics — server computes lyricsExcerpt from this on save
+    const lyricsVal = draft.lyrics.trim();
+    if (lyricsVal) {
+      next.lyrics = lyricsVal;
+    } else {
+      delete next.lyrics;
+      delete next.lyricsExcerpt;
+    }
   }
   return next;
 }
@@ -1874,6 +1897,20 @@ function ItemEditBody({
           data-testid="input-edit-why-it-fits"
         />
       </div>
+      <div>
+        <label className={labelClass}>Lyrics (optional)</label>
+        <p className="text-xs text-[var(--worship-muted-slate)] mb-1.5">
+          Paste lyrics so the AI can use them when building song sets.
+        </p>
+        <textarea
+          value={draft.lyrics}
+          onChange={(e) => setDraft({ ...draft, lyrics: e.target.value })}
+          rows={10}
+          className={textareaClass}
+          placeholder="Paste song lyrics here…"
+          data-testid="input-edit-lyrics"
+        />
+      </div>
     </div>
   );
 }
@@ -2247,6 +2284,17 @@ function ItemDetailBody({ item }: { item: LibraryItem }) {
         <p className="text-base italic font-serif text-[var(--worship-charcoal)] leading-relaxed">
           "{why}"
         </p>
+      )}
+
+      {str('lyrics') && (
+        <div className="pt-4 border-t border-[var(--worship-border)]">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--worship-slate)] mb-2">
+            Lyrics
+          </p>
+          <pre className="text-sm font-sans leading-relaxed text-[var(--worship-charcoal)] whitespace-pre-wrap bg-[var(--worship-cream)] rounded-lg p-4 border border-[var(--worship-border)]">
+            {str('lyrics')}
+          </pre>
+        </div>
       )}
 
       {(ccli || copyright) && (
