@@ -29,26 +29,26 @@ export default function Dashboard() {
 
   return (
     <AppLayout title="Dashboard">
-      <div className="max-w-6xl mx-auto space-y-10">
+      <div className="max-w-6xl mx-auto space-y-8 md:space-y-10">
 
         <OnboardingBanner />
 
         {/* Welcome Section */}
-        <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b" style={{ borderColor: 'var(--worship-border)' }}>
+        <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 pb-6 border-b" style={{ borderColor: 'var(--worship-border)' }}>
           <div>
-            <h1 className="text-3xl mb-2 font-serif text-[var(--worship-navy)]">Welcome back, {firstName}.</h1>
-            <p className="text-lg mb-4" style={{ color: 'var(--worship-slate)' }}>What are you planning this week?</p>
+            <h1 className="text-2xl md:text-3xl mb-2 font-serif text-[var(--worship-navy)]">Welcome back, {firstName}.</h1>
+            <p className="text-base md:text-lg mb-3 md:mb-4" style={{ color: 'var(--worship-slate)' }}>What are you planning this week?</p>
             {dashboard?.verseOfDay && (
               <p className="text-sm italic max-w-2xl" style={{ color: 'var(--worship-muted-slate)', fontFamily: 'var(--font-serif)' }}>
                 "{dashboard.verseOfDay.text}" — {dashboard.verseOfDay.reference}
               </p>
             )}
           </div>
-          <div className="flex gap-4">
-            <Link href="/generators/liturgy" className="px-6 py-2.5 rounded-xl font-medium worship-btn-outline flex items-center gap-2 text-sm">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <Link href="/generators/liturgy" className="px-5 py-2.5 rounded-xl font-medium worship-btn-outline flex items-center justify-center gap-2 text-sm">
               <BookOpen className="w-4 h-4" /> Generate Liturgy
             </Link>
-            <Link href="/service-builder" className="px-6 py-2.5 rounded-xl font-medium worship-btn-primary flex items-center gap-2 shadow-md text-sm">
+            <Link href="/service-builder" className="px-5 py-2.5 rounded-xl font-medium worship-btn-primary flex items-center justify-center gap-2 shadow-md text-sm">
               <Layers className="w-4 h-4" /> Build a Service
             </Link>
           </div>
@@ -57,7 +57,7 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <section>
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--worship-muted-slate)' }}>Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
             {[
               { icon: Layers, label: "Build a Service", href: "/service-builder" },
               { icon: BookOpen, label: "Generate Liturgy", href: "/generators/liturgy" },
@@ -91,7 +91,7 @@ export default function Dashboard() {
                <Link href="/service-builder" className="worship-btn-outline px-4 py-2 rounded-lg text-sm">Build your first service</Link>
              </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               {dashboard.recentServices.map((service) => (
                 <div 
                   key={service.id} 
@@ -123,7 +123,7 @@ export default function Dashboard() {
         {dashboard?.suggestions && dashboard.suggestions.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--worship-muted-slate)' }}>Ideas For You</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {dashboard.suggestions.map((suggestion) => {
                 let href = "/service-builder";
                 if (suggestion.kind === "liturgy") href = "/generators/liturgy";
@@ -152,7 +152,7 @@ export default function Dashboard() {
         
         {/* Stats */}
         {dashboard && (
-          <div className="pt-8 flex items-center gap-6 text-sm" style={{ color: 'var(--worship-muted-slate)' }}>
+          <div className="pt-6 md:pt-8 flex flex-wrap items-center gap-4 md:gap-6 text-sm" style={{ color: 'var(--worship-muted-slate)' }}>
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {dashboard.servicesThisMonth} plans created this month</span>
             <span className="flex items-center gap-2"><BookOpen className="w-4 h-4" /> {dashboard.librarySize} items in library</span>
           </div>

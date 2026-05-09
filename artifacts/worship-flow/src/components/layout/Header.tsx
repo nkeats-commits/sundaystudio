@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, FileText, BookOpen, Mic, Music, X } from 'lucide-react';
+import { Search, FileText, BookOpen, Mic, Music, X, Menu } from 'lucide-react';
 import { useLocation } from 'wouter';
 import {
   useListSermons,
@@ -28,7 +28,7 @@ function useDebounced<T>(value: T, delay = 150): T {
   return debounced;
 }
 
-export function Header({ title = 'Dashboard' }: { title?: string }) {
+export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; onMenuClick?: () => void }) {
   const [, setLocation] = useLocation();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -134,23 +134,34 @@ export function Header({ title = 'Dashboard' }: { title?: string }) {
 
   return (
     <header
-      className="h-16 flex items-center justify-between px-8 border-b shrink-0 worship-app-chrome"
+      className="h-14 md:h-16 flex items-center justify-between px-4 md:px-8 border-b shrink-0 worship-app-chrome"
       style={{
         backgroundColor: 'var(--worship-white)',
         borderColor: 'var(--worship-border)',
       }}
     >
-      <h2
-        className="text-xl font-medium"
-        style={{
-          color: 'var(--worship-navy)',
-          fontFamily: 'var(--font-serif)',
-        }}
-      >
-        {title}
-      </h2>
+      <div className="flex items-center gap-3">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="md:hidden p-1.5 rounded-lg text-[var(--worship-slate)] hover:bg-[var(--worship-cream)] transition-colors"
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+        <h2
+          className="text-lg md:text-xl font-medium"
+          style={{
+            color: 'var(--worship-navy)',
+            fontFamily: 'var(--font-serif)',
+          }}
+        >
+          {title}
+        </h2>
+      </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 md:gap-4">
         <TrialPill />
         <div ref={containerRef} className="relative hidden md:block">
           <Search

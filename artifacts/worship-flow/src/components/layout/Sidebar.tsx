@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   ListVideo,
@@ -17,16 +17,25 @@ import {
   Layers,
   Plug,
   CreditCard,
+  X,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
 import { Shield } from 'lucide-react';
 import { useIsOwner } from '../../hooks/useIsOwner';
 
-export function Sidebar() {
+export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [location] = useLocation();
   const { user } = useUser();
   const { isOwner } = useIsOwner();
+
+  const prevLocationRef = useRef(location);
+  useEffect(() => {
+    if (location !== prevLocationRef.current) {
+      prevLocationRef.current = location;
+      onClose();
+    }
+  }, [location, onClose]);
 
   const sermonItems = [
     { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
@@ -63,15 +72,8 @@ export function Sidebar() {
   const initials = (firstName?.[0] || '') + (lastName?.[0] || '') || email?.[0]?.toUpperCase() || 'U';
   const fullName = firstName || lastName ? `${firstName} ${lastName}`.trim() : email;
 
-  return (
-    <div className="w-64 shrink-0 flex flex-col h-screen sticky top-0" style={{ backgroundColor: 'var(--worship-navy)', color: 'white' }}>
-      <div className="p-6 flex items-center gap-3">
-        <Flame className="w-6 h-6" style={{ color: 'var(--worship-gold)' }} />
-        <span className="text-xl font-semibold tracking-tight" style={{ color: 'var(--worship-gold)', fontFamily: 'var(--font-serif)' }}>
-          Sunday Studio
-        </span>
-      </div>
-      
+  const navContent = (
+    <>
       <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-3">
         {navItems.map((item, i) => {
           const active = location === item.href;
@@ -80,15 +82,15 @@ export function Sidebar() {
               key={i}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                active 
-                  ? 'bg-white/10 text-white' 
+                active
+                  ? 'bg-white/10 text-white'
                   : 'text-slate-300 hover:bg-white/5 hover:text-white'
               }`}
             >
               <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
               {item.label}
             </Link>
-          )
+          );
         })}
 
         <div className="my-4 mx-3 h-px bg-white/10" />
@@ -119,7 +121,7 @@ export function Sidebar() {
         })}
 
         <div className="my-4 mx-3 h-px bg-white/10" />
-        
+
         {bottomItems.map((item, i) => {
           const active = location === item.href || location.startsWith(item.href + '/');
           return (
@@ -127,18 +129,18 @@ export function Sidebar() {
               key={i}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                active 
-                  ? 'bg-white/10 text-white' 
+                active
+                  ? 'bg-white/10 text-white'
                   : 'text-slate-300 hover:bg-white/5 hover:text-white'
               }`}
             >
               <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
               {item.label}
             </Link>
-          )
+          );
         })}
       </div>
-      
+
       <div className="p-4 border-t border-white/10">
         <div className="flex items-center gap-3 px-2 overflow-hidden">
           <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--worship-gold)] flex items-center justify-center text-[var(--worship-navy)] font-bold text-sm">
@@ -150,6 +152,50 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar — sticky left column, always visible */}
+      <div
+        className="hidden md:flex md:w-56 lg:w-64 shrink-0 flex-col h-screen sticky top-0"
+        style={{ backgroundColor: 'var(--worship-navy)', color: 'white' }}
+      >
+        <div className="p-6 flex items-center gap-3">
+          <Flame className="w-6 h-6" style={{ color: 'var(--worship-gold)' }} />
+          <span className="text-xl font-semibold tracking-tight" style={{ color: 'var(--worship-gold)', fontFamily: 'var(--font-serif)' }}>
+            Sunday Studio
+          </span>
+        </div>
+        {navContent}
+      </div>
+
+      {/* Mobile sidebar — fixed overlay drawer */}
+      <div
+        className={`md:hidden fixed inset-y-0 left-0 z-50 flex flex-col w-72 transition-transform duration-300 ease-in-out ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{ backgroundColor: 'var(--worship-navy)', color: 'white' }}
+        aria-hidden={!open}
+      >
+        <div className="p-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Flame className="w-6 h-6" style={{ color: 'var(--worship-gold)' }} />
+            <span className="text-xl font-semibold tracking-tight" style={{ color: 'var(--worship-gold)', fontFamily: 'var(--font-serif)' }}>
+              Sunday Studio
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {navContent}
+      </div>
+    </>
   );
 }
