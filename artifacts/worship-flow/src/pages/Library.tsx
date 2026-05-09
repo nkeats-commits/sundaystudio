@@ -540,11 +540,12 @@ export default function Library() {
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 pt-2">
               <div className="max-w-xl">
                 <h2 className="font-serif text-lg text-[var(--worship-navy)]">
-                  Songs your team already knows
+                  {isRepertoireSubView ? 'Songs your team already knows' : 'All saved songs'}
                 </h2>
                 <p className="text-sm text-[var(--worship-slate)] mt-1">
-                  The Song Assistant will lean on this list when picking
-                  songs, so suggestions feel familiar to your worship team.
+                  {isRepertoireSubView
+                    ? 'The Song Assistant will lean on this list when picking songs, so suggestions feel familiar to your worship team.'
+                    : 'Every song saved by the AI generators. Star any song to add it to your repertoire so the Song Assistant can prefer or restrict to it.'}
                 </p>
               </div>
               <div className="self-start flex flex-wrap items-center gap-2">
