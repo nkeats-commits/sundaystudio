@@ -517,12 +517,12 @@ export default function Library() {
       label: 'Repertoire',
       suffix: repertoireCount > 0 ? `(${repertoireCount})` : undefined,
     },
-    { id: 'all', label: 'All' },
     { id: 'liturgy', label: 'Liturgies' },
     { id: 'speaking_moment', label: 'Speaking Moments' },
     { id: 'devotional', label: 'Devotionals' },
     { id: 'soul_care', label: 'Soul Care' },
     { id: 'flows', label: 'Service Flows' },
+    { id: 'all', label: 'All' },
   ];
 
   const getIcon = (kind: string) => {
