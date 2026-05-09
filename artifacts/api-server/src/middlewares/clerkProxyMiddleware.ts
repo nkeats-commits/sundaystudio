@@ -69,6 +69,9 @@ export function clerkProxyMiddleware(): RequestHandler {
     pathRewrite: (path: string) =>
       path.replace(new RegExp(`^${CLERK_PROXY_PATH}`), ""),
     on: {
+      proxyRes: (proxyRes) => {
+        delete proxyRes.headers["x-robots-tag"];
+      },
       proxyReq: (proxyReq, req) => {
         const protocol = req.headers["x-forwarded-proto"] || "https";
         const host = getClerkProxyHost(req) || "";
