@@ -742,12 +742,12 @@ export default function SongGenerator() {
 
                       <div className="shrink-0 flex flex-col gap-1.5">
                         <button
-                          onClick={() => handleSaveSingle(i, song)}
-                          disabled={!!savedSongs[i]}
+                          onClick={!subAllowed ? () => setLocation('/pricing') : () => handleSaveSingle(i, song)}
+                          disabled={subAllowed && !!savedSongs[i]}
                           className="px-3 py-1.5 text-xs font-medium border border-[var(--worship-border)] rounded-lg text-[var(--worship-charcoal)] hover:bg-[var(--worship-cream)] hover:text-[var(--worship-navy)] transition-colors disabled:opacity-60"
                           data-testid={`button-save-song-${i}`}
                         >
-                          {savedSongs[i] ? 'Saved' : 'Save'}
+                          {!subAllowed ? 'Subscribe →' : savedSongs[i] ? 'Saved' : 'Save'}
                         </button>
                         <button
                           onClick={() => setAddToServiceIndex(i)}

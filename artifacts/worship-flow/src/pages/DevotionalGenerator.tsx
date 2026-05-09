@@ -279,8 +279,16 @@ export default function DevotionalGenerator() {
                   <button onClick={handleCopy} className="p-2 rounded-lg border border-[var(--worship-border)] text-[var(--worship-slate)] hover:bg-slate-50 transition-colors" title="Copy">
                     <Copy className="w-4 h-4" />
                   </button>
-                  <button onClick={handleSave} disabled={createLibraryItem.isPending || !!savedItem || !subAllowed} title={!subAllowed ? "Subscribe to save items" : undefined} className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50">
-                    <Save className="w-4 h-4" /> {createLibraryItem.isPending ? "Saving..." : savedItem ? "Saved" : "Save"}
+                  <button
+                    onClick={!subAllowed ? () => setLocation('/pricing') : handleSave}
+                    disabled={subAllowed && (createLibraryItem.isPending || !!savedItem)}
+                    className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {!subAllowed ? (
+                      <><ArrowRight className="w-4 h-4" /> Subscribe</>
+                    ) : (
+                      <><Save className="w-4 h-4" /> {createLibraryItem.isPending ? "Saving..." : savedItem ? "Saved" : "Save"}</>
+                    )}
                   </button>
                   <button onClick={() => setAddToServiceOpen(true)} className="px-4 py-2 rounded-lg font-medium text-sm border border-[var(--worship-border)] text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] flex items-center gap-2" data-testid="button-add-to-service">
                     <CalendarPlus className="w-4 h-4" /> Add to service

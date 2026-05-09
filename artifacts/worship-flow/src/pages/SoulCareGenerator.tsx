@@ -557,17 +557,18 @@ export default function SoulCareGenerator() {
                     <Printer className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={handleSave}
-                    disabled={createLibraryItem.isPending || !!savedItem || !subAllowed}
-                    title={!subAllowed ? 'Subscribe to save items' : undefined}
+                    onClick={!subAllowed ? () => setLocation('/pricing') : handleSave}
+                    disabled={subAllowed && (createLibraryItem.isPending || !!savedItem)}
                     className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50"
                   >
-                    <Save className="w-4 h-4" />{' '}
-                    {createLibraryItem.isPending
-                      ? 'Saving...'
-                      : savedItem
-                        ? 'Saved'
-                        : 'Save'}
+                    {!subAllowed ? (
+                      <><ArrowRight className="w-4 h-4" /> Subscribe</>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />{' '}
+                        {createLibraryItem.isPending ? 'Saving...' : savedItem ? 'Saved' : 'Save'}
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => setAddToServiceOpen(true)}
