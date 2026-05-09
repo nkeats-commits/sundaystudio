@@ -211,6 +211,16 @@ export async function importPcsSongs(
       userId,
       options.serviceTypeIds,
     );
+    // Warn specifically when the service-type look-up itself produced 0 song
+    // IDs — this is distinct from lastUsedSince removing all remaining songs
+    // and gives a precise signal that those service types have no scheduled
+    // songs yet (or the plans endpoint returned no song-type items).
+    if (allowedSongIds.size === 0) {
+      logger.warn(
+        { serviceTypeIds: options.serviceTypeIds },
+        "PCS service-type filter resolved but matched 0 song IDs — selected service types may have no scheduled songs yet",
+      );
+    }
   }
 
   // Optional date pre-filter cutoff.

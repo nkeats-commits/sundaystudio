@@ -273,12 +273,6 @@ router.post("/integrations/pcs/sync", requireAuth, async (req, res) => {
 
   try {
     const result = await importPcsSongs(req.userId!, options);
-    if (options.serviceTypeIds && options.serviceTypeIds.length > 0 && result.total === 0) {
-      req.log.warn(
-        { serviceTypeIds: options.serviceTypeIds },
-        "PCS service-type filter resolved but matched 0 songs — selected service types may have no scheduled songs yet",
-      );
-    }
     await db
       .update(pcsConnectionsTable)
       .set({
