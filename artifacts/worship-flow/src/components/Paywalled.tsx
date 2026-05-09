@@ -1,6 +1,13 @@
 import { Link } from 'wouter';
-import { CreditCard, ArrowRight } from 'lucide-react';
+import { Flame, ArrowRight, Check } from 'lucide-react';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+
+const FEATURES = [
+  'Unlimited service plans & AI generators',
+  'Sermon Builder with scholarly sources',
+  'Song Assistant with your repertoire',
+  'Soul Care, liturgy & speaking moments',
+];
 
 interface PaywalledProps {
   component: React.ComponentType;
@@ -20,48 +27,96 @@ export default function Paywalled({ component: Component }: PaywalledProps) {
 
   if (isLoading || allowed) return <Component />;
 
-  const headline =
-    state?.kind === 'expired'
-      ? 'Your free trial has ended'
-      : state?.kind === 'past_due'
-        ? 'Your payment needs attention'
-        : state?.kind === 'canceled'
-          ? 'Your subscription has been canceled'
-          : 'Subscribe to keep generating';
+  const isPastDue = state?.kind === 'past_due';
 
-  const body =
-    state?.kind === 'past_due'
-      ? 'Update your payment method to keep using Sunday Studio.'
-      : 'You can still view and edit, but new generations and saves are paused until you subscribe.';
+  const headline = isPastDue
+    ? 'Your payment needs attention'
+    : state?.kind === 'canceled'
+    ? 'Your subscription has ended'
+    : 'Your free trial has ended';
 
-  const ctaHref = state?.kind === 'past_due' ? '/billing' : '/pricing';
-  const ctaLabel = state?.kind === 'past_due' ? 'Manage billing' : 'Subscribe';
+  const body = isPastDue
+    ? 'Update your payment method to restore full access to Sunday Studio.'
+    : 'You can still view and edit your saved work — subscribe to unlock AI generation and saving.';
+
+  const ctaHref = isPastDue ? '/billing' : '/pricing';
+  const ctaLabel = isPastDue ? 'Update payment →' : 'Subscribe now — $9.99/mo →';
 
   return (
     <>
       <div
-        className="mb-4 p-4 rounded-2xl border flex items-start gap-3 flex-wrap"
-        style={{
-          backgroundColor: 'var(--worship-pale-gold, #F8F4EA)',
-          borderColor: 'var(--worship-gold, #C99A3D)',
-          color: 'var(--worship-navy, #1F2A44)',
-        }}
+        className="mb-6 rounded-2xl border-2 overflow-hidden"
+        style={{ borderColor: 'var(--worship-gold)' }}
       >
-        <div className="mt-0.5">
-          <CreditCard className="w-5 h-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold">{headline}</div>
-          <div className="text-sm opacity-80">{body}</div>
-        </div>
-        <Link
-          href={ctaHref}
-          className="inline-flex items-center gap-1 px-4 py-2 rounded-lg worship-btn-primary text-white text-sm font-medium"
+        <div
+          className="px-5 py-4 flex items-center gap-3"
+          style={{ backgroundColor: 'var(--worship-navy)' }}
         >
-          {ctaLabel}
-          <ArrowRight className="w-4 h-4" />
-        </Link>
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+            style={{ backgroundColor: 'var(--worship-gold)' }}
+          >
+            <Flame className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-serif font-semibold text-white leading-snug">{headline}</p>
+            <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              {body}
+            </p>
+          </div>
+          <Link
+            href={ctaHref}
+            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shrink-0 transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--worship-gold)', color: 'white' }}
+          >
+            {ctaLabel}
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {!isPastDue && (
+          <div
+            className="px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
+            style={{ backgroundColor: 'var(--worship-cream)' }}
+          >
+            <ul className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+              {FEATURES.map((f) => (
+                <li
+                  key={f}
+                  className="flex items-center gap-2 text-xs"
+                  style={{ color: 'var(--worship-charcoal)' }}
+                >
+                  <Check
+                    className="w-3.5 h-3.5 shrink-0"
+                    style={{ color: 'var(--worship-gold)' }}
+                  />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href={ctaHref}
+              className="sm:hidden inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
+              style={{ backgroundColor: 'var(--worship-navy)', color: 'white' }}
+            >
+              {ctaLabel}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
+
+        {isPastDue && (
+          <Link
+            href={ctaHref}
+            className="sm:hidden flex items-center justify-center gap-1.5 px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--worship-gold)', color: 'white' }}
+          >
+            {ctaLabel}
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        )}
       </div>
+
       <Component />
     </>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Loader2, Music, AlertCircle, Star, Info, CalendarPlus } from 'lucide-react';
+import { Loader2, Music, AlertCircle, Star, Info, CalendarPlus, ArrowRight } from 'lucide-react';
 import {
   useCreateLibraryItem,
   useListLibraryItems,
@@ -88,6 +88,7 @@ const REPERTOIRE_OPTIONS: {
 ];
 
 export default function SongGenerator() {
+  const [, setLocation] = useLocation();
   const MUSICAL_KEYS = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'Bb', 'Eb', 'Ab', 'F#', 'Db'];
 
   const [formData, setFormData] = useState({
@@ -549,28 +550,33 @@ export default function SongGenerator() {
               </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={generate.isPending || !profileReady || !subAllowed}
-              title={
-                !subAllowed
-                  ? 'Subscribe to enable AI generation'
-                  : !profileReady
-                  ? 'Finish your profile to enable AI generation'
-                  : undefined
-              }
-              className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              data-testid="button-find-songs"
-            >
-              {generate.isPending ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" /> Digging into the
-                  hymnal...
-                </>
-              ) : (
-                'Find Songs'
-              )}
-            </button>
+            {!subAllowed ? (
+              <button
+                type="button"
+                onClick={() => setLocation('/pricing')}
+                className="w-full py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'var(--worship-gold)' }}
+                data-testid="button-find-songs"
+              >
+                Subscribe to unlock <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={generate.isPending || !profileReady}
+                title={!profileReady ? 'Finish your profile to enable AI generation' : undefined}
+                className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="button-find-songs"
+              >
+                {generate.isPending ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> Digging into the hymnal...
+                  </>
+                ) : (
+                  'Find Songs'
+                )}
+              </button>
+            )}
           </form>
         </div>
 

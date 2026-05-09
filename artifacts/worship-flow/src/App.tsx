@@ -43,6 +43,7 @@ import AdminUserDetail from "./pages/AdminUserDetail";
 import { AdminOnly } from "./components/AdminOnly";
 import NotFound from "./pages/NotFound";
 import { OnboardingWizard } from "./components/OnboardingWizard";
+import { TrialEndedModal } from "./components/TrialEndedModal";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
@@ -334,6 +335,7 @@ function ClerkProviderWithRoutes() {
         <ClerkQueryClientCacheInvalidator />
         <ClerkAuthBootstrap />
         <OnboardingWizard />
+        <TrialEndedModal />
         <Switch>
           <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />

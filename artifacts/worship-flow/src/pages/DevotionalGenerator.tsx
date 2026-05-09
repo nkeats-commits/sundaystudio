@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Save, Loader2, Users, Copy, AlertCircle, CalendarPlus } from 'lucide-react';
+import { Save, Loader2, Users, Copy, AlertCircle, CalendarPlus, ArrowRight } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedDevotional, type LibraryItem } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -18,6 +19,7 @@ const DEVOTIONAL_PHASES = [
 ];
 
 export default function DevotionalGenerator() {
+  const [, setLocation] = useLocation();
   const [formData, setFormData] = useState({
     theme: '',
     scripture: '',
@@ -197,14 +199,25 @@ export default function DevotionalGenerator() {
               </p>
             </div>
 
-            <button 
-              type="submit"
-              disabled={generate.isPending || !profileReady || !subAllowed}
-              title={!subAllowed ? "Subscribe to enable AI generation" : !profileReady ? "Finish your profile to enable AI generation" : undefined}
-              className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generate.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Preparing...</> : "Generate Devotional"}
-            </button>
+            {!subAllowed ? (
+              <button
+                type="button"
+                onClick={() => setLocation('/pricing')}
+                className="w-full py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'var(--worship-gold)' }}
+              >
+                Subscribe to unlock <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={generate.isPending || !profileReady}
+                title={!profileReady ? "Finish your profile to enable AI generation" : undefined}
+                className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generate.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Preparing...</> : "Generate Devotional"}
+              </button>
+            )}
           </form>
         </div>
 

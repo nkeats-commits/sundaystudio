@@ -10,7 +10,9 @@ import {
   Printer,
   User,
   Users,
+  ArrowRight,
 } from 'lucide-react';
+import { useLocation } from 'wouter';
 import {
   useCreateLibraryItem,
   getListLibraryItemsQueryKey,
@@ -55,6 +57,7 @@ const PRACTICES = [
 const INTENT_MAX = 4000;
 
 export default function SoulCareGenerator() {
+  const [, setLocation] = useLocation();
   const [formData, setFormData] = useState({
     audience: 'self' as Audience,
     intent: '',
@@ -434,27 +437,33 @@ export default function SoulCareGenerator() {
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={generate.isPending || !profileReady || !subAllowed}
-              title={
-                !subAllowed
-                  ? 'Subscribe to enable AI generation'
-                  : !profileReady
-                  ? 'Finish your profile to enable AI generation'
-                  : undefined
-              }
-              data-testid="button-generate"
-              className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generate.isPending ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" /> Preparing...
-                </>
-              ) : (
-                'Generate Session'
-              )}
-            </button>
+            {!subAllowed ? (
+              <button
+                type="button"
+                onClick={() => setLocation('/pricing')}
+                className="w-full py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'var(--worship-gold)' }}
+                data-testid="button-generate"
+              >
+                Subscribe to unlock <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={generate.isPending || !profileReady}
+                title={!profileReady ? 'Finish your profile to enable AI generation' : undefined}
+                data-testid="button-generate"
+                className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generate.isPending ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> Preparing...
+                  </>
+                ) : (
+                  'Generate Session'
+                )}
+              </button>
+            )}
           </form>
         </div>
 

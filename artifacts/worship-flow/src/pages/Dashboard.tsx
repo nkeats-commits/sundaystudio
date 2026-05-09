@@ -4,6 +4,7 @@ import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
 import { useGetDashboard, useGetMe } from '@workspace/api-client-react';
 import { OnboardingBanner } from '../components/OnboardingBanner';
+import { UpgradeBanner } from '../components/UpgradeBanner';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -31,6 +32,7 @@ export default function Dashboard() {
     <AppLayout title="Dashboard">
       <div className="max-w-6xl mx-auto space-y-8 md:space-y-10">
 
+        <UpgradeBanner />
         <OnboardingBanner />
 
         {/* Welcome Section */}

@@ -5,10 +5,22 @@ import { toast } from "sonner";
 import { useCreateBillingCheckoutSession } from "@workspace/api-client-react";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
 
+const FEATURES = [
+  "Unlimited service plans + AI generators",
+  "Sermon Builder, Series, and Sermon Resources",
+  "Liturgy, songs, speaking moments, devotionals, soul-care",
+  "Save and reuse repertoire and templates",
+  "Planning Center Services integration",
+  "Export to Markdown, plain text, and email",
+];
+
 export default function Pricing() {
   const { state, trialDays } = useSubscriptionStatus();
   const checkout = useCreateBillingCheckoutSession();
   const [loading, setLoading] = useState(false);
+
+  const isLapsed =
+    state?.kind === "expired" || state?.kind === "canceled";
 
   const onSubscribe = async () => {
     setLoading(true);
@@ -42,13 +54,6 @@ export default function Pricing() {
           ? "1 day left in your trial"
           : `${state.daysLeft} days left in your trial`}
       </div>
-    ) : state?.kind === "expired" || state?.kind === "canceled" ? (
-      <div
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6"
-        style={{ backgroundColor: "#FEF2F2", color: "#991B1B" }}
-      >
-        Your trial has ended — subscribe to keep building.
-      </div>
     ) : null;
 
   return (
@@ -76,10 +81,48 @@ export default function Pricing() {
           >
             One simple plan.
           </h1>
-          <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
-            Try every feature free for {trialDays} days. No card required.
-          </p>
+          {isLapsed ? (
+            <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
+              Your trial has ended — here's everything waiting for you:
+            </p>
+          ) : (
+            <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
+              Try every feature free for {trialDays} days. No card required.
+            </p>
+          )}
         </div>
+
+        {isLapsed && (
+          <div
+            className="rounded-2xl border-2 p-5 mb-6"
+            style={{
+              backgroundColor: "var(--worship-navy)",
+              borderColor: "var(--worship-gold)",
+            }}
+          >
+            <p
+              className="text-xs font-semibold uppercase tracking-wider mb-3"
+              style={{ color: "var(--worship-gold)" }}
+            >
+              What you had access to
+            </p>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+              {FEATURES.map((feat) => (
+                <li
+                  key={feat}
+                  className="flex items-start gap-2 text-sm"
+                  style={{ color: "rgba(255,255,255,0.85)" }}
+                >
+                  <Check
+                    className="w-4 h-4 shrink-0 mt-0.5"
+                    style={{ color: "var(--worship-gold)" }}
+                  />
+                  {feat}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div
           className="rounded-2xl border p-8 shadow-sm"
@@ -137,28 +180,23 @@ export default function Pricing() {
             Cancel anytime from the billing portal. Secure checkout via Stripe.
           </p>
 
-          <ul className="mt-8 space-y-3">
-            {[
-              "Unlimited service plans + AI generators",
-              "Sermon Builder, Series, and Sermon Resources",
-              "Liturgy, songs, speaking moments, devotionals, soul-care",
-              "Save and reuse repertoire and templates",
-              "Planning Center Services integration",
-              "Export to Markdown, plain text, and email",
-            ].map((feat) => (
-              <li
-                key={feat}
-                className="flex items-start gap-3 text-sm"
-                style={{ color: "var(--worship-charcoal)" }}
-              >
-                <Check
-                  className="w-5 h-5 shrink-0 mt-0.5"
-                  style={{ color: "var(--worship-gold)" }}
-                />
-                <span>{feat}</span>
-              </li>
-            ))}
-          </ul>
+          {!isLapsed && (
+            <ul className="mt-8 space-y-3">
+              {FEATURES.map((feat) => (
+                <li
+                  key={feat}
+                  className="flex items-start gap-3 text-sm"
+                  style={{ color: "var(--worship-charcoal)" }}
+                >
+                  <Check
+                    className="w-5 h-5 shrink-0 mt-0.5"
+                    style={{ color: "var(--worship-gold)" }}
+                  />
+                  <span>{feat}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

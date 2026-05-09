@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
-import { Save, Loader2, BookOpen, Copy, AlertCircle, CalendarPlus } from 'lucide-react';
+import { Save, Loader2, BookOpen, Copy, AlertCircle, CalendarPlus, ArrowRight } from 'lucide-react';
 import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedLiturgy, type LibraryItem } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -9,6 +9,7 @@ import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
+import { useLocation } from 'wouter';
 
 const LITURGY_PHASES = [
   'Reading your theme and scripture…',
@@ -18,6 +19,7 @@ const LITURGY_PHASES = [
 ];
 
 export default function LiturgyGenerator() {
+  const [, setLocation] = useLocation();
   const [formData, setFormData] = useState({
     kind: 'call_to_worship' as const,
     theme: '',
@@ -247,14 +249,25 @@ export default function LiturgyGenerator() {
               </p>
             </div>
 
-            <button 
-              type="submit"
-              disabled={generate.isPending || !profileReady || !subAllowed}
-              title={!subAllowed ? "Subscribe to enable AI generation" : !profileReady ? "Finish your profile to enable AI generation" : undefined}
-              className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generate.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Weaving words...</> : "Generate Liturgy"}
-            </button>
+            {!subAllowed ? (
+              <button
+                type="button"
+                onClick={() => setLocation('/pricing')}
+                className="w-full py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'var(--worship-gold)' }}
+              >
+                Subscribe to unlock <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={generate.isPending || !profileReady}
+                title={!profileReady ? "Finish your profile to enable AI generation" : undefined}
+                className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generate.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Weaving words...</> : "Generate Liturgy"}
+              </button>
+            )}
           </form>
         </div>
 
