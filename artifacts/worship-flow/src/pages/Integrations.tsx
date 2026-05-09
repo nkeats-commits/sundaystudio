@@ -6,6 +6,7 @@ import {
   useSyncPcsSongs,
   useDisconnectPcs,
   getGetPcsStatusQueryKey,
+  getListLibraryItemsQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -67,7 +68,10 @@ export default function Integrations() {
     if (!pcsResult) return;
     if (pcsResult === 'ok') {
       toast.success('Planning Center connected. Songs are syncing.');
-      void qc.invalidateQueries({ queryKey: getGetPcsStatusQueryKey() });
+      void Promise.all([
+        qc.invalidateQueries({ queryKey: getGetPcsStatusQueryKey() }),
+        qc.invalidateQueries({ queryKey: getListLibraryItemsQueryKey() }),
+      ]);
     } else {
       toast.error(`Planning Center connection failed: ${pcsMessage ?? 'Unknown error'}`);
     }
@@ -113,7 +117,10 @@ export default function Integrations() {
       }
 
       toast.success(message);
-      await qc.invalidateQueries({ queryKey: getGetPcsStatusQueryKey() });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: getGetPcsStatusQueryKey() }),
+        qc.invalidateQueries({ queryKey: getListLibraryItemsQueryKey() }),
+      ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Sync failed';
       toast.error(msg);
