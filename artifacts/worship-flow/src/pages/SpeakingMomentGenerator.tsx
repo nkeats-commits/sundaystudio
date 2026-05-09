@@ -232,9 +232,18 @@ export default function SpeakingMomentGenerator() {
           {generate.isPending && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-[var(--worship-cream)]/80 backdrop-blur-sm rounded-2xl z-10">
               <div className="w-full max-w-sm">
-                <div className="flex items-center gap-2 mb-3 font-semibold text-sm text-[var(--worship-navy)]">
-                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                  {SPEAKING_PHASES[phaseIdx % SPEAKING_PHASES.length]}
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2 font-semibold text-sm text-[var(--worship-navy)]">
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    {SPEAKING_PHASES[phaseIdx % SPEAKING_PHASES.length]}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => generate.reset()}
+                    className="text-xs text-[var(--worship-slate)] hover:text-[var(--worship-navy)] px-2 py-1 rounded hover:bg-[var(--worship-sand)] transition-colors shrink-0"
+                  >
+                    Cancel
+                  </button>
                 </div>
                 <div className="w-full h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: 'var(--worship-sand)' }}>
                   <div style={{ height: '100%', width: '38%', backgroundColor: 'var(--worship-gold)', borderRadius: '9999px', animation: 'genProgressSlide 1.8s ease-in-out infinite' }} />
