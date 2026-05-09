@@ -1195,7 +1195,7 @@ export default function SermonBuilder() {
                           ))}
                           {preview.library.length > 0 && (
                             <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)] bg-white border-b" style={{ borderColor: 'var(--worship-border)' }}>
-                              Your Resource Library
+                              Your Sermon Resources
                             </div>
                           )}
                           {preview.library.map((r) => (
@@ -1233,7 +1233,7 @@ export default function SermonBuilder() {
                       </details>
                       {totalIncluded === 0 && !hasAnyExcluded && (
                         <p className="text-[11px] text-[var(--worship-muted-slate)] italic">
-                          Nothing matches this sermon's passages yet. Add commentary excerpts in your Resource Library, or enable more public-domain sources in Settings.
+                          Nothing matches this sermon's passages yet. Add commentary excerpts in Sermon Resources, or enable more public-domain sources in Settings.
                         </p>
                       )}
                     </div>
@@ -2294,7 +2294,7 @@ function StudyView({
                 {lib.length > 0 && (
                   <div>
                     <p className="text-[11px] uppercase tracking-wider text-[var(--worship-slate)] font-semibold mb-1.5">
-                      Your Resource Library entries that matched
+                      Your Sermon Resources entries that matched
                     </p>
                     {renderList(lib)}
                   </div>
@@ -2303,7 +2303,7 @@ function StudyView({
             );
           })()}
           <p className="mt-2 text-[11px] text-[var(--worship-slate)]">
-            Auto-pulled from your <Link href="/resources" className="underline">Resource Library</Link> (rows whose passage matches) plus public-domain commentaries you've enabled in <Link href="/resources#commentaries" className="underline">Settings</Link>.
+            Auto-pulled from your <Link href="/resources" className="underline">Sermon Resources</Link> (rows whose passage matches) plus public-domain commentaries you've enabled in <Link href="/resources#commentaries" className="underline">Settings</Link>.
           </p>
         </div>
       )}

@@ -92,7 +92,7 @@ export default function Settings() {
             <div>
               <h2 className="text-lg font-medium text-[var(--worship-navy)]">Scholarly Sources</h2>
               <p className="text-sm text-[var(--worship-slate)] mt-0.5">
-                Moved to your Resource Library — manage which public-domain commentaries the Sermon Builder may consult alongside your saved resources.
+                Moved to Sermon Resources — manage which public-domain commentaries the Sermon Builder may consult alongside your saved resources.
               </p>
             </div>
           </div>

@@ -140,7 +140,7 @@ export default function Pricing() {
           <ul className="mt-8 space-y-3">
             {[
               "Unlimited service plans + AI generators",
-              "Sermon Builder, Series, and Resource Library",
+              "Sermon Builder, Series, and Sermon Resources",
               "Liturgy, songs, speaking moments, devotionals, soul-care",
               "Save and reuse repertoire and templates",
               "Planning Center Services integration",

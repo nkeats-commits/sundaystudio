@@ -370,10 +370,10 @@ export default function ResourceLibrary() {
   };
 
   return (
-    <AppLayout title="Resource Library">
+    <AppLayout title="Sermon Resources">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-serif text-[var(--worship-navy)]">Resource Library</h1>
+          <h1 className="text-3xl font-serif text-[var(--worship-navy)]">Sermon Resources</h1>
           <p className="text-sm mt-1 text-[var(--worship-slate)] max-w-2xl">
             Everything the Sermon Builder is allowed to quote on your behalf, with attribution. Add bundled public-domain commentaries below, and save your own commentary excerpts, articles, and sermons.
           </p>
