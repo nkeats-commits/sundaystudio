@@ -747,7 +747,7 @@ export default function SongGenerator() {
                           className="px-3 py-1.5 text-xs font-medium border border-[var(--worship-border)] rounded-lg text-[var(--worship-charcoal)] hover:bg-[var(--worship-cream)] hover:text-[var(--worship-navy)] transition-colors disabled:opacity-60"
                           data-testid={`button-save-song-${i}`}
                         >
-                          {!subAllowed ? 'Subscribe →' : savedSongs[i] ? 'Saved' : 'Save'}
+                          {!subAllowed ? 'Subscribe to unlock →' : savedSongs[i] ? 'Saved' : 'Save'}
                         </button>
                         <button
                           onClick={() => setAddToServiceIndex(i)}

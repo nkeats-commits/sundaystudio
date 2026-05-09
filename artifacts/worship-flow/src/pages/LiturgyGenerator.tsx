@@ -335,7 +335,7 @@ export default function LiturgyGenerator() {
                     className="px-4 py-2 rounded-lg font-medium text-sm worship-btn-gold flex items-center gap-2 disabled:opacity-50"
                   >
                     {!subAllowed ? (
-                      <><ArrowRight className="w-4 h-4" /> Subscribe</>
+                      'Subscribe to unlock →'
                     ) : (
                       <><Save className="w-4 h-4" /> {createLibraryItem.isPending ? "Saving..." : savedItem ? "Saved" : "Save"}</>
                     )}

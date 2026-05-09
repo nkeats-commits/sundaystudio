@@ -1843,14 +1843,14 @@ function SectionPanel({
               <button onClick={onCancel} disabled={saving} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
                 <X className="w-3.5 h-3.5" /> Cancel
               </button>
-              <button onClick={onSave} disabled={saving} className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Save
+              <button onClick={locked ? () => setLocation('/pricing') : onSave} disabled={!locked && saving} className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60">
+                {locked ? 'Subscribe to unlock →' : saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Save</>}
               </button>
             </>
           ) : (
             <>
               {hasContent && canEdit && onEdit && (
-                <button onClick={onEdit} disabled={pending || undoing} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                <button onClick={locked ? () => setLocation('/pricing') : onEdit} disabled={!locked && (pending || undoing)} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
                   <Pencil className="w-3.5 h-3.5" /> Edit
                 </button>
               )}
@@ -1904,7 +1904,7 @@ function SectionPanel({
             disabled={!locked && pending}
             className="shrink-0 px-3 py-1.5 text-xs rounded-md bg-amber-600 text-white hover:bg-amber-700 flex items-center gap-1 disabled:opacity-60"
           >
-            {locked ? 'Subscribe →' : <><RefreshCw className={`w-3 h-3 ${pending ? 'animate-spin' : ''}`} /> Regenerate</>}
+            {locked ? 'Subscribe to unlock →' : <><RefreshCw className={`w-3 h-3 ${pending ? 'animate-spin' : ''}`} /> Regenerate</>}
           </button>
         </div>
       )}
@@ -1920,7 +1920,7 @@ function SectionPanel({
         <div className="flex items-stretch gap-2">
           <input value={refineValue} onChange={(e) => onRefineChange(e.target.value)} placeholder="Refine: e.g. make it more pastoral, shorter, add a sending note…" className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white" style={{ borderColor: 'var(--worship-border)' }} disabled={locked} />
           <button onClick={locked ? () => setLocation('/pricing') : onRegenerate} disabled={!locked && pending} className="worship-btn-primary px-4 py-2 text-sm rounded-lg flex items-center gap-1.5 disabled:opacity-60">
-            {locked ? 'Subscribe →' : pending ? <><Loader2 className="w-4 h-4 animate-spin" /> Refine</> : <><RefreshCw className="w-4 h-4" /> Refine</>}
+            {locked ? 'Subscribe to unlock →' : pending ? <><Loader2 className="w-4 h-4 animate-spin" /> Refine</> : <><RefreshCw className="w-4 h-4" /> Refine</>}
           </button>
         </div>
       )}
