@@ -1306,6 +1306,7 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, study: v })}
                   onGenerate={() => handleStudy(null)}
                   onRegenerate={() => handleStudy(studyData)}
+                  onCancelGeneration={studyGen.reset}
                   canEdit={!!studyData}
                   editing={editingSection === 'study'}
                   onEdit={() => studyData && startEdit('study', studyData)}
@@ -1345,6 +1346,7 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, bigIdea: v })}
                   onGenerate={handleBigIdea}
                   onRegenerate={handleBigIdea}
+                  onCancelGeneration={bigIdeaGen.reset}
                   canEdit={!!bigIdeaData}
                   editing={editingSection === 'bigIdea'}
                   onEdit={() => bigIdeaData && startEdit('bigIdea', bigIdeaData)}
@@ -1384,6 +1386,7 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, outline: v })}
                   onGenerate={() => handleOutline(null)}
                   onRegenerate={() => handleOutline(outlineData)}
+                  onCancelGeneration={outlineGen.reset}
                   canEdit={!!outlineData}
                   editing={editingSection === 'outline'}
                   onEdit={() => outlineData && startEdit('outline', outlineData)}
@@ -1423,6 +1426,7 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, manuscript: v })}
                   onGenerate={() => handleManuscript(null)}
                   onRegenerate={() => handleManuscript(manuscriptData)}
+                  onCancelGeneration={manuscriptGen.reset}
                   canEdit={!!manuscriptData}
                   editing={editingSection === 'manuscript'}
                   onEdit={() => manuscriptData && startEdit('manuscript', manuscriptData)}
@@ -1462,6 +1466,7 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, applications: v })}
                   onGenerate={handleApplications}
                   onRegenerate={handleApplications}
+                  onCancelGeneration={applicationsGen.reset}
                   canEdit={!!applicationsData}
                   editing={editingSection === 'applications'}
                   onEdit={() => applicationsData && startEdit('applications', applicationsData)}
@@ -1501,6 +1506,7 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, illustrations: v })}
                   onGenerate={handleIllustrations}
                   onRegenerate={handleIllustrations}
+                  onCancelGeneration={illustrationsGen.reset}
                   canEdit={!!illustrationsData}
                   editing={editingSection === 'illustrations'}
                   onEdit={() => illustrationsData && startEdit('illustrations', illustrationsData)}
@@ -1540,6 +1546,7 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, smallGroupQuestions: v })}
                   onGenerate={handleSmallGroupQuestions}
                   onRegenerate={handleSmallGroupQuestions}
+                  onCancelGeneration={smallGroupGen.reset}
                   canEdit={!!smallGroupData}
                   editing={editingSection === 'smallGroupQuestions'}
                   onEdit={() => smallGroupData && startEdit('smallGroupQuestions', smallGroupData)}
@@ -1618,6 +1625,7 @@ export default function SermonBuilder() {
                   onRefineChange={(v) => setRefine({ ...refine, worship: v })}
                   onGenerate={handleWorship}
                   onRegenerate={handleWorship}
+                  onCancelGeneration={worshipGen.reset}
                   canEdit={!!worshipData}
                   editing={editingSection === 'worshipIntegration'}
                   onEdit={() => worshipData && startEdit('worshipIntegration', worshipData)}
@@ -1726,6 +1734,7 @@ function SectionPanel({
   canUndo = false,
   onUndo,
   undoing = false,
+  onCancelGeneration,
   children,
 }: {
   title: string;
@@ -1756,6 +1765,8 @@ function SectionPanel({
   canUndo?: boolean;
   onUndo?: () => void;
   undoing?: boolean;
+  /** Called when the pastor wants to stop an in-progress generation. */
+  onCancelGeneration?: () => void;
   children?: React.ReactNode;
 }) {
   const [phaseIdx, setPhaseIdx] = useState(0);
@@ -1861,9 +1872,19 @@ function SectionPanel({
       {pending && (
         <div className="p-5 rounded-xl border border-dashed bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
           <style>{`@keyframes sermProgressSlide{0%{transform:translateX(-200%)}100%{transform:translateX(350%)}}`}</style>
-          <div className="flex items-center gap-2 mb-3 font-semibold text-sm text-[var(--worship-navy)]">
-            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-            {phases.length > 0 ? phases[phaseIdx % phases.length] : 'Generating…'}
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2 font-semibold text-sm text-[var(--worship-navy)]">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              {phases.length > 0 ? phases[phaseIdx % phases.length] : 'Generating…'}
+            </div>
+            {onCancelGeneration && (
+              <button
+                onClick={onCancelGeneration}
+                className="text-xs text-[var(--worship-slate)] hover:text-[var(--worship-navy)] px-2 py-1 rounded hover:bg-[var(--worship-sand)] transition-colors shrink-0"
+              >
+                Cancel
+              </button>
+            )}
           </div>
           <div className="w-full h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: 'var(--worship-sand)' }}>
             <div style={{ height: '100%', width: '38%', backgroundColor: 'var(--worship-gold)', borderRadius: '9999px', animation: 'sermProgressSlide 1.8s ease-in-out infinite' }} />
