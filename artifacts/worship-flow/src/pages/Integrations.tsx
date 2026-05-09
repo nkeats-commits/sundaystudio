@@ -97,13 +97,22 @@ export default function Integrations() {
       }
 
       const r = await sync.mutateAsync({ data: filterBody });
-      const filterNote =
-        filterBody.serviceTypeIds || filterBody.lastUsedSince
-          ? ' (filtered)'
-          : '';
-      toast.success(
-        `Synced ${r.total} song${r.total === 1 ? '' : 's'}${filterNote} (${r.inserted} new, ${r.updated} updated).`,
-      );
+      const hasFilters = !!(filterBody.serviceTypeIds || filterBody.lastUsedSince);
+
+      let message: string;
+      if (r.total === 0) {
+        if (hasFilters) {
+          message =
+            'No songs matched your filters — try broadening your selection or syncing without filters.';
+        } else {
+          message = 'No songs found in your Planning Center library.';
+        }
+      } else {
+        const filterNote = hasFilters ? ' (filtered)' : '';
+        message = `Synced ${r.total} song${r.total === 1 ? '' : 's'}${filterNote} (${r.inserted} new, ${r.updated} updated).`;
+      }
+
+      toast.success(message);
       await qc.invalidateQueries({ queryKey: getGetPcsStatusQueryKey() });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Sync failed';
