@@ -12,13 +12,16 @@ import { getMonthlyPriceId } from "../lib/getMonthlyPriceId";
 const router: IRouter = Router();
 
 function originFromReq(req: import("express").Request): string {
-  // Prefer the public Replit domain in production; fall back to the request
-  // host so local/dev still works through the shared proxy.
+  // 1. Explicit custom domain (e.g. https://sundaystudio.app) — highest priority.
+  const appUrl = process.env["APP_URL"]?.trim();
+  if (appUrl) return appUrl.replace(/\/$/, "");
+  // 2. Replit-assigned domain in production.
   const replitDomains = process.env["REPLIT_DOMAINS"];
   if (replitDomains) {
     const first = replitDomains.split(",")[0];
     if (first) return `https://${first}`;
   }
+  // 3. Local / dev fallback.
   const host = req.get("host") ?? "localhost";
   return `${req.protocol}://${host}`;
 }

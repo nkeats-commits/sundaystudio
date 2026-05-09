@@ -40,6 +40,7 @@ externalPort = 3000
 
 [userenv.shared]
 VITE_CLERK_PUBLISHABLE_KEY = "pk_test_YXNzdXJlZC1kaW5vc2F1ci01My5jbGVyay5hY2NvdW50cy5kZXYk"
+APP_URL = "https://sundaystudio.app"
 
 [nix]
 channel = "stable-25_05"
