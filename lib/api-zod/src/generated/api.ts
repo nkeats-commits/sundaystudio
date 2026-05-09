@@ -629,6 +629,35 @@ export const SetLibraryItemRepertoireResponse = zod.object({
 });
 
 /**
+ * @summary Permanently delete multiple library items by ID.
+ */
+
+export const BulkDeleteLibraryItemsBody = zod.object({
+  ids: zod.array(zod.number()).min(1),
+});
+
+export const BulkDeleteLibraryItemsResponse = zod.object({
+  affected: zod
+    .number()
+    .describe("Number of rows that were actually modified."),
+});
+
+/**
+ * @summary Bulk-update the isRepertoire flag on multiple library items.
+ */
+
+export const BulkSetLibraryItemRepertoireBody = zod.object({
+  ids: zod.array(zod.number()).min(1),
+  isRepertoire: zod.boolean(),
+});
+
+export const BulkSetLibraryItemRepertoireResponse = zod.object({
+  affected: zod
+    .number()
+    .describe("Number of rows that were actually modified."),
+});
+
+/**
  * @summary Bulk-add songs to the user's repertoire from a parsed list.
  */
 

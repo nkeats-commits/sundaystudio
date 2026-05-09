@@ -24,8 +24,13 @@ import type {
   ApiError,
   BillingRedirect,
   BillingStatusResponse,
+  BulkDeleteLibraryItems400,
   BulkImportRepertoireBody,
   BulkImportRepertoireResult,
+  BulkLibraryActionResult,
+  BulkLibraryItemIdsBody,
+  BulkSetLibraryItemRepertoire400,
+  BulkSetRepertoireBody,
   ChurchProfile,
   CompAdminUserSubscription200,
   CompleteOnboarding200,
@@ -1476,6 +1481,187 @@ export const useSetLibraryItemRepertoire = <
   TContext
 > => {
   return useMutation(getSetLibraryItemRepertoireMutationOptions(options));
+};
+
+/**
+ * @summary Permanently delete multiple library items by ID.
+ */
+export const getBulkDeleteLibraryItemsUrl = () => {
+  return `/api/library/bulk`;
+};
+
+export const bulkDeleteLibraryItems = async (
+  bulkLibraryItemIdsBody: BulkLibraryItemIdsBody,
+  options?: RequestInit,
+): Promise<BulkLibraryActionResult> => {
+  return customFetch<BulkLibraryActionResult>(getBulkDeleteLibraryItemsUrl(), {
+    ...options,
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(bulkLibraryItemIdsBody),
+  });
+};
+
+export const getBulkDeleteLibraryItemsMutationOptions = <
+  TError = ErrorType<BulkDeleteLibraryItems400 | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkDeleteLibraryItems>>,
+    TError,
+    { data: BodyType<BulkLibraryItemIdsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkDeleteLibraryItems>>,
+  TError,
+  { data: BodyType<BulkLibraryItemIdsBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkDeleteLibraryItems"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkDeleteLibraryItems>>,
+    { data: BodyType<BulkLibraryItemIdsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkDeleteLibraryItems(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkDeleteLibraryItemsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkDeleteLibraryItems>>
+>;
+export type BulkDeleteLibraryItemsMutationBody =
+  BodyType<BulkLibraryItemIdsBody>;
+export type BulkDeleteLibraryItemsMutationError = ErrorType<
+  BulkDeleteLibraryItems400 | UnauthorizedResponse
+>;
+
+/**
+ * @summary Permanently delete multiple library items by ID.
+ */
+export const useBulkDeleteLibraryItems = <
+  TError = ErrorType<BulkDeleteLibraryItems400 | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkDeleteLibraryItems>>,
+    TError,
+    { data: BodyType<BulkLibraryItemIdsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkDeleteLibraryItems>>,
+  TError,
+  { data: BodyType<BulkLibraryItemIdsBody> },
+  TContext
+> => {
+  return useMutation(getBulkDeleteLibraryItemsMutationOptions(options));
+};
+
+/**
+ * @summary Bulk-update the isRepertoire flag on multiple library items.
+ */
+export const getBulkSetLibraryItemRepertoireUrl = () => {
+  return `/api/library/bulk-repertoire`;
+};
+
+export const bulkSetLibraryItemRepertoire = async (
+  bulkSetRepertoireBody: BulkSetRepertoireBody,
+  options?: RequestInit,
+): Promise<BulkLibraryActionResult> => {
+  return customFetch<BulkLibraryActionResult>(
+    getBulkSetLibraryItemRepertoireUrl(),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(bulkSetRepertoireBody),
+    },
+  );
+};
+
+export const getBulkSetLibraryItemRepertoireMutationOptions = <
+  TError = ErrorType<BulkSetLibraryItemRepertoire400 | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkSetLibraryItemRepertoire>>,
+    TError,
+    { data: BodyType<BulkSetRepertoireBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkSetLibraryItemRepertoire>>,
+  TError,
+  { data: BodyType<BulkSetRepertoireBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkSetLibraryItemRepertoire"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkSetLibraryItemRepertoire>>,
+    { data: BodyType<BulkSetRepertoireBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkSetLibraryItemRepertoire(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkSetLibraryItemRepertoireMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkSetLibraryItemRepertoire>>
+>;
+export type BulkSetLibraryItemRepertoireMutationBody =
+  BodyType<BulkSetRepertoireBody>;
+export type BulkSetLibraryItemRepertoireMutationError = ErrorType<
+  BulkSetLibraryItemRepertoire400 | UnauthorizedResponse
+>;
+
+/**
+ * @summary Bulk-update the isRepertoire flag on multiple library items.
+ */
+export const useBulkSetLibraryItemRepertoire = <
+  TError = ErrorType<BulkSetLibraryItemRepertoire400 | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkSetLibraryItemRepertoire>>,
+    TError,
+    { data: BodyType<BulkSetRepertoireBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkSetLibraryItemRepertoire>>,
+  TError,
+  { data: BodyType<BulkSetRepertoireBody> },
+  TContext
+> => {
+  return useMutation(getBulkSetLibraryItemRepertoireMutationOptions(options));
 };
 
 /**

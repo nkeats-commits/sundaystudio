@@ -358,6 +358,66 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /library/bulk:
+    delete:
+      operationId: bulkDeleteLibraryItems
+      tags: [library]
+      summary: Permanently delete multiple library items by ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkLibraryItemIdsBody"
+      responses:
+        "200":
+          description: Deletion summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkLibraryActionResult"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /library/bulk-repertoire:
+    patch:
+      operationId: bulkSetLibraryItemRepertoire
+      tags: [library]
+      summary: Bulk-update the isRepertoire flag on multiple library items.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkSetRepertoireBody"
+      responses:
+        "200":
+          description: Update summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkLibraryActionResult"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /library/repertoire/bulk-import:
     post:
       operationId: bulkImportRepertoire
@@ -2487,6 +2547,36 @@ components:
         isRepertoire:
           type: boolean
       required: [isRepertoire]
+
+    BulkLibraryItemIdsBody:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+      required: [ids]
+
+    BulkSetRepertoireBody:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+        isRepertoire:
+          type: boolean
+      required: [ids, isRepertoire]
+
+    BulkLibraryActionResult:
+      type: object
+      properties:
+        affected:
+          type: integer
+          description: Number of rows that were actually modified.
+      required: [affected]
 
     RepertoireImportSong:
       type: object

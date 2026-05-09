@@ -6,6 +6,8 @@ import {
   useCreateLibraryItem,
   useSetLibraryItemRepertoire,
   useBulkImportRepertoire,
+  useBulkDeleteLibraryItems,
+  useBulkSetLibraryItemRepertoire,
   useUpdateLibraryItem,
   getListLibraryItemsQueryKey,
   useListServiceTemplates,
@@ -31,6 +33,9 @@ import {
   Copy,
   Pencil,
   Check,
+  CheckSquare,
+  Square,
+  StarOff,
 } from 'lucide-react';
 import { CsvImportModal } from '../components/library/CsvImportModal';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
@@ -378,6 +383,17 @@ export default function Library() {
   const [viewingItem, setViewingItem] = useState<LibraryItem | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
 
+  // Bulk selection state (repertoire sub-view only)
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // 'remove' = un-star, 'delete' = permanently remove
+  const [bulkConfirm, setBulkConfirm] = useState<{
+    action: 'remove' | 'delete';
+    ids: number[];
+  } | null>(null);
+  // "Clear all" shows a choice dialog before confirming
+  const [clearAllChoiceIds, setClearAllChoiceIds] = useState<number[] | null>(null);
+
   // Translate the active tab into a query for the list endpoint. The
   // Repertoire tab shows either repertoire songs or all songs based on songView.
   const listQuery =
@@ -400,10 +416,62 @@ export default function Library() {
 
   const deleteItem = useDeleteLibraryItem();
   const setRepertoire = useSetLibraryItemRepertoire();
+  const bulkDelete = useBulkDeleteLibraryItems();
+  const bulkSetRepertoire = useBulkSetLibraryItemRepertoire();
   const queryClient = useQueryClient();
 
   const invalidateLibrary = () =>
     queryClient.invalidateQueries({ queryKey: getListLibraryItemsQueryKey() });
+
+  const exitSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelectMode = () => {
+    if (isSelectMode) {
+      exitSelectMode();
+    } else {
+      setIsSelectMode(true);
+      setSelectedIds(new Set());
+    }
+  };
+
+  const toggleSelectId = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === displayItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(displayItems.map((i) => i.id)));
+    }
+  };
+
+  const handleBulkConfirm = async () => {
+    if (!bulkConfirm) return;
+    const { action, ids } = bulkConfirm;
+    try {
+      if (action === 'delete') {
+        const res = await bulkDelete.mutateAsync({ data: { ids } });
+        toast.success(`${res.affected} song${res.affected === 1 ? '' : 's'} deleted`);
+      } else {
+        const res = await bulkSetRepertoire.mutateAsync({ data: { ids, isRepertoire: false } });
+        toast.success(`${res.affected} song${res.affected === 1 ? '' : 's'} removed from repertoire`);
+      }
+      invalidateLibrary();
+      setBulkConfirm(null);
+      exitSelectMode();
+    } catch {
+      toast.error('Something went wrong. Please try again.');
+    }
+  };
 
   const handleDelete = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -529,6 +597,7 @@ export default function Library() {
                 setActiveTab(tab.id);
                 setSelectedTheme(null);
                 if (tab.id !== 'repertoire') setSongView('repertoire');
+                exitSelectMode();
               }}
               data-testid={`tab-${tab.id}`}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
@@ -564,7 +633,7 @@ export default function Library() {
                 {/* Sub-view pill switcher */}
                 <div className="inline-flex items-center rounded-lg border border-[var(--worship-border)] bg-white overflow-hidden">
                   <button
-                    onClick={() => { setSongView('repertoire'); setSelectedTheme(null); }}
+                    onClick={() => { setSongView('repertoire'); setSelectedTheme(null); exitSelectMode(); }}
                     data-testid="song-view-repertoire"
                     className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                       songView === 'repertoire'
@@ -575,7 +644,7 @@ export default function Library() {
                     Repertoire
                   </button>
                   <button
-                    onClick={() => { setSongView('all'); setSelectedTheme(null); }}
+                    onClick={() => { setSongView('all'); setSelectedTheme(null); exitSelectMode(); }}
                     data-testid="song-view-all"
                     className={`px-3 py-1.5 text-sm font-medium transition-colors border-l border-[var(--worship-border)] ${
                       songView === 'all'
@@ -588,54 +657,132 @@ export default function Library() {
                 </div>
                 {isRepertoireSubView && (
                   <>
-                    <button
-                      onClick={() => setShowPasteModal(true)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
-                      data-testid="button-open-paste-modal"
-                    >
-                      <ClipboardList className="w-4 h-4" />
-                      Paste a list
-                    </button>
-                    {/*
-                      Hidden file input + button that clicks it. We open the
-                      OS file picker directly from the user's button gesture
-                      (NOT from a useEffect inside the modal) so browsers
-                      don't block the dialog. Once the user picks a file the
-                      onChange handler stashes it and opens the modal, which
-                      parses + previews + submits.
-                    */}
-                    <input
-                      ref={csvFileInputRef}
-                      type="file"
-                      accept=".csv,text/csv,application/vnd.ms-excel"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) {
-                          setPendingCsvFile(f);
-                          setShowCsvModal(true);
-                        }
-                        // Reset value so picking the same file twice in a
-                        // row still triggers onChange.
-                        if (csvFileInputRef.current) {
-                          csvFileInputRef.current.value = '';
-                        }
-                      }}
-                      className="hidden"
-                      data-testid="input-csv-file"
-                    />
-                    <button
-                      onClick={() => csvFileInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
-                      data-testid="button-open-csv-modal"
-                    >
-                      <FileUp className="w-4 h-4" />
-                      Import from CSV
-                    </button>
+                    {!isSelectMode && (
+                      <>
+                        <button
+                          onClick={() => setShowPasteModal(true)}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
+                          data-testid="button-open-paste-modal"
+                        >
+                          <ClipboardList className="w-4 h-4" />
+                          Paste a list
+                        </button>
+                        {/*
+                          Hidden file input + button that clicks it. We open the
+                          OS file picker directly from the user's button gesture
+                          (NOT from a useEffect inside the modal) so browsers
+                          don't block the dialog. Once the user picks a file the
+                          onChange handler stashes it and opens the modal, which
+                          parses + previews + submits.
+                        */}
+                        <input
+                          ref={csvFileInputRef}
+                          type="file"
+                          accept=".csv,text/csv,application/vnd.ms-excel"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              setPendingCsvFile(f);
+                              setShowCsvModal(true);
+                            }
+                            // Reset value so picking the same file twice in a
+                            // row still triggers onChange.
+                            if (csvFileInputRef.current) {
+                              csvFileInputRef.current.value = '';
+                            }
+                          }}
+                          className="hidden"
+                          data-testid="input-csv-file"
+                        />
+                        <button
+                          onClick={() => csvFileInputRef.current?.click()}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
+                          data-testid="button-open-csv-modal"
+                        >
+                          <FileUp className="w-4 h-4" />
+                          Import from CSV
+                        </button>
+                      </>
+                    )}
+                    {repertoireCount > 0 && (
+                      <button
+                        onClick={toggleSelectMode}
+                        data-testid="button-select-mode"
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          isSelectMode
+                            ? 'bg-[var(--worship-navy)] text-white border-[var(--worship-navy)]'
+                            : 'border-[var(--worship-border)] bg-white text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)]'
+                        }`}
+                      >
+                        {isSelectMode ? (
+                          <>
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </>
+                        ) : (
+                          <>
+                            <CheckSquare className="w-4 h-4" />
+                            Select
+                          </>
+                        )}
+                      </button>
+                    )}
                   </>
                 )}
               </div>
             </div>
-            {isRepertoireSubView && <AddSongForm onAdded={invalidateLibrary} />}
+            {isRepertoireSubView && !isSelectMode && <AddSongForm onAdded={invalidateLibrary} />}
+
+            {/* Bulk action bar — only when in select mode */}
+            {isRepertoireSubView && isSelectMode && (
+              <div className="flex flex-wrap items-center gap-3 p-3 bg-[var(--worship-cream)] border border-[var(--worship-border)] rounded-xl">
+                <button
+                  onClick={toggleSelectAll}
+                  data-testid="button-select-all"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--worship-navy)] hover:text-[var(--worship-gold)] transition-colors"
+                >
+                  {selectedIds.size === displayItems.length && displayItems.length > 0 ? (
+                    <CheckSquare className="w-4 h-4" />
+                  ) : (
+                    <Square className="w-4 h-4" />
+                  )}
+                  {selectedIds.size === displayItems.length && displayItems.length > 0 ? 'Deselect all' : 'Select all'}
+                </button>
+                <span className="text-sm text-[var(--worship-slate)]">
+                  {selectedIds.size} selected
+                </span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    onClick={() =>
+                      setBulkConfirm({
+                        action: 'remove',
+                        ids: Array.from(selectedIds),
+                      })
+                    }
+                    disabled={selectedIds.size === 0}
+                    data-testid="button-bulk-remove"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <StarOff className="w-4 h-4" />
+                    Remove from repertoire
+                  </button>
+                  <button
+                    onClick={() =>
+                      setBulkConfirm({
+                        action: 'delete',
+                        ids: Array.from(selectedIds),
+                      })
+                    }
+                    disabled={selectedIds.size === 0}
+                    data-testid="button-bulk-delete"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 bg-white text-sm font-medium text-red-600 hover:bg-red-50 hover:border-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete songs
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -704,13 +851,25 @@ export default function Library() {
             </p>
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
-            {displayItems.map((item) => (
+            {displayItems.map((item) => {
+              const isSelected = selectedIds.has(item.id);
+              // Only activate selection UX when we are explicitly in both
+              // select mode AND the Repertoire sub-view. This prevents stale
+              // isSelectMode state from bleeding into other tabs/sub-views.
+              const cardSelectActive = isSelectMode && isRepertoireSubView;
+              return (
               <div
                 key={item.id}
-                role="button"
+                role={cardSelectActive ? 'checkbox' : 'button'}
+                aria-checked={cardSelectActive ? isSelected : undefined}
                 tabIndex={0}
                 onClick={(e) => {
+                  if (cardSelectActive) {
+                    toggleSelectId(item.id);
+                    return;
+                  }
                   // Ignore clicks that originated on a nested control
                   // (Star, Trash) — those handlers already stopPropagation
                   // but this is defense in depth.
@@ -720,6 +879,13 @@ export default function Library() {
                   setViewingItem(item);
                 }}
                 onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+                  if (cardSelectActive) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleSelectId(item.id);
+                    }
+                    return;
+                  }
                   // Only open when the card itself has focus, not when
                   // Enter/Space is fired on a nested button (Star/Trash).
                   if (e.target !== e.currentTarget) return;
@@ -728,9 +894,13 @@ export default function Library() {
                     setViewingItem(item);
                   }
                 }}
-                className="worship-card p-5 group flex flex-col text-left cursor-pointer hover:border-[var(--worship-gold)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)] focus-visible:border-[var(--worship-gold)]"
+                className={`worship-card p-5 group flex flex-col text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)] focus-visible:border-[var(--worship-gold)] cursor-pointer ${
+                  cardSelectActive && isSelected
+                    ? 'border-[var(--worship-gold)] bg-[var(--worship-pale-gold)]/20'
+                    : 'hover:border-[var(--worship-gold)]'
+                }`}
                 data-testid={`library-card-${item.id}`}
-                aria-label={`View ${item.title}`}
+                aria-label={cardSelectActive ? `${isSelected ? 'Deselect' : 'Select'} ${item.title}` : `View ${item.title}`}
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2 px-2 py-1 bg-[var(--worship-cream)] rounded-md text-xs font-medium text-[var(--worship-slate)]">
@@ -738,41 +908,53 @@ export default function Library() {
                     {formatKind(item.kind)}
                   </div>
                   <div className="flex items-center gap-1">
-                    {item.kind === 'song' && (
-                      <button
-                        onClick={(e) =>
-                          handleToggleRepertoire(
-                            item.id,
-                            item.isRepertoire,
-                            item.title,
-                            e,
-                          )
-                        }
-                        className={`p-1 rounded transition-colors ${
-                          item.isRepertoire
-                            ? 'text-[var(--worship-gold)]'
-                            : 'text-slate-300 hover:text-[var(--worship-gold)] opacity-0 group-hover:opacity-100'
-                        }`}
-                        title={
-                          item.isRepertoire
-                            ? 'Remove from repertoire'
-                            : 'Add to repertoire'
-                        }
-                        data-testid={`button-toggle-repertoire-${item.id}`}
-                        aria-pressed={item.isRepertoire}
-                      >
-                        <Star
-                          className={`w-4 h-4 ${item.isRepertoire ? 'fill-current' : ''}`}
-                        />
-                      </button>
+                    {cardSelectActive ? (
+                      <span className={`p-1 rounded ${isSelected ? 'text-[var(--worship-gold)]' : 'text-slate-300'}`}>
+                        {isSelected ? (
+                          <CheckSquare className="w-5 h-5" />
+                        ) : (
+                          <Square className="w-5 h-5" />
+                        )}
+                      </span>
+                    ) : (
+                      <>
+                        {item.kind === 'song' && (
+                          <button
+                            onClick={(e) =>
+                              handleToggleRepertoire(
+                                item.id,
+                                item.isRepertoire,
+                                item.title,
+                                e,
+                              )
+                            }
+                            className={`p-1 rounded transition-colors ${
+                              item.isRepertoire
+                                ? 'text-[var(--worship-gold)]'
+                                : 'text-slate-300 hover:text-[var(--worship-gold)] opacity-0 group-hover:opacity-100'
+                            }`}
+                            title={
+                              item.isRepertoire
+                                ? 'Remove from repertoire'
+                                : 'Add to repertoire'
+                            }
+                            data-testid={`button-toggle-repertoire-${item.id}`}
+                            aria-pressed={item.isRepertoire}
+                          >
+                            <Star
+                              className={`w-4 h-4 ${item.isRepertoire ? 'fill-current' : ''}`}
+                            />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDelete(item.id, e)}
+                          className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                          title="Delete item"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
-                    <button
-                      onClick={(e) => handleDelete(item.id, e)}
-                      className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                      title="Delete item"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
                 <h3 className="font-serif text-lg text-[var(--worship-navy)] mb-2">
@@ -905,10 +1087,138 @@ export default function Library() {
                   </div>
                 </div>
               </div>
-            ))}
+            ); })}
+          </div>
+
+          </>
+        )}
+
+        {/* "Clear all" shortcut — shown whenever repertoire has songs, regardless of theme filter */}
+        {isRepertoireSubView && !isSelectMode && repertoireCount > 0 && (
+          <div className="flex justify-center pt-4 pb-2">
+            <button
+              onClick={() => {
+                const ids = (items ?? []).map((i) => i.id);
+                if (ids.length === 0) return;
+                setClearAllChoiceIds(ids);
+              }}
+              disabled={!items || items.length === 0}
+              data-testid="button-clear-all"
+              className="text-sm text-[var(--worship-slate)] hover:text-red-500 underline underline-offset-2 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Clear all ({repertoireCount})
+            </button>
           </div>
         )}
       </div>
+
+      {/* "Clear all" choice dialog — lets the user pick remove vs. delete before confirming */}
+      {clearAllChoiceIds && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--worship-navy)]/40 backdrop-blur-sm p-4"
+          onClick={() => setClearAllChoiceIds(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-serif text-xl text-[var(--worship-navy)]">
+              Clear all {clearAllChoiceIds.length} songs
+            </h3>
+            <p className="text-sm text-[var(--worship-slate)]">
+              What would you like to do with all the songs in your repertoire?
+            </p>
+            <div className="flex flex-col gap-3 pt-1">
+              <button
+                onClick={() => {
+                  setBulkConfirm({ action: 'remove', ids: clearAllChoiceIds });
+                  setClearAllChoiceIds(null);
+                }}
+                data-testid="button-clear-all-remove"
+                className="flex items-start gap-3 p-4 rounded-xl border border-[var(--worship-border)] hover:border-[var(--worship-gold)] text-left transition-colors"
+              >
+                <StarOff className="w-5 h-5 text-[var(--worship-gold)] mt-0.5 shrink-0" />
+                <div>
+                  <div className="font-medium text-[var(--worship-navy)] text-sm">Remove from repertoire</div>
+                  <div className="text-xs text-[var(--worship-slate)] mt-0.5">Songs stay in your library, just no longer starred.</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setBulkConfirm({ action: 'delete', ids: clearAllChoiceIds });
+                  setClearAllChoiceIds(null);
+                }}
+                data-testid="button-clear-all-delete"
+                className="flex items-start gap-3 p-4 rounded-xl border border-red-200 hover:border-red-400 text-left transition-colors"
+              >
+                <Trash2 className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                <div>
+                  <div className="font-medium text-red-600 text-sm">Delete permanently</div>
+                  <div className="text-xs text-[var(--worship-slate)] mt-0.5">Songs are removed from your library entirely. This can't be undone.</div>
+                </div>
+              </button>
+            </div>
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={() => setClearAllChoiceIds(null)}
+                className="px-4 py-2 text-sm font-medium text-[var(--worship-slate)] hover:text-[var(--worship-navy)]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk confirmation dialog */}
+      {bulkConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--worship-navy)]/40 backdrop-blur-sm p-4"
+          onClick={() => setBulkConfirm(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-serif text-xl text-[var(--worship-navy)]">
+              {bulkConfirm.action === 'delete'
+                ? 'Permanently delete songs?'
+                : 'Remove from repertoire?'}
+            </h3>
+            <p className="text-sm text-[var(--worship-slate)]">
+              {bulkConfirm.action === 'delete'
+                ? `Permanently delete ${bulkConfirm.ids.length} song${bulkConfirm.ids.length === 1 ? '' : 's'}? This can't be undone — they'll be removed from your library entirely.`
+                : `Remove ${bulkConfirm.ids.length} song${bulkConfirm.ids.length === 1 ? '' : 's'} from your repertoire? They'll stay in your Songs library, just no longer starred.`}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setBulkConfirm(null)}
+                className="px-4 py-2 text-sm font-medium text-[var(--worship-slate)] hover:text-[var(--worship-navy)]"
+                data-testid="button-bulk-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkConfirm}
+                disabled={bulkDelete.isPending || bulkSetRepertoire.isPending}
+                data-testid="button-bulk-confirm"
+                className={`px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                  bulkConfirm.action === 'delete'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'worship-btn-primary'
+                }`}
+              >
+                {(bulkDelete.isPending || bulkSetRepertoire.isPending) && (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
+                {bulkConfirm.action === 'delete'
+                  ? `Delete ${bulkConfirm.ids.length} song${bulkConfirm.ids.length === 1 ? '' : 's'}`
+                  : `Remove ${bulkConfirm.ids.length} song${bulkConfirm.ids.length === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPasteModal && (
         <PasteListModal

@@ -402,6 +402,22 @@ export interface SetRepertoireBody {
   isRepertoire: boolean;
 }
 
+export interface BulkLibraryItemIdsBody {
+  /** @minItems 1 */
+  ids: number[];
+}
+
+export interface BulkSetRepertoireBody {
+  /** @minItems 1 */
+  ids: number[];
+  isRepertoire: boolean;
+}
+
+export interface BulkLibraryActionResult {
+  /** Number of rows that were actually modified. */
+  affected: number;
+}
+
 export interface RepertoireImportSong {
   /** @minLength 1 */
   title: string;
@@ -1568,6 +1584,14 @@ export const ListLibraryItemsKind = {
 } as const;
 
 export type UpdateLibraryItem400 = {
+  error?: string;
+};
+
+export type BulkDeleteLibraryItems400 = {
+  error?: string;
+};
+
+export type BulkSetLibraryItemRepertoire400 = {
   error?: string;
 };
 

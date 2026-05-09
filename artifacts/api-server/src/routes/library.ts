@@ -1,11 +1,13 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, libraryItemsTable, servicePlansTable } from "@workspace/db";
 import {
   CreateLibraryItemBody,
   ListLibraryItemsQueryParams,
   SetLibraryItemRepertoireBody,
   BulkImportRepertoireBody,
+  BulkDeleteLibraryItemsBody,
+  BulkSetLibraryItemRepertoireBody,
   UpdateLibraryItemBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -144,6 +146,54 @@ router.patch("/library/:id/repertoire", requireAuth, requireActiveAccess, async 
     return;
   }
   res.json(row);
+});
+
+/**
+ * Bulk-delete many library items in one shot. Every supplied ID is validated
+ * against the caller's userId so a user can never delete another user's data.
+ */
+router.delete("/library/bulk", requireAuth, requireActiveAccess, async (req, res) => {
+  const parsed = BulkDeleteLibraryItemsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { ids } = parsed.data;
+  const result = await db
+    .delete(libraryItemsTable)
+    .where(
+      and(
+        eq(libraryItemsTable.userId, req.userId!),
+        inArray(libraryItemsTable.id, ids),
+      ),
+    )
+    .returning({ id: libraryItemsTable.id });
+  res.json({ affected: result.length });
+});
+
+/**
+ * Bulk-update isRepertoire on many library items at once. Only affects songs
+ * (the repertoire concept applies only to songs) that belong to the caller.
+ */
+router.patch("/library/bulk-repertoire", requireAuth, requireActiveAccess, async (req, res) => {
+  const parsed = BulkSetLibraryItemRepertoireBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { ids, isRepertoire } = parsed.data;
+  const result = await db
+    .update(libraryItemsTable)
+    .set({ isRepertoire })
+    .where(
+      and(
+        eq(libraryItemsTable.userId, req.userId!),
+        eq(libraryItemsTable.kind, "song"),
+        inArray(libraryItemsTable.id, ids),
+      ),
+    )
+    .returning({ id: libraryItemsTable.id });
+  res.json({ affected: result.length });
 });
 
 /**
