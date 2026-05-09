@@ -67,11 +67,12 @@ type TabType =
   | 'all'
   | 'repertoire'
   | 'liturgy'
-  | 'song'
   | 'speaking_moment'
   | 'devotional'
   | 'soul_care'
   | 'flows';
+
+type SongView = 'repertoire' | 'all';
 
 /**
  * Parse a free-text paste of song titles into structured rows.
@@ -356,7 +357,8 @@ function AddSongForm({ onAdded }: { onAdded: () => void }) {
 }
 
 export default function Library() {
-  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [activeTab, setActiveTab] = useState<TabType>('repertoire');
+  const [songView, setSongView] = useState<SongView>('repertoire');
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
@@ -365,12 +367,14 @@ export default function Library() {
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
 
   // Translate the active tab into a query for the list endpoint. The
-  // Repertoire tab is just a Songs-with-flag filter under the hood.
+  // Repertoire tab shows either repertoire songs or all songs based on songView.
   const listQuery =
     activeTab === 'all' || activeTab === 'flows'
       ? undefined
       : activeTab === 'repertoire'
-        ? { kind: 'song' as const, repertoire: true }
+        ? songView === 'all'
+          ? { kind: 'song' as const }
+          : { kind: 'song' as const, repertoire: true }
         : { kind: activeTab };
 
   const { data: items, isLoading } = useListLibraryItems(listQuery);
@@ -428,14 +432,13 @@ export default function Library() {
   };
 
   const tabs: { id: TabType; label: string; suffix?: string }[] = [
-    { id: 'all', label: 'All' },
     {
       id: 'repertoire',
-      label: 'Our Repertoire',
+      label: 'Repertoire',
       suffix: repertoireCount > 0 ? `(${repertoireCount})` : undefined,
     },
+    { id: 'all', label: 'All' },
     { id: 'liturgy', label: 'Liturgies' },
-    { id: 'song', label: 'Songs' },
     { id: 'speaking_moment', label: 'Speaking Moments' },
     { id: 'devotional', label: 'Devotionals' },
     { id: 'soul_care', label: 'Soul Care' },
@@ -466,32 +469,32 @@ export default function Library() {
       .join(' ');
 
   const isRepertoireTab = activeTab === 'repertoire';
+  const isRepertoireSubView = isRepertoireTab && songView === 'repertoire';
   const isFlowsTab = activeTab === 'flows';
 
   // Collect unique PCS content.tags across all loaded items for the theme
-  // filter chip bar. Only meaningful on the Repertoire tab.
+  // filter chip bar. Only meaningful on the Repertoire sub-view.
   const allThemes = useMemo(() => {
-    if (!isRepertoireTab || !items) return [];
+    if (!isRepertoireSubView || !items) return [];
     const set = new Set<string>();
     items.forEach((item) => {
       const ct = (item.content as Record<string, unknown>).tags;
       if (Array.isArray(ct)) ct.forEach((t) => typeof t === 'string' && set.add(t));
     });
     return Array.from(set).sort();
-  }, [isRepertoireTab, items]);
+  }, [isRepertoireSubView, items]);
 
-  // Apply optional theme filter for the Repertoire tab only (client-side, no
-  // extra network request needed since all repertoire songs are already loaded).
-  // Other tabs bypass filtering entirely so non-repertoire empty states are
-  // never affected by a stale selectedTheme value.
+  // Apply optional theme filter for the Repertoire sub-view only (client-side,
+  // no extra network request needed since all repertoire songs are already loaded).
+  // Other tabs/sub-views bypass filtering entirely.
   const displayItems = useMemo(() => {
     if (!items) return [];
-    if (!isRepertoireTab || !selectedTheme) return items;
+    if (!isRepertoireSubView || !selectedTheme) return items;
     return items.filter((item) => {
       const ct = (item.content as Record<string, unknown>).tags;
       return Array.isArray(ct) && ct.includes(selectedTheme);
     });
-  }, [items, isRepertoireTab, selectedTheme]);
+  }, [items, isRepertoireSubView, selectedTheme]);
 
   return (
     <AppLayout title="Library">
@@ -510,7 +513,11 @@ export default function Library() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSelectedTheme(null); }}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setSelectedTheme(null);
+                if (tab.id !== 'repertoire') setSongView('repertoire');
+              }}
               data-testid={`tab-${tab.id}`}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                 activeTab === tab.id
@@ -540,57 +547,86 @@ export default function Library() {
                   songs, so suggestions feel familiar to your worship team.
                 </p>
               </div>
-              <div className="self-start flex flex-wrap gap-2">
-                <button
-                  onClick={() => setShowPasteModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
-                  data-testid="button-open-paste-modal"
-                >
-                  <ClipboardList className="w-4 h-4" />
-                  Paste a list
-                </button>
-                {/*
-                  Hidden file input + button that clicks it. We open the
-                  OS file picker directly from the user's button gesture
-                  (NOT from a useEffect inside the modal) so browsers
-                  don't block the dialog. Once the user picks a file the
-                  onChange handler stashes it and opens the modal, which
-                  parses + previews + submits.
-                */}
-                <input
-                  ref={csvFileInputRef}
-                  type="file"
-                  accept=".csv,text/csv,application/vnd.ms-excel"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) {
-                      setPendingCsvFile(f);
-                      setShowCsvModal(true);
-                    }
-                    // Reset value so picking the same file twice in a
-                    // row still triggers onChange.
-                    if (csvFileInputRef.current) {
-                      csvFileInputRef.current.value = '';
-                    }
-                  }}
-                  className="hidden"
-                  data-testid="input-csv-file"
-                />
-                <button
-                  onClick={() => csvFileInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
-                  data-testid="button-open-csv-modal"
-                >
-                  <FileUp className="w-4 h-4" />
-                  Import from CSV
-                </button>
+              <div className="self-start flex flex-wrap items-center gap-2">
+                {/* Sub-view pill switcher */}
+                <div className="inline-flex items-center rounded-lg border border-[var(--worship-border)] bg-white overflow-hidden">
+                  <button
+                    onClick={() => { setSongView('repertoire'); setSelectedTheme(null); }}
+                    data-testid="song-view-repertoire"
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      songView === 'repertoire'
+                        ? 'bg-[var(--worship-navy)] text-white'
+                        : 'text-[var(--worship-slate)] hover:text-[var(--worship-navy)] hover:bg-[var(--worship-cream)]'
+                    }`}
+                  >
+                    Repertoire
+                  </button>
+                  <button
+                    onClick={() => { setSongView('all'); setSelectedTheme(null); }}
+                    data-testid="song-view-all"
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors border-l border-[var(--worship-border)] ${
+                      songView === 'all'
+                        ? 'bg-[var(--worship-navy)] text-white'
+                        : 'text-[var(--worship-slate)] hover:text-[var(--worship-navy)] hover:bg-[var(--worship-cream)]'
+                    }`}
+                  >
+                    All Songs
+                  </button>
+                </div>
+                {isRepertoireSubView && (
+                  <>
+                    <button
+                      onClick={() => setShowPasteModal(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
+                      data-testid="button-open-paste-modal"
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                      Paste a list
+                    </button>
+                    {/*
+                      Hidden file input + button that clicks it. We open the
+                      OS file picker directly from the user's button gesture
+                      (NOT from a useEffect inside the modal) so browsers
+                      don't block the dialog. Once the user picks a file the
+                      onChange handler stashes it and opens the modal, which
+                      parses + previews + submits.
+                    */}
+                    <input
+                      ref={csvFileInputRef}
+                      type="file"
+                      accept=".csv,text/csv,application/vnd.ms-excel"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          setPendingCsvFile(f);
+                          setShowCsvModal(true);
+                        }
+                        // Reset value so picking the same file twice in a
+                        // row still triggers onChange.
+                        if (csvFileInputRef.current) {
+                          csvFileInputRef.current.value = '';
+                        }
+                      }}
+                      className="hidden"
+                      data-testid="input-csv-file"
+                    />
+                    <button
+                      onClick={() => csvFileInputRef.current?.click()}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm font-medium text-[var(--worship-navy)] hover:border-[var(--worship-gold)] hover:text-[var(--worship-gold)] transition-colors"
+                      data-testid="button-open-csv-modal"
+                    >
+                      <FileUp className="w-4 h-4" />
+                      Import from CSV
+                    </button>
+                  </>
+                )}
               </div>
             </div>
-            <AddSongForm onAdded={invalidateLibrary} />
+            {isRepertoireSubView && <AddSongForm onAdded={invalidateLibrary} />}
           </div>
         )}
 
-        {isRepertoireTab && allThemes.length > 0 && (
+        {isRepertoireSubView && allThemes.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-1">
             <button
               onClick={() => setSelectedTheme(null)}
@@ -636,18 +672,22 @@ export default function Library() {
               )}
             </div>
             <h3 className="text-lg font-serif text-[var(--worship-navy)] mb-2">
-              {isRepertoireTab && selectedTheme
+              {isRepertoireSubView && selectedTheme
                 ? `No songs tagged "${selectedTheme}"`
-                : isRepertoireTab
+                : isRepertoireSubView
                   ? 'Your repertoire is empty'
-                  : 'Nothing here yet'}
+                  : isRepertoireTab
+                    ? 'No songs in your library yet'
+                    : 'Nothing here yet'}
             </h3>
             <p className="text-[var(--worship-slate)] max-w-sm">
-              {isRepertoireTab && selectedTheme
+              {isRepertoireSubView && selectedTheme
                 ? 'Try a different theme or clear the filter to see all your songs.'
-                : isRepertoireTab
+                : isRepertoireSubView
                   ? 'Add songs your team already knows so the Song Assistant can prefer or restrict to them.'
-                  : 'Use the generators from the Dashboard or Sidebar to create and save content to your library.'}
+                  : isRepertoireTab
+                    ? 'Songs saved by the AI generators will appear here. Star any song to add it to your repertoire.'
+                    : 'Use the generators from the Dashboard or Sidebar to create and save content to your library.'}
             </p>
           </div>
         ) : (
