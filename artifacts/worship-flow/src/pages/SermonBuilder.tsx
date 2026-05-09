@@ -1339,6 +1339,7 @@ export default function SermonBuilder() {
                   onGenerate={() => handleStudy(null)}
                   onRegenerate={() => handleStudy(studyData)}
                   onCancelGeneration={studyGen.reset}
+                  locked={!subAllowed}
                   canEdit={!!studyData}
                   editing={editingSection === 'study'}
                   onEdit={() => studyData && startEdit('study', studyData)}
@@ -1379,6 +1380,7 @@ export default function SermonBuilder() {
                   onGenerate={handleBigIdea}
                   onRegenerate={handleBigIdea}
                   onCancelGeneration={bigIdeaGen.reset}
+                  locked={!subAllowed}
                   canEdit={!!bigIdeaData}
                   editing={editingSection === 'bigIdea'}
                   onEdit={() => bigIdeaData && startEdit('bigIdea', bigIdeaData)}
@@ -1419,6 +1421,7 @@ export default function SermonBuilder() {
                   onGenerate={() => handleOutline(null)}
                   onRegenerate={() => handleOutline(outlineData)}
                   onCancelGeneration={outlineGen.reset}
+                  locked={!subAllowed}
                   canEdit={!!outlineData}
                   editing={editingSection === 'outline'}
                   onEdit={() => outlineData && startEdit('outline', outlineData)}
@@ -1459,6 +1462,7 @@ export default function SermonBuilder() {
                   onGenerate={() => handleManuscript(null)}
                   onRegenerate={() => handleManuscript(manuscriptData)}
                   onCancelGeneration={manuscriptGen.reset}
+                  locked={!subAllowed}
                   canEdit={!!manuscriptData}
                   editing={editingSection === 'manuscript'}
                   onEdit={() => manuscriptData && startEdit('manuscript', manuscriptData)}
@@ -1499,6 +1503,7 @@ export default function SermonBuilder() {
                   onGenerate={handleApplications}
                   onRegenerate={handleApplications}
                   onCancelGeneration={applicationsGen.reset}
+                  locked={!subAllowed}
                   canEdit={!!applicationsData}
                   editing={editingSection === 'applications'}
                   onEdit={() => applicationsData && startEdit('applications', applicationsData)}
@@ -1539,6 +1544,7 @@ export default function SermonBuilder() {
                   onGenerate={handleIllustrations}
                   onRegenerate={handleIllustrations}
                   onCancelGeneration={illustrationsGen.reset}
+                  locked={!subAllowed}
                   canEdit={!!illustrationsData}
                   editing={editingSection === 'illustrations'}
                   onEdit={() => illustrationsData && startEdit('illustrations', illustrationsData)}
@@ -1579,6 +1585,7 @@ export default function SermonBuilder() {
                   onGenerate={handleSmallGroupQuestions}
                   onRegenerate={handleSmallGroupQuestions}
                   onCancelGeneration={smallGroupGen.reset}
+                  locked={!subAllowed}
                   canEdit={!!smallGroupData}
                   editing={editingSection === 'smallGroupQuestions'}
                   onEdit={() => smallGroupData && startEdit('smallGroupQuestions', smallGroupData)}
@@ -1658,6 +1665,7 @@ export default function SermonBuilder() {
                   onGenerate={handleWorship}
                   onRegenerate={handleWorship}
                   onCancelGeneration={worshipGen.reset}
+                  locked={!subAllowed}
                   canEdit={!!worshipData}
                   editing={editingSection === 'worshipIntegration'}
                   onEdit={() => worshipData && startEdit('worshipIntegration', worshipData)}
@@ -1768,6 +1776,7 @@ function SectionPanel({
   onUndo,
   undoing = false,
   onCancelGeneration,
+  locked = false,
   children,
 }: {
   title: string;
@@ -1786,6 +1795,8 @@ function SectionPanel({
   onRefineChange: (v: string) => void;
   onGenerate: () => void;
   onRegenerate: () => void;
+  /** When true (subscription not active), replace all action buttons with a /pricing CTA. */
+  locked?: boolean;
   /** Whether this section supports inline editing. */
   canEdit?: boolean;
   /** Whether this section is currently being edited. */
@@ -1802,6 +1813,7 @@ function SectionPanel({
   onCancelGeneration?: () => void;
   children?: React.ReactNode;
 }) {
+  const [, setLocation] = useLocation();
   const [phaseIdx, setPhaseIdx] = useState(0);
   useEffect(() => {
     if (!pending) { setPhaseIdx(0); return; }
@@ -1853,15 +1865,26 @@ function SectionPanel({
                   {undoing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Undo2 className="w-3.5 h-3.5" />} Undo edit
                 </button>
               )}
-              {hasContent && (
-                <button onClick={onRegenerate} disabled={pending} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
-                  <RefreshCw className={`w-3.5 h-3.5 ${pending ? 'animate-spin' : ''}`} /> Regenerate
+              {locked ? (
+                <button
+                  onClick={() => setLocation('/pricing')}
+                  className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2"
+                >
+                  Subscribe to unlock →
                 </button>
-              )}
-              {!hasContent && (
-                <button onClick={onGenerate} disabled={pending} className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60">
-                  {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Generate
-                </button>
+              ) : (
+                <>
+                  {hasContent && (
+                    <button onClick={onRegenerate} disabled={pending} className="px-3 py-2 text-xs rounded-lg border flex items-center gap-1 hover:bg-slate-50 disabled:opacity-60" style={{ borderColor: 'var(--worship-border)' }}>
+                      <RefreshCw className={`w-3.5 h-3.5 ${pending ? 'animate-spin' : ''}`} /> Regenerate
+                    </button>
+                  )}
+                  {!hasContent && (
+                    <button onClick={onGenerate} disabled={pending} className="worship-btn-gold px-4 py-2 text-sm rounded-lg flex items-center gap-2 disabled:opacity-60">
+                      {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Generate
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}
@@ -1877,11 +1900,11 @@ function SectionPanel({
             against the current passage, study, big idea, or outline selection.
           </div>
           <button
-            onClick={onRegenerate}
-            disabled={pending}
+            onClick={locked ? () => setLocation('/pricing') : onRegenerate}
+            disabled={!locked && pending}
             className="shrink-0 px-3 py-1.5 text-xs rounded-md bg-amber-600 text-white hover:bg-amber-700 flex items-center gap-1 disabled:opacity-60"
           >
-            <RefreshCw className={`w-3 h-3 ${pending ? 'animate-spin' : ''}`} /> Regenerate
+            {locked ? 'Subscribe →' : <><RefreshCw className={`w-3 h-3 ${pending ? 'animate-spin' : ''}`} /> Regenerate</>}
           </button>
         </div>
       )}
@@ -1895,9 +1918,9 @@ function SectionPanel({
 
       {hasContent && !editing && (
         <div className="flex items-stretch gap-2">
-          <input value={refineValue} onChange={(e) => onRefineChange(e.target.value)} placeholder="Refine: e.g. make it more pastoral, shorter, add a sending note…" className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white" style={{ borderColor: 'var(--worship-border)' }} />
-          <button onClick={onRegenerate} disabled={pending} className="worship-btn-primary px-4 py-2 text-sm rounded-lg flex items-center gap-1.5 disabled:opacity-60">
-            {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Refine
+          <input value={refineValue} onChange={(e) => onRefineChange(e.target.value)} placeholder="Refine: e.g. make it more pastoral, shorter, add a sending note…" className="flex-1 px-3 py-2 rounded-lg border text-sm bg-white" style={{ borderColor: 'var(--worship-border)' }} disabled={locked} />
+          <button onClick={locked ? () => setLocation('/pricing') : onRegenerate} disabled={!locked && pending} className="worship-btn-primary px-4 py-2 text-sm rounded-lg flex items-center gap-1.5 disabled:opacity-60">
+            {locked ? 'Subscribe →' : pending ? <><Loader2 className="w-4 h-4 animate-spin" /> Refine</> : <><RefreshCw className="w-4 h-4" /> Refine</>}
           </button>
         </div>
       )}
