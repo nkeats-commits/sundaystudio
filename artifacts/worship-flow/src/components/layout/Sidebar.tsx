@@ -40,7 +40,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const sermonItems = [
     { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
     { icon: Archive, label: 'Sermon Archive', href: '/sermons' },
-    { icon: Layers, label: 'Series', href: '/sermons/series' },
+    { icon: Layers, label: 'Sermon Series', href: '/sermons/series' },
     { icon: LibraryIcon, label: 'Sermon Resources', href: '/resources' },
   ];
 
