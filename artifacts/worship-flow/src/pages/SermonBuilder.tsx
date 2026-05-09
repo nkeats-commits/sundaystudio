@@ -305,6 +305,10 @@ export default function SermonBuilder() {
 
   const [form, setForm] = useState<FormState>(blankForm());
   const [tab, setTab] = useState<TabKey>('study');
+  // Mobile-only panel switcher: 'context' shows the sermon form, 'content' shows the AI workspace.
+  const [mobilePanelTab, setMobilePanelTab] = useState<'context' | 'content'>('content');
+  // Switching to a content tab on any device also flips the mobile panel to 'content'.
+  const selectTab = (k: TabKey) => { setTab(k); setMobilePanelTab('content'); };
   const [exportContent, setExportContent] = useState<{ content: string; format: string } | null>(null);
   // Inline editing: which section is currently being edited and a working copy
   // (the "draft") of its content. The draft is a deep clone so cancel cleanly
@@ -980,9 +984,28 @@ export default function SermonBuilder() {
       {isExisting && sermonQuery.isLoading ? (
         <div className="flex items-center gap-2 text-[var(--worship-slate)]"><Loader2 className="w-4 h-4 animate-spin" /> Loading sermon…</div>
       ) : (
+        <>
+        {/* Mobile panel switcher — visible only below xl breakpoint */}
+        <div className="flex xl:hidden mb-3 rounded-xl border overflow-hidden" style={{ borderColor: 'var(--worship-border)' }}>
+          <button
+            type="button"
+            onClick={() => setMobilePanelTab('context')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${mobilePanelTab === 'context' ? 'bg-[var(--worship-navy)] text-white' : 'bg-white text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]'}`}
+          >
+            Context
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobilePanelTab('content')}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${mobilePanelTab === 'content' ? 'bg-[var(--worship-navy)] text-white' : 'bg-white text-[var(--worship-slate)] hover:bg-[var(--worship-cream)]'}`}
+          >
+            Content
+          </button>
+        </div>
+
         <div className="flex flex-col xl:flex-row gap-6">
           {/* LEFT: form */}
-          <div className="w-full xl:w-[36%] xl:max-w-md flex flex-col worship-card !p-0 overflow-hidden self-start xl:sticky xl:top-8 xl:max-h-[calc(100vh-4rem)]">
+          <div className={`w-full xl:w-[36%] xl:max-w-md flex flex-col worship-card !p-0 overflow-hidden self-start xl:sticky xl:top-8 xl:max-h-[calc(100vh-4rem)] ${mobilePanelTab === 'context' ? '' : 'hidden xl:flex'}`}>
             <div className="p-5 border-b bg-white" style={{ borderColor: 'var(--worship-border)' }}>
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <div className="text-[10px] uppercase tracking-widest text-[var(--worship-gold)] font-bold">Sermon context</div>
@@ -1268,18 +1291,18 @@ export default function SermonBuilder() {
           </div>
 
           {/* RIGHT: workspace */}
-          <div className="flex-1 flex flex-col worship-card !p-0 overflow-hidden min-h-[600px]">
+          <div className={`flex-1 flex flex-col worship-card !p-0 overflow-hidden min-h-[480px] xl:min-h-[600px] ${mobilePanelTab === 'content' ? '' : 'hidden xl:flex'}`}>
             <div className="border-b bg-white px-3 sm:px-5 py-3 space-y-2" style={{ borderColor: 'var(--worship-border)' }}>
               <SermonStepper
                 steps={CORE_STEPS}
                 activeKey={tab}
-                onSelect={(k) => setTab(k)}
+                onSelect={selectTab}
                 statusFor={statusFor}
               />
               <SermonAddOnRow
                 steps={ADDON_STEPS}
                 activeKey={tab}
-                onSelect={(k) => setTab(k)}
+                onSelect={selectTab}
                 statusFor={statusFor}
               />
             </div>
@@ -1685,6 +1708,7 @@ export default function SermonBuilder() {
             </div>
           </div>
         </div>
+        </>
       )}
 
       {exportContent && (
