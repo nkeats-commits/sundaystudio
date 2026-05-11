@@ -62,6 +62,18 @@ export function setGenerationJobStoreTokenGetter(
 let _onUnauthorized: (() => void) | null = null;
 let _onPaymentRequired: ((info: { url: string }) => void) | null = null;
 
+/**
+ * Module-level completion callback — fired when a job transitions from
+ * "pending" to "done".  Wired by GenerationCompleteToaster in App.tsx.
+ */
+let _onJobComplete: ((entry: JobEntry) => void) | null = null;
+
+export function setGenerationJobStoreOnJobComplete(
+  handler: ((entry: JobEntry) => void) | null,
+): void {
+  _onJobComplete = handler;
+}
+
 export function setGenerationJobStoreOnUnauthorized(
   handler: (() => void) | null,
 ): void {
@@ -239,6 +251,7 @@ export function GenerationJobStoreProvider({ children }: { children: ReactNode }
           if (snap.status === 'done') {
             entry.status = 'done';
             entry.result = snap.result ?? null;
+            try { _onJobComplete?.(entry); } catch { /* ignore */ }
             notify(startPath);
           } else if (snap.status === 'error') {
             entry.status = 'error';

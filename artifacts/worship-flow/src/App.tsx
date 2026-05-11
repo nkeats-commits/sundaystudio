@@ -13,12 +13,15 @@ import {
 import {
   setJobGenerateOnUnauthorized,
   setJobGenerateOnPaymentRequired,
+  generatorPagePath,
 } from "./hooks/useJobGenerate";
 import {
   GenerationJobStoreProvider,
   setGenerationJobStoreTokenGetter,
   setGenerationJobStoreOnUnauthorized,
   setGenerationJobStoreOnPaymentRequired,
+  setGenerationJobStoreOnJobComplete,
+  type JobEntry,
 } from "./contexts/GenerationJobStore";
 import Paywalled from "./components/Paywalled";
 import LandingPage from "./pages/LandingPage";
@@ -284,6 +287,62 @@ function ClerkAuthBootstrap() {
   return null;
 }
 
+/** Converts a pending job label to a "ready" notification message. */
+function deriveReadyLabel(pendingLabel: string): string {
+  if (pendingLabel.includes("liturgy")) return "Your liturgy is ready";
+  if (pendingLabel.includes("songs")) return "Your songs are ready";
+  if (pendingLabel.includes("speaking moment")) return "Your speaking moment is ready";
+  if (pendingLabel.includes("devotional")) return "Your devotional is ready";
+  if (pendingLabel.includes("soul care")) return "Your soul care content is ready";
+  if (pendingLabel.includes("service plan")) return "Your service plan is ready";
+  if (pendingLabel.includes("sermon")) return "Your sermon content is ready";
+  return "Generation complete";
+}
+
+const GENERATION_TOAST_ID = "generation-complete";
+
+/**
+ * Subscribes to the GenerationJobStore's completion events and shows a
+ * sonner toast when a job finishes while the user is away from that page.
+ * A fixed toast ID ensures only one completion toast shows at a time.
+ */
+function GenerationCompleteToaster() {
+  const [location, setLocation] = useLocation();
+  const locationRef = useRef(location);
+  const setLocationRef = useRef(setLocation);
+
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
+  useEffect(() => {
+    setLocationRef.current = setLocation;
+  }, [setLocation]);
+
+  useEffect(() => {
+    setGenerationJobStoreOnJobComplete((entry: JobEntry) => {
+      const pagePath = generatorPagePath(entry.startPath);
+      if (locationRef.current === pagePath) return;
+
+      const message = deriveReadyLabel(entry.label);
+      toast(message, {
+        id: GENERATION_TOAST_ID,
+        duration: 8000,
+        action: {
+          label: "View",
+          onClick: () => setLocationRef.current(pagePath),
+        },
+      });
+    });
+
+    return () => {
+      setGenerationJobStoreOnJobComplete(null);
+    };
+  }, []);
+
+  return null;
+}
+
 function HomeRedirect() {
   return (
     <>
@@ -349,6 +408,7 @@ function ClerkProviderWithRoutes() {
         <GenerationJobStoreProvider>
         <ClerkQueryClientCacheInvalidator />
         <ClerkAuthBootstrap />
+        <GenerationCompleteToaster />
         <OnboardingWizard />
         <TrialEndedModal />
         <Switch>
