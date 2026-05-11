@@ -18,4 +18,7 @@ export interface UpsertChurchProfileBody {
   /** @minLength 1 */
   leaderName: string;
   leaderRole?: string;
+  toneDescription?: string;
+  missionStatement?: string;
+  focusAreas?: string[];
 }

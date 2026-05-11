@@ -12,6 +12,10 @@ export const churchProfilesTable = pgTable("church_profiles", {
   traditions: text("traditions").notNull().default(""),
   leaderName: text("leader_name").notNull(),
   leaderRole: text("leader_role").notNull().default(""),
+  toneDescription: text("tone_description").notNull().default(""),
+  derivedToneDescription: text("derived_tone_description").notNull().default(""),
+  missionStatement: text("mission_statement").notNull().default(""),
+  focusAreas: text("focus_areas").array().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

@@ -37,6 +37,10 @@ export const GetMeResponse = zod.object({
       traditions: zod.string(),
       leaderName: zod.string(),
       leaderRole: zod.string(),
+      toneDescription: zod.string(),
+      derivedToneDescription: zod.string(),
+      missionStatement: zod.string(),
+      focusAreas: zod.array(zod.string()),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date(),
     })
@@ -64,6 +68,9 @@ export const UpdateChurchProfileBody = zod.object({
   traditions: zod.string().optional(),
   leaderName: zod.string().min(1),
   leaderRole: zod.string().optional(),
+  toneDescription: zod.string().optional(),
+  missionStatement: zod.string().optional(),
+  focusAreas: zod.array(zod.string()).optional(),
 });
 
 export const UpdateChurchProfileResponse = zod.object({
@@ -78,6 +85,10 @@ export const UpdateChurchProfileResponse = zod.object({
   traditions: zod.string(),
   leaderName: zod.string(),
   leaderRole: zod.string(),
+  toneDescription: zod.string(),
+  derivedToneDescription: zod.string(),
+  missionStatement: zod.string(),
+  focusAreas: zod.array(zod.string()),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -4697,6 +4708,66 @@ export const CompAdminUserSubscriptionResponse = zod.object({
       "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
     ),
   couponId: zod.string().nullish(),
+});
+
+/**
+ * @summary List the user's uploaded pastor manuscripts
+ */
+export const ListManuscriptsResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  fileName: zod.string(),
+  storedPath: zod.string(),
+  uploadedAt: zod.coerce.date(),
+});
+export const ListManuscriptsResponse = zod.array(ListManuscriptsResponseItem);
+
+/**
+ * @summary Register an uploaded manuscript (after presigned URL upload)
+ */
+export const CreateManuscriptBody = zod.object({
+  fileName: zod.string(),
+  storedPath: zod.string(),
+});
+
+/**
+ * @summary Delete a manuscript and remove it from storage
+ */
+export const DeleteManuscriptParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteManuscriptResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Trigger background voice analysis of uploaded manuscripts
+ */
+export const AnalyzeManuscriptsResponse = zod.object({
+  status: zod.string(),
+});
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string().min(1),
+  size: zod.number().min(1),
+  contentType: zod.string().min(1),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string().url(),
+  objectPath: zod.string(),
+  metadata: zod
+    .object({
+      name: zod.string().min(1),
+      size: zod.number().min(1),
+      contentType: zod.string().min(1),
+    })
+    .optional(),
 });
 
 /**

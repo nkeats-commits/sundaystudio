@@ -61,10 +61,15 @@ export interface ChurchContext {
   theology?: string;
   musicStyle?: string;
   traditions?: string;
+  toneDescription?: string;
+  derivedToneDescription?: string;
+  missionStatement?: string;
+  focusAreas?: string[];
 }
 
 export function churchContextBlurb(ctx: ChurchContext | null | undefined): string {
   if (!ctx) return "No specific church context was provided.";
+
   const lines = [
     `Church: ${ctx.churchName ?? "Unspecified"}`,
     ctx.denomination ? `Denomination: ${ctx.denomination}` : "",
@@ -72,5 +77,24 @@ export function churchContextBlurb(ctx: ChurchContext | null | undefined): strin
     ctx.musicStyle ? `Music style: ${ctx.musicStyle}` : "",
     ctx.traditions ? `Traditions: ${ctx.traditions}` : "",
   ].filter(Boolean);
+
+  const toneLines: string[] = [];
+  if (ctx.toneDescription) {
+    toneLines.push(`Pastoral voice (self-described): ${ctx.toneDescription}`);
+  }
+  if (ctx.derivedToneDescription) {
+    toneLines.push(`Pastoral voice (from writing samples): ${ctx.derivedToneDescription}`);
+  }
+  if (toneLines.length > 0) {
+    lines.push(...toneLines);
+  }
+
+  if (ctx.missionStatement) {
+    lines.push(`Church mission: ${ctx.missionStatement}`);
+  }
+  if (ctx.focusAreas && ctx.focusAreas.length > 0) {
+    lines.push(`Ministry focus areas: ${ctx.focusAreas.join(", ")}`);
+  }
+
   return lines.length ? lines.join("\n") : "No specific church context was provided.";
 }

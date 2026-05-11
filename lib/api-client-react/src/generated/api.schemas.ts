@@ -205,6 +205,10 @@ export interface ChurchProfile {
   traditions: string;
   leaderName: string;
   leaderRole: string;
+  toneDescription: string;
+  derivedToneDescription: string;
+  missionStatement: string;
+  focusAreas: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -221,6 +225,32 @@ export interface UpsertChurchProfileBody {
   /** @minLength 1 */
   leaderName: string;
   leaderRole?: string;
+  toneDescription?: string;
+  missionStatement?: string;
+  focusAreas?: string[];
+}
+
+export interface PastorManuscript {
+  id: number;
+  userId: string;
+  fileName: string;
+  storedPath: string;
+  uploadedAt: string;
+}
+
+export interface UploadUrlRequest {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 1 */
+  size: number;
+  /** @minLength 1 */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata?: UploadUrlRequest;
 }
 
 export interface MeResponse {
@@ -1724,4 +1754,17 @@ export type ExtendAdminUserTrial200 = {
 export type CompAdminUserSubscription200 = {
   state: AccessState;
   couponId?: string | null;
+};
+
+export type CreateManuscriptBody = {
+  fileName: string;
+  storedPath: string;
+};
+
+export type DeleteManuscript200 = {
+  ok: boolean;
+};
+
+export type AnalyzeManuscripts200 = {
+  status: string;
 };

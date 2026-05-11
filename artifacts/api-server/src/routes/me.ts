@@ -49,6 +49,9 @@ router.put("/me/church", requireAuth, async (req, res) => {
     traditions: data.traditions ?? "",
     leaderName: data.leaderName,
     leaderRole: data.leaderRole ?? "",
+    toneDescription: data.toneDescription ?? "",
+    missionStatement: data.missionStatement ?? "",
+    focusAreas: data.focusAreas ?? [],
   };
 
   const [existing] = await db

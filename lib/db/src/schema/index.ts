@@ -8,3 +8,4 @@ export * from "./crowdsourceBpm";
 export * from "./pcsConnections";
 export * from "./externalSongLinks";
 export * from "./userSourcePreferences";
+export * from "./pastorManuscripts";

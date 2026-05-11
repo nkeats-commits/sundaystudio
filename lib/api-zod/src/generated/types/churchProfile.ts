@@ -18,6 +18,10 @@ export interface ChurchProfile {
   traditions: string;
   leaderName: string;
   leaderRole: string;
+  toneDescription: string;
+  derivedToneDescription: string;
+  missionStatement: string;
+  focusAreas: string[];
   createdAt: Date;
   updatedAt: Date;
 }

@@ -21,6 +21,7 @@ import type {
   AdminMetrics,
   AdminUserDetail,
   AdminUserList,
+  AnalyzeManuscripts200,
   ApiError,
   BillingRedirect,
   BillingStatusResponse,
@@ -35,6 +36,7 @@ import type {
   CompAdminUserSubscription200,
   CompleteOnboarding200,
   CreateLibraryItemBody,
+  CreateManuscriptBody,
   CreateSermonBody,
   CreateSermonResourceBody,
   CreateSermonSeriesBody,
@@ -43,6 +45,7 @@ import type {
   CreateServiceTemplate409,
   CreateServiceTemplateBody,
   DashboardResponse,
+  DeleteManuscript200,
   ExportSermonBody,
   ExportServicePlanBody,
   ExtendAdminUserTrial200,
@@ -92,6 +95,7 @@ import type {
   ListLibraryItemsParams,
   MeResponse,
   NotFoundResponse,
+  PastorManuscript,
   PcsConnectUrl,
   PcsServiceType,
   PcsStatus,
@@ -128,6 +132,8 @@ import type {
   UpdateServiceTemplate409,
   UpdateServiceTemplateBody,
   UpdateSourcePreferencesBody,
+  UploadUrlRequest,
+  UploadUrlResponse,
   UpsertChurchProfileBody,
 } from "./api.schemas";
 
@@ -6675,6 +6681,420 @@ export const useCompAdminUserSubscription = <
   TContext
 > => {
   return useMutation(getCompAdminUserSubscriptionMutationOptions(options));
+};
+
+/**
+ * @summary List the user's uploaded pastor manuscripts
+ */
+export const getListManuscriptsUrl = () => {
+  return `/api/manuscripts`;
+};
+
+export const listManuscripts = async (
+  options?: RequestInit,
+): Promise<PastorManuscript[]> => {
+  return customFetch<PastorManuscript[]>(getListManuscriptsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListManuscriptsQueryKey = () => {
+  return [`/api/manuscripts`] as const;
+};
+
+export const getListManuscriptsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listManuscripts>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listManuscripts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListManuscriptsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listManuscripts>>> = ({
+    signal,
+  }) => listManuscripts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listManuscripts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListManuscriptsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listManuscripts>>
+>;
+export type ListManuscriptsQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List the user's uploaded pastor manuscripts
+ */
+
+export function useListManuscripts<
+  TData = Awaited<ReturnType<typeof listManuscripts>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listManuscripts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListManuscriptsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Register an uploaded manuscript (after presigned URL upload)
+ */
+export const getCreateManuscriptUrl = () => {
+  return `/api/manuscripts`;
+};
+
+export const createManuscript = async (
+  createManuscriptBody: CreateManuscriptBody,
+  options?: RequestInit,
+): Promise<PastorManuscript> => {
+  return customFetch<PastorManuscript>(getCreateManuscriptUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createManuscriptBody),
+  });
+};
+
+export const getCreateManuscriptMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createManuscript>>,
+    TError,
+    { data: BodyType<CreateManuscriptBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createManuscript>>,
+  TError,
+  { data: BodyType<CreateManuscriptBody> },
+  TContext
+> => {
+  const mutationKey = ["createManuscript"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createManuscript>>,
+    { data: BodyType<CreateManuscriptBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createManuscript(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateManuscriptMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createManuscript>>
+>;
+export type CreateManuscriptMutationBody = BodyType<CreateManuscriptBody>;
+export type CreateManuscriptMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Register an uploaded manuscript (after presigned URL upload)
+ */
+export const useCreateManuscript = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createManuscript>>,
+    TError,
+    { data: BodyType<CreateManuscriptBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createManuscript>>,
+  TError,
+  { data: BodyType<CreateManuscriptBody> },
+  TContext
+> => {
+  return useMutation(getCreateManuscriptMutationOptions(options));
+};
+
+/**
+ * @summary Delete a manuscript and remove it from storage
+ */
+export const getDeleteManuscriptUrl = (id: number) => {
+  return `/api/manuscripts/${id}`;
+};
+
+export const deleteManuscript = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteManuscript200> => {
+  return customFetch<DeleteManuscript200>(getDeleteManuscriptUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteManuscriptMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteManuscript>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteManuscript>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteManuscript"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteManuscript>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteManuscript(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteManuscriptMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteManuscript>>
+>;
+
+export type DeleteManuscriptMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Delete a manuscript and remove it from storage
+ */
+export const useDeleteManuscript = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteManuscript>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteManuscript>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteManuscriptMutationOptions(options));
+};
+
+/**
+ * @summary Trigger background voice analysis of uploaded manuscripts
+ */
+export const getAnalyzeManuscriptsUrl = () => {
+  return `/api/manuscripts/analyze`;
+};
+
+export const analyzeManuscripts = async (
+  options?: RequestInit,
+): Promise<AnalyzeManuscripts200> => {
+  return customFetch<AnalyzeManuscripts200>(getAnalyzeManuscriptsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAnalyzeManuscriptsMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof analyzeManuscripts>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof analyzeManuscripts>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["analyzeManuscripts"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof analyzeManuscripts>>,
+    void
+  > = () => {
+    return analyzeManuscripts(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AnalyzeManuscriptsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof analyzeManuscripts>>
+>;
+
+export type AnalyzeManuscriptsMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Trigger background voice analysis of uploaded manuscripts
+ */
+export const useAnalyzeManuscripts = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof analyzeManuscripts>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof analyzeManuscripts>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getAnalyzeManuscriptsMutationOptions(options));
+};
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+export const getRequestUploadUrlUrl = () => {
+  return `/api/storage/uploads/request-url`;
+};
+
+export const requestUploadUrl = async (
+  uploadUrlRequest: UploadUrlRequest,
+  options?: RequestInit,
+): Promise<UploadUrlResponse> => {
+  return customFetch<UploadUrlResponse>(getRequestUploadUrlUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(uploadUrlRequest),
+  });
+};
+
+export const getRequestUploadUrlMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<UploadUrlRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<UploadUrlRequest> },
+  TContext
+> => {
+  const mutationKey = ["requestUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    { data: BodyType<UploadUrlRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestUploadUrl(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestUploadUrl>>
+>;
+export type RequestUploadUrlMutationBody = BodyType<UploadUrlRequest>;
+export type RequestUploadUrlMutationError = ErrorType<ApiError>;
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+export const useRequestUploadUrl = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<UploadUrlRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<UploadUrlRequest> },
+  TContext
+> => {
+  return useMutation(getRequestUploadUrlMutationOptions(options));
 };
 
 /**

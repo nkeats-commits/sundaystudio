@@ -44,6 +44,10 @@ async function getChurchContext(userId: string): Promise<ChurchContext | null> {
     theology: row.theology,
     musicStyle: row.musicStyle,
     traditions: row.traditions,
+    toneDescription: row.toneDescription || undefined,
+    derivedToneDescription: row.derivedToneDescription || undefined,
+    missionStatement: row.missionStatement || undefined,
+    focusAreas: row.focusAreas?.length ? row.focusAreas : undefined,
   };
 }
 

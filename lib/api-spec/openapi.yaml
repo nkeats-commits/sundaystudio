@@ -38,6 +38,10 @@ tags:
     description: Owner-only admin panel (single-admin model gated by OWNER_EMAIL)
   - name: onboarding
     description: First-run onboarding wizard state
+  - name: manuscripts
+    description: Pastor sermon manuscript management and voice analysis
+  - name: storage
+    description: Object storage upload and serving endpoints
 paths:
   /healthz:
     get:
@@ -1885,6 +1889,119 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /manuscripts:
+    get:
+      operationId: listManuscripts
+      tags: [manuscripts]
+      summary: List the user's uploaded pastor manuscripts
+      responses:
+        "200":
+          description: List of manuscripts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PastorManuscript"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createManuscript
+      tags: [manuscripts]
+      summary: Register an uploaded manuscript (after presigned URL upload)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileName, storedPath]
+              properties:
+                fileName:
+                  type: string
+                storedPath:
+                  type: string
+      responses:
+        "201":
+          description: Created manuscript record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PastorManuscript"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /manuscripts/{id}:
+    delete:
+      operationId: deleteManuscript
+      tags: [manuscripts]
+      summary: Delete a manuscript and remove it from storage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required: [ok]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /manuscripts/analyze:
+    post:
+      operationId: analyzeManuscripts
+      tags: [manuscripts]
+      summary: Trigger background voice analysis of uploaded manuscripts
+      responses:
+        "200":
+          description: Analysis started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required: [status]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        "200":
+          description: Presigned upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        "400":
+          description: Missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /sources:
     get:
       operationId: listScholarlySources
@@ -2246,6 +2363,16 @@ components:
           type: string
         leaderRole:
           type: string
+        toneDescription:
+          type: string
+        derivedToneDescription:
+          type: string
+        missionStatement:
+          type: string
+        focusAreas:
+          type: array
+          items:
+            type: string
         createdAt:
           type: string
           format: date-time
@@ -2263,6 +2390,10 @@ components:
         - traditions
         - leaderName
         - leaderRole
+        - toneDescription
+        - derivedToneDescription
+        - missionStatement
+        - focusAreas
         - createdAt
         - updatedAt
 
@@ -2290,9 +2421,64 @@ components:
           minLength: 1
         leaderRole:
           type: string
+        toneDescription:
+          type: string
+        missionStatement:
+          type: string
+        focusAreas:
+          type: array
+          items:
+            type: string
       required:
         - churchName
         - leaderName
+
+    PastorManuscript:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        fileName:
+          type: string
+        storedPath:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - fileName
+        - storedPath
+        - uploadedAt
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/UploadUrlRequest'
 
     MeResponse:
       type: object
