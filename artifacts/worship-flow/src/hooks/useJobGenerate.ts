@@ -1,38 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/react";
+import {
+  useGenerationJob,
+  useGenerationJobStore,
+} from "../contexts/GenerationJobStore";
 
 /**
  * Polling-based replacement for the old SSE-based `useStreamingGenerate`.
  *
- * Why polling: the deployed Replit autoscale proxy buffers SSE response
- * bodies entirely, so streaming `event: delta` chunks never reach the
- * browser until the response closes. We instead POST to the start endpoint
- * (which returns `{ jobId }` immediately), then poll
- * `GET /api/generate/jobs/:jobId` every ~1.5s. Each request is short and
- * proxies cleanly.
- *
- * The hook surface deliberately matches the old streaming hook so callers
- * needed only an import rename.
+ * Architecture (post-navigation-survival refactor):
+ *  - On `mutate`, the job is started via POST and registered in the global
+ *    `GenerationJobStore`, which owns the polling loop.  The hook reads its
+ *    state from that store entry so state survives navigation.
+ *  - On unmount (navigation away) the job is NOT cancelled — the store keeps
+ *    polling so the result is ready when the user returns.
+ *  - A new `mutate` call replaces the prior entry (and cancels its server
+ *    job).  `reset()` cancels and removes the entry.
  */
 
-const PARTIAL_TEXT_DISPLAY_CAP = 4000;
-const POLL_INTERVAL_MS = 1500;
 const POLL_BASE_PATH = "/api/generate/jobs";
-/**
- * How long we tolerate consecutive `unknown` poll responses before giving
- * up. Autoscale runs multiple workers and routing is not sticky, so polls
- * can repeatedly land on a worker that doesn't own the job. We give the
- * routing plenty of time to land on the right worker before failing.
- */
-const UNKNOWN_TOLERANCE_MS = 45_000;
-
-interface JobSnapshotResponse {
-  status: "pending" | "done" | "error" | "unknown";
-  charsReceived?: number;
-  partialTail?: string;
-  result?: unknown;
-  errorMessage?: string;
-}
 
 export interface JobGenerateState<TData> {
   data: TData | null;
@@ -62,25 +48,6 @@ export function setJobGenerateOnPaymentRequired(
   _onPaymentRequired = handler;
 }
 
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new DOMException("Aborted", "AbortError"));
-      return;
-    }
-    const t = setTimeout(() => {
-      signal.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(t);
-      signal.removeEventListener("abort", onAbort);
-      reject(new DOMException("Aborted", "AbortError"));
-    };
-    signal.addEventListener("abort", onAbort);
-  });
-}
-
 async function readErrorMessage(res: Response): Promise<string> {
   try {
     const ct = res.headers.get("content-type") ?? "";
@@ -104,6 +71,21 @@ async function readErrorMessage(res: Response): Promise<string> {
   return `Request failed (${res.status})`;
 }
 
+/** Map a generation API path to a human-readable label shown in the sidebar. */
+function deriveLabel(startPath: string): string {
+  if (startPath.includes("/generate/liturgy")) return "Generating liturgy…";
+  if (startPath.includes("/generate/songs")) return "Generating songs…";
+  if (startPath.includes("/generate/speaking-moment"))
+    return "Generating speaking moment…";
+  if (startPath.includes("/generate/devotional"))
+    return "Generating devotional…";
+  if (startPath.includes("/generate/soul-care")) return "Generating soul care…";
+  if (startPath.includes("/generate/service-plan"))
+    return "Building service plan…";
+  if (startPath.includes("/generate/sermon")) return "Generating sermon…";
+  return "Generating…";
+}
+
 export function useJobGenerate<TData>(
   startPath: string,
 ): JobGenerateState<TData> {
@@ -113,74 +95,15 @@ export function useJobGenerate<TData>(
     getTokenRef.current = getToken;
   }, [getToken]);
 
-  const [data, setData] = useState<TData | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isPending, setIsPending] = useState(false);
-  const [partialText, setPartialText] = useState("");
-  const abortRef = useRef<AbortController | null>(null);
-  const requestIdRef = useRef(0);
-  const mountedRef = useRef(true);
-  /** Most-recent active jobId, used for fire-and-forget cancel on abort. */
-  const activeJobIdRef = useRef<string | null>(null);
+  const store = useGenerationJobStore();
+  const entry = useGenerationJob(startPath);
 
   /**
-   * Best-effort cancel of a server-side job. Fire-and-forget: we use
-   * `keepalive` so the request still goes out if the page is being torn
-   * down. Failures are silently ignored — the server's idle sweeper will
-   * clean up eventually.
+   * Monotonic counter that identifies the latest `mutate` call for this hook
+   * instance. When an async POST resolves, it checks this counter to detect
+   * whether a newer call has superseded it and should discard its result.
    */
-  const cancelJob = useCallback(async (jobId: string): Promise<void> => {
-    try {
-      const headers = await (async (): Promise<Record<string, string>> => {
-        const h: Record<string, string> = { Accept: "application/json" };
-        try {
-          const token = await getTokenRef.current();
-          if (token) h.Authorization = `Bearer ${token}`;
-        } catch {
-          /* fall through */
-        }
-        return h;
-      })();
-      await fetch(`${POLL_BASE_PATH}/${jobId}`, {
-        method: "DELETE",
-        headers,
-        credentials: "include",
-        keepalive: true,
-      });
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      abortRef.current?.abort();
-      abortRef.current = null;
-      const id = activeJobIdRef.current;
-      if (id) {
-        activeJobIdRef.current = null;
-        void cancelJob(id);
-      }
-    };
-  }, [cancelJob]);
-
-  const reset = useCallback(() => {
-    requestIdRef.current += 1;
-    abortRef.current?.abort();
-    abortRef.current = null;
-    const id = activeJobIdRef.current;
-    if (id) {
-      activeJobIdRef.current = null;
-      void cancelJob(id);
-    }
-    if (!mountedRef.current) return;
-    setData(null);
-    setError(null);
-    setIsPending(false);
-    setPartialText("");
-  }, [cancelJob]);
+  const mutateSeqRef = useRef(0);
 
   const buildAuthHeaders = useCallback(async (): Promise<
     Record<string, string>
@@ -198,39 +121,47 @@ export function useJobGenerate<TData>(
     return headers;
   }, []);
 
+  /** Fire-and-forget DELETE for a server-side job that we no longer track. */
+  const cancelOrphanJob = useCallback(
+    async (jobId: string): Promise<void> => {
+      try {
+        const h = await buildAuthHeaders();
+        await fetch(`${POLL_BASE_PATH}/${jobId}`, {
+          method: "DELETE",
+          headers: { Accept: "application/json", ...(h.Authorization ? { Authorization: h.Authorization } : {}) },
+          credentials: "include",
+          keepalive: true,
+        });
+      } catch {
+        /* ignore */
+      }
+    },
+    [buildAuthHeaders],
+  );
+
+  const reset = useCallback(() => {
+    mutateSeqRef.current += 1;
+    store.cancelJob(startPath);
+  }, [store, startPath]);
+
   const mutate = useCallback(
     async (body: unknown): Promise<TData | null> => {
-      abortRef.current?.abort();
-      const ac = new AbortController();
-      abortRef.current = ac;
+      // Claim this sequence slot — any POST still in-flight from an earlier
+      // call will notice it's been superseded once it resolves.
+      const mySeq = ++mutateSeqRef.current;
+      const isCurrent = () => mutateSeqRef.current === mySeq;
 
-      const myId = ++requestIdRef.current;
-      const isCurrent = () =>
-        mountedRef.current && requestIdRef.current === myId;
-
-      if (isCurrent()) {
-        setData(null);
-        setError(null);
-        setPartialText("");
-        setIsPending(true);
-      }
-
-      // Cancel any prior in-flight job server-side before starting a new one.
-      const previousJobId = activeJobIdRef.current;
-      if (previousJobId) {
-        activeJobIdRef.current = null;
-        void cancelJob(previousJobId);
-      }
+      // Eagerly clear the store entry so the UI reverts to idle immediately
+      // rather than flashing a stale "done" result.
+      store.cancelJob(startPath);
 
       try {
-        // 1. Start the job.
-        const startHeaders = await buildAuthHeaders();
+        const headers = await buildAuthHeaders();
         const startRes = await fetch(startPath, {
           method: "POST",
-          headers: startHeaders,
+          headers,
           body: JSON.stringify(body),
           credentials: "include",
-          signal: ac.signal,
         });
 
         if (!startRes.ok) {
@@ -248,111 +179,96 @@ export function useJobGenerate<TData>(
               /* ignore */
             }
           }
-          throw new Error(await readErrorMessage(startRes));
+          const errMsg = await readErrorMessage(startRes);
+          // Persist the failure to the store so `generate.error` is non-null
+          // and generator pages can render their inline error UIs.
+          if (isCurrent()) {
+            store.recordJobError(startPath, new Error(errMsg), deriveLabel(startPath));
+          }
+          throw new Error(errMsg);
         }
 
         const startJson = (await startRes.json()) as { jobId?: unknown };
         const jobId =
           typeof startJson.jobId === "string" ? startJson.jobId : null;
-        if (!jobId) throw new Error("Server did not return a jobId.");
-        if (isCurrent()) activeJobIdRef.current = jobId;
-
-        // 2. Poll until done / error / aborted.
-        let lastPartial = "";
-        let firstUnknownAt: number | null = null;
-        // First poll happens immediately (so if Anthropic was very fast we
-        // don't make the user wait the full interval).
-        let firstPoll = true;
-        while (true) {
-          if (!firstPoll) await sleep(POLL_INTERVAL_MS, ac.signal);
-          firstPoll = false;
-
-          const pollHeaders = await buildAuthHeaders();
-          const pollRes = await fetch(`${POLL_BASE_PATH}/${jobId}`, {
-            method: "GET",
-            headers: pollHeaders,
-            credentials: "include",
-            signal: ac.signal,
-          });
-
-          if (!pollRes.ok) {
-            if (pollRes.status === 401 && _onUnauthorized) {
-              try {
-                _onUnauthorized();
-              } catch {
-                /* ignore */
-              }
-            }
-            if (pollRes.status === 402 && _onPaymentRequired) {
-              try {
-                _onPaymentRequired({ url: `${POLL_BASE_PATH}/${jobId}` });
-              } catch {
-                /* ignore */
-              }
-            }
-            throw new Error(await readErrorMessage(pollRes));
+        if (!jobId) {
+          const err = new Error("Server did not return a jobId.");
+          if (isCurrent()) {
+            store.recordJobError(startPath, err, deriveLabel(startPath));
           }
-
-          const snap = (await pollRes.json()) as JobSnapshotResponse;
-
-          if (snap.status === "unknown") {
-            // Autoscale may route this poll to a worker that doesn't own
-            // the job; tolerate sustained unknowns up to a time budget
-            // before giving up.
-            if (firstUnknownAt === null) firstUnknownAt = Date.now();
-            else if (Date.now() - firstUnknownAt > UNKNOWN_TOLERANCE_MS) {
-              throw new Error(
-                "Lost track of this generation. Please try again.",
-              );
-            }
-            continue;
-          }
-          firstUnknownAt = null;
-
-          if (typeof snap.partialTail === "string") {
-            const next = snap.partialTail.slice(-PARTIAL_TEXT_DISPLAY_CAP);
-            if (next !== lastPartial) {
-              lastPartial = next;
-              if (isCurrent()) setPartialText(next);
-            }
-          }
-
-          if (snap.status === "done") {
-            const result = snap.result as TData | undefined;
-            if (result === undefined) {
-              throw new Error("Generation finished without producing a result.");
-            }
-            if (isCurrent()) {
-              activeJobIdRef.current = null;
-              setData(result);
-              setIsPending(false);
-            }
-            return result;
-          }
-          if (snap.status === "error") {
-            if (isCurrent()) activeJobIdRef.current = null;
-            throw new Error(snap.errorMessage || "Generation failed.");
-          }
-          // status === "pending" → continue polling.
+          throw err;
         }
-      } catch (e) {
-        if (
-          (e instanceof DOMException && e.name === "AbortError") ||
-          (e instanceof Error && e.name === "AbortError")
-        ) {
-          if (isCurrent()) setIsPending(false);
+
+        // If a newer mutate already started while we awaited the POST, cancel
+        // the server-side job we just created and bail out.
+        if (!isCurrent()) {
+          void cancelOrphanJob(jobId);
           return null;
         }
-        const errObj = e instanceof Error ? e : new Error(String(e));
-        if (isCurrent()) {
-          setError(errObj);
-          setIsPending(false);
+
+        const label = deriveLabel(startPath);
+        store.registerJob(startPath, jobId, label);
+
+        // Wait for the store's polling loop to signal done or error.
+        return new Promise<TData | null>((resolve, reject) => {
+          const unsubscribe = store.subscribe(startPath, () => {
+            const current = store.getEntry(startPath);
+            if (!current || current.jobId !== jobId) {
+              // Entry was replaced (new generation started) or cancelled.
+              unsubscribe();
+              resolve(null);
+              return;
+            }
+            if (current.status === "done") {
+              unsubscribe();
+              resolve(current.result as TData);
+            } else if (current.status === "error") {
+              unsubscribe();
+              reject(current.error ?? new Error("Generation failed."));
+            }
+            // still pending — keep waiting
+          });
+        });
+      } catch (e) {
+        if (
+          e instanceof DOMException ||
+          (e instanceof Error && e.name === "AbortError")
+        ) {
+          return null;
         }
-        throw errObj;
+        throw e instanceof Error ? e : new Error(String(e));
       }
     },
-    [startPath, buildAuthHeaders],
+    [startPath, store, buildAuthHeaders, cancelOrphanJob],
   );
 
-  return { data, error, isPending, partialText, mutate, reset };
+  return {
+    data: entry?.status === "done" ? (entry.result as TData) : null,
+    error: entry?.error ?? null,
+    isPending: entry?.status === "pending" ? true : false,
+    partialText: entry?.partialTail ?? "",
+    mutate,
+    reset,
+  };
 }
+
+/**
+ * Map a generation startPath back to the page URL where that generator lives.
+ * Used by the sidebar indicator so clicking navigates back to the right page.
+ */
+export function generatorPagePath(startPath: string): string {
+  if (startPath.includes("/generate/liturgy")) return "/generators/liturgy";
+  if (startPath.includes("/generate/songs")) return "/generators/songs";
+  if (startPath.includes("/generate/speaking-moment"))
+    return "/generators/speaking-moment";
+  if (startPath.includes("/generate/devotional"))
+    return "/generators/devotional";
+  if (startPath.includes("/generate/soul-care")) return "/generators/soul-care";
+  if (startPath.includes("/generate/service-plan")) return "/service-builder";
+  if (startPath.includes("/generate/sermon")) return "/sermons";
+  return "/dashboard";
+}
+
+// Keep the DELETE path for explicit cancellation (used by the store internally
+// via cancelServerJob, but also re-exported here for any legacy callers).
+export { POLL_BASE_PATH };

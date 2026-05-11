@@ -18,11 +18,37 @@ import {
   Plug,
   CreditCard,
   X,
+  Loader2,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
 import { Shield } from 'lucide-react';
 import { useIsOwner } from '../../hooks/useIsOwner';
+import { useAnyPendingGenerationJobs } from '../../contexts/GenerationJobStore';
+import { generatorPagePath } from '../../hooks/useJobGenerate';
+
+function BackgroundGenerationIndicator() {
+  const pendingJobs = useAnyPendingGenerationJobs();
+  const [, setLocation] = useLocation();
+
+  if (pendingJobs.length === 0) return null;
+
+  const first = pendingJobs[0]!;
+  const pagePath = generatorPagePath(first.startPath);
+  const label = first.label;
+
+  return (
+    <button
+      type="button"
+      onClick={() => setLocation(pagePath)}
+      className="mx-3 mb-2 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-left transition-colors hover:bg-white/10 border border-white/15 bg-white/5"
+      title={`Click to return to ${label.replace('…', '')}`}
+    >
+      <Loader2 className="w-4 h-4 shrink-0 animate-spin text-[var(--worship-gold)]" />
+      <span className="truncate text-slate-300">{label}</span>
+    </button>
+  );
+}
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [location] = useLocation();
@@ -140,6 +166,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           );
         })}
       </div>
+
+      <BackgroundGenerationIndicator />
 
       <div className="p-4 border-t border-white/10">
         <div className="flex items-center gap-3 px-2 overflow-hidden">

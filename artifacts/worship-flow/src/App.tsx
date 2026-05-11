@@ -14,6 +14,12 @@ import {
   setJobGenerateOnUnauthorized,
   setJobGenerateOnPaymentRequired,
 } from "./hooks/useJobGenerate";
+import {
+  GenerationJobStoreProvider,
+  setGenerationJobStoreTokenGetter,
+  setGenerationJobStoreOnUnauthorized,
+  setGenerationJobStoreOnPaymentRequired,
+} from "./contexts/GenerationJobStore";
 import Paywalled from "./components/Paywalled";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
@@ -209,15 +215,18 @@ function ClerkAuthBootstrap() {
     // entirely so subsequent calls don't even bother asking Clerk for a
     // token they cannot obtain.
     if (isSignedIn) {
-      setAuthTokenGetter(async () => {
+      const tokenGetter = async () => {
         try {
           return await getToken();
         } catch {
           return null;
         }
-      });
+      };
+      setAuthTokenGetter(tokenGetter);
+      setGenerationJobStoreTokenGetter(tokenGetter);
     } else {
       setAuthTokenGetter(null);
+      setGenerationJobStoreTokenGetter(null);
     }
 
     const handleUnauthorized = () => {
@@ -237,6 +246,7 @@ function ClerkAuthBootstrap() {
 
     setOnUnauthorized(handleUnauthorized);
     setJobGenerateOnUnauthorized(handleUnauthorized);
+    setGenerationJobStoreOnUnauthorized(handleUnauthorized);
 
     // 402 from a gated mutation → bounce to /pricing with a toast (once
     // per burst, like 401 handling above, since a page can fire several
@@ -257,13 +267,17 @@ function ClerkAuthBootstrap() {
     };
     setOnPaymentRequired(handlePaymentRequired);
     setJobGenerateOnPaymentRequired(handlePaymentRequired);
+    setGenerationJobStoreOnPaymentRequired(handlePaymentRequired);
 
     return () => {
       setAuthTokenGetter(null);
+      setGenerationJobStoreTokenGetter(null);
       setOnUnauthorized(null);
       setOnPaymentRequired(null);
       setJobGenerateOnUnauthorized(null);
       setJobGenerateOnPaymentRequired(null);
+      setGenerationJobStoreOnUnauthorized(null);
+      setGenerationJobStoreOnPaymentRequired(null);
     };
   }, [isLoaded, isSignedIn, getToken, signOut, setLocation]);
 
@@ -332,6 +346,7 @@ function ClerkProviderWithRoutes() {
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
       <QueryClientProvider client={queryClient}>
+        <GenerationJobStoreProvider>
         <ClerkQueryClientCacheInvalidator />
         <ClerkAuthBootstrap />
         <OnboardingWizard />
@@ -397,6 +412,7 @@ function ClerkProviderWithRoutes() {
           </Route>
           <Route>{() => <Protected component={NotFound} />}</Route>
         </Switch>
+        </GenerationJobStoreProvider>
       </QueryClientProvider>
     </ClerkProvider>
   );
