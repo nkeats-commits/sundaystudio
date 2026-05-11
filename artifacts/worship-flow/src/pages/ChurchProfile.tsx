@@ -16,7 +16,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useLocation } from 'wouter';
-import { Upload, Trash2, FileText, Loader2, Sparkles, Plus, X } from 'lucide-react';
+import { Upload, Trash2, FileText, Loader2, Sparkles, Plus, X, ArrowDown } from 'lucide-react';
 
 const PRESET_FOCUS_AREAS = [
   'Discipleship',
@@ -123,7 +123,7 @@ export default function ChurchProfile() {
       {
         onSuccess: () => {
           toast.success('Your profile updated', {
-            description: 'Your AI generations will now use this context.',
+            description: 'Your Sunday Studio results will now use this context.',
           });
           queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
           if (nextPath) setLocation(nextPath);
@@ -259,7 +259,7 @@ export default function ChurchProfile() {
           <h1 className="text-2xl font-serif text-[var(--worship-navy)] mb-1">Your Profile</h1>
           <p className="text-sm text-[var(--worship-slate)]">
             Tell Sunday Studio about yourself and your church. The more context you share, the more
-            your AI suggestions will feel like they were made just for you.
+            your Sunday Studio results will feel like they were made just for you.
           </p>
         </div>
 
@@ -321,6 +321,34 @@ export default function ChurchProfile() {
               <textarea {...register('traditions')} placeholder="e.g. We take communion every week. We always end with a benediction. We don't do formal scripture readings." className="w-full h-24 px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-[var(--worship-cream)] focus:outline-none focus:ring-2 ring-[var(--worship-gold)] resize-none" />
             </div>
           </div>
+
+          {/* ── Personalization nudge ── */}
+          {(() => {
+            const savedProfile = me?.profile;
+            if (!savedProfile) return null;
+            const basicReady =
+              (savedProfile.churchName as string | null | undefined)?.trim() &&
+              (savedProfile.leaderName as string | null | undefined)?.trim();
+            if (!basicReady) return null;
+            const hasVoice = !!(
+              (savedProfile.toneDescription as string | null | undefined)?.trim() ||
+              (savedProfile.derivedToneDescription as string | null | undefined)?.trim()
+            );
+            const hasMission = !!(savedProfile.missionStatement as string | null | undefined)?.trim();
+            if (hasVoice || hasMission) return null;
+            return (
+              <div
+                className="flex items-start gap-3 px-4 py-3.5 rounded-xl border"
+                style={{ backgroundColor: 'var(--worship-pale-gold)', borderColor: 'var(--worship-gold)' }}
+              >
+                <ArrowDown className="w-4 h-4 shrink-0 mt-0.5 text-[var(--worship-navy)]" />
+                <p className="text-sm text-[var(--worship-navy)]">
+                  <span className="font-semibold">Want your Sunday Studio results to sound more like you?</span>
+                  {' '}Add your preaching voice and church mission in the sections below.
+                </p>
+              </div>
+            );
+          })()}
 
           {/* ── Your Voice ── */}
           <div className="worship-card space-y-5">
@@ -445,7 +473,7 @@ export default function ChurchProfile() {
             <div>
               <h2 className="text-lg font-serif text-[var(--worship-navy)] border-b border-[var(--worship-border)] pb-2">Your Church's Mission</h2>
               <p className="text-sm text-[var(--worship-slate)] mt-2">
-                What your church exists to do shapes everything the AI generates. A discipleship-focused church should get discipleship-shaped content.
+                What your church exists to do shapes everything Sunday Studio generates. A discipleship-focused church should get discipleship-shaped content.
               </p>
             </div>
 

@@ -5,6 +5,7 @@ import { useUser } from '@clerk/react';
 import { useGetDashboard, useGetMe } from '@workspace/api-client-react';
 import { OnboardingBanner } from '../components/OnboardingBanner';
 import { UpgradeBanner } from '../components/UpgradeBanner';
+import { PersonalizationCard } from '../components/PersonalizationCard';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -55,6 +56,9 @@ export default function Dashboard() {
             </Link>
           </div>
         </section>
+
+        {/* Personalization completeness */}
+        <PersonalizationCard />
 
         {/* Quick Actions */}
         <section>

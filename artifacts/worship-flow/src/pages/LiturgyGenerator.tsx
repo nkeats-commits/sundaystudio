@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 import { useLocation } from 'wouter';
@@ -136,6 +137,9 @@ export default function LiturgyGenerator() {
           <div className="pb-4 border-b border-[var(--worship-border)]">
             <h2 className="text-xl font-serif text-[var(--worship-navy)]">Generate Liturgy</h2>
             <p className="text-sm text-[var(--worship-slate)] mt-1">Thoughtful words for worship.</p>
+            <div className="mt-2">
+              <PersonalizationChip />
+            </div>
           </div>
 
           <form onSubmit={handleGenerate} className="space-y-5">

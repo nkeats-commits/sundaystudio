@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
@@ -269,6 +270,9 @@ export default function SongGenerator() {
             <p className="text-sm text-[var(--worship-slate)] mt-1">
               Discover songs that fit your thematic arc.
             </p>
+            <div className="mt-2">
+              <PersonalizationChip />
+            </div>
           </div>
 
           <form onSubmit={handleGenerate} className="space-y-5">

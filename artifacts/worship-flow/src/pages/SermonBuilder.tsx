@@ -39,6 +39,7 @@ import {
 import { AppLayout } from '../components/layout/AppLayout';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { ScholarlySourcesChip } from '../components/ScholarlySourcesChip';
+import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import {
@@ -1010,6 +1011,7 @@ export default function SermonBuilder() {
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <div className="text-[10px] uppercase tracking-widest text-[var(--worship-gold)] font-bold">Sermon context</div>
                 <ScholarlySourcesChip />
+                <PersonalizationChip />
               </div>
               <input
                 className="w-full text-2xl font-serif text-[var(--worship-navy)] bg-transparent outline-none border-b border-transparent focus:border-[var(--worship-gold)]"

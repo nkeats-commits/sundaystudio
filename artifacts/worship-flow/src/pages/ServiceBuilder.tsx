@@ -43,6 +43,7 @@ import { useJobGenerate } from '../hooks/useJobGenerate';
 import { SlotPicker, LinkedPill, slotPickerSupported } from '../components/SlotPicker';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
+import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import {
   WORSHIP_ELEMENTS,
@@ -482,6 +483,9 @@ export default function ServiceBuilder() {
             >
               Provide context to generate a thoughtful plan.
             </p>
+            <div className="mt-2">
+              <PersonalizationChip />
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-white">
