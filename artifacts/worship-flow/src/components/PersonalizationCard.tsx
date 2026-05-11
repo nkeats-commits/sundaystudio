@@ -7,6 +7,9 @@ import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
  * Dashboard card that shows the pastor how much of their personalization
  * profile is filled in. Only renders after basic onboarding is complete.
  * When all depth layers are active it shows a quiet success state.
+ *
+ * The entire card is clickable via a stretched absolute <Link>; inner
+ * interactive elements (CTA button, edit link) sit on z-10 to stay above it.
  */
 export function PersonalizationCard() {
   const { ready, loading } = useChurchProfileReady();
@@ -55,12 +58,13 @@ export function PersonalizationCard() {
   if (allComplete) {
     return (
       <div
-        className="flex items-center justify-between gap-4 px-5 py-3.5 rounded-2xl border"
+        className="relative flex items-center justify-between gap-4 px-5 py-3.5 rounded-2xl border hover:bg-[var(--worship-cream)] transition-colors"
         style={{
           backgroundColor: 'var(--worship-white)',
           borderColor: 'var(--worship-border)',
         }}
       >
+        <Link href="/church" className="absolute inset-0 rounded-2xl" aria-label="Edit your personalization profile" />
         <div className="flex items-center gap-3">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-[var(--worship-gold)]" />
           <p className="text-sm text-[var(--worship-slate)]">
@@ -68,24 +72,23 @@ export function PersonalizationCard() {
             <span className="font-medium text-[var(--worship-navy)]">{churchName}</span>.
           </p>
         </div>
-        <Link
-          href="/church"
-          className="text-xs text-[var(--worship-slate)] hover:text-[var(--worship-navy)] shrink-0 flex items-center gap-1"
-        >
+        <span className="relative z-10 text-xs text-[var(--worship-slate)] hover:text-[var(--worship-navy)] shrink-0 flex items-center gap-1 pointer-events-none">
           Edit <ChevronRight className="w-3 h-3" />
-        </Link>
+        </span>
       </div>
     );
   }
 
   return (
     <div
-      className="rounded-2xl border overflow-hidden"
+      className="relative rounded-2xl border overflow-hidden hover:shadow-sm transition-shadow"
       style={{
         backgroundColor: 'var(--worship-white)',
         borderColor: 'var(--worship-border)',
       }}
     >
+      <Link href="/church" className="absolute inset-0" aria-label="Complete your personalization profile" />
+
       <div className="px-5 py-4 flex items-start justify-between gap-4 border-b" style={{ borderColor: 'var(--worship-border)' }}>
         <div className="flex items-start gap-3">
           <div
@@ -105,7 +108,7 @@ export function PersonalizationCard() {
         </div>
         <Link
           href="/church"
-          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold worship-btn-primary text-white whitespace-nowrap"
+          className="relative z-10 shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold worship-btn-primary text-white whitespace-nowrap"
         >
           Complete profile <ChevronRight className="w-3 h-3" />
         </Link>
