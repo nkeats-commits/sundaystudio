@@ -68,8 +68,7 @@ export function PersonalizationCard() {
         <div className="flex items-center gap-3">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-[var(--worship-gold)]" />
           <p className="text-sm text-[var(--worship-slate)]">
-            Sunday Studio knows your voice and mission for{' '}
-            <span className="font-medium text-[var(--worship-navy)]">{churchName}</span>.
+            Sunday Studio knows your voice, mission, and focus areas.
           </p>
         </div>
         <span className="relative z-10 text-xs text-[var(--worship-slate)] hover:text-[var(--worship-navy)] shrink-0 flex items-center gap-1 pointer-events-none">
