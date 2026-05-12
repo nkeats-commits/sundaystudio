@@ -29,3 +29,27 @@ id = "hq3l9aTfw2MPxPHuRiDbX"
 uri = "file://attached_assets/image_search/option_4.jpg"
 type = "image"
 title = "Joyful group sharing a meal together, diversity and friendship"
+
+[[outputs]]
+id = "fflX3A2IkOG_rjFDpCk5-"
+uri = "file://attached_assets/stock_images/worship-stage_1.jpg"
+type = "image"
+title = "worship service congregation hands raised stage lights atmospheric dramatic"
+
+[[outputs]]
+id = "kZ0jZh5Wig6HokvrGu7vk"
+uri = "file://attached_assets/stock_images/worship-stage_2.jpg"
+type = "image"
+title = "worship service congregation hands raised stage lights atmospheric dramatic"
+
+[[outputs]]
+id = "9pckevsl-8m70gTePjX2Y"
+uri = "file://attached_assets/stock_images/worship-stage_3.jpg"
+type = "image"
+title = "worship service congregation hands raised stage lights atmospheric dramatic"
+
+[[outputs]]
+id = "WiTTEnilCeFwTdac8nxFL"
+uri = "file://artifacts/worship-flow/public/opengraph.jpg"
+type = "image"
+title = "Sunday Studio — Social Sharing Card"

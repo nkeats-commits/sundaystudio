@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1200" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1200px; height: 630px; overflow: hidden; background: #111b34; }
+    .card {
+      width: 1200px;
+      height: 630px;
+      display: flex;
+      background: #111b34;
+      overflow: hidden;
+      position: relative;
+    }
+    .left {
+      width: 620px;
+      height: 100%;
+      padding: 56px 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      z-index: 2;
+      flex-shrink: 0;
+    }
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+    .wordmark-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 19px;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+    }
+    .headline-block {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 40px 0 24px;
+    }
+    .headline {
+      font-family: 'Playfair Display', serif;
+      font-size: 58px;
+      font-weight: 700;
+      line-height: 1.12;
+      color: #ffffff;
+      margin-bottom: 22px;
+      letter-spacing: -0.01em;
+    }
+    .headline em {
+      color: #c5a471;
+      font-style: normal;
+    }
+    .tagline {
+      font-family: 'Inter', sans-serif;
+      font-size: 18px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.60);
+      line-height: 1.55;
+    }
+    .url {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #c5a471;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .right {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 660px;
+      height: 100%;
+      overflow: hidden;
+    }
+    .right img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+    }
+    .right-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to right,
+        #111b34 0%,
+        rgba(17,27,52,0.85) 20%,
+        rgba(17,27,52,0.45) 55%,
+        rgba(17,27,52,0.15) 100%
+      );
+      z-index: 1;
+    }
+    .divider {
+      display: inline-block;
+      width: 48px;
+      height: 3px;
+      background: #c5a471;
+      border-radius: 2px;
+      margin-bottom: 28px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="left">
+      <div class="wordmark">
+        <svg width="28" height="28" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 90 148 C 72 148 57 134 57 116 C 57 98 67 86 75 76 C 75 88 81 96 87 99 C 82 88 83 70 90 52 C 96 65 102 80 99 93 C 105 84 108 70 106 57 C 119 70 123 88 123 107 C 123 130 108 148 90 148 Z M 90 148 C 83 148 78 142 78 135 C 78 128 82 123 87 118 C 87 124 89 128 90 130 C 91 128 93 124 93 118 C 98 123 102 128 102 135 C 102 142 97 148 90 148 Z" fill="#C5A471"/>
+        </svg>
+        <span class="wordmark-text">Sunday Studio</span>
+      </div>
+
+      <div class="headline-block">
+        <div class="divider"></div>
+        <h1 class="headline">Plan Spiritually<br>Rich Services<br><em>Without Losing</em><br><em>Your Week</em></h1>
+        <p class="tagline">Worship planning tools for pastors<br>and worship leaders.</p>
+      </div>
+
+      <div class="url">sundaystudio.app</div>
+    </div>
+
+    <div class="right">
+      <img src="/og-worship-photo.jpg" alt="" />
+      <div class="right-overlay"></div>
+    </div>
+  </div>
+</body>
+</html>
