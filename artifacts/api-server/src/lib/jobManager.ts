@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import type { Logger } from "pino";
-import { extractJson, streamMessage } from "./anthropicJson";
+import { extractJson, streamMessage, recordAiUsage } from "./anthropicJson";
 
 /**
  * In-memory generation-job runtime.
@@ -71,6 +71,11 @@ export interface StartJobOptions<T> {
   maxTokens: number;
   /** Short label for log lines (e.g. `"sermon study"`, `"songs"`). */
   label: string;
+  /**
+   * Machine-readable generation type stored in ai_usage_events.
+   * Defaults to label with spaces replaced by hyphens when omitted.
+   */
+  generationType?: string;
   log: Logger;
   /** Optional zod schema validation of the parsed JSON. */
   responseSchema?: SafeParseable<T>;
@@ -111,6 +116,8 @@ class JobManager {
     this.startSweeper();
     const jobId = randomUUID();
     const stream = streamMessage(opts.prompt, { maxTokens: opts.maxTokens });
+    const generationType =
+      opts.generationType ?? opts.label.replace(/\s+/g, "-");
 
     let fullText = "";
     const job: JobInternal = {
@@ -140,14 +147,27 @@ class JobManager {
     });
 
     void (async () => {
+      let finalMessage: Awaited<ReturnType<typeof stream.finalMessage>> | null =
+        null;
       try {
-        await stream.finalMessage();
+        finalMessage = await stream.finalMessage();
       } catch (err) {
         opts.log.error({ err }, `${opts.label} streaming failed`);
         job.status = "error";
         job.errorMessage = "Generation failed. Please try again.";
         job.finishedAt = Date.now();
         return;
+      }
+
+      // Record token usage (fire-and-forget; failures are logged, not thrown).
+      if (finalMessage) {
+        recordAiUsage({
+          userId: opts.userId,
+          generationType,
+          inputTokens: finalMessage.usage.input_tokens,
+          outputTokens: finalMessage.usage.output_tokens,
+          log: opts.log,
+        });
       }
 
       let parsed: unknown;

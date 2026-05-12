@@ -1,4 +1,6 @@
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { db, aiUsageEventsTable } from "@workspace/db";
+import type { Logger } from "pino";
 
 const MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 4096;
@@ -11,6 +13,44 @@ const SYSTEM = [
   "You write concisely without padding or repetition; finish within the requested length.",
   "When asked to return JSON, you return ONLY valid JSON — no markdown fences, no commentary, no preamble.",
 ].join(" ");
+
+/** Claude Sonnet pricing (USD per token). */
+const INPUT_COST_PER_TOKEN = 3 / 1_000_000;
+const OUTPUT_COST_PER_TOKEN = 15 / 1_000_000;
+
+export function computeCostUsd(inputTokens: number, outputTokens: number): number {
+  return inputTokens * INPUT_COST_PER_TOKEN + outputTokens * OUTPUT_COST_PER_TOKEN;
+}
+
+/**
+ * Fire-and-forget insert into ai_usage_events. Logs failures but never
+ * surfaces them to the caller — a missing usage record is better than a
+ * broken generation.
+ */
+export function recordAiUsage(
+  opts: {
+    userId: string;
+    generationType: string;
+    inputTokens: number;
+    outputTokens: number;
+    log?: Logger;
+  },
+): void {
+  const costUsd = computeCostUsd(opts.inputTokens, opts.outputTokens).toFixed(8);
+  db.insert(aiUsageEventsTable)
+    .values({
+      userId: opts.userId,
+      generationType: opts.generationType,
+      inputTokens: opts.inputTokens,
+      outputTokens: opts.outputTokens,
+      costUsd,
+    })
+    .catch((err) => {
+      if (opts.log) {
+        opts.log.warn({ err }, "ai_usage_events insert failed");
+      }
+    });
+}
 
 export function extractJson(text: string): string {
   const trimmed = text.trim();
@@ -39,9 +79,15 @@ export function streamMessage(prompt: string, opts: StreamOptions = {}) {
   });
 }
 
+export interface GenerateJsonOptions extends StreamOptions {
+  userId?: string;
+  generationType?: string;
+  log?: Logger;
+}
+
 export async function generateJson<T>(
   prompt: string,
-  opts: StreamOptions = {},
+  opts: GenerateJsonOptions = {},
 ): Promise<T> {
   const message = await anthropic.messages.create({
     model: MODEL,
@@ -49,6 +95,15 @@ export async function generateJson<T>(
     system: SYSTEM,
     messages: [{ role: "user", content: prompt }],
   });
+  if (opts.userId && opts.generationType) {
+    recordAiUsage({
+      userId: opts.userId,
+      generationType: opts.generationType,
+      inputTokens: message.usage.input_tokens,
+      outputTokens: message.usage.output_tokens,
+      log: opts.log,
+    });
+  }
   const block = message.content[0];
   const text = block && block.type === "text" ? block.text : "";
   const jsonText = extractJson(text);

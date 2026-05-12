@@ -9,3 +9,4 @@ export * from "./pcsConnections";
 export * from "./externalSongLinks";
 export * from "./userSourcePreferences";
 export * from "./pastorManuscripts";
+export * from "./aiUsageEvents";

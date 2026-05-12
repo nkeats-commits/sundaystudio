@@ -101,6 +101,23 @@ export type AdminMetricsSeries = {
   subscriptions: AdminSeriesPoint[];
 };
 
+export interface AdminCostSeriesPoint {
+  /** ISO date (YYYY-MM-DD) */
+  day: string;
+  costUsd: number;
+}
+
+export type AdminMetricsAiCost = {
+  totalInputTokensThisMonth: number;
+  totalOutputTokensThisMonth: number;
+  /** Estimated cost in USD for the current calendar month. */
+  estimatedCostThisMonth: number;
+  /** Average cost per user who generated anything this month. */
+  avgCostPerActiveUser: number;
+  /** Last 30 days of daily cost data for a bar chart. */
+  dailyCost: AdminCostSeriesPoint[];
+};
+
 export interface AdminMetrics {
   totals: AdminMetricsTotals;
   trials: AdminMetricsTrials;
@@ -108,6 +125,35 @@ export interface AdminMetrics {
   revenue: AdminMetricsRevenue;
   series: AdminMetricsSeries;
   stripeAvailable: boolean;
+  aiCost?: AdminMetricsAiCost;
+}
+
+export interface AdminUserAiUsageByType {
+  generationType: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  eventCount: number;
+}
+
+export type AdminUserAiUsageAllTime = {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  eventCount: number;
+};
+
+export type AdminUserAiUsageLast30d = {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  eventCount: number;
+};
+
+export interface AdminUserAiUsage {
+  allTime: AdminUserAiUsageAllTime;
+  last30d: AdminUserAiUsageLast30d;
+  byType: AdminUserAiUsageByType[];
 }
 
 export interface AdminUserSummary {

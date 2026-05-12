@@ -4472,6 +4472,26 @@ export const GetAdminMetricsResponse = zod.object({
     ),
   }),
   stripeAvailable: zod.boolean(),
+  aiCost: zod
+    .object({
+      totalInputTokensThisMonth: zod.number(),
+      totalOutputTokensThisMonth: zod.number(),
+      estimatedCostThisMonth: zod
+        .number()
+        .describe("Estimated cost in USD for the current calendar month."),
+      avgCostPerActiveUser: zod
+        .number()
+        .describe("Average cost per user who generated anything this month."),
+      dailyCost: zod
+        .array(
+          zod.object({
+            day: zod.string().describe("ISO date (YYYY-MM-DD)"),
+            costUsd: zod.number(),
+          }),
+        )
+        .describe("Last 30 days of daily cost data for a bar chart."),
+    })
+    .optional(),
 });
 
 /**
@@ -4661,6 +4681,37 @@ export const ExtendAdminUserTrialResponse = zod.object({
     .describe(
       "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
     ),
+});
+
+/**
+ * @summary AI token usage and cost breakdown for a single user
+ */
+export const GetAdminUserAiUsageParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetAdminUserAiUsageResponse = zod.object({
+  allTime: zod.object({
+    inputTokens: zod.number(),
+    outputTokens: zod.number(),
+    costUsd: zod.number(),
+    eventCount: zod.number(),
+  }),
+  last30d: zod.object({
+    inputTokens: zod.number(),
+    outputTokens: zod.number(),
+    costUsd: zod.number(),
+    eventCount: zod.number(),
+  }),
+  byType: zod.array(
+    zod.object({
+      generationType: zod.string(),
+      inputTokens: zod.number(),
+      outputTokens: zod.number(),
+      costUsd: zod.number(),
+      eventCount: zod.number(),
+    }),
+  ),
 });
 
 /**

@@ -6,6 +6,7 @@ import {
   usersTable,
   servicePlansTable,
   sermonsTable,
+  aiUsageEventsTable,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireOwner, getOwnerEmail } from "../middlewares/requireOwner";
@@ -462,6 +463,53 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
     const pct = (num: number, den: number): number =>
       den > 0 ? Math.round((num / den) * 1000) / 10 : 0;
 
+    // ----- AI cost metrics -----
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const aiMonthlyRow = await db.execute(sql`
+      SELECT
+        COALESCE(SUM(input_tokens), 0)::bigint  AS input_tokens,
+        COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens,
+        COALESCE(SUM(cost_usd::numeric), 0)     AS cost_usd,
+        COUNT(DISTINCT user_id)::int            AS active_users
+      FROM ai_usage_events
+      WHERE created_at >= ${monthStart}
+    `);
+    const aiMonth = aiMonthlyRow.rows[0] as {
+      input_tokens: bigint | number | string;
+      output_tokens: bigint | number | string;
+      cost_usd: number | string;
+      active_users: number | string;
+    } | undefined;
+    const totalInputTokensThisMonth = Number(aiMonth?.input_tokens ?? 0);
+    const totalOutputTokensThisMonth = Number(aiMonth?.output_tokens ?? 0);
+    const estimatedCostThisMonth = Number(aiMonth?.cost_usd ?? 0);
+    const activeAiUsers = Number(aiMonth?.active_users ?? 0);
+    const avgCostPerActiveUser =
+      activeAiUsers > 0
+        ? Math.round((estimatedCostThisMonth / activeAiUsers) * 1e6) / 1e6
+        : 0;
+
+    const aiDailyRows = await db.execute(sql`
+      SELECT
+        date_trunc('day', created_at AT TIME ZONE 'UTC')::date AS day,
+        COALESCE(SUM(cost_usd::numeric), 0) AS cost_usd
+      FROM ai_usage_events
+      WHERE created_at >= ${thirtyAgo}
+      GROUP BY day
+      ORDER BY day ASC
+    `);
+    const dailyCost = (
+      aiDailyRows.rows as Array<{
+        day: string | Date;
+        cost_usd: number | string;
+      }>
+    ).map((r) => ({
+      day:
+        typeof r.day === "string" ? r.day : r.day.toISOString().slice(0, 10),
+      costUsd: Number(r.cost_usd),
+    }));
+
     res.json({
       totals: {
         users: Number(totalUsers),
@@ -489,12 +537,116 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
       },
       series: { signups: signupSeries, subscriptions: subSeries },
       stripeAvailable,
+      aiCost: {
+        totalInputTokensThisMonth,
+        totalOutputTokensThisMonth,
+        estimatedCostThisMonth,
+        avgCostPerActiveUser,
+        dailyCost,
+      },
     });
   } catch (err) {
     req.log.error({ err }, "admin metrics failed");
     res.status(500).json({ error: "Failed to load metrics" });
   }
 });
+
+/**
+ * GET /admin/users/:id/ai-usage — per-user AI token and cost breakdown.
+ * Returns all-time totals, last-30-day totals, and a breakdown by generation type.
+ */
+router.get(
+  "/admin/users/:id/ai-usage",
+  requireAuth,
+  requireOwner,
+  async (req, res) => {
+    const targetId = parseUserIdParam(req, res);
+    if (!targetId) return;
+    try {
+      const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      const allTimeRow = await db.execute(sql`
+        SELECT
+          COALESCE(SUM(input_tokens), 0)::bigint  AS input_tokens,
+          COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens,
+          COALESCE(SUM(cost_usd::numeric), 0)     AS cost_usd,
+          COUNT(*)::int                            AS event_count
+        FROM ai_usage_events
+        WHERE user_id = ${targetId}
+      `);
+      const allTimeData = allTimeRow.rows[0] as {
+        input_tokens: bigint | number | string;
+        output_tokens: bigint | number | string;
+        cost_usd: number | string;
+        event_count: number | string;
+      } | undefined;
+
+      const last30dRow = await db.execute(sql`
+        SELECT
+          COALESCE(SUM(input_tokens), 0)::bigint  AS input_tokens,
+          COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens,
+          COALESCE(SUM(cost_usd::numeric), 0)     AS cost_usd,
+          COUNT(*)::int                            AS event_count
+        FROM ai_usage_events
+        WHERE user_id = ${targetId}
+          AND created_at >= ${thirtyAgo}
+      `);
+      const last30dData = last30dRow.rows[0] as {
+        input_tokens: bigint | number | string;
+        output_tokens: bigint | number | string;
+        cost_usd: number | string;
+        event_count: number | string;
+      } | undefined;
+
+      const byTypeRows = await db.execute(sql`
+        SELECT
+          generation_type,
+          COALESCE(SUM(input_tokens), 0)::bigint  AS input_tokens,
+          COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens,
+          COALESCE(SUM(cost_usd::numeric), 0)     AS cost_usd,
+          COUNT(*)::int                            AS event_count
+        FROM ai_usage_events
+        WHERE user_id = ${targetId}
+        GROUP BY generation_type
+        ORDER BY cost_usd DESC
+      `);
+      const byType = (
+        byTypeRows.rows as Array<{
+          generation_type: string;
+          input_tokens: bigint | number | string;
+          output_tokens: bigint | number | string;
+          cost_usd: number | string;
+          event_count: number | string;
+        }>
+      ).map((r) => ({
+        generationType: r.generation_type,
+        inputTokens: Number(r.input_tokens),
+        outputTokens: Number(r.output_tokens),
+        costUsd: Number(r.cost_usd),
+        eventCount: Number(r.event_count),
+      }));
+
+      res.json({
+        allTime: {
+          inputTokens: Number(allTimeData?.input_tokens ?? 0),
+          outputTokens: Number(allTimeData?.output_tokens ?? 0),
+          costUsd: Number(allTimeData?.cost_usd ?? 0),
+          eventCount: Number(allTimeData?.event_count ?? 0),
+        },
+        last30d: {
+          inputTokens: Number(last30dData?.input_tokens ?? 0),
+          outputTokens: Number(last30dData?.output_tokens ?? 0),
+          costUsd: Number(last30dData?.cost_usd ?? 0),
+          eventCount: Number(last30dData?.event_count ?? 0),
+        },
+        byType,
+      });
+    } catch (err) {
+      req.log.error({ err }, "admin user ai-usage failed");
+      res.status(500).json({ error: "Failed to load AI usage" });
+    }
+  },
+);
 
 /**
  * GET /admin/users — paginated list with optional search and status filter.
@@ -952,6 +1104,7 @@ router.delete(
       await db.execute(sql`DELETE FROM church_profiles WHERE user_id = ${u.id}`);
       await db.execute(sql`DELETE FROM pcs_connections WHERE user_id = ${u.id}`);
       await db.execute(sql`DELETE FROM external_song_links WHERE user_id = ${u.id}`);
+      await db.execute(sql`DELETE FROM ai_usage_events WHERE user_id = ${u.id}`);
       await db.delete(usersTable).where(eq(usersTable.id, u.id));
 
       const ownerEmail = getOwnerEmail();

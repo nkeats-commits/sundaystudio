@@ -1853,6 +1853,29 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /admin/users/{id}/ai-usage:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getAdminUserAiUsage
+      tags: [admin]
+      summary: AI token usage and cost breakdown for a single user
+      responses:
+        "200":
+          description: User AI usage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserAiUsage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /admin/users/{id}/comp-subscription:
     parameters:
       - name: id
@@ -2203,6 +2226,42 @@ components:
                 $ref: "#/components/schemas/AdminSeriesPoint"
         stripeAvailable:
           type: boolean
+        aiCost:
+          type: object
+          required:
+            [
+              totalInputTokensThisMonth,
+              totalOutputTokensThisMonth,
+              estimatedCostThisMonth,
+              avgCostPerActiveUser,
+              dailyCost,
+            ]
+          properties:
+            totalInputTokensThisMonth:
+              type: integer
+            totalOutputTokensThisMonth:
+              type: integer
+            estimatedCostThisMonth:
+              type: number
+              description: Estimated cost in USD for the current calendar month.
+            avgCostPerActiveUser:
+              type: number
+              description: Average cost per user who generated anything this month.
+            dailyCost:
+              type: array
+              description: Last 30 days of daily cost data for a bar chart.
+              items:
+                $ref: "#/components/schemas/AdminCostSeriesPoint"
+
+    AdminCostSeriesPoint:
+      type: object
+      required: [day, costUsd]
+      properties:
+        day:
+          type: string
+          description: ISO date (YYYY-MM-DD)
+        costUsd:
+          type: number
 
     AdminSeriesPoint:
       type: object
@@ -2213,6 +2272,46 @@ components:
           description: ISO date (YYYY-MM-DD)
         count:
           type: integer
+
+    AdminUserAiUsageByType:
+      type: object
+      required: [generationType, inputTokens, outputTokens, costUsd, eventCount]
+      properties:
+        generationType: { type: string }
+        inputTokens: { type: integer }
+        outputTokens: { type: integer }
+        costUsd: { type: number }
+        eventCount: { type: integer }
+
+    AdminUserAiUsage:
+      type: object
+      required:
+        [
+          allTime,
+          last30d,
+          byType,
+        ]
+      properties:
+        allTime:
+          type: object
+          required: [inputTokens, outputTokens, costUsd, eventCount]
+          properties:
+            inputTokens: { type: integer }
+            outputTokens: { type: integer }
+            costUsd: { type: number }
+            eventCount: { type: integer }
+        last30d:
+          type: object
+          required: [inputTokens, outputTokens, costUsd, eventCount]
+          properties:
+            inputTokens: { type: integer }
+            outputTokens: { type: integer }
+            costUsd: { type: number }
+            eventCount: { type: integer }
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUserAiUsageByType"
 
     AdminUserSummary:
       type: object

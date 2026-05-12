@@ -3,20 +3,35 @@ import { Link, useParams, useLocation } from "wouter";
 import { AppLayout } from "../components/layout/AppLayout";
 import {
   useGetAdminUser,
+  useGetAdminUserAiUsage,
   extendAdminUserTrial,
   compAdminUserSubscription,
   deleteAdminUser,
   getGetAdminUserQueryKey,
   getGetAdminMetricsQueryKey,
   getGetAdminUsersQueryKey,
+  getGetAdminUserAiUsageQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Calendar, FileText, BookOpen, Clock } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, BookOpen, Clock, Cpu } from "lucide-react";
 
 function fmt(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString();
+}
+
+function formatUsd(usd: number): string {
+  return `$${usd.toLocaleString(undefined, {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  })}`;
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
 }
 
 function ConfirmDialog({
@@ -75,7 +90,20 @@ export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const { data: user, isLoading, error, refetch } = useGetAdminUser(id);
+  const { data: user, isLoading, error, refetch } = useGetAdminUser(id, {
+    query: {
+      queryKey: getGetAdminUserQueryKey(id),
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: true,
+    },
+  });
+  const { data: aiUsage } = useGetAdminUserAiUsage(id, {
+    query: {
+      queryKey: getGetAdminUserAiUsageQueryKey(id),
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: true,
+    },
+  });
 
   const [days, setDays] = useState<7 | 14 | 30>(7);
   const [busyAction, setBusyAction] = useState<
@@ -238,6 +266,105 @@ export default function AdminUserDetail() {
                 />
               </div>
             </div>
+
+            {/* AI Usage Section */}
+            {aiUsage && (
+              <div className="worship-card space-y-4">
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-[var(--worship-slate)]" />
+                  <h2 className="font-medium text-[var(--worship-navy)]">
+                    AI Usage
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-xs text-[var(--worship-slate)]">
+                      Lifetime cost
+                    </div>
+                    <div className="text-sm font-medium text-[var(--worship-navy)] mt-0.5">
+                      {formatUsd(aiUsage.allTime.costUsd)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[var(--worship-slate)]">
+                      Last 30d cost
+                    </div>
+                    <div className="text-sm font-medium text-[var(--worship-navy)] mt-0.5">
+                      {formatUsd(aiUsage.last30d.costUsd)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[var(--worship-slate)]">
+                      Total generations
+                    </div>
+                    <div className="text-sm font-medium text-[var(--worship-navy)] mt-0.5">
+                      {aiUsage.allTime.eventCount.toLocaleString()}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[var(--worship-slate)]">
+                      Lifetime tokens
+                    </div>
+                    <div className="text-sm font-medium text-[var(--worship-navy)] mt-0.5">
+                      {formatTokens(
+                        aiUsage.allTime.inputTokens +
+                          aiUsage.allTime.outputTokens,
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[var(--worship-slate)]">
+                      Last 30d tokens
+                    </div>
+                    <div className="text-sm font-medium text-[var(--worship-navy)] mt-0.5">
+                      {formatTokens(
+                        aiUsage.last30d.inputTokens +
+                          aiUsage.last30d.outputTokens,
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {aiUsage.byType.length > 0 && (
+                  <div className="pt-3 border-t border-[var(--worship-border)]">
+                    <p className="text-xs text-[var(--worship-slate)] mb-2">
+                      Breakdown by generation type
+                    </p>
+                    <div className="space-y-1">
+                      {aiUsage.byType.map((row) => (
+                        <div
+                          key={row.generationType}
+                          className="flex items-center justify-between py-1 text-sm"
+                        >
+                          <span className="text-[var(--worship-navy)] font-mono text-xs bg-[var(--worship-cream)] px-2 py-0.5 rounded">
+                            {row.generationType}
+                          </span>
+                          <div className="flex items-center gap-4 text-[var(--worship-slate)] text-xs">
+                            <span>{row.eventCount}×</span>
+                            <span>
+                              {formatTokens(
+                                row.inputTokens + row.outputTokens,
+                              )}{" "}
+                              tokens
+                            </span>
+                            <span className="text-[var(--worship-navy)] font-medium">
+                              {formatUsd(row.costUsd)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {aiUsage.allTime.eventCount === 0 && (
+                  <p className="text-sm text-[var(--worship-slate)]">
+                    No AI generations recorded yet.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="worship-card space-y-4">
               <h2 className="font-medium text-[var(--worship-navy)]">

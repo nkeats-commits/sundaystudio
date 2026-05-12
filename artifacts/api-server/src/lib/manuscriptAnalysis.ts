@@ -3,6 +3,7 @@ import { db, churchProfilesTable, pastorManuscriptsTable } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { ObjectStorageService } from "./objectStorage";
 import { logger } from "./logger";
+import { recordAiUsage } from "./anthropicJson";
 
 const objectStorageService = new ObjectStorageService();
 
@@ -110,6 +111,14 @@ Respond with ONLY the style description paragraph — no preamble, no labels, no
     model: "claude-sonnet-4-6",
     max_tokens: 512,
     messages: [{ role: "user", content: prompt }],
+  });
+
+  recordAiUsage({
+    userId,
+    generationType: "manuscript-analysis",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
+    log: logger,
   });
 
   const block = message.content[0];

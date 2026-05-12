@@ -19,6 +19,7 @@ import type {
 import type {
   AdminMe,
   AdminMetrics,
+  AdminUserAiUsage,
   AdminUserDetail,
   AdminUserList,
   AnalyzeManuscripts200,
@@ -6593,6 +6594,95 @@ export const useExtendAdminUserTrial = <
 > => {
   return useMutation(getExtendAdminUserTrialMutationOptions(options));
 };
+
+/**
+ * @summary AI token usage and cost breakdown for a single user
+ */
+export const getGetAdminUserAiUsageUrl = (id: string) => {
+  return `/api/admin/users/${id}/ai-usage`;
+};
+
+export const getAdminUserAiUsage = async (
+  id: string,
+  options?: RequestInit,
+): Promise<AdminUserAiUsage> => {
+  return customFetch<AdminUserAiUsage>(getGetAdminUserAiUsageUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminUserAiUsageQueryKey = (id: string) => {
+  return [`/api/admin/users/${id}/ai-usage`] as const;
+};
+
+export const getGetAdminUserAiUsageQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminUserAiUsage>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminUserAiUsage>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminUserAiUsageQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAdminUserAiUsage>>
+  > = ({ signal }) => getAdminUserAiUsage(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminUserAiUsage>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminUserAiUsageQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminUserAiUsage>>
+>;
+export type GetAdminUserAiUsageQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary AI token usage and cost breakdown for a single user
+ */
+
+export function useGetAdminUserAiUsage<
+  TData = Awaited<ReturnType<typeof getAdminUserAiUsage>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminUserAiUsage>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminUserAiUsageQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Create a free (100% off) Stripe subscription for the user

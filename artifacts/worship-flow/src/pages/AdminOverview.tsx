@@ -1,6 +1,9 @@
 import { Link } from "wouter";
 import { AppLayout } from "../components/layout/AppLayout";
-import { useGetAdminMetrics } from "@workspace/api-client-react";
+import {
+  useGetAdminMetrics,
+  getGetAdminMetricsQueryKey,
+} from "@workspace/api-client-react";
 import {
   Users,
   TrendingUp,
@@ -9,6 +12,7 @@ import {
   Clock,
   ArrowRight,
   DollarSign,
+  Cpu,
 } from "lucide-react";
 
 function formatMoney(cents: number): string {
@@ -16,6 +20,19 @@ function formatMoney(cents: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function formatUsd(usd: number): string {
+  return `$${usd.toLocaleString(undefined, {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  })}`;
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
 }
 
 function StatCard({
@@ -90,8 +107,47 @@ function MiniBars({
   );
 }
 
+function CostBars({
+  data,
+  emptyLabel,
+}: {
+  data: Array<{ day: string; costUsd: number }>;
+  emptyLabel: string;
+}) {
+  if (data.length === 0) {
+    return (
+      <p className="text-sm text-[var(--worship-slate)] py-8 text-center">
+        {emptyLabel}
+      </p>
+    );
+  }
+  const max = Math.max(1e-9, ...data.map((d) => d.costUsd));
+  return (
+    <div className="flex items-end gap-1 h-32 pt-2">
+      {data.map((d) => (
+        <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
+          <div
+            title={`${d.day}: $${d.costUsd.toFixed(4)}`}
+            className="w-full bg-amber-400 rounded-t"
+            style={{
+              height: `${Math.max(4, (d.costUsd / max) * 100)}%`,
+              minHeight: 4,
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminOverview() {
-  const { data, isLoading, error } = useGetAdminMetrics();
+  const { data, isLoading, error } = useGetAdminMetrics({
+    query: {
+      queryKey: getGetAdminMetricsQueryKey(),
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: true,
+    },
+  });
 
   return (
     <AppLayout title="Admin Overview">
@@ -204,6 +260,59 @@ export default function AdminOverview() {
                 />
               </div>
             </div>
+
+            {/* AI Cost Section */}
+            {data.aiCost && (
+              <>
+                <div className="flex items-center gap-2 pt-2 border-t border-[var(--worship-border)]">
+                  <Cpu className="w-4 h-4 text-[var(--worship-slate)]" />
+                  <h2 className="font-medium text-[var(--worship-navy)]">
+                    AI Cost — {new Date().toLocaleString("default", { month: "long", year: "numeric" })}
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard
+                    label="Est. cost this month"
+                    value={formatUsd(data.aiCost.estimatedCostThisMonth)}
+                    hint="Input + output at Sonnet rates"
+                    icon={Cpu}
+                    tone={data.aiCost.estimatedCostThisMonth > 5 ? "warn" : "default"}
+                  />
+                  <StatCard
+                    label="Avg cost / active user"
+                    value={formatUsd(data.aiCost.avgCostPerActiveUser)}
+                    hint="Among users who generated this month"
+                    icon={Users}
+                  />
+                  <StatCard
+                    label="Input tokens (month)"
+                    value={formatTokens(data.aiCost.totalInputTokensThisMonth)}
+                    hint={`@ $3/M tokens`}
+                    icon={Cpu}
+                  />
+                  <StatCard
+                    label="Output tokens (month)"
+                    value={formatTokens(data.aiCost.totalOutputTokensThisMonth)}
+                    hint={`@ $15/M tokens`}
+                    icon={Cpu}
+                  />
+                </div>
+
+                <div className="worship-card">
+                  <h3 className="font-medium text-[var(--worship-navy)] mb-1">
+                    Daily AI cost (last 30d)
+                  </h3>
+                  <p className="text-xs text-[var(--worship-slate)] mb-2">
+                    Each bar = one day of estimated spend
+                  </p>
+                  <CostBars
+                    data={data.aiCost.dailyCost}
+                    emptyLabel="No AI generations in the last 30 days"
+                  />
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
