@@ -139,9 +139,7 @@ export default function LandingPage() {
               className="text-5xl lg:text-6xl font-medium leading-tight mb-6"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
             >
-              <span style={{ color: 'var(--worship-navy)' }}>Your personal </span>
-              <span style={{ color: 'var(--worship-gold)' }}>researcher, writer,</span>
-              <span style={{ color: 'var(--worship-navy)' }}> and ministry prep assistant.</span>
+              Your personal AI powered researcher, writer, and ministry prep assistant.
             </h1>
 
             <p className="text-lg leading-relaxed mb-10" style={{ color: 'var(--worship-slate)' }}>
@@ -153,7 +151,7 @@ export default function LandingPage() {
                 href="/sign-up"
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full text-base font-semibold worship-btn-primary shadow-lg"
               >
-                Start Planning Free <ChevronRight className="w-4 h-4" />
+                Try it for free <ChevronRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/sign-in"
