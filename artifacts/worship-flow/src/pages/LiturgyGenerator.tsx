@@ -27,7 +27,7 @@ export default function LiturgyGenerator() {
     kind: 'call_to_worship' as const,
     theme: '',
     scripture: '',
-    season: 'Ordinary Time',
+    season: '',
     tone: 'warm, pastoral, theologically grounded',
     format: 'call_response' as 'call_response' | 'leader_only',
     alignmentNotes: '',

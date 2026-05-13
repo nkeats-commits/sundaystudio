@@ -24,7 +24,7 @@ export default function DevotionalGenerator() {
   const [formData, setFormData] = useState({
     theme: '',
     scripture: '',
-    audience: 'worship team',
+    audience: '',
     durationMinutes: 10,
     alignmentNotes: '',
   });
