@@ -451,7 +451,7 @@ export function OnboardingWizard() {
           </div>
 
           {/* Body — scrolls independently on short screens */}
-          <div className="p-6 md:p-8 overflow-y-auto flex-1">
+          <div className="p-6 md:p-8 overflow-y-auto flex-1 min-h-0">
             {step === 1 && (
               <Step1Profile
                 onNext={() => setStep(2)}
