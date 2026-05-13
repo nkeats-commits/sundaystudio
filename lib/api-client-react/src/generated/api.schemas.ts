@@ -742,6 +742,13 @@ export const GenerateLiturgyBodyKind = {
   communion: "communion",
   benediction: "benediction",
   prayer_of_the_people: "prayer_of_the_people",
+  responsive_psalm: "responsive_psalm",
+  affirmation_of_faith: "affirmation_of_faith",
+  lament: "lament",
+  baptism: "baptism",
+  commissioning: "commissioning",
+  candle_lighting: "candle_lighting",
+  doxology: "doxology",
 } as const;
 
 /**
@@ -892,6 +899,14 @@ export const GenerateSpeakingMomentBodyKind = {
   offering: "offering",
   benediction: "benediction",
   announcement: "announcement",
+  sermon_introduction: "sermon_introduction",
+  scripture_introduction: "scripture_introduction",
+  prayer_invitation: "prayer_invitation",
+  response_invitation: "response_invitation",
+  children_moment: "children_moment",
+  guest_welcome: "guest_welcome",
+  ministry_spotlight: "ministry_spotlight",
+  liturgy_setup: "liturgy_setup",
 } as const;
 
 export interface GenerateSpeakingMomentBody {

@@ -3156,7 +3156,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [call_to_worship, opening_prayer, confession, assurance, communion, benediction, prayer_of_the_people]
+          enum: [call_to_worship, opening_prayer, confession, assurance, communion, benediction, prayer_of_the_people, responsive_psalm, affirmation_of_faith, lament, baptism, commissioning, candle_lighting, doxology]
         theme:
           type: string
         scripture:
@@ -3307,7 +3307,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [welcome, transition, communion_invitation, offering, benediction, announcement]
+          enum: [welcome, transition, communion_invitation, offering, benediction, announcement, sermon_introduction, scripture_introduction, prayer_invitation, response_invitation, children_moment, guest_welcome, ministry_spotlight, liturgy_setup]
         topic:
           type: string
         scripture:

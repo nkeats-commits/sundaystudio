@@ -124,8 +124,8 @@ export default function SpeakingMomentGenerator() {
         {/* FORM */}
         <div className="w-full md:w-1/3 flex flex-col space-y-6">
           <div className="pb-4 border-b border-[var(--worship-border)]">
-            <h2 className="text-xl font-serif text-[var(--worship-navy)]">Draft a Setup</h2>
-            <p className="text-sm text-[var(--worship-slate)] mt-1">Words to frame moments of transition.</p>
+            <h2 className="text-xl font-serif text-[var(--worship-navy)]">Draft a Speaking Moment</h2>
+            <p className="text-sm text-[var(--worship-slate)] mt-1">Words that prepare, frame, and send.</p>
             <div className="mt-2">
               <PersonalizationChip />
             </div>
@@ -145,6 +145,14 @@ export default function SpeakingMomentGenerator() {
                 <option value="offering">Offering Setup</option>
                 <option value="announcement">Announcement Segue</option>
                 <option value="benediction">Sending / Benediction</option>
+                <option value="sermon_introduction">Sermon Introduction</option>
+                <option value="scripture_introduction">Scripture Introduction</option>
+                <option value="prayer_invitation">Prayer Invitation</option>
+                <option value="response_invitation">Response Invitation</option>
+                <option value="children_moment">Children's Moment</option>
+                <option value="guest_welcome">Guest Welcome</option>
+                <option value="ministry_spotlight">Ministry Spotlight</option>
+                <option value="liturgy_setup">Liturgy Setup</option>
               </select>
             </div>
 
@@ -230,7 +238,7 @@ export default function SpeakingMomentGenerator() {
                 title={!profileReady ? "Finish your profile to enable AI generation" : undefined}
                 className="w-full py-3 rounded-xl font-medium text-white worship-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {generate.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Drafting...</> : "Generate Setup"}
+                {generate.isPending ? <><Loader2 className="w-5 h-5 animate-spin" /> Drafting...</> : "Generate Speaking Moment"}
               </button>
             )}
           </form>

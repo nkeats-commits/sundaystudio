@@ -17,4 +17,11 @@ export const GenerateLiturgyBodyKind = {
   communion: "communion",
   benediction: "benediction",
   prayer_of_the_people: "prayer_of_the_people",
+  responsive_psalm: "responsive_psalm",
+  affirmation_of_faith: "affirmation_of_faith",
+  lament: "lament",
+  baptism: "baptism",
+  commissioning: "commissioning",
+  candle_lighting: "candle_lighting",
+  doxology: "doxology",
 } as const;

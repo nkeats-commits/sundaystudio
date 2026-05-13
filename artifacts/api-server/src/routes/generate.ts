@@ -258,6 +258,28 @@ ${trimmedAlignment}
 Echo the imagery, refrains, and theological language from these notes in your liturgy. Do NOT quote song lyrics verbatim — paraphrase and weave their themes in to honor copyright. If the notes contradict the kind/theme above, the kind/theme wins.`
     : "";
 
+  const kindGuidanceLiturgy: Partial<Record<string, string>> = {
+    responsive_psalm:
+      "Format antiphonally with clear Leader/People alternation. Anchor the text in the supplied (or AI-chosen) psalm passage. Use the psalm's own imagery and refrain; do not merely paraphrase — let the psalm's voice come through.",
+    affirmation_of_faith:
+      "Write in congregational first-person plural ('We believe…'). May draw from a historic creed (Apostles', Nicene) or be original. Keep it credal in structure: who God is, what Christ has done, what we affirm. Suitable for the whole congregation to recite together.",
+    lament:
+      "Adopt a mournful, honest register that names real pain without flinching. The lament must still be hope-anchored — it ends facing God, not despair. Avoid trite comfort or premature resolution. Model the biblical lament arc: address God, complaint, petition, trust.",
+    baptism:
+      "Include vow questions addressed to the candidate(s) (e.g. 'Do you renounce…?', 'Do you believe…?') and a congregational affirmation of welcome and support. Structure: brief scriptural framing, vow questions, congregational pledge.",
+    commissioning:
+      "Send a specific person or team into service or mission. Include a congregational promise of prayer and support (spoken in the people's voice). Warm, directional, and expectant. Avoid generic language — make it feel like a specific sending.",
+    candle_lighting:
+      "Advent-specific. Name the candle and its theme (e.g. Hope, Peace, Joy, Love, Christ). Write a brief leader-spoken narration tied to the candle's theme — one sentence naming the theme, one sentence of Advent anticipation, and a short spoken blessing or invitation. Do NOT use call-and-response; this is a single uninterrupted leader voice that accompanies the physical act of lighting.",
+    doxology:
+      "A short spoken or sung expression of praise directed to the Trinity or to God's glory. May be original or a loose paraphrase of the classic Doxology. Keep it brief (2–6 lines). Leader-spoken; do not use call-and-response format.",
+  };
+
+  const kindNote = kindGuidanceLiturgy[data.kind];
+  const kindGuidanceBlock = kindNote
+    ? `\nKind-specific guidance: ${kindNote}`
+    : "";
+
   const prompt = `Write a piece of worship liturgy as JSON.
 
 Kind: ${data.kind}
@@ -269,7 +291,7 @@ Format: ${format === "leader_only" ? "leader speaks (no call-and-response)" : "c
 
 Church context:
 ${churchContextBlurb(ctx)}
-${recommendedScriptureGuidance}${alignmentBlock}
+${recommendedScriptureGuidance}${kindGuidanceBlock}${alignmentBlock}
 
 Return JSON exactly in this shape:
 {
@@ -578,6 +600,30 @@ ${trimmedAlignmentSm}
 Echo the imagery, refrains, and theological language from these notes in your speaking moment. Do NOT quote song lyrics verbatim — paraphrase to honor copyright. If the notes contradict the kind/topic above, the kind/topic wins.`
     : "";
 
+  const kindGuidanceSm: Partial<Record<string, string>> = {
+    sermon_introduction:
+      "Brief (30–90 seconds) spoken framing delivered before the sermon begins. Orient the congregation to the message theme and scripture without revealing the pastor's points. Build anticipation; do not summarize what will be said.",
+    scripture_introduction:
+      "One or two sentences that prime the congregation to hear a specific passage. Name the passage, give its brief context (who wrote it, to whom, when), and invite attentive listening. Economical — this is a frame, not a sermon.",
+    prayer_invitation:
+      "Gently invites the congregation into a posture of prayer. Name what they are about to bring before God (confession, intercession, gratitude, etc.) and how they might prepare their hearts. Warm and unhurried; not a prayer itself, but a doorway into one.",
+    response_invitation:
+      "Post-sermon spoken invitation to reflect, commit, or respond. Presents the invitation without pressure or manipulation. Leave space for the Spirit — avoid formulas. May include a moment of silence or a simple prompt for reflection or action.",
+    children_moment:
+      "Warm and light, addressed to the congregation as children leave for their program. Brief (20–40 seconds). Acknowledge the children by name/age if helpful. May include a simple blessing or a line of encouragement for the parents remaining.",
+    guest_welcome:
+      "Specifically and warmly addresses first-time visitors. Low-commitment tone — no insider language, no pressure to join or give. Make guests feel seen, not singled out. Tell them one practical thing (e.g. no expectation to do anything, feel free to observe).",
+    ministry_spotlight:
+      "Highlights a specific ministry or volunteer team. Celebratory and specific — name what the team does and why it matters. 45–60 seconds. Invite the congregation to appreciate and/or engage. Avoid generic superlatives; be concrete about impact.",
+    liturgy_setup:
+      "1–3 sentences spoken immediately before a prayer, creed, responsive reading, or other liturgical piece. Tells the congregation why they are about to do this together, so it lands with intention rather than merely appearing on screen. Brief, purposeful, theologically grounded.",
+  };
+
+  const kindNoteSm = kindGuidanceSm[data.kind];
+  const kindGuidanceBlockSm = kindNoteSm
+    ? `\nKind-specific guidance: ${kindNoteSm}`
+    : "";
+
   const prompt = `Write a short worship speaking moment as JSON.
 
 Kind: ${data.kind}
@@ -587,7 +633,7 @@ Approximate spoken length: ${seconds} seconds
 Tone: ${data.tone ?? "warm, pastoral, inviting"}
 
 Church context:
-${churchContextBlurb(ctx)}${alignmentBlockSm}
+${churchContextBlurb(ctx)}${kindGuidanceBlockSm}${alignmentBlockSm}
 
 Return JSON exactly in this shape:
 {

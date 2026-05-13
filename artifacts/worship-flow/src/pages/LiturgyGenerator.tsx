@@ -21,6 +21,8 @@ const LITURGY_PHASES = [
 
 export default function LiturgyGenerator() {
   const [, setLocation] = useLocation();
+  const LEADER_ONLY_KINDS = new Set(['doxology', 'candle_lighting']);
+
   const [formData, setFormData] = useState({
     kind: 'call_to_worship' as const,
     theme: '',
@@ -147,7 +149,11 @@ export default function LiturgyGenerator() {
               <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">LITURGY TYPE</label>
               <select 
                 value={formData.kind} 
-                onChange={e => setFormData({...formData, kind: e.target.value as any})}
+                onChange={e => {
+                  const kind = e.target.value as any;
+                  const format = LEADER_ONLY_KINDS.has(kind) ? 'leader_only' : formData.format;
+                  setFormData({...formData, kind, format});
+                }}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white focus:outline-none focus:ring-2 ring-[var(--worship-gold)]"
               >
                 <option value="call_to_worship">Call to Worship</option>
@@ -157,6 +163,13 @@ export default function LiturgyGenerator() {
                 <option value="prayer_of_the_people">Prayer of the People</option>
                 <option value="communion">Communion Liturgy</option>
                 <option value="benediction">Benediction</option>
+                <option value="responsive_psalm">Responsive Psalm</option>
+                <option value="affirmation_of_faith">Affirmation of Faith</option>
+                <option value="lament">Lament</option>
+                <option value="baptism">Baptism Liturgy</option>
+                <option value="commissioning">Commissioning / Sending</option>
+                <option value="candle_lighting">Candle Lighting</option>
+                <option value="doxology">Doxology</option>
               </select>
             </div>
 
@@ -205,32 +218,38 @@ export default function LiturgyGenerator() {
 
             <div>
               <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">FORMAT</label>
-              <div role="radiogroup" aria-label="Output format" className="grid grid-cols-2 gap-1 p-1 rounded-lg border border-[var(--worship-border)] bg-[var(--worship-cream)]">
-                {([
-                  { value: 'call_response', label: 'Call & response', hint: 'Leader / People' },
-                  { value: 'leader_only', label: 'Leader speaks', hint: 'Single voice' },
-                ] as const).map(opt => {
-                  const active = formData.format === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setFormData({ ...formData, format: opt.value })}
-                      data-testid={`format-${opt.value}`}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        active
-                          ? 'bg-white text-[var(--worship-navy)] shadow-sm border border-[var(--worship-border)]'
-                          : 'text-[var(--worship-slate)] hover:text-[var(--worship-navy)]'
-                      }`}
-                    >
-                      <div>{opt.label}</div>
-                      <div className="text-[10px] font-normal text-[var(--worship-muted-slate)] mt-0.5">{opt.hint}</div>
-                    </button>
-                  );
-                })}
-              </div>
+              {LEADER_ONLY_KINDS.has(formData.kind) ? (
+                <p className="text-xs text-[var(--worship-muted-slate)] italic px-1">
+                  This type is always leader-spoken.
+                </p>
+              ) : (
+                <div role="radiogroup" aria-label="Output format" className="grid grid-cols-2 gap-1 p-1 rounded-lg border border-[var(--worship-border)] bg-[var(--worship-cream)]">
+                  {([
+                    { value: 'call_response', label: 'Call & response', hint: 'Leader / People' },
+                    { value: 'leader_only', label: 'Leader speaks', hint: 'Single voice' },
+                  ] as const).map(opt => {
+                    const active = formData.format === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setFormData({ ...formData, format: opt.value })}
+                        data-testid={`format-${opt.value}`}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          active
+                            ? 'bg-white text-[var(--worship-navy)] shadow-sm border border-[var(--worship-border)]'
+                            : 'text-[var(--worship-slate)] hover:text-[var(--worship-navy)]'
+                        }`}
+                      >
+                        <div>{opt.label}</div>
+                        <div className="text-[10px] font-normal text-[var(--worship-muted-slate)] mt-0.5">{opt.hint}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div>

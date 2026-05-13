@@ -16,4 +16,12 @@ export const GenerateSpeakingMomentBodyKind = {
   offering: "offering",
   benediction: "benediction",
   announcement: "announcement",
+  sermon_introduction: "sermon_introduction",
+  scripture_introduction: "scripture_introduction",
+  prayer_invitation: "prayer_invitation",
+  response_invitation: "response_invitation",
+  children_moment: "children_moment",
+  guest_welcome: "guest_welcome",
+  ministry_spotlight: "ministry_spotlight",
+  liturgy_setup: "liturgy_setup",
 } as const;
