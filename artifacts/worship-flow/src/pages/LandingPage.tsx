@@ -139,12 +139,13 @@ export default function LandingPage() {
               className="text-5xl lg:text-6xl font-medium leading-tight mb-6"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
             >
-              <span style={{ color: 'var(--worship-navy)' }}>Plan Spiritually Rich Services </span>
-              <span style={{ color: 'var(--worship-gold)' }}>Without Losing Your Week</span>
+              <span style={{ color: 'var(--worship-navy)' }}>Your personal </span>
+              <span style={{ color: 'var(--worship-gold)' }}>researcher, writer,</span>
+              <span style={{ color: 'var(--worship-navy)' }}> and ministry prep assistant.</span>
             </h1>
 
             <p className="text-lg leading-relaxed mb-10" style={{ color: 'var(--worship-slate)' }}>
-              Sunday Studio gives teaching pastors, worship leaders, discipleship directors, and lay leaders AI-powered tools to prepare deeply — without giving up every free hour you have.
+              Sunday Studio helps pastors and leaders research, write, and refine sermons, devotionals, songs, liturgies, prayers, worship moments, and teaching content — all personalized to your church, theology, mission, and voice.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
@@ -192,7 +193,7 @@ export default function LandingPage() {
             >
               <p className="text-xs font-medium mb-1" style={{ color: 'var(--worship-muted-slate)' }}>Average time saved weekly</p>
               <p className="text-lg font-bold" style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}>
-                6–10 hours <span style={{ color: 'var(--worship-gold)' }}>✓</span>
+                8–10 hours <span style={{ color: 'var(--worship-gold)' }}>✓</span>
               </p>
             </div>
           </div>
