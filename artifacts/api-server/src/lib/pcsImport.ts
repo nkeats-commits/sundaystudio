@@ -28,8 +28,8 @@ import { logger } from "./logger";
  *     (availableKeys), BPM, primary key, meter, and duration (seconds) from
  *     the default arrangement, and tag names from included Tag resources.
  *  3. Optionally filter by service type (fetch song IDs used in the given
- *     service types via `/song_schedules`) and/or by last-used date.
- *  4. Upsert into `library_items` keyed via `external_song_links`
+ *     service types via a date-bounded plans query) and/or by last-used date.
+ *  4. Batch-upsert into `library_items` keyed via `external_song_links`
  *     for `(source: "pcs", externalId: <pcs song id>, userId)`.
  *
  * Returns counts so the UI can show "Imported 47 songs (3 new, 44 updated)".
@@ -80,6 +80,13 @@ const SONGS_BASE_URL =
   "&fields[Song]=title,author,ccli_number,copyright,themes,lyrics,last_scheduled_at" +
   "&fields[Arrangement]=bpm,chord_chart_key,keys,meter,length,default" +
   "&fields[Tag]=name";
+
+/**
+ * Default lookback when service-type filters are requested but no
+ * `lastUsedSince` date is specified. 3 years is a sensible cap that covers
+ * most active repertoires without fetching all history going back to 2010.
+ */
+const DEFAULT_LOOKBACK_MS = 3 * 365 * 24 * 60 * 60 * 1000;
 
 function pickArrangementForSong(
   song: PcsResource,
@@ -136,7 +143,23 @@ function tagNamesForSong(
 }
 
 /**
- * Fetch the set of song IDs used in the given PCS service types.
+ * Run an array of async tasks in parallel, capped at `chunkSize` concurrent
+ * tasks per batch. Prevents overwhelming the DB connection pool when
+ * processing many songs.
+ */
+async function runInChunks<T>(
+  items: T[],
+  fn: (item: T) => Promise<void>,
+  chunkSize = 25,
+): Promise<void> {
+  for (let i = 0; i < items.length; i += chunkSize) {
+    await Promise.all(items.slice(i, i + chunkSize).map(fn));
+  }
+}
+
+/**
+ * Fetch the set of song IDs used in the given PCS service types since
+ * `sinceDate`.
  *
  * Approach: paginate through plans for each service type with `include=items`,
  * then collect IDs from items where `item_type == "song"`. This is the
@@ -144,26 +167,42 @@ function tagNamesForSong(
  * returns 404 on some organisations/service-type configurations and is not
  * reliable for this purpose.
  *
+ * Key constraints to avoid the two known PCO API gotchas:
+ *
+ * 1. per_page=25 (NOT 100): PCO silently truncates the `included` array when
+ *    there are too many associated resources. 25 plans × ~15 items ≈ 375
+ *    included resources — well within PCO's untruncated limit. 100 plans × 15
+ *    items = ~1 500 resources, which PCO regularly truncates to 0.
+ *
+ * 2. Date bound via `where[starts_at][gte]`: Without a date filter, every
+ *    historical plan (potentially thousands going back to 2010) is paged
+ *    through, making the pre-filter take many minutes. Bounding by sinceDate
+ *    reduces plans to a recent slice — typically a handful of pages.
+ *
+ * 3. No sparse fieldsets: PCO's JSON:API implementation suppresses included
+ *    resources when sparse fieldsets are active — even fieldsets on the
+ *    primary resource (Plan) can prevent Item resources from appearing in the
+ *    `included` array, which would yield an empty allowedSongIds set and
+ *    filter out every song.
+ *
  * FAIL-CLOSED: throws on any API error so a caller who explicitly requested
  * service-type filtering never silently imports the full library.
  */
 async function fetchServiceTypeSongIds(
   userId: string,
   serviceTypeIds: string[],
+  sinceDate: Date,
 ): Promise<Set<string>> {
   const songIds = new Set<string>();
+  const sinceIso = sinceDate.toISOString();
+
   for (const stId of serviceTypeIds) {
-    // NOTE: Do NOT add any sparse fieldsets (&fields[...]) to this URL.
-    // PCO's JSON:API implementation suppresses included resources when sparse
-    // fieldsets are active — even fieldsets on the primary resource (Plan)
-    // can prevent Item resources from appearing in the `included` array, which
-    // would yield an empty allowedSongIds set and filter out every song.
-    // Omitting all sparse fieldsets guarantees that included Item resources
-    // (with their `song` relationship) are always returned in full.
     let next: string | null =
       `/services/v2/service_types/${stId}/plans` +
-      `?per_page=100&include=items`;
-    for (let page = 0; page < 100 && next; page += 1) {
+      `?per_page=25&include=items&order=-sort_date` +
+      `&where[starts_at][gte]=${encodeURIComponent(sinceIso)}`;
+
+    for (let page = 0; page < 200 && next; page += 1) {
       const res = await pcsAuthedFetch(userId, next);
       if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -174,7 +213,6 @@ async function fetchServiceTypeSongIds(
         );
       }
       const body = (await res.json()) as PcsListResponse;
-      // Included items: pick those with item_type "song" and extract song ID.
       for (const item of body.included ?? []) {
         if (item.type !== "Item") continue;
         if (item.attributes?.["item_type"] !== "song") continue;
@@ -200,32 +238,41 @@ export async function importPcsSongs(
     errors: [],
   };
 
+  // Optional date pre-filter cutoff (used both to filter songs and to bound
+  // the plans query in fetchServiceTypeSongIds).
+  const lastUsedCutoff: Date | null = options?.lastUsedSince
+    ? new Date(options.lastUsedSince)
+    : null;
+
   // Optional service-type pre-filter: collect allowed song IDs.
+  //
+  // The sinceDate passed to fetchServiceTypeSongIds bounds the plans query so
+  // we only scan recent plans instead of all history. When lastUsedSince is
+  // set we reuse that date (correct intersection semantics: songs used in
+  // those service types AND used since that date). When no date filter is set
+  // we fall back to a 3-year lookback to keep the query bounded.
+  //
   // fetchServiceTypeSongIds throws on any PCS API failure (fail-closed) so
   // a filter that cannot be resolved aborts the sync rather than silently
   // importing the full library.
   let allowedSongIds: Set<string> | undefined;
   if (options?.serviceTypeIds && options.serviceTypeIds.length > 0) {
+    const serviceTypeSinceDate =
+      lastUsedCutoff ?? new Date(Date.now() - DEFAULT_LOOKBACK_MS);
     allowedSongIds = await fetchServiceTypeSongIds(
       userId,
       options.serviceTypeIds,
+      serviceTypeSinceDate,
     );
-    // Warn specifically when the service-type look-up itself produced 0 song
-    // IDs — this is distinct from lastUsedSince removing all remaining songs
-    // and gives a precise signal that those service types have no scheduled
-    // songs yet (or the plans endpoint returned no song-type items).
     if (allowedSongIds.size === 0) {
       logger.warn(
         { serviceTypeIds: options.serviceTypeIds },
-        "PCS service-type filter resolved but matched 0 song IDs — selected service types may have no scheduled songs yet",
+        "PCS service-type filter resolved but matched 0 song IDs — " +
+          "selected service types may have no scheduled songs in the " +
+          "requested date range",
       );
     }
   }
-
-  // Optional date pre-filter cutoff.
-  const lastUsedCutoff: Date | null = options?.lastUsedSince
-    ? new Date(options.lastUsedSince)
-    : null;
 
   // First pass: collect all songs + arrangements + tags across paginated pages.
   let next: string | null = SONGS_BASE_URL;
@@ -253,10 +300,8 @@ export async function importPcsSongs(
   // Apply pre-filters before counting total so the result reflects what we
   // actually process, not the raw PCS library size.
   const filteredSongs = songs.filter((song) => {
-    // Service-type filter.
     if (allowedSongIds !== undefined && !allowedSongIds.has(song.id)) return false;
 
-    // Last-used-since filter: skip songs never scheduled or scheduled before cutoff.
     if (lastUsedCutoff) {
       const raw = song.attributes?.["last_scheduled_at"];
       if (!raw || typeof raw !== "string") return false;
@@ -270,7 +315,52 @@ export async function importPcsSongs(
   result.total = filteredSongs.length;
   if (filteredSongs.length === 0) return result;
 
-  // Second pass: upsert each song.
+  // ─── Batch upsert ─────────────────────────────────────────────────────────
+  //
+  // Old approach: one SELECT + one UPDATE or INSERT per song → O(n) serial DB
+  // roundtrips (very slow for 200+ songs).
+  //
+  // New approach:
+  //  1. Fetch ALL existing PCS links for this user in one query.
+  //  2. Compute content for every filtered song in-memory.
+  //  3. Split into toUpdate / toInsert lists.
+  //  4. toUpdate: run library_items + link timestamp updates in parallel chunks.
+  //  5. toInsert: single batch INSERT into library_items, then single batch
+  //     INSERT into external_song_links.
+
+  // Step 1: pre-fetch all existing PCS links for this user.
+  const existingLinks = await db
+    .select({
+      id: externalSongLinksTable.id,
+      libraryItemId: externalSongLinksTable.libraryItemId,
+      externalId: externalSongLinksTable.externalId,
+    })
+    .from(externalSongLinksTable)
+    .where(
+      and(
+        eq(externalSongLinksTable.userId, userId),
+        eq(externalSongLinksTable.source, "pcs"),
+      ),
+    );
+
+  const linkByExternalId = new Map(existingLinks.map((l) => [l.externalId, l]));
+
+  // Step 2 & 3: compute content + split into update/insert batches.
+  type UpdateRecord = {
+    libraryItemId: number;
+    linkId: number;
+    title: string;
+    content: Record<string, unknown>;
+  };
+  type InsertRecord = {
+    externalId: string;
+    title: string;
+    content: Record<string, unknown>;
+  };
+
+  const toUpdate: UpdateRecord[] = [];
+  const toInsert: InsertRecord[] = [];
+
   for (const song of filteredSongs) {
     try {
       const titleAttr = song.attributes?.["title"];
@@ -280,11 +370,9 @@ export async function importPcsSongs(
           : null;
       if (!title) continue;
 
-      // Default arrangement → primary BPM, key, meter, and duration.
       const defaultArrangement = pickArrangementForSong(song, arrangements);
       const allArrs = allArrangementsForSong(song, arrangements);
       const aa = defaultArrangement?.attributes ?? {};
-
       const sa = song.attributes ?? {};
 
       const artist =
@@ -296,14 +384,10 @@ export async function importPcsSongs(
         typeof aa["chord_chart_key"] === "string" && aa["chord_chart_key"]
           ? (aa["chord_chart_key"] as string)
           : null;
-
-      // Meter (time signature, e.g. "4/4") from the default arrangement.
       const meter =
         typeof aa["meter"] === "string" && aa["meter"].trim()
           ? aa["meter"].trim()
           : null;
-
-      // Duration in seconds ("length" is PCO's attribute name on arrangements).
       const durationRaw = aa["length"];
       const duration =
         typeof durationRaw === "number" &&
@@ -317,10 +401,8 @@ export async function importPcsSongs(
               })()
             : null;
 
-      // All unique keys across every arrangement (chord_chart_key + keys[]).
       const availableKeys = collectArrangementKeys(allArrs);
 
-      // Song-level metadata.
       const ccli =
         typeof sa["ccli_number"] === "string" && sa["ccli_number"]
           ? (sa["ccli_number"] as string)
@@ -332,30 +414,22 @@ export async function importPcsSongs(
           ? (sa["copyright"] as string)
           : null;
 
-      // Themes: PCS stores as a comma-separated string at the song level.
       const rawThemes =
         typeof sa["themes"] === "string" ? (sa["themes"] as string) : null;
       const themes = dedupeCaseInsensitive(splitList(rawThemes));
-
-      // Tags: from included Tag resources (separate from song-level themes).
       const tags = dedupeCaseInsensitive(tagNamesForSong(song, tagsById));
 
-      // Full lyrics text (stored for AI context; not displayed in the UI).
       const rawLyrics =
         typeof sa["lyrics"] === "string" ? (sa["lyrics"] as string) : null;
       const lyrics = rawLyrics?.trim() || null;
-
-      // A short excerpt for inline AI prompt use.
       const excerpt = lyricsExcerpt(rawLyrics);
 
-      // Last scheduled date — shared normalizePcoDateString handles API ISO datetime.
       const lastScheduledDate = normalizePcoDateString(
         typeof sa["last_scheduled_at"] === "string"
           ? (sa["last_scheduled_at"] as string)
           : null,
       );
 
-      // Build content JSONB. Only include keys with non-null/non-empty values.
       const content: Record<string, unknown> = { source: "planning-center" };
       if (artist) content["artist"] = artist;
       if (bpm !== null) content["bpm"] = bpm;
@@ -371,62 +445,82 @@ export async function importPcsSongs(
       if (meter) content["meter"] = meter;
       if (duration !== null) content["duration"] = duration;
 
-      // Upsert via the external_song_links table.
-      const existingLink = await db
-        .select()
-        .from(externalSongLinksTable)
-        .where(
-          and(
-            eq(externalSongLinksTable.userId, userId),
-            eq(externalSongLinksTable.source, "pcs"),
-            eq(externalSongLinksTable.externalId, song.id),
-          ),
-        )
-        .limit(1);
-
-      if (existingLink.length > 0) {
-        await db
-          .update(libraryItemsTable)
-          .set({ title, content, isRepertoire: true })
-          .where(
-            and(
-              eq(libraryItemsTable.id, existingLink[0]!.libraryItemId),
-              eq(libraryItemsTable.userId, userId),
-            ),
-          );
-        await db
-          .update(externalSongLinksTable)
-          .set({ lastSyncedAt: new Date() })
-          .where(eq(externalSongLinksTable.id, existingLink[0]!.id));
-        result.updated += 1;
+      const existing = linkByExternalId.get(song.id);
+      if (existing) {
+        toUpdate.push({
+          libraryItemId: existing.libraryItemId,
+          linkId: existing.id,
+          title,
+          content,
+        });
       } else {
-        const [inserted] = await db
-          .insert(libraryItemsTable)
-          .values({
+        toInsert.push({ externalId: song.id, title, content });
+      }
+    } catch (err) {
+      logger.warn({ err, songId: song.id }, "Failed to prepare PCS song for import");
+      result.errors.push(
+        `Song ${song.id}: ${err instanceof Error ? err.message : "unknown error"}`,
+      );
+    }
+  }
+
+  // Step 4: update existing songs in parallel chunks.
+  const now = new Date();
+  await runInChunks(toUpdate, async ({ libraryItemId, linkId, title, content }) => {
+    await db
+      .update(libraryItemsTable)
+      .set({ title, content, isRepertoire: true })
+      .where(
+        and(
+          eq(libraryItemsTable.id, libraryItemId),
+          eq(libraryItemsTable.userId, userId),
+        ),
+      );
+    await db
+      .update(externalSongLinksTable)
+      .set({ lastSyncedAt: now })
+      .where(eq(externalSongLinksTable.id, linkId));
+  });
+  result.updated = toUpdate.length;
+
+  // Step 5: batch-insert new songs.
+  if (toInsert.length > 0) {
+    try {
+      const insertedItems = await db
+        .insert(libraryItemsTable)
+        .values(
+          toInsert.map(({ title, content }) => ({
             userId,
-            kind: "song",
+            kind: "song" as const,
             title,
             content,
             tags: [],
             isRepertoire: true,
-          })
-          .returning({ id: libraryItemsTable.id });
-        if (!inserted) continue;
-        await db.insert(externalSongLinksTable).values({
-          libraryItemId: inserted.id,
-          userId,
-          source: "pcs",
-          externalId: song.id,
-        });
-        result.inserted += 1;
+          })),
+        )
+        .returning({ id: libraryItemsTable.id });
+
+      const linkValues = toInsert
+        .map((s, i) => {
+          const item = insertedItems[i];
+          if (!item) return null;
+          return {
+            libraryItemId: item.id,
+            userId,
+            source: "pcs" as const,
+            externalId: s.externalId,
+          };
+        })
+        .filter((v): v is NonNullable<typeof v> => v !== null);
+
+      if (linkValues.length > 0) {
+        await db.insert(externalSongLinksTable).values(linkValues);
       }
+      result.inserted = linkValues.length;
     } catch (err) {
-      logger.warn(
-        { err, songId: song.id },
-        "Failed to import a single PCS song",
-      );
+      logger.error({ err }, "PCS batch insert failed");
       result.errors.push(
-        `Song ${song.id}: ${err instanceof Error ? err.message : "unknown error"}`,
+        `Batch insert failed: ${err instanceof Error ? err.message : "unknown error"}`,
       );
     }
   }
