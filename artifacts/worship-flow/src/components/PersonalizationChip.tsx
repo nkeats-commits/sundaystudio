@@ -51,7 +51,7 @@ export function PersonalizationChip() {
           style={{ borderColor: 'var(--worship-border)' }}
         >
           <Sparkles className="w-3 h-3 text-[var(--worship-gold)]" />
-          {'Personalized for you'}
+          {'Personalized just for you based on your profile.'}
         </Link>
       </HoverCardTrigger>
       <HoverCardContent align="start" className="w-64 p-3 text-sm">
