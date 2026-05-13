@@ -139,7 +139,7 @@ export default function LandingPage() {
               className="text-5xl lg:text-6xl font-medium leading-tight mb-6"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
             >
-              Your personal AI powered researcher, writer, and ministry prep assistant.
+              <span>Your personal AI powered </span><span style={{ color: 'var(--worship-gold)' }}>researcher, writer, and ministry prep assistant.</span>
             </h1>
 
             <p className="text-lg leading-relaxed mb-10" style={{ color: 'var(--worship-slate)' }}>
