@@ -414,59 +414,67 @@ export function OnboardingWizard() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(15, 20, 30, 0.7)' }}>
-      <div
-        className="relative w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
-        style={{ backgroundColor: 'var(--worship-white)' }}
-      >
-        {/* Header */}
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto"
+      style={{ backgroundColor: 'rgba(15, 20, 30, 0.7)' }}
+    >
+      <div className="flex min-h-full items-start justify-center p-4 pb-safe sm:items-center sm:py-8">
         <div
-          className="px-6 pt-6 pb-4 border-b flex items-center justify-between"
-          style={{ borderColor: 'var(--worship-border)', backgroundColor: 'var(--worship-cream)' }}
+          className="relative w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col"
+          style={{
+            backgroundColor: 'var(--worship-white)',
+            maxHeight: 'calc(100dvh - 2rem)',
+          }}
         >
-          <div className="flex items-center gap-3">
-            <img src={`${basePath}/logo.svg`} alt="Sunday Studio" className="w-7 h-7" />
-            <span className="font-serif text-[var(--worship-navy)] font-semibold">Sunday Studio</span>
+          {/* Header — stays pinned while body scrolls */}
+          <div
+            className="px-6 pt-6 pb-4 border-b flex items-center justify-between flex-shrink-0"
+            style={{ borderColor: 'var(--worship-border)', backgroundColor: 'var(--worship-cream)' }}
+          >
+            <div className="flex items-center gap-3">
+              <img src={`${basePath}/logo.svg`} alt="Sunday Studio" className="w-7 h-7" />
+              <span className="font-serif text-[var(--worship-navy)] font-semibold">Sunday Studio</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <StepIndicator current={step} total={3} />
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="text-[var(--worship-slate)] hover:text-[var(--worship-navy)] transition-colors"
+                  aria-label="Skip setup"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <StepIndicator current={step} total={3} />
-            {step > 1 && (
-              <button
-                type="button"
-                onClick={handleSkip}
-                className="text-[var(--worship-slate)] hover:text-[var(--worship-navy)] transition-colors"
-                aria-label="Skip setup"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+          {/* Body — scrolls independently on short screens */}
+          <div className="p-6 md:p-8 overflow-y-auto flex-1">
+            {step === 1 && (
+              <Step1Profile
+                onNext={() => setStep(2)}
+                existingProfile={existingProfile}
+              />
+            )}
+            {step === 2 && (
+              <Step2Paths
+                selectedPath={selectedPath}
+                onSelect={setSelectedPath}
+                onNext={() => setStep(3)}
+                onSkip={handleSkip}
+              />
+            )}
+            {step === 3 && (
+              <Step3Ready
+                selectedPath={selectedPath}
+                onFinish={handleComplete}
+                onSkip={handleSkip}
+                isFinishing={completeOnboarding.isPending}
+              />
             )}
           </div>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 md:p-8">
-          {step === 1 && (
-            <Step1Profile
-              onNext={() => setStep(2)}
-              existingProfile={existingProfile}
-            />
-          )}
-          {step === 2 && (
-            <Step2Paths
-              selectedPath={selectedPath}
-              onSelect={setSelectedPath}
-              onNext={() => setStep(3)}
-              onSkip={handleSkip}
-            />
-          )}
-          {step === 3 && (
-            <Step3Ready
-              selectedPath={selectedPath}
-              onFinish={handleComplete}
-              onSkip={handleSkip}
-              isFinishing={completeOnboarding.isPending}
-            />
-          )}
         </div>
       </div>
     </div>

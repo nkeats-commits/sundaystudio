@@ -106,6 +106,10 @@
 }
 
 @layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+
   .worship-theme {
     font-family: var(--font-sans);
     background-color: var(--worship-cream);
