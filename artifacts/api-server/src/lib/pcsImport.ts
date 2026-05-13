@@ -483,40 +483,44 @@ export async function importPcsSongs(
   });
   result.updated = toUpdate.length;
 
-  // Step 5: batch-insert new songs.
+  // Step 5: batch-insert new songs inside a transaction so that if the
+  // external_song_links insert fails after library_items have been created,
+  // the whole batch rolls back instead of leaving orphaned library rows.
   if (toInsert.length > 0) {
     try {
-      const insertedItems = await db
-        .insert(libraryItemsTable)
-        .values(
-          toInsert.map(({ title, content }) => ({
-            userId,
-            kind: "song" as const,
-            title,
-            content,
-            tags: [],
-            isRepertoire: true,
-          })),
-        )
-        .returning({ id: libraryItemsTable.id });
+      await db.transaction(async (tx) => {
+        const insertedItems = await tx
+          .insert(libraryItemsTable)
+          .values(
+            toInsert.map(({ title, content }) => ({
+              userId,
+              kind: "song" as const,
+              title,
+              content,
+              tags: [],
+              isRepertoire: true,
+            })),
+          )
+          .returning({ id: libraryItemsTable.id });
 
-      const linkValues = toInsert
-        .map((s, i) => {
-          const item = insertedItems[i];
-          if (!item) return null;
-          return {
-            libraryItemId: item.id,
-            userId,
-            source: "pcs" as const,
-            externalId: s.externalId,
-          };
-        })
-        .filter((v): v is NonNullable<typeof v> => v !== null);
+        const linkValues = toInsert
+          .map((s, i) => {
+            const item = insertedItems[i];
+            if (!item) return null;
+            return {
+              libraryItemId: item.id,
+              userId,
+              source: "pcs" as const,
+              externalId: s.externalId,
+            };
+          })
+          .filter((v): v is NonNullable<typeof v> => v !== null);
 
-      if (linkValues.length > 0) {
-        await db.insert(externalSongLinksTable).values(linkValues);
-      }
-      result.inserted = linkValues.length;
+        if (linkValues.length > 0) {
+          await tx.insert(externalSongLinksTable).values(linkValues);
+        }
+        result.inserted = linkValues.length;
+      });
     } catch (err) {
       logger.error({ err }, "PCS batch insert failed");
       result.errors.push(
