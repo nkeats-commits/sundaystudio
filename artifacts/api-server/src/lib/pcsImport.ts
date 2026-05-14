@@ -196,11 +196,15 @@ async function fetchServiceTypeSongIds(
   const songIds = new Set<string>();
   const sinceIso = sinceDate.toISOString();
 
+  // PCO plans use filter=after_date&after_date=YYYY-MM-DD — the where[]
+  // syntax is not supported on this endpoint and is silently ignored.
+  const sinceDateStr = sinceIso.slice(0, 10); // YYYY-MM-DD
+
   for (const stId of serviceTypeIds) {
     let next: string | null =
       `/services/v2/service_types/${stId}/plans` +
       `?per_page=25&include=items&order=-sort_date` +
-      `&where[starts_at][gte]=${encodeURIComponent(sinceIso)}`;
+      `&filter=after_date&after_date=${sinceDateStr}`;
 
     for (let page = 0; page < 200 && next; page += 1) {
       const res = await pcsAuthedFetch(userId, next);
