@@ -9,6 +9,7 @@ import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { useTrialNudge } from '../hooks/useTrialNudge';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 import { useLocation } from 'wouter';
 
@@ -46,6 +47,7 @@ export default function LiturgyGenerator() {
   }, [generate.isPending]);
   const { ready: profileReady } = useChurchProfileReady();
   const { allowed: subAllowed } = useSubscriptionStatus();
+  const { maybeNudge } = useTrialNudge();
   // Saved library item for the current generation, keyed by reset on each
   // new generation so we never link a stale item from the previous draft.
   const [savedItem, setSavedItem] = useState<LibraryItem | null>(null);
@@ -119,7 +121,7 @@ export default function LiturgyGenerator() {
   const handleSave = () => {
     if (!generate.data || savedItem) return;
     ensureSaved()
-      .then(() => toast.success("Saved to Library"))
+      .then(() => { toast.success("Saved to Library"); maybeNudge('library-save'); })
       .catch((err: Error) => toast.error(err.message || "Could not save"));
   };
 

@@ -42,6 +42,7 @@ import { ScholarlySourcesChip } from '../components/ScholarlySourcesChip';
 import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { useTrialNudge } from '../hooks/useTrialNudge';
 import {
   BookOpen,
   Lightbulb,
@@ -351,6 +352,11 @@ export default function SermonBuilder() {
   const illustrationsGen = useJobGenerate<SermonIllustrationsOutput>('/api/generate/sermon-illustrations');
   const worshipGen = useJobGenerate<SermonWorshipIntegrationOutput>('/api/generate/sermon-to-service');
   const smallGroupGen = useJobGenerate<SermonSmallGroupQuestionsOutput>('/api/generate/sermon-small-group-questions');
+
+  const { maybeNudge } = useTrialNudge();
+  useEffect(() => {
+    if (studyGen.data) maybeNudge('sermon-section');
+  }, [studyGen.data, maybeNudge]);
 
   // Each tab keeps its own refine instruction
   const [refine, setRefine] = useState<Record<string, string>>({});

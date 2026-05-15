@@ -25,6 +25,7 @@ import { useJobGenerate } from '../hooks/useJobGenerate';
 import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { useTrialNudge } from '../hooks/useTrialNudge';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 type Audience = 'self' | 'team';
@@ -72,6 +73,7 @@ export default function SoulCareGenerator() {
   const lastSubmittedRef = useRef<typeof formData | null>(null);
   const { ready: profileReady } = useChurchProfileReady();
   const { allowed: subAllowed } = useSubscriptionStatus();
+  const { maybeNudge } = useTrialNudge();
   const [savedItem, setSavedItem] = useState<LibraryItem | null>(null);
   const [addToServiceOpen, setAddToServiceOpen] = useState(false);
   const savePromiseRef = useRef<Promise<LibraryItem> | null>(null);
@@ -144,7 +146,7 @@ export default function SoulCareGenerator() {
   const handleSave = () => {
     if (!generate.data || savedItem) return;
     ensureSaved()
-      .then(() => toast.success('Saved to Library'))
+      .then(() => { toast.success('Saved to Library'); maybeNudge('library-save'); })
       .catch((err: Error) => toast.error(err.message || 'Could not save'));
   };
 

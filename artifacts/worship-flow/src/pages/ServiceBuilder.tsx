@@ -45,6 +45,7 @@ import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { useTrialNudge } from '../hooks/useTrialNudge';
 import {
   WORSHIP_ELEMENTS,
   STARTER_TEMPLATES,
@@ -153,6 +154,7 @@ export default function ServiceBuilder() {
 
   const { ready: profileReady } = useChurchProfileReady();
   const { allowed: subAllowed } = useSubscriptionStatus();
+  const { maybeNudge } = useTrialNudge();
 
   // Convert the editable flow into the on-the-wire FlowStep[] (drops uid).
   const wireFlow: FlowStep[] = useMemo(
@@ -381,6 +383,7 @@ export default function ServiceBuilder() {
       {
         onSuccess: (data) => {
           toast.success('Service Plan saved');
+          maybeNudge('service-plan');
           setLocation(`/services/${data.id}`);
         },
         onError: () => toast.error('Failed to save service plan'),

@@ -17,6 +17,7 @@ import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { useTrialNudge } from '../hooks/useTrialNudge';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 type RepertoireMode = 'off' | 'prefer' | 'strict';
@@ -121,6 +122,7 @@ export default function SongGenerator() {
   }, [generate.isPending]);
   const { ready: profileReady } = useChurchProfileReady();
   const { allowed: subAllowed } = useSubscriptionStatus();
+  const { maybeNudge } = useTrialNudge();
   // Per-row save tracking, keyed by song index in the current generation.
   // Reset on each fresh generation so we never reuse a stale id.
   const [savedSongs, setSavedSongs] = useState<Record<number, LibraryItem>>({});
@@ -253,7 +255,7 @@ export default function SongGenerator() {
   const handleSaveSingle = (index: number, song: SongSuggestion) => {
     if (savedSongs[index]) return;
     ensureSongSaved(index, song)()
-      .then(() => toast.success(`"${song.title}" saved to Library`))
+      .then(() => { toast.success(`"${song.title}" saved to Library`); maybeNudge('library-save'); })
       .catch((err: Error) => toast.error(err.message || "Could not save"));
   };
 

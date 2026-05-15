@@ -10,6 +10,7 @@ import { ProfileRequiredBanner } from '../components/ProfileRequiredGate';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
+import { useTrialNudge } from '../hooks/useTrialNudge';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 
 const SPEAKING_PHASES = [
@@ -43,6 +44,7 @@ export default function SpeakingMomentGenerator() {
   }, [generate.isPending]);
   const { ready: profileReady } = useChurchProfileReady();
   const { allowed: subAllowed } = useSubscriptionStatus();
+  const { maybeNudge } = useTrialNudge();
   const [savedItem, setSavedItem] = useState<LibraryItem | null>(null);
   const [addToServiceOpen, setAddToServiceOpen] = useState(false);
   // Shared in-flight save promise so Save + Add-to-service can't double-create.
@@ -106,7 +108,7 @@ export default function SpeakingMomentGenerator() {
   const handleSave = () => {
     if (!generate.data || savedItem) return;
     ensureSaved()
-      .then(() => toast.success("Saved to Library"))
+      .then(() => { toast.success("Saved to Library"); maybeNudge('library-save'); })
       .catch((err: Error) => toast.error(err.message || "Could not save"));
   };
 
