@@ -129,6 +129,7 @@ export default function SoulCareGenerator() {
           queryKey: getListLibraryItemsQueryKey(),
         });
         setSavedItem(item);
+        maybeNudge('library-save');
         return item;
       } finally {
         savePromiseRef.current = null;
@@ -146,7 +147,7 @@ export default function SoulCareGenerator() {
   const handleSave = () => {
     if (!generate.data || savedItem) return;
     ensureSaved()
-      .then(() => { toast.success('Saved to Library'); maybeNudge('library-save'); })
+      .then(() => toast.success('Saved to Library'))
       .catch((err: Error) => toast.error(err.message || 'Could not save'));
   };
 

@@ -355,8 +355,16 @@ export default function SermonBuilder() {
 
   const { maybeNudge } = useTrialNudge();
   useEffect(() => {
-    if (studyGen.data) maybeNudge('sermon-section');
-  }, [studyGen.data, maybeNudge]);
+    const anyDone = [
+      studyGen.data, bigIdeaGen.data, outlineGen.data, manuscriptGen.data,
+      applicationsGen.data, illustrationsGen.data, worshipGen.data, smallGroupGen.data,
+    ].some(Boolean);
+    if (anyDone) maybeNudge('sermon-section');
+  }, [
+    studyGen.data, bigIdeaGen.data, outlineGen.data, manuscriptGen.data,
+    applicationsGen.data, illustrationsGen.data, worshipGen.data, smallGroupGen.data,
+    maybeNudge,
+  ]);
 
   // Each tab keeps its own refine instruction
   const [refine, setRefine] = useState<Record<string, string>>({});

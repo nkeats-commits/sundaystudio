@@ -234,6 +234,7 @@ export default function SongGenerator() {
         const item = await createLibraryItem.mutateAsync({ data: buildSongPayload(index, song) });
         queryClient.invalidateQueries({ queryKey: getListLibraryItemsQueryKey() });
         setSavedSongs((prev) => ({ ...prev, [index]: item }));
+        maybeNudge('library-save');
         return item;
       } finally {
         delete songSavePromisesRef.current[index];
@@ -255,7 +256,7 @@ export default function SongGenerator() {
   const handleSaveSingle = (index: number, song: SongSuggestion) => {
     if (savedSongs[index]) return;
     ensureSongSaved(index, song)()
-      .then(() => { toast.success(`"${song.title}" saved to Library`); maybeNudge('library-save'); })
+      .then(() => toast.success(`"${song.title}" saved to Library`))
       .catch((err: Error) => toast.error(err.message || "Could not save"));
   };
 
