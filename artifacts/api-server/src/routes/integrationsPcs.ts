@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import crypto from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import {
   db,
   pcsConnectionsTable,
@@ -173,20 +173,21 @@ router.get("/integrations/pcs/callback", async (req, res) => {
         })
         .where(eq(pcsConnectionsTable.userId, userId));
     }
-    // Fire planning_center_connected once per user — best-effort, non-blocking.
+    // Fire planning_center_connected once per user — atomic, best-effort, non-blocking.
     void (async () => {
       try {
-        const [user] = await db
-          .select()
-          .from(usersTable)
-          .where(eq(usersTable.id, userId))
-          .limit(1);
-        if (user && !user.planningCenterEventFiredAt) {
-          await db
-            .update(usersTable)
-            .set({ planningCenterEventFiredAt: new Date() })
-            .where(eq(usersTable.id, userId));
-          await trackEvent(EVENTS.PLANNING_CENTER_CONNECTED, userId, user.email, {}, req.log);
+        const [claimed] = await db
+          .update(usersTable)
+          .set({ planningCenterEventFiredAt: new Date() })
+          .where(and(eq(usersTable.id, userId), isNull(usersTable.planningCenterEventFiredAt)))
+          .returning({ id: usersTable.id, email: usersTable.email });
+        if (claimed) {
+          const delivered = await trackEvent(EVENTS.PLANNING_CENTER_CONNECTED, claimed.id, claimed.email, {}, req.log);
+          if (!delivered) {
+            await db.update(usersTable)
+              .set({ planningCenterEventFiredAt: null })
+              .where(eq(usersTable.id, claimed.id));
+          }
         }
       } catch (err) {
         req.log.warn({ err }, "planning_center_connected event failed");

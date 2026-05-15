@@ -179,6 +179,19 @@ export type AdminUserDetailCounts = {
   sermons: number;
 };
 
+/**
+ * ISO timestamps recording when each one-time Resend event was fired for this user. Null means not yet fired.
+ */
+export type AdminUserDetailEventStamps = {
+  churchProfileEventFiredAt?: string | null;
+  firstServicePlanEventFiredAt?: string | null;
+  firstLibraryItemEventFiredAt?: string | null;
+  firstSermonEventFiredAt?: string | null;
+  planningCenterEventFiredAt?: string | null;
+  scholarlySourcesEventFiredAt?: string | null;
+  repertoireEventFiredAt?: string | null;
+};
+
 export interface AdminUserDetail {
   id: string;
   email?: string | null;
@@ -191,6 +204,8 @@ export interface AdminUserDetail {
   state: AccessState;
   counts: AdminUserDetailCounts;
   lastActivityAt?: string | null;
+  /** ISO timestamps recording when each one-time Resend event was fired for this user. Null means not yet fired. */
+  eventStamps?: AdminUserDetailEventStamps;
 }
 
 export interface PcsConnectUrl {

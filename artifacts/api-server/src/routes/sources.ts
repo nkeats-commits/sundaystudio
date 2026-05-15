@@ -6,7 +6,7 @@
  * registry (id + metadata) and the user's enabled-id list.
  */
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, userSourcePreferencesTable, usersTable } from "@workspace/db";
 import { UpdateScholarlySourcePreferencesBody } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -71,20 +71,21 @@ router.put("/sources/preferences", requireAuth, async (req, res) => {
   if (ids.length > 0) {
     void (async () => {
       try {
-        const [user] = await db
-          .select()
-          .from(usersTable)
-          .where(eq(usersTable.id, req.userId!))
-          .limit(1);
-        if (user && !user.scholarlySourcesEventFiredAt) {
-          await db
-            .update(usersTable)
-            .set({ scholarlySourcesEventFiredAt: new Date() })
-            .where(eq(usersTable.id, req.userId!));
-          await trackEvent(EVENTS.SCHOLARLY_SOURCES_ENABLED, user.id, user.email, {
+        const [claimed] = await db
+          .update(usersTable)
+          .set({ scholarlySourcesEventFiredAt: new Date() })
+          .where(and(eq(usersTable.id, req.userId!), isNull(usersTable.scholarlySourcesEventFiredAt)))
+          .returning({ id: usersTable.id, email: usersTable.email });
+        if (claimed) {
+          const delivered = await trackEvent(EVENTS.SCHOLARLY_SOURCES_ENABLED, claimed.id, claimed.email, {
             enabledCount: ids.length,
             sourceIds: ids,
           });
+          if (!delivered) {
+            await db.update(usersTable)
+              .set({ scholarlySourcesEventFiredAt: null })
+              .where(eq(usersTable.id, claimed.id));
+          }
         }
       } catch (err) {
         void err;

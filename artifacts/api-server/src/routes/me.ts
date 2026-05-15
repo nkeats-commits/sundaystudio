@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db, usersTable, churchProfilesTable } from "@workspace/db";
 import { UpdateChurchProfileBody } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -77,22 +77,27 @@ router.put("/me/church", requireAuth, async (req, res) => {
   // Fire church_profile_completed once per user — best-effort, never blocks.
   void (async () => {
     try {
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, userId))
-        .limit(1);
-      if (user && !user.churchProfileEventFiredAt) {
-        await db
-          .update(usersTable)
-          .set({ churchProfileEventFiredAt: new Date() })
-          .where(eq(usersTable.id, userId));
-        await trackEvent(EVENTS.CHURCH_PROFILE_COMPLETED, userId, user.email, {
+      // Atomic: only the one request whose UPDATE actually modifies the row
+      // (stamp was NULL) will receive a RETURNING row — concurrent requests get
+      // nothing, preventing double-fires.
+      const [claimed] = await db
+        .update(usersTable)
+        .set({ churchProfileEventFiredAt: new Date() })
+        .where(and(eq(usersTable.id, userId), isNull(usersTable.churchProfileEventFiredAt)))
+        .returning({ id: usersTable.id, email: usersTable.email });
+      if (claimed) {
+        const delivered = await trackEvent(EVENTS.CHURCH_PROFILE_COMPLETED, claimed.id, claimed.email, {
           churchName: values.churchName,
         });
+        if (!delivered) {
+          // Revert stamp so the next request can retry when Resend is back.
+          await db.update(usersTable)
+            .set({ churchProfileEventFiredAt: null })
+            .where(eq(usersTable.id, claimed.id));
+        }
       }
     } catch (err) {
-      void err; // event tracking is best-effort
+      void err;
     }
   })();
 });

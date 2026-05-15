@@ -810,6 +810,15 @@ router.get(
           sermons: Number(sermonCount),
         },
         lastActivityAt: lastActivity ? lastActivity.toISOString() : null,
+        eventStamps: {
+          churchProfileEventFiredAt: u.churchProfileEventFiredAt?.toISOString() ?? null,
+          firstServicePlanEventFiredAt: u.firstServicePlanEventFiredAt?.toISOString() ?? null,
+          firstLibraryItemEventFiredAt: u.firstLibraryItemEventFiredAt?.toISOString() ?? null,
+          firstSermonEventFiredAt: u.firstSermonEventFiredAt?.toISOString() ?? null,
+          planningCenterEventFiredAt: u.planningCenterEventFiredAt?.toISOString() ?? null,
+          scholarlySourcesEventFiredAt: u.scholarlySourcesEventFiredAt?.toISOString() ?? null,
+          repertoireEventFiredAt: u.repertoireEventFiredAt?.toISOString() ?? null,
+        },
       });
     } catch (err) {
       req.log.error({ err }, "admin user detail failed");

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, libraryItemsTable, servicePlansTable, usersTable } from "@workspace/db";
 import {
   CreateLibraryItemBody,
@@ -86,22 +86,23 @@ router.post("/library", requireAuth, requireActiveAccess, async (req, res) => {
   }
   res.status(201).json(row);
 
-  // Fire first_library_item_saved once per user — best-effort, never blocks.
+  // Fire first_library_item_saved once per user — atomic, best-effort, never blocks.
   void (async () => {
     try {
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.userId!))
-        .limit(1);
-      if (user && !user.firstLibraryItemEventFiredAt) {
-        await db
-          .update(usersTable)
-          .set({ firstLibraryItemEventFiredAt: new Date() })
-          .where(eq(usersTable.id, req.userId!));
-        await trackEvent(EVENTS.FIRST_LIBRARY_ITEM_SAVED, user.id, user.email, {
+      const [claimed] = await db
+        .update(usersTable)
+        .set({ firstLibraryItemEventFiredAt: new Date() })
+        .where(and(eq(usersTable.id, req.userId!), isNull(usersTable.firstLibraryItemEventFiredAt)))
+        .returning({ id: usersTable.id, email: usersTable.email });
+      if (claimed) {
+        const delivered = await trackEvent(EVENTS.FIRST_LIBRARY_ITEM_SAVED, claimed.id, claimed.email, {
           kind: data.kind,
         });
+        if (!delivered) {
+          await db.update(usersTable)
+            .set({ firstLibraryItemEventFiredAt: null })
+            .where(eq(usersTable.id, claimed.id));
+        }
       }
     } catch (err) {
       void err;
@@ -175,19 +176,20 @@ router.patch("/library/:id/repertoire", requireAuth, requireActiveAccess, async 
   if (parsed.data.isRepertoire) {
     void (async () => {
       try {
-        const [user] = await db
-          .select()
-          .from(usersTable)
-          .where(eq(usersTable.id, req.userId!))
-          .limit(1);
-        if (user && !user.repertoireEventFiredAt) {
-          await db
-            .update(usersTable)
-            .set({ repertoireEventFiredAt: new Date() })
-            .where(eq(usersTable.id, req.userId!));
-          await trackEvent(EVENTS.REPERTOIRE_FIRST_SONG_ADDED, user.id, user.email, {
+        const [claimed] = await db
+          .update(usersTable)
+          .set({ repertoireEventFiredAt: new Date() })
+          .where(and(eq(usersTable.id, req.userId!), isNull(usersTable.repertoireEventFiredAt)))
+          .returning({ id: usersTable.id, email: usersTable.email });
+        if (claimed) {
+          const delivered = await trackEvent(EVENTS.REPERTOIRE_FIRST_SONG_ADDED, claimed.id, claimed.email, {
             songTitle: row.title,
           });
+          if (!delivered) {
+            await db.update(usersTable)
+              .set({ repertoireEventFiredAt: null })
+              .where(eq(usersTable.id, claimed.id));
+          }
         }
       } catch (err) {
         void err;
@@ -338,19 +340,20 @@ router.post("/library/repertoire/bulk-import", requireAuth, requireActiveAccess,
   if (added > 0) {
     void (async () => {
       try {
-        const [user] = await db
-          .select()
-          .from(usersTable)
-          .where(eq(usersTable.id, req.userId!))
-          .limit(1);
-        if (user && !user.repertoireEventFiredAt) {
-          await db
-            .update(usersTable)
-            .set({ repertoireEventFiredAt: new Date() })
-            .where(eq(usersTable.id, req.userId!));
-          await trackEvent(EVENTS.REPERTOIRE_FIRST_SONG_ADDED, user.id, user.email, {
+        const [claimed] = await db
+          .update(usersTable)
+          .set({ repertoireEventFiredAt: new Date() })
+          .where(and(eq(usersTable.id, req.userId!), isNull(usersTable.repertoireEventFiredAt)))
+          .returning({ id: usersTable.id, email: usersTable.email });
+        if (claimed) {
+          const delivered = await trackEvent(EVENTS.REPERTOIRE_FIRST_SONG_ADDED, claimed.id, claimed.email, {
             bulkAdded: added,
           });
+          if (!delivered) {
+            await db.update(usersTable)
+              .set({ repertoireEventFiredAt: null })
+              .where(eq(usersTable.id, claimed.id));
+          }
         }
       } catch (err) {
         void err;

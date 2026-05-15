@@ -2364,6 +2364,17 @@ components:
         lastActivityAt:
           type: string
           nullable: true
+        eventStamps:
+          type: object
+          description: ISO timestamps recording when each one-time Resend event was fired for this user. Null means not yet fired.
+          properties:
+            churchProfileEventFiredAt: { type: string, nullable: true }
+            firstServicePlanEventFiredAt: { type: string, nullable: true }
+            firstLibraryItemEventFiredAt: { type: string, nullable: true }
+            firstSermonEventFiredAt: { type: string, nullable: true }
+            planningCenterEventFiredAt: { type: string, nullable: true }
+            scholarlySourcesEventFiredAt: { type: string, nullable: true }
+            repertoireEventFiredAt: { type: string, nullable: true }
 
     PcsConnectUrl:
       type: object

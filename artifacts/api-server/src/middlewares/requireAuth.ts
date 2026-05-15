@@ -41,42 +41,53 @@ export const requireAuth: RequestHandler = async (
   }
 
   try {
-    const existing = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, userId))
-      .limit(1);
-    if (existing.length === 0) {
-      await db
-        .insert(usersTable)
-        .values({
-          id: userId,
-          email: claims?.email ?? null,
-          firstName: claims?.firstName ?? null,
-          lastName: claims?.lastName ?? null,
-          imageUrl: claims?.imageUrl ?? null,
-        })
-        .onConflictDoNothing();
+    // INSERT RETURNING tells us atomically whether this request created a new
+    // row. If two concurrent first-requests race, only the one whose INSERT
+    // actually committed will receive a RETURNING row — the other gets nothing
+    // because ON CONFLICT DO NOTHING suppresses its insert without an error.
+    const [inserted] = await db
+      .insert(usersTable)
+      .values({
+        id: userId,
+        email: claims?.email ?? null,
+        firstName: claims?.firstName ?? null,
+        lastName: claims?.lastName ?? null,
+        imageUrl: claims?.imageUrl ?? null,
+      })
+      .onConflictDoNothing()
+      .returning({
+        id: usersTable.id,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+      });
 
-      // Fire trial_started for brand-new users. Best-effort — never blocks the request.
+    if (inserted) {
+      // Brand-new user: fire trial_started. The RETURNING guarantee means at
+      // most one concurrent request reaches this branch per user.
       void trackEvent(
         EVENTS.TRIAL_STARTED,
         userId,
-        claims?.email ?? null,
-        { firstName: claims?.firstName ?? null },
+        inserted.email,
+        { firstName: inserted.firstName },
         req.log,
       );
     } else {
-      // Refresh missing identity fields when Clerk supplies them. We don't
-      // overwrite non-empty values to avoid clobbering manual edits.
-      const cur = existing[0];
-      const patch: Partial<typeof usersTable.$inferInsert> = {};
-      if (!cur.email && claims?.email) patch.email = claims.email;
-      if (!cur.firstName && claims?.firstName) patch.firstName = claims.firstName;
-      if (!cur.lastName && claims?.lastName) patch.lastName = claims.lastName;
-      if (!cur.imageUrl && claims?.imageUrl) patch.imageUrl = claims.imageUrl;
-      if (Object.keys(patch).length > 0) {
-        await db.update(usersTable).set(patch).where(eq(usersTable.id, userId));
+      // Existing user: refresh missing identity fields when Clerk supplies them.
+      // We don't overwrite non-empty values to avoid clobbering manual edits.
+      const [cur] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1);
+      if (cur) {
+        const patch: Partial<typeof usersTable.$inferInsert> = {};
+        if (!cur.email && claims?.email) patch.email = claims.email;
+        if (!cur.firstName && claims?.firstName) patch.firstName = claims.firstName;
+        if (!cur.lastName && claims?.lastName) patch.lastName = claims.lastName;
+        if (!cur.imageUrl && claims?.imageUrl) patch.imageUrl = claims.imageUrl;
+        if (Object.keys(patch).length > 0) {
+          await db.update(usersTable).set(patch).where(eq(usersTable.id, userId));
+        }
       }
     }
   } catch (err) {

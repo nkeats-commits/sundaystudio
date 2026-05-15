@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db, servicePlansTable, usersTable } from "@workspace/db";
 import {
   CreateServicePlanBody,
@@ -48,20 +48,21 @@ router.post("/service-plans", requireAuth, requireActiveAccess, async (req, res)
     .returning();
   res.status(201).json(row);
 
-  // Fire first_service_plan_saved once per user — best-effort, never blocks.
+  // Fire first_service_plan_saved once per user — atomic, best-effort, never blocks.
   void (async () => {
     try {
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.userId!))
-        .limit(1);
-      if (user && !user.firstServicePlanEventFiredAt) {
-        await db
-          .update(usersTable)
-          .set({ firstServicePlanEventFiredAt: new Date() })
-          .where(eq(usersTable.id, req.userId!));
-        await trackEvent(EVENTS.FIRST_SERVICE_PLAN_SAVED, user.id, user.email);
+      const [claimed] = await db
+        .update(usersTable)
+        .set({ firstServicePlanEventFiredAt: new Date() })
+        .where(and(eq(usersTable.id, req.userId!), isNull(usersTable.firstServicePlanEventFiredAt)))
+        .returning({ id: usersTable.id, email: usersTable.email });
+      if (claimed) {
+        const delivered = await trackEvent(EVENTS.FIRST_SERVICE_PLAN_SAVED, claimed.id, claimed.email);
+        if (!delivered) {
+          await db.update(usersTable)
+            .set({ firstServicePlanEventFiredAt: null })
+            .where(eq(usersTable.id, claimed.id));
+        }
       }
     } catch (err) {
       void err;

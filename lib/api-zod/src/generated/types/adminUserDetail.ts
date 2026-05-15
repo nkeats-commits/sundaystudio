@@ -7,6 +7,7 @@
  */
 import type { AccessState } from "./accessState";
 import type { AdminUserDetailCounts } from "./adminUserDetailCounts";
+import type { AdminUserDetailEventStamps } from "./adminUserDetailEventStamps";
 
 export interface AdminUserDetail {
   id: string;
@@ -20,4 +21,6 @@ export interface AdminUserDetail {
   state: AccessState;
   counts: AdminUserDetailCounts;
   lastActivityAt?: string | null;
+  /** ISO timestamps recording when each one-time Resend event was fired for this user. Null means not yet fired. */
+  eventStamps?: AdminUserDetailEventStamps;
 }

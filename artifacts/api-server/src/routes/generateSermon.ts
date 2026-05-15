@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db, churchProfilesTable, sermonSeriesTable, usersTable } from "@workspace/db";
 import { trackEvent } from "../lib/emailClient";
 import { EVENTS } from "../lib/eventRegistry";
@@ -279,22 +279,23 @@ Return JSON exactly in this shape:
     (parsed) => ({ ...parsed, consultedSources: merge.consultedSources }),
   );
 
-  // Fire first_sermon_generated once per user — best-effort, never blocks.
+  // Fire first_sermon_generated once per user — atomic, best-effort, never blocks.
   void (async () => {
     try {
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, req.userId!))
-        .limit(1);
-      if (user && !user.firstSermonEventFiredAt) {
-        await db
-          .update(usersTable)
-          .set({ firstSermonEventFiredAt: new Date() })
-          .where(eq(usersTable.id, req.userId!));
-        await trackEvent(EVENTS.FIRST_SERMON_GENERATED, user.id, user.email, {
+      const [claimed] = await db
+        .update(usersTable)
+        .set({ firstSermonEventFiredAt: new Date() })
+        .where(and(eq(usersTable.id, req.userId!), isNull(usersTable.firstSermonEventFiredAt)))
+        .returning({ id: usersTable.id, email: usersTable.email });
+      if (claimed) {
+        const delivered = await trackEvent(EVENTS.FIRST_SERMON_GENERATED, claimed.id, claimed.email, {
           passage: d.passage,
         });
+        if (!delivered) {
+          await db.update(usersTable)
+            .set({ firstSermonEventFiredAt: null })
+            .where(eq(usersTable.id, claimed.id));
+        }
       }
     } catch (err) {
       void err;

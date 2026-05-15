@@ -82,20 +82,30 @@ export async function getResendClient(
 /**
  * Fire a Resend Automations event for the given user.
  *
- * Calls the Resend Events REST API (`POST /v1/events`) so Resend can trigger
- * any Automation workflows configured for the event name.
+ * Calls the Resend Events REST API (`POST /v1/events`) — the Resend SDK v4
+ * does not yet expose an `events.track()` method, so we call the endpoint
+ * directly with the same payload shape Resend's automation docs specify:
+ * `{ event, email, data }`.
+ *
+ * Return value:
+ *   true  — event delivered successfully (2xx), OR credentials unavailable in
+ *            dev (graceful no-op; callers should NOT revert idempotency stamps).
+ *   false — credentials present but delivery failed (non-2xx or network error);
+ *            callers that set a stamp before calling should revert it so the
+ *            next request can retry.
  *
  * Design contract:
  *   - NEVER throws. A Resend outage must not break the primary user action.
  *   - Logs a warning on failure so ops can notice misconfiguration.
- *   - No-ops (with a debug log) when Resend credentials are not configured,
- *     so the server works in dev without the integration.
+ *   - No-ops (returns true) when Resend credentials are not configured,
+ *     so dev environments work without the integration and stamps are kept.
  *
  * @param eventName  The event identifier string (use EVENTS constants from eventRegistry.ts)
  * @param userId     The platform user id — included in event data for cross-referencing
  * @param email      The user's email address — required by Resend to match the contact
  * @param data       Optional additional key/value pairs sent as event properties
  * @param log        Optional Pino logger; falls back to console when absent
+ * @returns          true if delivered or gracefully skipped; false if delivery failed
  */
 export async function trackEvent(
   eventName: string,
@@ -103,10 +113,11 @@ export async function trackEvent(
   email: string | null | undefined,
   data?: Record<string, unknown>,
   log?: Logger,
-): Promise<void> {
+): Promise<boolean> {
   if (!email) {
     (log ?? console).warn?.({ eventName, userId }, "trackEvent skipped — no email for user");
-    return;
+    // No email means we can't deliver, but treat as graceful skip (don't revert stamps).
+    return true;
   }
 
   let apiKey: string;
@@ -114,12 +125,13 @@ export async function trackEvent(
     const creds = await getResendCredentials();
     apiKey = creds.apiKey;
   } catch (err) {
-    // Resend not configured — dev environment or missing secret. Skip silently.
+    // Resend not configured — dev environment or missing secret. Skip gracefully.
     (log ?? console).warn?.(
       { eventName, userId, err: err instanceof Error ? err.message : String(err) },
       "trackEvent skipped — Resend credentials unavailable",
     );
-    return;
+    // Credentials unavailable: treat as graceful skip so callers keep their stamps.
+    return true;
   }
 
   try {
@@ -143,11 +155,15 @@ export async function trackEvent(
         { eventName, userId, status: resp.status, body },
         "trackEvent received non-2xx response",
       );
+      return false;
     }
+
+    return true;
   } catch (err) {
     (log ?? console).warn?.(
       { eventName, userId, err: err instanceof Error ? err.message : String(err) },
       "trackEvent soft-failed",
     );
+    return false;
   }
 }

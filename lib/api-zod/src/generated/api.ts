@@ -4637,6 +4637,20 @@ export const GetAdminUserResponse = zod.object({
     sermons: zod.number(),
   }),
   lastActivityAt: zod.string().nullish(),
+  eventStamps: zod
+    .object({
+      churchProfileEventFiredAt: zod.string().nullish(),
+      firstServicePlanEventFiredAt: zod.string().nullish(),
+      firstLibraryItemEventFiredAt: zod.string().nullish(),
+      firstSermonEventFiredAt: zod.string().nullish(),
+      planningCenterEventFiredAt: zod.string().nullish(),
+      scholarlySourcesEventFiredAt: zod.string().nullish(),
+      repertoireEventFiredAt: zod.string().nullish(),
+    })
+    .optional()
+    .describe(
+      "ISO timestamps recording when each one-time Resend event was fired for this user. Null means not yet fired.",
+    ),
 });
 
 /**

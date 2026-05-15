@@ -24,6 +24,7 @@ export * from "./adminUserAiUsageByType";
 export * from "./adminUserAiUsageLast30d";
 export * from "./adminUserDetail";
 export * from "./adminUserDetailCounts";
+export * from "./adminUserDetailEventStamps";
 export * from "./adminUserList";
 export * from "./adminUserSummary";
 export * from "./analyzeManuscripts200";

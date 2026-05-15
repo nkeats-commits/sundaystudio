@@ -14,7 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Calendar, FileText, BookOpen, Clock, Cpu } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, BookOpen, Clock, Cpu, Mail } from "lucide-react";
 
 function fmt(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -363,6 +363,40 @@ export default function AdminUserDetail() {
                     No AI generations recorded yet.
                   </p>
                 )}
+              </div>
+            )}
+
+            {user.eventStamps && (
+              <div className="worship-card space-y-3">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-[var(--worship-slate)]" />
+                  <h2 className="font-medium text-[var(--worship-navy)]">
+                    Automation Events
+                  </h2>
+                </div>
+                <p className="text-xs text-[var(--worship-slate)]">
+                  One-time lifecycle events fired to Resend. A timestamp means the event was sent; "Not yet" means it hasn't triggered.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                  {(
+                    [
+                      ["church_profile_completed", "Church profile completed", user.eventStamps.churchProfileEventFiredAt],
+                      ["first_service_plan_saved", "First service plan saved", user.eventStamps.firstServicePlanEventFiredAt],
+                      ["first_library_item_saved", "First library item saved", user.eventStamps.firstLibraryItemEventFiredAt],
+                      ["first_sermon_generated", "First sermon generated", user.eventStamps.firstSermonEventFiredAt],
+                      ["planning_center_connected", "Planning Center connected", user.eventStamps.planningCenterEventFiredAt],
+                      ["scholarly_sources_enabled", "Scholarly sources enabled", user.eventStamps.scholarlySourcesEventFiredAt],
+                      ["repertoire_first_song_added", "Repertoire first song", user.eventStamps.repertoireEventFiredAt],
+                    ] as [string, string, string | null | undefined][]
+                  ).map(([key, label, stamp]) => (
+                    <div key={key} className="flex items-start justify-between gap-2 py-1 border-b border-[var(--worship-border)] last:border-0">
+                      <span className="text-xs text-[var(--worship-slate)] shrink-0">{label}</span>
+                      <span className={`text-xs font-mono ${stamp ? "text-emerald-700" : "text-[var(--worship-slate)] opacity-50"}`}>
+                        {stamp ? new Date(stamp).toLocaleDateString() : "Not yet"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
