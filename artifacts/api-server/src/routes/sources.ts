@@ -48,6 +48,17 @@ router.put("/sources/preferences", requireAuth, async (req, res) => {
       .json({ error: err instanceof Error ? err.message : "Invalid source id" });
     return;
   }
+  // Capture previous enabled count BEFORE the upsert so we can detect a true
+  // "never had any sources" → "at least one source" transition. Fetched here
+  // (synchronously in the handler) so the closure below always sees the pre-save
+  // value even though the upsert has already mutated the row by then.
+  const [prevPref] = await db
+    .select({ enabledSourceIds: userSourcePreferencesTable.enabledSourceIds })
+    .from(userSourcePreferencesTable)
+    .where(eq(userSourcePreferencesTable.userId, req.userId!))
+    .limit(1);
+  const previouslyEnabledCount = prevPref?.enabledSourceIds?.length ?? 0;
+
   await db
     .insert(userSourcePreferencesTable)
     .values({
@@ -67,8 +78,11 @@ router.put("/sources/preferences", requireAuth, async (req, res) => {
     defaults: DEFAULT_ENABLED_SOURCE_IDS.filter(isRegisteredSource),
   });
 
-  // Fire scholarly_sources_enabled once per user when they first enable any source.
-  if (ids.length > 0) {
+  // Fire scholarly_sources_enabled only on the first true enablement transition:
+  // user went from zero enabled sources to at least one. Saves that just re-save
+  // existing defaults (e.g. matthew-henry-concise → matthew-henry-concise) without
+  // ever having consciously enabled anything do NOT trigger this event.
+  if (ids.length > 0 && previouslyEnabledCount === 0) {
     void (async () => {
       try {
         const [claimed] = await db

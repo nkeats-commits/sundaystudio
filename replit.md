@@ -89,6 +89,16 @@ All generation endpoints use `generateJson` (`artifacts/api-server/src/lib/anthr
 - Express types augmented in `requireAuth.ts` (`req.userId`).
 - Tailwind v4: `@layer theme, base, clerk, components, utilities;` MUST precede `@import "tailwindcss";`. Vite plugin uses `tailwindcss({ optimize: false })` for Clerk theme compatibility.
 
+## Resend Automations (email lifecycle events)
+
+`lib/events/src/index.ts` is the single source of truth for all 15 event names and human-readable metadata. Both `artifacts/api-server` and `artifacts/worship-flow` import from `@workspace/events`.
+
+`trackEvent()` in `artifacts/api-server/src/lib/emailClient.ts` calls `POST https://api.resend.com/v1/events` directly via `fetch` — **not** `resend.events.track()`. The Resend Node SDK v4 does not expose an `events.track()` method; the REST endpoint is the supported path and uses the same `{ event, email, data }` payload shape documented in Resend's Automations guide.
+
+One-time events use an atomic `UPDATE users SET stamp = now() WHERE stamp IS NULL RETURNING` claim. If `trackEvent()` returns `false` (credentials present but delivery failed) the stamp is reverted so the next request retries. Trial cron emails (`trial_expiring`, `trial_expired`) gate their stamp write on `delivered === true`.
+
+Admin reference: `/admin/email-events` lists all events with copyable Resend event name strings. Per-user stamp status (8 one-time events including `trial_started` derived from `trialStartedAt`) is visible in `/admin/users/:id`.
+
 ## Environment
 
 - `DATABASE_URL` — PostgreSQL (Replit-managed)
