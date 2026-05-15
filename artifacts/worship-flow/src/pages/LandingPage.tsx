@@ -32,12 +32,6 @@ const FEATURES = [
     badge: 'Teaching',
   },
   {
-    icon: Layers,
-    title: 'Service Builder',
-    desc: 'Design complete orders of worship from blank canvas to final flow — transitions, cues, and everything in between.',
-    badge: 'Worship',
-  },
-  {
     icon: BookOpen,
     title: 'Liturgy Generator',
     desc: 'Write calls to worship, prayers, benedictions, and responsive readings that fit your text and tradition.',
@@ -72,6 +66,12 @@ const FEATURES = [
     title: 'Small Group Questions',
     desc: 'Generate discussion questions tied to your sermon or theme — ready to hand off to your small group leaders.',
     badge: 'Discipleship',
+  },
+  {
+    icon: Layers,
+    title: 'Service Builder',
+    desc: 'Design complete orders of worship from blank canvas to final flow — transitions, cues, and everything in between.',
+    badge: 'Worship',
   },
 ];
 
