@@ -380,6 +380,7 @@ export default function AdminUserDetail() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                   {(
                     [
+                      ["trial_started", "Trial started", user.trialStartedAt],
                       ["church_profile_completed", "Church profile completed", user.eventStamps.churchProfileEventFiredAt],
                       ["first_service_plan_saved", "First service plan saved", user.eventStamps.firstServicePlanEventFiredAt],
                       ["first_library_item_saved", "First library item saved", user.eventStamps.firstLibraryItemEventFiredAt],
