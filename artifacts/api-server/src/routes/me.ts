@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db, usersTable, churchProfilesTable } from "@workspace/db";
 import { UpdateChurchProfileBody } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { trackEvent } from "../lib/emailClient";
+import { EVENTS } from "../lib/eventRegistry";
 
 const router: IRouter = Router();
 
@@ -71,6 +73,28 @@ router.put("/me/church", requireAuth, async (req, res) => {
     [result] = await db.insert(churchProfilesTable).values(values).returning();
   }
   res.json(result);
+
+  // Fire church_profile_completed once per user — best-effort, never blocks.
+  void (async () => {
+    try {
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1);
+      if (user && !user.churchProfileEventFiredAt) {
+        await db
+          .update(usersTable)
+          .set({ churchProfileEventFiredAt: new Date() })
+          .where(eq(usersTable.id, userId));
+        await trackEvent(EVENTS.CHURCH_PROFILE_COMPLETED, userId, user.email, {
+          churchName: values.churchName,
+        });
+      }
+    } catch (err) {
+      void err; // event tracking is best-effort
+    }
+  })();
 });
 
 router.post("/onboarding/complete", requireAuth, async (req, res) => {

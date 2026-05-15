@@ -161,14 +161,22 @@ export default function AdminOverview() {
               Owner-only view of growth, billing, and trial health.
             </p>
           </div>
-          <Link
-            href="/admin/users"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--worship-navy)] text-white hover:bg-[#161e30] text-sm font-medium"
-          >
-            <Users className="w-4 h-4" />
-            Manage users
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/email-events"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] text-sm font-medium"
+            >
+              Email Events
+            </Link>
+            <Link
+              href="/admin/users"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--worship-navy)] text-white hover:bg-[#161e30] text-sm font-medium"
+            >
+              <Users className="w-4 h-4" />
+              Manage users
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
 
         {isLoading && (

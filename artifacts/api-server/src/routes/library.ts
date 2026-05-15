@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { db, libraryItemsTable, servicePlansTable } from "@workspace/db";
+import { db, libraryItemsTable, servicePlansTable, usersTable } from "@workspace/db";
 import {
   CreateLibraryItemBody,
   ListLibraryItemsQueryParams,
@@ -15,6 +15,8 @@ import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import { normalizeTitle } from "../lib/repertoire";
 import { recordBpmFromContent } from "../lib/crowdsourceBpm";
 import { lyricsExcerpt } from "../lib/songFieldParsers";
+import { trackEvent } from "../lib/emailClient";
+import { EVENTS } from "../lib/eventRegistry";
 
 const router: IRouter = Router();
 
@@ -83,6 +85,28 @@ router.post("/library", requireAuth, requireActiveAccess, async (req, res) => {
     void recordBpmFromContent(data.title, data.content);
   }
   res.status(201).json(row);
+
+  // Fire first_library_item_saved once per user — best-effort, never blocks.
+  void (async () => {
+    try {
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.userId!))
+        .limit(1);
+      if (user && !user.firstLibraryItemEventFiredAt) {
+        await db
+          .update(usersTable)
+          .set({ firstLibraryItemEventFiredAt: new Date() })
+          .where(eq(usersTable.id, req.userId!));
+        await trackEvent(EVENTS.FIRST_LIBRARY_ITEM_SAVED, user.id, user.email, {
+          kind: data.kind,
+        });
+      }
+    } catch (err) {
+      void err;
+    }
+  })();
 });
 
 /**
@@ -146,6 +170,30 @@ router.patch("/library/:id/repertoire", requireAuth, requireActiveAccess, async 
     return;
   }
   res.json(row);
+
+  // Fire repertoire_first_song_added once per user when they add a song.
+  if (parsed.data.isRepertoire) {
+    void (async () => {
+      try {
+        const [user] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.id, req.userId!))
+          .limit(1);
+        if (user && !user.repertoireEventFiredAt) {
+          await db
+            .update(usersTable)
+            .set({ repertoireEventFiredAt: new Date() })
+            .where(eq(usersTable.id, req.userId!));
+          await trackEvent(EVENTS.REPERTOIRE_FIRST_SONG_ADDED, user.id, user.email, {
+            songTitle: row.title,
+          });
+        }
+      } catch (err) {
+        void err;
+      }
+    })();
+  }
 });
 
 /**
@@ -285,6 +333,30 @@ router.post("/library/repertoire/bulk-import", requireAuth, requireActiveAccess,
   }
 
   res.json({ added, skippedDuplicates, invalidLines });
+
+  // Fire repertoire_first_song_added once per user when they bulk-import.
+  if (added > 0) {
+    void (async () => {
+      try {
+        const [user] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.id, req.userId!))
+          .limit(1);
+        if (user && !user.repertoireEventFiredAt) {
+          await db
+            .update(usersTable)
+            .set({ repertoireEventFiredAt: new Date() })
+            .where(eq(usersTable.id, req.userId!));
+          await trackEvent(EVENTS.REPERTOIRE_FIRST_SONG_ADDED, user.id, user.email, {
+            bulkAdded: added,
+          });
+        }
+      } catch (err) {
+        void err;
+      }
+    })();
+  }
 });
 
 /**

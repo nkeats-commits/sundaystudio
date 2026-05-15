@@ -1,53 +1,39 @@
 /**
- * Trial lifecycle email cron.
+ * Trial lifecycle event cron.
  *
- * Sends two emails per user (idempotent — each fires at most once):
- *   1. Day-11 reminder  — "3 days left in your trial"
- *   2. Day-14 expiry    — "Your trial has ended"
+ * Fires two Resend Automations events per user (idempotent — each fires at
+ * most once), replacing the previous direct email.send() calls.
+ * Resend Automation workflows handle the actual email delivery.
+ *
+ *   1. Day-11 → `trial_expiring`  ("3 days left in your trial")
+ *   2. Day-14 → `trial_expired`   ("Your trial has ended")
  *
  * Both queries skip users who already have a Stripe subscription row
- * (active or trialing) so paying customers are never emailed.
+ * (active or trialing) so paying customers are never targeted.
  *
  * Schedule: called once at boot (to catch any missed sends) then every 24 h.
  */
 
 import { sql } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
-import { isNull, isNotNull, and, lte, gte, gt } from "drizzle-orm";
+import { isNull, isNotNull, and, lte, gt } from "drizzle-orm";
 import { logger } from "./logger";
-import { getResendClient } from "./emailClient";
-import {
-  trialReminderHtml,
-  trialReminderText,
-  trialExpiredHtml,
-  trialExpiredText,
-} from "./emailTemplates";
+import { trackEvent } from "./emailClient";
+import { EVENTS } from "./eventRegistry";
 
 const TRIAL_DAYS = 14;
-const REMINDER_DAY = 11; // send reminder on day 11 (3 days before expiry)
+const REMINDER_DAY = 11; // fire trial_expiring on day 11 (3 days before expiry)
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Returns the canonical pricing URL for this deployment.
- * Uses REPLIT_DOMAINS in production; falls back to localhost in dev.
- */
-function getPricingUrl(): string {
-  const domains = process.env["REPLIT_DOMAINS"];
-  if (domains) {
-    return `https://${domains.split(",")[0]}/pricing`;
-  }
-  return "https://worshipflow.app/pricing";
-}
-
-/**
- * Returns true if we should skip sending a trial email to this user.
+ * Returns true if we should skip the event for this user.
  *
  * Fail-closed: if the user has a stripeCustomerId but the subscription
  * lookup fails for any reason (schema missing, DB hiccup, etc.), we skip
- * the email rather than risk emailing an active subscriber.
+ * the event rather than risk targeting an active subscriber.
  */
-async function shouldSkipEmail(user: { stripeCustomerId: string | null }): Promise<boolean> {
-  if (!user.stripeCustomerId) return false; // no Stripe record → free trial, send email
+async function shouldSkipEvent(user: { stripeCustomerId: string | null }): Promise<boolean> {
+  if (!user.stripeCustomerId) return false; // no Stripe record → free trial, fire event
 
   try {
     const result = await db.execute(sql`
@@ -59,25 +45,18 @@ async function shouldSkipEmail(user: { stripeCustomerId: string | null }): Promi
     // Active/trialing subscriber → skip
     return (result.rows.length ?? 0) > 0;
   } catch {
-    // Stripe schema missing or DB error → fail-closed, skip the email
+    // Stripe schema missing or DB error → fail-closed, skip the event
     return true;
   }
 }
 
 export async function runTrialEmailCron(): Promise<void> {
   const cronLog = logger.child({ cron: "trialEmails" });
-  cronLog.info("Trial email cron starting");
+  cronLog.info("Trial event cron starting");
 
-  const resend = await getResendClient(cronLog);
-  if (!resend) {
-    cronLog.warn("Resend not configured — skipping trial emails");
-    return;
-  }
-
-  const pricingUrl = getPricingUrl();
   const now = new Date();
 
-  // ── Reminder: users whose trial is on day 11 (started 11–12 days ago) ──
+  // ── trial_expiring: users whose trial is on day 11 (started 11–12 days ago) ──
   // Idempotency is guaranteed by the trialReminderSentAt stamp.
   const reminderWindowEnd = new Date(now.getTime() - REMINDER_DAY * DAY_MS);
   const reminderWindowStart = new Date(now.getTime() - (REMINDER_DAY + 1) * DAY_MS);
@@ -94,38 +73,35 @@ export async function runTrialEmailCron(): Promise<void> {
       ),
     );
 
-  cronLog.info({ count: reminderCandidates.length }, "Reminder candidates found");
+  cronLog.info({ count: reminderCandidates.length }, "trial_expiring candidates found");
 
   for (const user of reminderCandidates) {
     if (!user.email) continue;
 
     // Skip paying users (fail-closed: skip on lookup error)
-    if (await shouldSkipEmail(user)) {
-      cronLog.info({ userId: user.id }, "Skipping reminder — user has active subscription");
+    if (await shouldSkipEvent(user)) {
+      cronLog.info({ userId: user.id }, "Skipping trial_expiring — user has active subscription");
       continue;
     }
 
     try {
-      await resend.client.emails.send({
-        from: resend.fromEmail,
-        to: user.email,
-        subject: "Your Sunday Studio trial ends in 3 days",
-        html: trialReminderHtml({ firstName: user.firstName, pricingUrl }),
-        text: trialReminderText({ firstName: user.firstName, pricingUrl }),
-      });
+      await trackEvent(EVENTS.TRIAL_EXPIRING, user.id, user.email, {
+        firstName: user.firstName,
+        trialStartedAt: user.trialStartedAt?.toISOString(),
+      }, cronLog);
 
       await db
         .update(usersTable)
         .set({ trialReminderSentAt: now })
         .where(sql`id = ${user.id}`);
 
-      cronLog.info({ userId: user.id, email: user.email }, "Trial reminder sent");
+      cronLog.info({ userId: user.id, email: user.email }, "trial_expiring event fired");
     } catch (err) {
-      cronLog.error({ err, userId: user.id }, "Failed to send trial reminder");
+      cronLog.error({ err, userId: user.id }, "Failed to fire trial_expiring event");
     }
   }
 
-  // ── Expired: users whose trial ended on day 14 (started 14–15 days ago) ──
+  // ── trial_expired: users whose trial ended on day 14 (started 14–15 days ago) ──
   // Idempotency is guaranteed by the trialExpiredEmailSentAt stamp.
   const expiredWindowEnd = new Date(now.getTime() - TRIAL_DAYS * DAY_MS);
   const expiredWindowStart = new Date(now.getTime() - (TRIAL_DAYS + 1) * DAY_MS);
@@ -142,36 +118,33 @@ export async function runTrialEmailCron(): Promise<void> {
       ),
     );
 
-  cronLog.info({ count: expiredCandidates.length }, "Expiry candidates found");
+  cronLog.info({ count: expiredCandidates.length }, "trial_expired candidates found");
 
   for (const user of expiredCandidates) {
     if (!user.email) continue;
 
     // Skip paying users (fail-closed: skip on lookup error)
-    if (await shouldSkipEmail(user)) {
-      cronLog.info({ userId: user.id }, "Skipping expiry email — user has active subscription");
+    if (await shouldSkipEvent(user)) {
+      cronLog.info({ userId: user.id }, "Skipping trial_expired — user has active subscription");
       continue;
     }
 
     try {
-      await resend.client.emails.send({
-        from: resend.fromEmail,
-        to: user.email,
-        subject: "Your Sunday Studio trial has ended",
-        html: trialExpiredHtml({ firstName: user.firstName, pricingUrl }),
-        text: trialExpiredText({ firstName: user.firstName, pricingUrl }),
-      });
+      await trackEvent(EVENTS.TRIAL_EXPIRED, user.id, user.email, {
+        firstName: user.firstName,
+        trialStartedAt: user.trialStartedAt?.toISOString(),
+      }, cronLog);
 
       await db
         .update(usersTable)
         .set({ trialExpiredEmailSentAt: now })
         .where(sql`id = ${user.id}`);
 
-      cronLog.info({ userId: user.id, email: user.email }, "Trial expiry email sent");
+      cronLog.info({ userId: user.id, email: user.email }, "trial_expired event fired");
     } catch (err) {
-      cronLog.error({ err, userId: user.id }, "Failed to send trial expiry email");
+      cronLog.error({ err, userId: user.id }, "Failed to fire trial_expired event");
     }
   }
 
-  cronLog.info("Trial email cron complete");
+  cronLog.info("Trial event cron complete");
 }

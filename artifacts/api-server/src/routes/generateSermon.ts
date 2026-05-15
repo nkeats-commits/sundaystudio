@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
-import { db, churchProfilesTable, sermonSeriesTable } from "@workspace/db";
+import { db, churchProfilesTable, sermonSeriesTable, usersTable } from "@workspace/db";
+import { trackEvent } from "../lib/emailClient";
+import { EVENTS } from "../lib/eventRegistry";
 import {
   GenerateSermonStudyBody,
   GenerateSermonStudyResponse,
@@ -276,6 +278,28 @@ Return JSON exactly in this shape:
     GenerateSermonStudyResponse,
     (parsed) => ({ ...parsed, consultedSources: merge.consultedSources }),
   );
+
+  // Fire first_sermon_generated once per user — best-effort, never blocks.
+  void (async () => {
+    try {
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.userId!))
+        .limit(1);
+      if (user && !user.firstSermonEventFiredAt) {
+        await db
+          .update(usersTable)
+          .set({ firstSermonEventFiredAt: new Date() })
+          .where(eq(usersTable.id, req.userId!));
+        await trackEvent(EVENTS.FIRST_SERMON_GENERATED, user.id, user.email, {
+          passage: d.passage,
+        });
+      }
+    } catch (err) {
+      void err;
+    }
+  })();
 });
 
 router.post("/generate/sermon-big-idea", requireAuth, requireActiveAccess, async (req, res) => {

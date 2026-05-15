@@ -5,7 +5,10 @@ import {
   db,
   pcsConnectionsTable,
   externalSongLinksTable,
+  usersTable,
 } from "@workspace/db";
+import { trackEvent } from "../lib/emailClient";
+import { EVENTS } from "../lib/eventRegistry";
 import { requireAuth } from "../middlewares/requireAuth";
 import {
   exchangeToken,
@@ -170,6 +173,26 @@ router.get("/integrations/pcs/callback", async (req, res) => {
         })
         .where(eq(pcsConnectionsTable.userId, userId));
     }
+    // Fire planning_center_connected once per user — best-effort, non-blocking.
+    void (async () => {
+      try {
+        const [user] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.id, userId))
+          .limit(1);
+        if (user && !user.planningCenterEventFiredAt) {
+          await db
+            .update(usersTable)
+            .set({ planningCenterEventFiredAt: new Date() })
+            .where(eq(usersTable.id, userId));
+          await trackEvent(EVENTS.PLANNING_CENTER_CONNECTED, userId, user.email, {}, req.log);
+        }
+      } catch (err) {
+        req.log.warn({ err }, "planning_center_connected event failed");
+      }
+    })();
+
     res.redirect(finishUrl("ok"));
   } catch (err) {
     req.log.error({ err }, "PCS OAuth callback failed");

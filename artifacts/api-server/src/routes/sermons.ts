@@ -7,9 +7,12 @@ import {
   sermonResourcesTable,
   sermonSeriesTable,
   servicePlansTable,
+  usersTable,
   type ServicePlanContent,
   type ServicePlanItem,
 } from "@workspace/db";
+import { trackEvent } from "../lib/emailClient";
+import { EVENTS } from "../lib/eventRegistry";
 import {
   CreateSermonBody,
   UpdateSermonBody,
@@ -624,6 +627,25 @@ router.post("/sermons/:id/export", requireAuth, async (req, res) => {
     })
     .returning();
   res.json(row);
+
+  // Fire sermon_exported on every export — best-effort, never blocks.
+  void (async () => {
+    try {
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.userId!))
+        .limit(1);
+      if (user) {
+        await trackEvent(EVENTS.SERMON_EXPORTED, user.id, user.email, {
+          sermonId: id,
+          format: parsed.data.format,
+        });
+      }
+    } catch (err) {
+      void err;
+    }
+  })();
 });
 
 export default router;

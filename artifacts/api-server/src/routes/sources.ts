@@ -7,9 +7,11 @@
  */
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, userSourcePreferencesTable } from "@workspace/db";
+import { db, userSourcePreferencesTable, usersTable } from "@workspace/db";
 import { UpdateScholarlySourcePreferencesBody } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { trackEvent } from "../lib/emailClient";
+import { EVENTS } from "../lib/eventRegistry";
 import {
   DEFAULT_ENABLED_SOURCE_IDS,
   assertAllRegistered,
@@ -64,6 +66,31 @@ router.put("/sources/preferences", requireAuth, async (req, res) => {
     enabledSourceIds: ids,
     defaults: DEFAULT_ENABLED_SOURCE_IDS.filter(isRegisteredSource),
   });
+
+  // Fire scholarly_sources_enabled once per user when they first enable any source.
+  if (ids.length > 0) {
+    void (async () => {
+      try {
+        const [user] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.id, req.userId!))
+          .limit(1);
+        if (user && !user.scholarlySourcesEventFiredAt) {
+          await db
+            .update(usersTable)
+            .set({ scholarlySourcesEventFiredAt: new Date() })
+            .where(eq(usersTable.id, req.userId!));
+          await trackEvent(EVENTS.SCHOLARLY_SOURCES_ENABLED, user.id, user.email, {
+            enabledCount: ids.length,
+            sourceIds: ids,
+          });
+        }
+      } catch (err) {
+        void err;
+      }
+    })();
+  }
 });
 
 export default router;

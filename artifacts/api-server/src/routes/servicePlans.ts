@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq } from "drizzle-orm";
-import { db, servicePlansTable } from "@workspace/db";
+import { db, servicePlansTable, usersTable } from "@workspace/db";
 import {
   CreateServicePlanBody,
   UpdateServicePlanBody,
@@ -13,6 +13,8 @@ import {
   renderServicePlanAsMarkdown,
   renderServicePlanAsText,
 } from "../lib/servicePlanExport";
+import { trackEvent } from "../lib/emailClient";
+import { EVENTS } from "../lib/eventRegistry";
 
 const router: IRouter = Router();
 
@@ -45,6 +47,26 @@ router.post("/service-plans", requireAuth, requireActiveAccess, async (req, res)
     })
     .returning();
   res.status(201).json(row);
+
+  // Fire first_service_plan_saved once per user — best-effort, never blocks.
+  void (async () => {
+    try {
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.userId!))
+        .limit(1);
+      if (user && !user.firstServicePlanEventFiredAt) {
+        await db
+          .update(usersTable)
+          .set({ firstServicePlanEventFiredAt: new Date() })
+          .where(eq(usersTable.id, req.userId!));
+        await trackEvent(EVENTS.FIRST_SERVICE_PLAN_SAVED, user.id, user.email);
+      }
+    } catch (err) {
+      void err;
+    }
+  })();
 });
 
 router.get("/service-plans/:id", requireAuth, async (req, res) => {
@@ -129,6 +151,25 @@ router.post("/service-plans/:id/export", requireAuth, async (req, res) => {
       ? renderServicePlanAsText(plan)
       : renderServicePlanAsMarkdown(plan);
   res.json({ servicePlanId: id, format: parsed.data.format, content });
+
+  // Fire service_plan_exported on every export — best-effort, never blocks.
+  void (async () => {
+    try {
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, req.userId!))
+        .limit(1);
+      if (user) {
+        await trackEvent(EVENTS.SERVICE_PLAN_EXPORTED, user.id, user.email, {
+          servicePlanId: id,
+          format: parsed.data.format,
+        });
+      }
+    } catch (err) {
+      void err;
+    }
+  })();
 });
 
 router.delete("/service-plans/:id", requireAuth, requireActiveAccess, async (req, res) => {

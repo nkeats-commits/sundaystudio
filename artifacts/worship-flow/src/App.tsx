@@ -51,6 +51,7 @@ import AdminUsers from "./pages/AdminUsers";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import AdminUserDetail from "./pages/AdminUserDetail";
+import { AdminEmailEvents } from "./pages/AdminEmailEvents";
 import { AdminOnly } from "./components/AdminOnly";
 import NotFound from "./pages/NotFound";
 import { OnboardingWizard } from "./components/OnboardingWizard";
@@ -472,6 +473,17 @@ function ClerkProviderWithRoutes() {
                 component={() => (
                   <AdminOnly>
                     <AdminUserDetail />
+                  </AdminOnly>
+                )}
+              />
+            )}
+          </Route>
+          <Route path="/admin/email-events">
+            {() => (
+              <Protected
+                component={() => (
+                  <AdminOnly>
+                    <AdminEmailEvents />
                   </AdminOnly>
                 )}
               />

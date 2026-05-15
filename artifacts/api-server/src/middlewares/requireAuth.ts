@@ -2,6 +2,8 @@ import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { trackEvent } from "../lib/emailClient";
+import { EVENTS } from "../lib/eventRegistry";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -55,6 +57,15 @@ export const requireAuth: RequestHandler = async (
           imageUrl: claims?.imageUrl ?? null,
         })
         .onConflictDoNothing();
+
+      // Fire trial_started for brand-new users. Best-effort — never blocks the request.
+      void trackEvent(
+        EVENTS.TRIAL_STARTED,
+        userId,
+        claims?.email ?? null,
+        { firstName: claims?.firstName ?? null },
+        req.log,
+      );
     } else {
       // Refresh missing identity fields when Clerk supplies them. We don't
       // overwrite non-empty values to avoid clobbering manual edits.

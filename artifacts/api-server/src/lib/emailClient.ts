@@ -1,5 +1,5 @@
 /**
- * Resend email client.
+ * Resend email client + Resend Automations event tracking.
  *
  * Sources credentials, in order:
  *   1. RESEND_API_KEY env var (set in Production secrets).
@@ -76,5 +76,78 @@ export async function getResendClient(
       "Resend not configured — email sending disabled",
     );
     return null;
+  }
+}
+
+/**
+ * Fire a Resend Automations event for the given user.
+ *
+ * Calls the Resend Events REST API (`POST /v1/events`) so Resend can trigger
+ * any Automation workflows configured for the event name.
+ *
+ * Design contract:
+ *   - NEVER throws. A Resend outage must not break the primary user action.
+ *   - Logs a warning on failure so ops can notice misconfiguration.
+ *   - No-ops (with a debug log) when Resend credentials are not configured,
+ *     so the server works in dev without the integration.
+ *
+ * @param eventName  The event identifier string (use EVENTS constants from eventRegistry.ts)
+ * @param userId     The platform user id — included in event data for cross-referencing
+ * @param email      The user's email address — required by Resend to match the contact
+ * @param data       Optional additional key/value pairs sent as event properties
+ * @param log        Optional Pino logger; falls back to console when absent
+ */
+export async function trackEvent(
+  eventName: string,
+  userId: string,
+  email: string | null | undefined,
+  data?: Record<string, unknown>,
+  log?: Logger,
+): Promise<void> {
+  if (!email) {
+    (log ?? console).warn?.({ eventName, userId }, "trackEvent skipped — no email for user");
+    return;
+  }
+
+  let apiKey: string;
+  try {
+    const creds = await getResendCredentials();
+    apiKey = creds.apiKey;
+  } catch (err) {
+    // Resend not configured — dev environment or missing secret. Skip silently.
+    (log ?? console).warn?.(
+      { eventName, userId, err: err instanceof Error ? err.message : String(err) },
+      "trackEvent skipped — Resend credentials unavailable",
+    );
+    return;
+  }
+
+  try {
+    const resp = await fetch("https://api.resend.com/v1/events", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        event: eventName,
+        email,
+        data: { userId, ...data },
+      }),
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      (log ?? console).warn?.(
+        { eventName, userId, status: resp.status, body },
+        "trackEvent received non-2xx response",
+      );
+    }
+  } catch (err) {
+    (log ?? console).warn?.(
+      { eventName, userId, err: err instanceof Error ? err.message : String(err) },
+      "trackEvent soft-failed",
+    );
   }
 }
