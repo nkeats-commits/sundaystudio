@@ -10,46 +10,46 @@
 export const EVENTS = {
   // ── Account Lifecycle ────────────────────────────────────────────────────
   /** User signs up and their trial clock starts. Fires once on first login. */
-  TRIAL_STARTED: "trial_started",
+  TRIAL_STARTED: "ss_trial_started",
   /** Day-11 reminder: 3 days left in trial. Fires via the trial email cron. */
-  TRIAL_EXPIRING: "trial_expiring",
+  TRIAL_EXPIRING: "ss_trial_expiring",
   /** Day-14 expiry: trial has ended. Fires via the trial email cron. */
-  TRIAL_EXPIRED: "trial_expired",
+  TRIAL_EXPIRED: "ss_trial_expired",
   /** User subscribes via Stripe (subscription.created webhook). */
-  SUBSCRIPTION_STARTED: "subscription_started",
+  SUBSCRIPTION_STARTED: "ss_subscription_started",
   /** User cancels their subscription (subscription.deleted webhook). */
-  SUBSCRIPTION_CANCELED: "subscription_canceled",
+  SUBSCRIPTION_CANCELED: "ss_subscription_canceled",
   /**
    * User reactivates a previously canceled subscription. Fires on:
    *   1. status transition from an inactive state → active/trialing, OR
    *   2. cancel_at_period_end flipping true → false (un-cancel) while
    *      the status is already active/trialing.
    */
-  SUBSCRIPTION_REACTIVATED: "subscription_reactivated",
+  SUBSCRIPTION_REACTIVATED: "ss_subscription_reactivated",
 
   // ── Onboarding Milestones ────────────────────────────────────────────────
   /** Pastor saves a church profile for the first time. */
-  CHURCH_PROFILE_COMPLETED: "church_profile_completed",
+  CHURCH_PROFILE_COMPLETED: "ss_church_profile_completed",
   /** First AI sermon study generation. */
-  FIRST_SERMON_GENERATED: "first_sermon_generated",
+  FIRST_SERMON_GENERATED: "ss_first_sermon_generated",
   /** First service plan saved to the database. */
-  FIRST_SERVICE_PLAN_SAVED: "first_service_plan_saved",
+  FIRST_SERVICE_PLAN_SAVED: "ss_first_service_plan_saved",
   /** First library item saved (any kind). */
-  FIRST_LIBRARY_ITEM_SAVED: "first_library_item_saved",
+  FIRST_LIBRARY_ITEM_SAVED: "ss_first_library_item_saved",
 
   // ── Feature Adoption ─────────────────────────────────────────────────────
   /** Planning Center Services OAuth successfully completed. */
-  PLANNING_CENTER_CONNECTED: "planning_center_connected",
+  PLANNING_CENTER_CONNECTED: "ss_planning_center_connected",
   /** User enables at least one scholarly source for the first time. */
-  SCHOLARLY_SOURCES_ENABLED: "scholarly_sources_enabled",
+  SCHOLARLY_SOURCES_ENABLED: "ss_scholarly_sources_enabled",
   /** First song added to the user's personal repertoire. */
-  REPERTOIRE_FIRST_SONG_ADDED: "repertoire_first_song_added",
+  REPERTOIRE_FIRST_SONG_ADDED: "ss_repertoire_first_song_added",
 
   // ── High-Intent Actions ──────────────────────────────────────────────────
   /** Pastor exports a sermon (any format). */
-  SERMON_EXPORTED: "sermon_exported",
+  SERMON_EXPORTED: "ss_sermon_exported",
   /** Pastor exports a service plan (any format). */
-  SERVICE_PLAN_EXPORTED: "service_plan_exported",
+  SERVICE_PLAN_EXPORTED: "ss_service_plan_exported",
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
