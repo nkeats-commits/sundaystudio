@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import {
   Flame,
   ChevronRight,
+  ChevronDown,
   Music,
   Mic,
   Users,
@@ -82,6 +84,107 @@ const BADGE_COLORS: Record<string, string> = {
   All: '#475569',
   Workflow: '#64748B',
 };
+
+const FAQS = [
+  {
+    q: 'Can Sunday Studio help me plan sermons, worship services, devotionals, and liturgy in one place?',
+    a: `Yes. Sunday Studio is designed to help church leaders move from scattered ideas to clear, ministry-ready resources.\n\nInstead of bouncing between a blank document, Bible study notes, worship themes, service elements, devotionals, and random AI prompts, Sunday Studio gives you a guided place to prepare the work you already carry every week.\n\nYou can use it to shape sermons, build service flows, write devotionals, craft prayers, create calls to worship, develop liturgy, and connect your Sunday around a passage, theme, or season.\n\nYou still lead. You still discern. You still pastor your people. Sunday Studio simply helps you get from "I have no idea where to start" to "I can work with this" a whole lot faster.`,
+  },
+  {
+    q: 'Is this for pastors too, or just worship leaders?',
+    a: `Sunday Studio is for pastors, worship leaders, and ministry leaders who carry the weight of preparing meaningful Sunday gatherings.\n\nIf you preach, it can help with sermon outlines, illustrations, devotional content, discussion questions, and passage-based planning.\n\nIf you lead worship, it can help with service themes, Scripture readings, prayers, transitions, calls to worship, and song-set direction.\n\nIf you oversee ministry teams, it can help create clarity around what you are trying to say, sing, pray, and invite people into.\n\nSunday Studio is not just a worship-planning tool. It is a ministry preparation assistant for the people who are responsible for making Sunday thoughtful, faithful, and connected.`,
+  },
+  {
+    q: 'How is this different from Planning Center?',
+    a: `Planning Center helps you organize the service once the plan is ready. Sunday Studio helps you create and shape the plan before it gets there.\n\nYou can think of Planning Center as the place where you schedule people, songs, service orders, attachments, and details. Sunday Studio is where you work through the creative and pastoral preparation that happens before all of that: sermon ideas, Scripture themes, liturgy, prayers, devotionals, service direction, and worship flow.\n\nSunday Studio is not trying to replace Planning Center. It helps with the part Planning Center was not built to do: turning a passage, theme, or idea into thoughtful Sunday-ready content.`,
+  },
+  {
+    q: 'How is this different from ChatGPT?',
+    a: `Generic AI can give you words. Sunday Studio helps you prepare ministry resources within the actual rhythms of church leadership.\n\nYou do not have to become an expert prompt writer or spend half your time explaining what a call to worship is, how a service flows, what kind of devotional you need, or why tone matters in a pastoral setting.\n\nSunday Studio is built around sermons, worship services, liturgy, Scripture, devotionals, prayers, and weekly ministry prep. That means the experience is more guided, more focused, and more useful for church work. You are not starting with a blank chat box. You are starting with ministry-specific workflows that help you get to usable content faster.`,
+  },
+  {
+    q: 'Can I trust it with Scripture and theology?',
+    a: `That is exactly the right question to ask.\n\nSunday Studio is meant to support faithful ministry preparation, not replace your study, prayer, wisdom, or theological discernment. It helps you think, organize, draft, and refine. But you remain the pastor, leader, shepherd, and final voice. Every piece of content should be reviewed, edited, and shaped by you before it is used with your people.\n\nThe goal is not to hand your theology to AI. The goal is to give you a tool that helps you prepare more thoughtfully, ask better questions, explore stronger ideas, and build resources that you can evaluate through your own convictions, church context, and biblical understanding.\n\nSunday Studio gives you a strong starting point. You bring the pastoral judgment.`,
+  },
+  {
+    q: 'Can I shape the tone and theological direction?',
+    a: `Yes. Sunday Studio is built to help you shape content around your ministry context.\n\nA prayer for a reflective communion moment should not sound like a student ministry game night devotional. A sermon outline for a conservative evangelical church should not sound the same as a high-church liturgical reading. A Good Friday service should not feel like an Easter hype video accidentally wore black.\n\nTone matters. Theology matters. Context matters. Sunday Studio helps you guide the output based on what you are preparing, who you are leading, and how you want it to feel — whether you need something pastoral, reverent, warm, concise, thoughtful, celebratory, invitational, or Scripture-heavy.`,
+  },
+  {
+    q: 'Will the content sound generic?',
+    a: `Not if you use it the way it is meant to be used.\n\nSunday Studio is not designed to hand you bland, copy-and-paste ministry filler. It is designed to help you get a strong first draft that you can shape into something that sounds like you, fits your church, and serves your people.\n\nThe best ministry content still needs a human shepherd behind it. Your stories, convictions, tone, humor, pastoral instincts, and knowledge of your people matter. Sunday Studio helps you get unstuck and gives you language to work with. Then you make it personal, specific, and alive.\n\nThink of it less like a ghostwriter and more like a creative ministry assistant who helps you get the first layer down so you can do the deeper work.`,
+  },
+  {
+    q: "Can it help me when I'm behind and staring at a blank page?",
+    a: `Yes, and honestly, that is one of the moments Sunday Studio was made for.\n\nEvery ministry leader knows that feeling. Sunday is coming. The passage is open. The cursor is blinking. Your coffee is cold. Your brain has apparently left the building.\n\nSunday Studio helps you get moving. You can enter a passage, theme, service idea, or ministry need, and it will help you generate starting points, outlines, prayers, transitions, devotionals, or service direction. It does not do the ministry for you, but it helps break the paralysis of starting from nothing.\n\nSometimes the hardest part is not finishing. It is beginning. Sunday Studio gives you a faithful, practical place to begin.`,
+  },
+  {
+    q: 'Will this save me time, or just give me more to edit?',
+    a: `The goal is to save you meaningful time by helping you get to a better first draft faster.\n\nSunday Studio is not magic, and it should not replace your review process. But when used well, it can reduce the time you spend staring at a blank page, wrestling with phrasing, building from scratch, or trying to connect scattered ideas.\n\nInstead of spending an hour trying to write a prayer, transition, devotional, or service theme from nothing, you can start with a thoughtful draft and spend your best energy refining it.\n\nThe goal is not "no editing." The goal is better editing because you are no longer starting from zero.`,
+  },
+  {
+    q: 'Does using AI make my ministry less personal or faithful?',
+    a: `Not when the tool stays in the right place.\n\nA hammer does not build a house by itself. A commentary does not preach the sermon for you. A planning tool does not shepherd your church. And Sunday Studio does not replace your calling. It is a tool.\n\nYou bring the prayer, discernment, theology, relationships, lived experience, and pastoral care. Sunday Studio helps with structure, language, ideas, and preparation.\n\nUsing a tool to save time is not unfaithful. In many cases, it may help you give more attention to the parts of ministry that only you can do: caring for people, discerning what your church needs, praying honestly, studying deeply, and leading with presence.`,
+  },
+  {
+    q: 'Can it help me create a full Sunday plan around a passage or theme?',
+    a: `Yes. Sunday Studio can help you take a passage, theme, sermon direction, church season, or ministry emphasis and build a more cohesive Sunday around it.\n\nFor example, you could start with a passage like Philippians 2, a theme like humility, or a season like Advent. From there, Sunday Studio can help generate worship themes, Scripture readings, prayers, service transitions, devotional content, sermon support, and reflection ideas that all point in the same direction.\n\nThis helps Sunday feel less like a collection of separate pieces and more like one clear invitation. Not forced. Not overproduced. Just thoughtful, connected, Scripture-shaped planning.`,
+  },
+  {
+    q: 'Can it help my services feel more cohesive?',
+    a: `Yes. One of Sunday Studio's strengths is helping you connect the dots.\n\nMany services have good songs, a good sermon, a good prayer, and a good welcome, but they still feel disconnected — not because anyone did something wrong, but because nobody had time to ask, "What is the thread that holds this all together?"\n\nSunday Studio helps you identify that thread. It can help connect the passage, sermon direction, worship themes, prayers, readings, transitions, and devotional moments so the whole service feels more intentional.\n\nYour people may not notice every detail. But they can feel when a service is thoughtfully led.`,
+  },
+  {
+    q: 'Can I use it alongside the tools I already have?',
+    a: `Yes. Sunday Studio is meant to fit alongside your current workflow, not blow it up.\n\nYou can use it with Planning Center, Google Docs, Word, Notion, your sermon-writing process, your worship-planning meetings, or whatever system your church already uses.\n\nSunday Studio helps create and refine the content. Then you can copy, export, adapt, or move that content into the places where your team already works. You do not need to rebuild your entire ministry system to benefit from it. You just need a better way to get from idea to usable resource.`,
+  },
+  {
+    q: 'Can I try it before asking my church to pay?',
+    a: `Yes. And you should be able to.\n\nWe know church budgets can be complicated. Sometimes the person who needs the tool is not the person who approves the purchase. Sometimes you need to try something first before you can confidently tell your senior pastor, executive pastor, or finance team, "This would actually help us."\n\nThat is why a free trial matters. You can use Sunday Studio in your real weekly prep, see whether it saves time, test whether the content is useful, and decide if it belongs in your ministry rhythm before asking your church to invest.\n\nNo awkward pitch. No blind purchase. Try it first. See the value. Then decide.`,
+  },
+  {
+    q: 'Will this help me lead better, not just work faster?',
+    a: `That is the goal.\n\nSunday Studio is not built so you can crank out religious content at industrial speed. Nobody needs more rushed, generic, vaguely spiritual material floating around the church world.\n\nSunday Studio is built to help you prepare with more clarity, connection, and confidence. Yes, it can save time. But the deeper purpose is to help you use that time better — more time to think, more time to pray, more time to refine, more time to pastor actual humans instead of wrestling a blinking cursor until midnight.\n\nSunday Studio helps you move faster through the parts that drain your energy so you can give more attention to the parts that require your heart, wisdom, and leadership. Because the goal is not just a better workflow. The goal is better ministry.`,
+  },
+];
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="border-b"
+      style={{ borderColor: 'var(--worship-border)' }}
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-start justify-between gap-4 py-6 text-left"
+      >
+        <span
+          className="text-base font-semibold leading-snug"
+          style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
+        >
+          {q}
+        </span>
+        <ChevronDown
+          className="w-5 h-5 shrink-0 mt-0.5 transition-transform duration-200"
+          style={{
+            color: 'var(--worship-gold)',
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+          }}
+        />
+      </button>
+      {open && (
+        <div className="pb-6 space-y-3">
+          {a.split('\n\n').map((para, i) => (
+            <p key={i} className="text-base leading-relaxed" style={{ color: 'var(--worship-slate)' }}>
+              {para}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function LandingPage() {
   return (
@@ -518,6 +621,29 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      {/* ── FAQ ── */}
+      <section className="py-24 px-8" style={{ backgroundColor: 'var(--worship-cream)' }}>
+        <div className="max-w-3xl mx-auto">
+          <p
+            className="text-center text-sm font-semibold uppercase tracking-widest mb-4"
+            style={{ color: 'var(--worship-gold)' }}
+          >
+            Questions
+          </p>
+          <h2
+            className="text-4xl font-medium text-center mb-14"
+            style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
+          >
+            Honest answers to real questions
+          </h2>
+          <div>
+            {FAQS.map((faq) => (
+              <FaqItem key={faq.q} q={faq.q} a={faq.a} />
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ── */}
       <section className="py-24 px-8" style={{ backgroundColor: 'var(--worship-white)' }}>
         <div className="max-w-3xl mx-auto text-center">
