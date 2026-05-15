@@ -8,7 +8,7 @@ import {
   Layers,
   Heart,
   FileText,
-  Link2,
+  MessageCircle,
   Check,
   ArrowRight,
   Clock,
@@ -68,10 +68,10 @@ const FEATURES = [
     badge: 'All',
   },
   {
-    icon: Link2,
-    title: 'Planning Center Sync',
-    desc: 'Push your finalized service plans directly to Planning Center Services. No copy-pasting, no re-entry.',
-    badge: 'Workflow',
+    icon: MessageCircle,
+    title: 'Small Group Questions',
+    desc: 'Generate discussion questions tied to your sermon or theme — ready to hand off to your small group leaders.',
+    badge: 'Discipleship',
   },
 ];
 

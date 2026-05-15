@@ -10,7 +10,7 @@ import {
   Zap,
   Users,
   BookOpen,
-  Link2,
+  MessageCircle,
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -56,9 +56,9 @@ const OUTCOMES = [
     body: "Share service plans, assign roles, and send devotionals that spiritually prepare your team before Sunday.",
   },
   {
-    icon: Link2,
-    headline: "Sync directly with Planning Center",
-    body: "No more copy-pasting. Push your finalized service plan straight to Planning Center Services.",
+    icon: MessageCircle,
+    headline: "Small group questions, ready to go",
+    body: "Generate discussion questions tied to your sermon or theme — ready to hand off to your small group leaders.",
   },
   {
     icon: FileText,
