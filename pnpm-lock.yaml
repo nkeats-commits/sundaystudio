@@ -191,6 +191,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/events':
+        specifier: workspace:*
+        version: link:../../lib/events
       '@workspace/integrations-anthropic-ai':
         specifier: workspace:*
         version: link:../../lib/integrations-anthropic-ai
@@ -586,6 +589,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/events':
+        specifier: workspace:*
+        version: link:../../lib/events
       '@workspace/song-field-parsers':
         specifier: workspace:*
         version: link:../../lib/song-field-parsers
@@ -710,6 +716,8 @@ importers:
       drizzle-kit:
         specifier: ^0.31.9
         version: 0.31.9
+
+  lib/events: {}
 
   lib/integrations-anthropic-ai:
     dependencies:

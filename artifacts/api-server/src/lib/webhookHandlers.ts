@@ -21,25 +21,43 @@ const INACTIVE_STATUSES = new Set([
 /**
  * Parses a raw Stripe event buffer and fires the appropriate Resend
  * Automations tracking event. Runs best-effort — never throws.
+ *
+ * subscription_reactivated fires for two distinct Stripe paths:
+ *   1. Status transition: previous_attributes.status ∈ INACTIVE_STATUSES
+ *      AND new status is active/trialing.
+ *   2. Un-cancel: previous_attributes.cancel_at_period_end === true AND
+ *      object.cancel_at_period_end === false while status is active/trialing.
+ *      (Most common path — user clicks "Keep subscription" before period end.)
  */
 async function fireSubscriptionEvent(payload: Buffer): Promise<void> {
   let stripeType: string | undefined;
   let customerId: string | undefined;
   let newStatus: string | undefined;
   let previousStatus: string | undefined;
+  let newCancelAtPeriodEnd: boolean | undefined;
+  let previousCancelAtPeriodEnd: boolean | undefined;
 
   try {
     const event = JSON.parse(payload.toString()) as {
       type?: string;
       data?: {
-        object?: { customer?: string; status?: string };
-        previous_attributes?: { status?: string };
+        object?: {
+          customer?: string;
+          status?: string;
+          cancel_at_period_end?: boolean;
+        };
+        previous_attributes?: {
+          status?: string;
+          cancel_at_period_end?: boolean;
+        };
       };
     };
     stripeType = event.type;
     customerId = event.data?.object?.customer;
     newStatus = event.data?.object?.status;
     previousStatus = event.data?.previous_attributes?.status;
+    newCancelAtPeriodEnd = event.data?.object?.cancel_at_period_end;
+    previousCancelAtPeriodEnd = event.data?.previous_attributes?.cancel_at_period_end;
   } catch {
     return; // malformed payload — ignore
   }
@@ -51,19 +69,25 @@ async function fireSubscriptionEvent(payload: Buffer): Promise<void> {
 
   let eventName = stripeType ? eventMap[stripeType] : undefined;
 
-  // Reactivation: subscription.updated where the status field actually changed
-  // from an inactive state to active/trialing. Stripe emits many
-  // subscription.updated events for price/metadata changes where the status
-  // stays active; we must check previous_attributes.status to avoid firing on
-  // those no-op status updates.
-  if (
-    !eventName &&
-    stripeType === "customer.subscription.updated" &&
-    (newStatus === "active" || newStatus === "trialing") &&
-    previousStatus !== undefined &&
-    INACTIVE_STATUSES.has(previousStatus)
-  ) {
-    eventName = EVENTS.SUBSCRIPTION_REACTIVATED;
+  if (!eventName && stripeType === "customer.subscription.updated") {
+    const isActiveOrTrialing = newStatus === "active" || newStatus === "trialing";
+
+    // Path 1: explicit status transition from an inactive state.
+    const isStatusReactivation =
+      isActiveOrTrialing &&
+      previousStatus !== undefined &&
+      INACTIVE_STATUSES.has(previousStatus);
+
+    // Path 2: user reversed a pending cancellation (cancel_at_period_end true→false)
+    // while the subscription was already active/trialing.
+    const isUncancelReactivation =
+      isActiveOrTrialing &&
+      previousCancelAtPeriodEnd === true &&
+      newCancelAtPeriodEnd === false;
+
+    if (isStatusReactivation || isUncancelReactivation) {
+      eventName = EVENTS.SUBSCRIPTION_REACTIVATED;
+    }
   }
 
   if (!eventName || !customerId) return;
@@ -82,6 +106,8 @@ async function fireSubscriptionEvent(payload: Buffer): Promise<void> {
       stripeEvent: stripeType,
       previousStatus,
       newStatus,
+      previousCancelAtPeriodEnd,
+      newCancelAtPeriodEnd,
     }, logger);
   } catch (err) {
     logger.warn({ err, eventName, customerId }, "Subscription event tracking failed");

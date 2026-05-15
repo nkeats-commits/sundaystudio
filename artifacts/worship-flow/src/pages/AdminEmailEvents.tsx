@@ -2,129 +2,11 @@ import { AppLayout } from "../components/layout/AppLayout";
 import { Link } from "wouter";
 import { ArrowLeft, Copy, Check } from "lucide-react";
 import { useState } from "react";
-
-interface EventMeta {
-  name: string;
-  category: "Account Lifecycle" | "Onboarding Milestones" | "Feature Adoption" | "High-Intent Actions";
-  description: string;
-  firesWhen: string;
-  frequency: "Once" | "Per occurrence";
-}
-
-const EVENT_CATALOG: EventMeta[] = [
-  {
-    name: "trial_started",
-    category: "Account Lifecycle",
-    description: "User signed up and trial clock started",
-    firesWhen: "First authenticated request after account creation",
-    frequency: "Once",
-  },
-  {
-    name: "trial_expiring",
-    category: "Account Lifecycle",
-    description: "Trial is 3 days from expiry (day 11)",
-    firesWhen: "Trial email cron — day 11 of trial",
-    frequency: "Once",
-  },
-  {
-    name: "trial_expired",
-    category: "Account Lifecycle",
-    description: "Trial period has ended (day 14+)",
-    firesWhen: "Trial email cron — day 14 of trial",
-    frequency: "Once",
-  },
-  {
-    name: "subscription_started",
-    category: "Account Lifecycle",
-    description: "User started a paid subscription",
-    firesWhen: "Stripe customer.subscription.created webhook",
-    frequency: "Per occurrence",
-  },
-  {
-    name: "subscription_canceled",
-    category: "Account Lifecycle",
-    description: "User canceled their subscription",
-    firesWhen: "Stripe customer.subscription.deleted webhook",
-    frequency: "Per occurrence",
-  },
-  {
-    name: "subscription_reactivated",
-    category: "Account Lifecycle",
-    description: "User reactivated a previously canceled subscription",
-    firesWhen: "Stripe customer.subscription.updated webhook (status → active)",
-    frequency: "Per occurrence",
-  },
-  {
-    name: "church_profile_completed",
-    category: "Onboarding Milestones",
-    description: "Pastor saved their church profile",
-    firesWhen: "PUT /api/me/church — fires once per user",
-    frequency: "Once",
-  },
-  {
-    name: "first_sermon_generated",
-    category: "Onboarding Milestones",
-    description: "First AI sermon study generated",
-    firesWhen: "POST /api/generate/sermon-study",
-    frequency: "Once",
-  },
-  {
-    name: "first_service_plan_saved",
-    category: "Onboarding Milestones",
-    description: "First service plan saved to the database",
-    firesWhen: "POST /api/service-plans",
-    frequency: "Once",
-  },
-  {
-    name: "first_library_item_saved",
-    category: "Onboarding Milestones",
-    description: "First library item saved (any kind)",
-    firesWhen: "POST /api/library",
-    frequency: "Once",
-  },
-  {
-    name: "planning_center_connected",
-    category: "Feature Adoption",
-    description: "Planning Center Services OAuth completed",
-    firesWhen: "GET /api/integrations/pcs/callback (OAuth success)",
-    frequency: "Once",
-  },
-  {
-    name: "scholarly_sources_enabled",
-    category: "Feature Adoption",
-    description: "At least one scholarly source enabled",
-    firesWhen: "PUT /api/sources/preferences — first time any source enabled",
-    frequency: "Once",
-  },
-  {
-    name: "repertoire_first_song_added",
-    category: "Feature Adoption",
-    description: "First song added to the pastor's repertoire",
-    firesWhen: "PATCH /api/library/:id/repertoire or bulk-import",
-    frequency: "Once",
-  },
-  {
-    name: "sermon_exported",
-    category: "High-Intent Actions",
-    description: "Pastor exported a sermon",
-    firesWhen: "POST /api/sermons/:id/export",
-    frequency: "Per occurrence",
-  },
-  {
-    name: "service_plan_exported",
-    category: "High-Intent Actions",
-    description: "Pastor exported a service plan",
-    firesWhen: "POST /api/service-plans/:id/export",
-    frequency: "Per occurrence",
-  },
-];
-
-const CATEGORIES = [
-  "Account Lifecycle",
-  "Onboarding Milestones",
-  "Feature Adoption",
-  "High-Intent Actions",
-] as const;
+import {
+  EVENT_CATALOG,
+  EVENT_CATEGORIES,
+  type EventMeta,
+} from "@workspace/events";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Account Lifecycle": "bg-blue-50 text-blue-700 border-blue-200",
@@ -206,7 +88,7 @@ export function AdminEmailEvents() {
 
         {/* Summary strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {CATEGORIES.map((cat) => {
+          {EVENT_CATEGORIES.map((cat) => {
             const count = EVENT_CATALOG.filter((e) => e.category === cat).length;
             return (
               <div
@@ -221,7 +103,7 @@ export function AdminEmailEvents() {
         </div>
 
         {/* Event tables by category */}
-        {CATEGORIES.map((category) => {
+        {EVENT_CATEGORIES.map((category) => {
           const events = EVENT_CATALOG.filter((e) => e.category === category);
           return (
             <section key={category} className="space-y-3">
@@ -302,6 +184,13 @@ export function AdminEmailEvents() {
                 resend.emails.send()
               </code>{" "}
               calls; the actual email content is configured as a Resend Automation workflow.
+            </li>
+            <li>
+              Event names and metadata are defined once in{" "}
+              <code className="text-xs bg-[var(--worship-sand)] px-1 rounded">
+                lib/events/src/index.ts
+              </code>{" "}
+              and imported by both the server and this page — no duplication.
             </li>
           </ul>
         </div>
