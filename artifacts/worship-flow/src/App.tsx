@@ -233,6 +233,9 @@ function ClerkAuthBootstrap() {
     }
 
     const handleUnauthorized = () => {
+      // A signed-out visitor receiving a 401 is expected — only treat it as
+      // an expired session when the user was previously confirmed signed in.
+      if (!isSignedIn) return;
       if (handlingUnauthorizedRef.current) return;
       handlingUnauthorizedRef.current = true;
       // Note: do NOT clear the auth token getter here.  After the user
