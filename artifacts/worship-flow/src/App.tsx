@@ -48,6 +48,8 @@ import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
 import AdminOverview from "./pages/AdminOverview";
 import AdminUsers from "./pages/AdminUsers";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import AdminUserDetail from "./pages/AdminUserDetail";
 import { AdminOnly } from "./components/AdminOnly";
 import NotFound from "./pages/NotFound";
@@ -440,6 +442,8 @@ function ClerkProviderWithRoutes() {
           <Route path="/settings">{() => <Protected component={Settings} />}</Route>
           <Route path="/pricing">{() => <Protected component={Pricing} />}</Route>
           <Route path="/billing">{() => <Protected component={Billing} />}</Route>
+          <Route path="/privacy" component={PrivacyPolicy} />
+          <Route path="/terms" component={TermsOfService} />
           <Route path="/admin">
             {() => (
               <Protected

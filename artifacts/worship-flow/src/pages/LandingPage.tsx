@@ -577,9 +577,9 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="flex gap-8 text-sm" style={{ color: 'var(--worship-muted-slate)' }}>
-            <span className="hover:underline cursor-pointer">Privacy</span>
-            <span className="hover:underline cursor-pointer">Terms</span>
-            <span className="hover:underline cursor-pointer">Contact</span>
+            <Link href="/privacy" className="hover:underline">Privacy</Link>
+            <Link href="/terms" className="hover:underline">Terms</Link>
+            <a href="mailto:hello@sundaystudio.app" className="hover:underline">Contact</a>
           </div>
         </div>
       </footer>
