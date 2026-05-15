@@ -65,7 +65,7 @@ router.post("/service-plans", requireAuth, requireActiveAccess, async (req, res)
         }
       }
     } catch (err) {
-      void err;
+      req.log.warn({ err }, "first_service_plan_saved event tracking failed");
     }
   })();
 });
@@ -168,7 +168,7 @@ router.post("/service-plans/:id/export", requireAuth, async (req, res) => {
         });
       }
     } catch (err) {
-      void err;
+      req.log.warn({ err }, "service_plan_exported event tracking failed");
     }
   })();
 });

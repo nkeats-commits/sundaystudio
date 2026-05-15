@@ -97,7 +97,7 @@ router.put("/me/church", requireAuth, async (req, res) => {
         }
       }
     } catch (err) {
-      void err;
+      req.log.warn({ err }, "church_profile_completed event tracking failed");
     }
   })();
 });

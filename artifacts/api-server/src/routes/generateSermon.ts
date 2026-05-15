@@ -298,7 +298,7 @@ Return JSON exactly in this shape:
         }
       }
     } catch (err) {
-      void err;
+      req.log.warn({ err }, "first_sermon_generated event tracking failed");
     }
   })();
 });

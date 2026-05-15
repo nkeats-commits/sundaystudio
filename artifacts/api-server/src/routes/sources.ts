@@ -88,7 +88,7 @@ router.put("/sources/preferences", requireAuth, async (req, res) => {
           }
         }
       } catch (err) {
-        void err;
+        req.log.warn({ err }, "scholarly_sources_enabled event tracking failed");
       }
     })();
   }

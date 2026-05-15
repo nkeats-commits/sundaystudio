@@ -105,7 +105,7 @@ router.post("/library", requireAuth, requireActiveAccess, async (req, res) => {
         }
       }
     } catch (err) {
-      void err;
+      req.log.warn({ err }, "first_library_item_saved event tracking failed");
     }
   })();
 });
@@ -192,7 +192,7 @@ router.patch("/library/:id/repertoire", requireAuth, requireActiveAccess, async 
           }
         }
       } catch (err) {
-        void err;
+        req.log.warn({ err }, "repertoire_first_song_added event tracking failed");
       }
     })();
   }
@@ -356,7 +356,7 @@ router.post("/library/repertoire/bulk-import", requireAuth, requireActiveAccess,
           }
         }
       } catch (err) {
-        void err;
+        req.log.warn({ err }, "repertoire_first_song_added bulk event tracking failed");
       }
     })();
   }

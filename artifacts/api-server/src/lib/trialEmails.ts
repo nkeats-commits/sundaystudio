@@ -85,17 +85,20 @@ export async function runTrialEmailCron(): Promise<void> {
     }
 
     try {
-      await trackEvent(EVENTS.TRIAL_EXPIRING, user.id, user.email, {
+      const delivered = await trackEvent(EVENTS.TRIAL_EXPIRING, user.id, user.email, {
         firstName: user.firstName,
         trialStartedAt: user.trialStartedAt?.toISOString(),
       }, cronLog);
 
-      await db
-        .update(usersTable)
-        .set({ trialReminderSentAt: now })
-        .where(sql`id = ${user.id}`);
-
-      cronLog.info({ userId: user.id, email: user.email }, "trial_expiring event fired");
+      if (delivered) {
+        await db
+          .update(usersTable)
+          .set({ trialReminderSentAt: now })
+          .where(sql`id = ${user.id}`);
+        cronLog.info({ userId: user.id, email: user.email }, "trial_expiring event fired");
+      } else {
+        cronLog.warn({ userId: user.id }, "trial_expiring delivery failed — stamp not set, will retry next run");
+      }
     } catch (err) {
       cronLog.error({ err, userId: user.id }, "Failed to fire trial_expiring event");
     }
@@ -130,17 +133,20 @@ export async function runTrialEmailCron(): Promise<void> {
     }
 
     try {
-      await trackEvent(EVENTS.TRIAL_EXPIRED, user.id, user.email, {
+      const delivered = await trackEvent(EVENTS.TRIAL_EXPIRED, user.id, user.email, {
         firstName: user.firstName,
         trialStartedAt: user.trialStartedAt?.toISOString(),
       }, cronLog);
 
-      await db
-        .update(usersTable)
-        .set({ trialExpiredEmailSentAt: now })
-        .where(sql`id = ${user.id}`);
-
-      cronLog.info({ userId: user.id, email: user.email }, "trial_expired event fired");
+      if (delivered) {
+        await db
+          .update(usersTable)
+          .set({ trialExpiredEmailSentAt: now })
+          .where(sql`id = ${user.id}`);
+        cronLog.info({ userId: user.id, email: user.email }, "trial_expired event fired");
+      } else {
+        cronLog.warn({ userId: user.id }, "trial_expired delivery failed — stamp not set, will retry next run");
+      }
     } catch (err) {
       cronLog.error({ err, userId: user.id }, "Failed to fire trial_expired event");
     }
