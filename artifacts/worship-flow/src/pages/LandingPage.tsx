@@ -160,7 +160,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
         className="w-full flex items-start justify-between gap-4 py-6 text-left"
       >
         <span
-          className="text-base font-semibold leading-snug"
+          className="text-xl font-semibold leading-snug"
           style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
         >
           {q}
