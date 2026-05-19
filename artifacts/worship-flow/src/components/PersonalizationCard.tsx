@@ -41,7 +41,7 @@ export function PersonalizationCard() {
       active: hasVoice,
     },
     {
-      label: 'Church mission',
+      label: 'Your mission',
       description: 'Mission statement',
       active: hasMission,
     },
