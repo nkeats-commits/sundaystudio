@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/react";
 import { Link, useLocation, useParams } from "wouter";
 import { AppLayout } from "../components/layout/AppLayout";
 import {
@@ -44,6 +45,7 @@ export default function AdminHelpArticleEdit() {
   const isNew = !idParam || idParam === "new";
   const articleId = isNew ? null : parseInt(idParam, 10);
 
+  const { getToken } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -51,10 +53,13 @@ export default function AdminHelpArticleEdit() {
   async function handleImageUpload(file: File) {
     setUploading(true);
     try {
+      const token = await getToken();
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/admin/help-articles/images", {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/help-articles/images`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
         body: formData,
       });
       if (!res.ok) {
