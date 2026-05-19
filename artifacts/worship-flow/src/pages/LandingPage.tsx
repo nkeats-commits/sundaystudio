@@ -242,7 +242,7 @@ export default function LandingPage() {
               className="text-5xl lg:text-6xl font-medium leading-tight mb-6"
               style={{ color: 'var(--worship-navy)', fontFamily: 'var(--font-serif)' }}
             >
-              <span>Prepare sermons, devotionals, songs, and more </span><span style={{ color: 'var(--worship-gold)' }}>in a fraction of the time.</span>
+              <span>Prepare sermons, devotionals, liturgy, and more </span><span style={{ color: 'var(--worship-gold)' }}>in a fraction of the time.</span>
             </h1>
 
             <p className="text-lg leading-relaxed mb-10" style={{ color: 'var(--worship-slate)' }}>
