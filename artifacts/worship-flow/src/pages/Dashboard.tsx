@@ -1,5 +1,5 @@
 import { AppLayout } from '../components/layout/AppLayout';
-import { Layers, Music, BookOpen, Mic, Users, Calendar, ChevronRight, FileText, Sparkles } from 'lucide-react';
+import { Layers, Music, BookOpen, Mic, Users, Calendar, ChevronRight, FileText, Sparkles, PenLine } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
 import { useGetDashboard, useGetMe } from '@workspace/api-client-react';
@@ -65,7 +65,7 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--worship-muted-slate)' }}>Quick Actions</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
             {[
-              { icon: Layers, label: "Build a Service", href: "/service-builder" },
+              { icon: PenLine, label: "Craft a Sermon", href: "/sermons/new" },
               { icon: BookOpen, label: "Generate Liturgy", href: "/generators/liturgy" },
               { icon: Music, label: "Find Songs", href: "/generators/songs" },
               { icon: Users, label: "Team Devotional", href: "/generators/devotional" },
