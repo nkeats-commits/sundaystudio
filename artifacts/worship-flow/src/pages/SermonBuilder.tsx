@@ -228,7 +228,7 @@ const CORE_STEPS: StepDef[] = [
 const ADDON_STEPS: StepDef[] = [
   { key: 'applications', section: 'applications', label: 'Applications', icon: Users, prereq: { section: 'bigIdea', label: 'Big Idea' } },
   { key: 'illustrations', section: 'illustrations', label: 'Illustrations', icon: Sparkles, prereq: { section: 'bigIdea', label: 'Big Idea' } },
-  { key: 'worship', section: 'worshipIntegration', label: 'Service Ideas', icon: Music, prereq: { section: 'bigIdea', label: 'Big Idea' } },
+  { key: 'worship', section: 'worshipIntegration', label: 'Service Integration', icon: Music, prereq: { section: 'bigIdea', label: 'Big Idea' } },
   { key: 'smallGroupQuestions', section: 'smallGroupQuestions', label: 'Small Group Questions', icon: MessageCircleQuestion, prereq: { section: 'bigIdea', label: 'Big Idea' } },
 ];
 
@@ -1667,7 +1667,7 @@ export default function SermonBuilder() {
               >
               {tab === 'worship' && (
                 <SectionPanel
-                  title="Service Ideas"
+                  title="Service Integration"
                   subtitle="Take this sermon to Sunday: songs, liturgy, response, and team prep."
                   phases={WORSHIP_PHASES}
                   pending={worshipGen.isPending}
