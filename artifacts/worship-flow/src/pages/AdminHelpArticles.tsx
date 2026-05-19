@@ -6,7 +6,7 @@ import {
   useAdminDeleteHelpArticle,
   getAdminListHelpArticlesQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -16,12 +16,29 @@ import {
   Eye,
   EyeOff,
   BookOpen,
+  Download,
 } from "lucide-react";
 
 export default function AdminHelpArticles() {
   const queryClient = useQueryClient();
   const { data: articles, isLoading, error } = useAdminListHelpArticles({
     query: { queryKey: getAdminListHelpArticlesQueryKey() },
+  });
+
+  const seedMut = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/help-articles/seed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("Seed failed");
+      return res.json() as Promise<{ inserted: number; skipped: number }>;
+    },
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: getAdminListHelpArticlesQueryKey() });
+      toast.success(`Loaded ${data.inserted} starter articles`);
+    },
+    onError: () => toast.error("Failed to load starter articles"),
   });
 
   const deleteMut = useAdminDeleteHelpArticle({
@@ -107,16 +124,27 @@ export default function AdminHelpArticles() {
               No articles yet
             </p>
             <p className="text-sm mb-4" style={{ color: "var(--worship-slate)" }}>
-              Create your first help article to populate the Help Center.
+              Load the 24 starter articles or create your own.
             </p>
-            <Link
-              href="/admin/help-articles/new"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
-              style={{ backgroundColor: "var(--worship-navy)" }}
-            >
-              <Plus className="w-4 h-4" />
-              New article
-            </Link>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => seedMut.mutate()}
+                disabled={seedMut.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-60"
+                style={{ backgroundColor: "var(--worship-gold)" }}
+              >
+                <Download className="w-4 h-4" />
+                {seedMut.isPending ? "Loading…" : "Load starter articles"}
+              </button>
+              <Link
+                href="/admin/help-articles/new"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ color: "var(--worship-navy)", border: "1px solid var(--worship-border)" }}
+              >
+                <Plus className="w-4 h-4" />
+                New article
+              </Link>
+            </div>
           </div>
         )}
 
