@@ -55,6 +55,7 @@ import { AdminEmailEvents } from "./pages/AdminEmailEvents";
 import HelpCenter from "./pages/HelpCenter";
 import HelpArticle from "./pages/HelpArticle";
 import AdminHelpArticles from "./pages/AdminHelpArticles";
+import AdminHelpArticleEdit from "./pages/AdminHelpArticleEdit";
 import { AdminOnly } from "./components/AdminOnly";
 import NotFound from "./pages/NotFound";
 import { OnboardingWizard } from "./components/OnboardingWizard";
@@ -489,6 +490,28 @@ function ClerkProviderWithRoutes() {
                 component={() => (
                   <AdminOnly>
                     <AdminEmailEvents />
+                  </AdminOnly>
+                )}
+              />
+            )}
+          </Route>
+          <Route path="/admin/help-articles/new">
+            {() => (
+              <Protected
+                component={() => (
+                  <AdminOnly>
+                    <AdminHelpArticleEdit />
+                  </AdminOnly>
+                )}
+              />
+            )}
+          </Route>
+          <Route path="/admin/help-articles/:id">
+            {() => (
+              <Protected
+                component={() => (
+                  <AdminOnly>
+                    <AdminHelpArticleEdit />
                   </AdminOnly>
                 )}
               />

@@ -1,39 +1,48 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, BookOpen, ChevronRight, HelpCircle } from "lucide-react";
-import { useListHelpArticles } from "@workspace/api-client-react";
-
-function useDebounced<T>(value: T, delay = 200): T {
-  const [debounced, setDebounced] = useState(value);
-  const timerRef = useState<ReturnType<typeof setTimeout> | null>(null);
-
-  const set = (v: T) => {
-    if (timerRef[0]) clearTimeout(timerRef[0]);
-    timerRef[1](setTimeout(() => setDebounced(v), delay) as ReturnType<typeof setTimeout>);
-  };
-
-  return debounced;
-}
+import { Search, BookOpen, ChevronRight, HelpCircle, X } from "lucide-react";
+import { useListHelpArticles, getListHelpArticlesQueryKey } from "@workspace/api-client-react";
 
 export default function HelpCenter() {
   const [, setLocation] = useLocation();
   const [query, setQuery] = useState("");
-  const debouncedQ = useDebounced(query.trim(), 250);
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: articles, isLoading } = useListHelpArticles(
-    debouncedQ ? { q: debouncedQ } : undefined,
-  );
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setDebouncedQ(query.trim()), 250);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [query]);
 
-  const grouped = (articles ?? []).reduce<Record<string, typeof articles>>((acc, a) => {
-    if (!a) return acc;
-    const cat = a.category;
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat]!.push(a);
+  const { data: articles, isLoading } = useListHelpArticles(undefined, {
+    query: { queryKey: getListHelpArticlesQueryKey() },
+  });
+
+  const filtered = useMemo(() => {
+    if (!articles) return [];
+    const q = debouncedQ.toLowerCase();
+    if (!q) return articles;
+    return articles.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.body.toLowerCase().includes(q) ||
+        a.category.toLowerCase().includes(q),
+    );
+  }, [articles, debouncedQ]);
+
+  const grouped = useMemo(() => {
+    const acc: Record<string, typeof filtered> = {};
+    for (const a of filtered) {
+      if (!acc[a.category]) acc[a.category] = [];
+      acc[a.category]!.push(a);
+    }
     return acc;
-  }, {});
+  }, [filtered]);
 
   const categories = Object.keys(grouped).sort();
-  const totalCount = articles?.length ?? 0;
 
   return (
     <div
@@ -86,21 +95,29 @@ export default function HelpCenter() {
 
         {/* Search */}
         <div className="relative max-w-md mx-auto">
-          <Search
-            className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
-          />
+          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search articles…"
-            className="w-full pl-11 pr-4 py-3 rounded-xl text-sm outline-none border"
+            className="w-full pl-11 pr-10 py-3 rounded-xl text-sm outline-none border"
             style={{
               backgroundColor: "rgba(255,255,255,0.08)",
               borderColor: "rgba(255,255,255,0.15)",
               color: "white",
             }}
           />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-white"
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -112,16 +129,16 @@ export default function HelpCenter() {
           </p>
         )}
 
-        {!isLoading && totalCount === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <div className="text-center py-16">
             <BookOpen
               className="w-10 h-10 mx-auto mb-3 opacity-30"
               style={{ color: "var(--worship-navy)" }}
             />
             <p className="text-base font-medium" style={{ color: "var(--worship-navy)" }}>
-              {query ? `No articles match "${query}"` : "No articles yet"}
+              {debouncedQ ? `No articles match "${debouncedQ}"` : "No articles yet"}
             </p>
-            {query && (
+            {debouncedQ && (
               <button
                 onClick={() => setQuery("")}
                 className="mt-3 text-sm underline"
@@ -133,7 +150,7 @@ export default function HelpCenter() {
           </div>
         )}
 
-        {!isLoading && totalCount > 0 && (
+        {!isLoading && filtered.length > 0 && (
           <div className="space-y-10">
             {categories.map((cat) => (
               <section key={cat}>
@@ -152,8 +169,8 @@ export default function HelpCenter() {
                 >
                   {grouped[cat]!.map((article, i) => (
                     <button
-                      key={article!.id}
-                      onClick={() => setLocation(`/help/${article!.slug}`)}
+                      key={article.id}
+                      onClick={() => setLocation(`/help/${article.slug}`)}
                       className={`w-full text-left flex items-center justify-between px-5 py-4 transition-colors hover:bg-[var(--worship-cream)] ${
                         i < grouped[cat]!.length - 1
                           ? "border-b border-[var(--worship-border)]"
@@ -164,7 +181,7 @@ export default function HelpCenter() {
                         className="text-sm font-medium"
                         style={{ color: "var(--worship-navy)" }}
                       >
-                        {article!.title}
+                        {article.title}
                       </span>
                       <ChevronRight
                         className="w-4 h-4 shrink-0 ml-3"
