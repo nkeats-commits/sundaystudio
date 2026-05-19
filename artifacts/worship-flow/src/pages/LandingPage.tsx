@@ -87,20 +87,20 @@ const BADGE_COLORS: Record<string, string> = {
 
 const FAQS = [
   {
-    q: 'Can Sunday Studio help me plan sermons, worship services, devotionals, and liturgy in one place?',
-    a: `Yes. Sunday Studio is designed to help church leaders move from scattered ideas to clear, ministry-ready resources.\n\nInstead of bouncing between a blank document, Bible study notes, worship themes, service elements, devotionals, and random AI prompts, Sunday Studio gives you a guided place to prepare the work you already carry every week.\n\nYou can use it to shape sermons, build service flows, write devotionals, craft prayers, create calls to worship, develop liturgy, and connect your Sunday around a passage, theme, or season.\n\nYou still lead. You still discern. You still pastor your people. Sunday Studio simply helps you get from "I have no idea where to start" to "I can work with this" a whole lot faster.`,
-  },
-  {
-    q: 'Is this for pastors too, or just worship leaders?',
-    a: `Sunday Studio is for pastors, worship leaders, and ministry leaders who carry the weight of preparing meaningful Sunday gatherings.\n\nIf you preach, it can help with sermon outlines, illustrations, devotional content, discussion questions, and passage-based planning.\n\nIf you lead worship, it can help with service themes, Scripture readings, prayers, transitions, calls to worship, and song-set direction.\n\nIf you oversee ministry teams, it can help create clarity around what you are trying to say, sing, pray, and invite people into.\n\nSunday Studio is not just a worship-planning tool. It is a ministry preparation assistant for the people who are responsible for making Sunday thoughtful, faithful, and connected.`,
-  },
-  {
     q: 'How is this different from Planning Center?',
     a: `Planning Center helps you organize the service once the plan is ready. Sunday Studio helps you create and shape the plan before it gets there.\n\nYou can think of Planning Center as the place where you schedule people, songs, service orders, attachments, and details. Sunday Studio is where you work through the creative and pastoral preparation that happens before all of that: sermon ideas, Scripture themes, liturgy, prayers, devotionals, service direction, and worship flow.\n\nSunday Studio is not trying to replace Planning Center. It helps with the part Planning Center was not built to do: turning a passage, theme, or idea into thoughtful Sunday-ready content.`,
   },
   {
     q: 'How is this different from ChatGPT?',
     a: `Generic AI can give you words. Sunday Studio helps you prepare ministry resources within the actual rhythms of church leadership.\n\nYou do not have to become an expert prompt writer or spend half your time explaining what a call to worship is, how a service flows, what kind of devotional you need, or why tone matters in a pastoral setting.\n\nSunday Studio is built around sermons, worship services, liturgy, Scripture, devotionals, prayers, and weekly ministry prep. That means the experience is more guided, more focused, and more useful for church work. You are not starting with a blank chat box. You are starting with ministry-specific workflows that help you get to usable content faster.`,
+  },
+  {
+    q: 'Can Sunday Studio help me plan sermons, worship services, devotionals, and liturgy in one place?',
+    a: `Yes. Sunday Studio is designed to help church leaders move from scattered ideas to clear, ministry-ready resources.\n\nInstead of bouncing between a blank document, Bible study notes, worship themes, service elements, devotionals, and random AI prompts, Sunday Studio gives you a guided place to prepare the work you already carry every week.\n\nYou can use it to shape sermons, build service flows, write devotionals, craft prayers, create calls to worship, develop liturgy, and connect your Sunday around a passage, theme, or season.\n\nYou still lead. You still discern. You still pastor your people. Sunday Studio simply helps you get from "I have no idea where to start" to "I can work with this" a whole lot faster.`,
+  },
+  {
+    q: 'Is this for pastors too, or just worship leaders?',
+    a: `Sunday Studio is for pastors, worship leaders, and ministry leaders who carry the weight of preparing meaningful Sunday gatherings.\n\nIf you preach, it can help with sermon outlines, illustrations, devotional content, discussion questions, and passage-based planning.\n\nIf you lead worship, it can help with service themes, Scripture readings, prayers, transitions, calls to worship, and song-set direction.\n\nIf you oversee ministry teams, it can help create clarity around what you are trying to say, sing, pray, and invite people into.\n\nSunday Studio is not just a worship-planning tool. It is a ministry preparation assistant for the people who are responsible for making Sunday thoughtful, faithful, and connected.`,
   },
   {
     q: 'Can I trust it with Scripture and theology?',
