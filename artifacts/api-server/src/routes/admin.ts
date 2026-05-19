@@ -1244,7 +1244,14 @@ router.delete(
         res.status(400).json({ error: "Invalid article id" });
         return;
       }
-      await db.delete(helpArticlesTable).where(eq(helpArticlesTable.id, id));
+      const [deleted] = await db
+        .delete(helpArticlesTable)
+        .where(eq(helpArticlesTable.id, id))
+        .returning({ id: helpArticlesTable.id });
+      if (!deleted) {
+        res.status(404).json({ error: "Article not found" });
+        return;
+      }
       res.status(204).end();
     } catch (err) {
       req.log.error({ err }, "admin delete help article failed");

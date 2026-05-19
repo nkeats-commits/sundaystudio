@@ -6,11 +6,15 @@ import { useIsOwner } from "../hooks/useIsOwner";
 function sanitizeUrl(url: string): string {
   try {
     const parsed = new URL(url, window.location.href);
-    if (parsed.protocol === "javascript:") return "#";
-    return url;
+    if (parsed.protocol === "javascript:" || parsed.protocol === "data:") return "#";
+    return parsed.href;
   } catch {
     return "#";
   }
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function renderMarkdown(md: string): string {
@@ -31,7 +35,7 @@ function renderMarkdown(md: string): string {
       '<blockquote class="border-l-4 pl-4 italic text-[var(--worship-slate)] my-4" style="border-color:var(--worship-gold)">$1</blockquote>',
     )
     .replace(/\[(.+?)\]\((.+?)\)/g, (_match, text, rawUrl) => {
-      const safe = sanitizeUrl(rawUrl);
+      const safe = escapeAttr(sanitizeUrl(rawUrl));
       return `<a href="${safe}" class="underline" style="color:var(--worship-gold)" target="_blank" rel="noopener noreferrer">${text}</a>`;
     })
     .replace(/\n\n/g, '</p><p class="mb-4">');
