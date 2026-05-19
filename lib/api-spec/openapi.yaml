@@ -2161,6 +2161,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /admin/help-articles/category-order:
+    get:
+      operationId: adminGetHelpCategoryOrder
+      tags: [admin]
+      summary: Get the custom sort order for help article categories — owner only
+      responses:
+        "200":
+          description: Current category order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpCategoryOrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      operationId: adminSetHelpCategoryOrder
+      tags: [admin]
+      summary: Set the custom sort order for help article categories — owner only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HelpCategoryOrderResponse"
+      responses:
+        "200":
+          description: Updated category order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpCategoryOrderResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /admin/help-articles/{id}:
     parameters:
       - name: id
@@ -2277,6 +2317,16 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    HelpCategoryOrderResponse:
+      type: object
+      required: [order]
+      properties:
+        order:
+          type: array
+          items:
+            type: string
+          description: Category names in desired display order
 
     HelpArticleBody:
       type: object

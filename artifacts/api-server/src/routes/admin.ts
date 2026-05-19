@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { count, desc, eq, gte, sql } from "drizzle-orm";
+import { count, desc, eq, gte, sql, getTableColumns, notInArray } from "drizzle-orm";
 import { z } from "zod";
 import {
   db,
@@ -8,6 +8,7 @@ import {
   sermonsTable,
   aiUsageEventsTable,
   helpArticlesTable,
+  helpCategoryOrderTable,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireOwner, getOwnerEmail } from "../middlewares/requireOwner";
@@ -1148,9 +1149,17 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const articles = await db
-        .select()
+        .select(getTableColumns(helpArticlesTable))
         .from(helpArticlesTable)
-        .orderBy(helpArticlesTable.category, helpArticlesTable.title);
+        .leftJoin(
+          helpCategoryOrderTable,
+          eq(helpCategoryOrderTable.category, helpArticlesTable.category),
+        )
+        .orderBy(
+          sql`COALESCE(${helpCategoryOrderTable.position}, 9999)`,
+          helpArticlesTable.category,
+          helpArticlesTable.title,
+        );
       res.json(articles);
     } catch (err) {
       req.log.error({ err }, "admin list help articles failed");
@@ -1187,6 +1196,67 @@ router.post(
       }
       req.log.error({ err }, "admin create help article failed");
       res.status(500).json({ error: "Failed to create help article" });
+    }
+  },
+);
+
+router.get(
+  "/admin/help-articles/category-order",
+  requireAuth,
+  requireOwner,
+  async (req: Request, res: Response) => {
+    try {
+      const rows = await db
+        .select()
+        .from(helpCategoryOrderTable)
+        .orderBy(helpCategoryOrderTable.position);
+      const order = rows.map((r) => r.category);
+      res.json({ order });
+    } catch (err) {
+      req.log.error({ err }, "get help category order failed");
+      res.status(500).json({ error: "Failed to fetch category order" });
+    }
+  },
+);
+
+const categoryOrderSchema = z.object({
+  order: z.array(z.string().min(1).max(100)),
+});
+
+router.put(
+  "/admin/help-articles/category-order",
+  requireAuth,
+  requireOwner,
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = categoryOrderSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.flatten() });
+        return;
+      }
+      const { order } = parsed.data;
+      if (order.length === 0) {
+        await db.delete(helpCategoryOrderTable);
+        res.json({ order: [] });
+        return;
+      }
+      const values = order.map((category, idx) => ({ category, position: idx }));
+      await db
+        .insert(helpCategoryOrderTable)
+        .values(values)
+        .onConflictDoUpdate({
+          target: helpCategoryOrderTable.category,
+          set: { position: sql`excluded.position` },
+        });
+      // Remove any categories no longer in the list
+      await db
+        .delete(helpCategoryOrderTable)
+        .where(notInArray(helpCategoryOrderTable.category, order));
+      req.log.info({ count: order.length }, "updated help category order");
+      res.json({ order });
+    } catch (err) {
+      req.log.error({ err }, "set help category order failed");
+      res.status(500).json({ error: "Failed to update category order" });
     }
   },
 );

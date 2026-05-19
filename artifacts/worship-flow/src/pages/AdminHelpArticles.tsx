@@ -17,7 +17,11 @@ import {
   EyeOff,
   BookOpen,
   Download,
+  ListOrdered,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import { CategoryOrderPanel } from "../components/CategoryOrderPanel";
 
 export default function AdminHelpArticles() {
   const queryClient = useQueryClient();
@@ -52,6 +56,7 @@ export default function AdminHelpArticles() {
   });
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [showCategoryOrder, setShowCategoryOrder] = useState(false);
 
   const grouped = (articles ?? []).reduce<Record<string, typeof articles>>((acc, a) => {
     const cat = a.category;
@@ -60,7 +65,9 @@ export default function AdminHelpArticles() {
     return acc;
   }, {});
 
-  const categories = Object.keys(grouped).sort();
+  // Preserve server-returned order (articles already sorted by position then alpha)
+  const categories = Object.keys(grouped);
+  const allCategories = [...categories].sort((a, b) => a.localeCompare(b));
 
   return (
     <AppLayout title="Help Articles">
@@ -145,6 +152,36 @@ export default function AdminHelpArticles() {
                 New article
               </Link>
             </div>
+          </div>
+        )}
+
+        {categories.length > 0 && (
+          <div
+            className="rounded-xl border overflow-hidden"
+            style={{ borderColor: "var(--worship-border)" }}
+          >
+            <button
+              onClick={() => setShowCategoryOrder((v) => !v)}
+              className="w-full flex items-center justify-between px-5 py-3.5 bg-white hover:bg-[var(--worship-cream)]/40 transition-colors text-left"
+            >
+              <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--worship-navy)" }}>
+                <ListOrdered className="w-4 h-4" style={{ color: "var(--worship-gold)" }} />
+                Category order
+                <span className="text-xs font-normal" style={{ color: "var(--worship-slate)" }}>
+                  — drag to reorder how categories appear in the Help Center
+                </span>
+              </span>
+              {showCategoryOrder ? (
+                <ChevronUp className="w-4 h-4 shrink-0" style={{ color: "var(--worship-slate)" }} />
+              ) : (
+                <ChevronDown className="w-4 h-4 shrink-0" style={{ color: "var(--worship-slate)" }} />
+              )}
+            </button>
+            {showCategoryOrder && (
+              <div className="border-t" style={{ borderColor: "var(--worship-border)" }}>
+                <CategoryOrderPanel allCategories={allCategories} />
+              </div>
+            )}
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 
 export const helpArticlesTable = pgTable("help_articles", {
   id: serial("id").primaryKey(),
@@ -16,3 +16,10 @@ export const helpArticlesTable = pgTable("help_articles", {
 
 export type HelpArticle = typeof helpArticlesTable.$inferSelect;
 export type NewHelpArticle = typeof helpArticlesTable.$inferInsert;
+
+export const helpCategoryOrderTable = pgTable("help_category_order", {
+  category: text("category").primaryKey(),
+  position: integer("position").notNull(),
+});
+
+export type HelpCategoryOrder = typeof helpCategoryOrderTable.$inferSelect;

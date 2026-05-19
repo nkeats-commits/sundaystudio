@@ -42,7 +42,8 @@ export default function HelpCenter() {
     return acc;
   }, [filtered]);
 
-  const categories = Object.keys(grouped).sort();
+  // Preserve server-returned order (already sorted by position then alpha)
+  const categories = Object.keys(grouped);
 
   return (
     <div

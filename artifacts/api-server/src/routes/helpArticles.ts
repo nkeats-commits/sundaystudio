@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, ilike, or } from "drizzle-orm";
-import { db, helpArticlesTable } from "@workspace/db";
+import { eq, and, ilike, or, sql, getTableColumns } from "drizzle-orm";
+import { db, helpArticlesTable, helpCategoryOrderTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -8,11 +8,21 @@ router.get("/help-articles", async (req, res) => {
   try {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
+    const orderBy = [
+      sql`COALESCE(${helpCategoryOrderTable.position}, 9999)`,
+      helpArticlesTable.category,
+      helpArticlesTable.title,
+    ] as const;
+
     let articles;
     if (q.length > 0) {
       articles = await db
-        .select()
+        .select(getTableColumns(helpArticlesTable))
         .from(helpArticlesTable)
+        .leftJoin(
+          helpCategoryOrderTable,
+          eq(helpCategoryOrderTable.category, helpArticlesTable.category),
+        )
         .where(
           and(
             eq(helpArticlesTable.published, true),
@@ -23,13 +33,17 @@ router.get("/help-articles", async (req, res) => {
             ),
           ),
         )
-        .orderBy(helpArticlesTable.category, helpArticlesTable.title);
+        .orderBy(...orderBy);
     } else {
       articles = await db
-        .select()
+        .select(getTableColumns(helpArticlesTable))
         .from(helpArticlesTable)
+        .leftJoin(
+          helpCategoryOrderTable,
+          eq(helpCategoryOrderTable.category, helpArticlesTable.category),
+        )
         .where(eq(helpArticlesTable.published, true))
-        .orderBy(helpArticlesTable.category, helpArticlesTable.title);
+        .orderBy(...orderBy);
     }
 
     res.json(articles);

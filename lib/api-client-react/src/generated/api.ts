@@ -93,6 +93,7 @@ import type {
   HealthStatus,
   HelpArticle,
   HelpArticleBody,
+  HelpCategoryOrderResponse,
   LibraryItem,
   LinkedServiceRef,
   ListHelpArticlesParams,
@@ -7704,6 +7705,178 @@ export const useAdminCreateHelpArticle = <
   TContext
 > => {
   return useMutation(getAdminCreateHelpArticleMutationOptions(options));
+};
+
+/**
+ * @summary Get the custom sort order for help article categories — owner only
+ */
+export const getAdminGetHelpCategoryOrderUrl = () => {
+  return `/api/admin/help-articles/category-order`;
+};
+
+export const adminGetHelpCategoryOrder = async (
+  options?: RequestInit,
+): Promise<HelpCategoryOrderResponse> => {
+  return customFetch<HelpCategoryOrderResponse>(
+    getAdminGetHelpCategoryOrderUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getAdminGetHelpCategoryOrderQueryKey = () => {
+  return [`/api/admin/help-articles/category-order`] as const;
+};
+
+export const getAdminGetHelpCategoryOrderQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminGetHelpCategoryOrder>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminGetHelpCategoryOrder>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getAdminGetHelpCategoryOrderQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof adminGetHelpCategoryOrder>>
+  > = ({ signal }) => adminGetHelpCategoryOrder({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminGetHelpCategoryOrder>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AdminGetHelpCategoryOrderQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminGetHelpCategoryOrder>>
+>;
+export type AdminGetHelpCategoryOrderQueryError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Get the custom sort order for help article categories — owner only
+ */
+
+export function useAdminGetHelpCategoryOrder<
+  TData = Awaited<ReturnType<typeof adminGetHelpCategoryOrder>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminGetHelpCategoryOrder>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAdminGetHelpCategoryOrderQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Set the custom sort order for help article categories — owner only
+ */
+export const getAdminSetHelpCategoryOrderUrl = () => {
+  return `/api/admin/help-articles/category-order`;
+};
+
+export const adminSetHelpCategoryOrder = async (
+  helpCategoryOrderResponse: HelpCategoryOrderResponse,
+  options?: RequestInit,
+): Promise<HelpCategoryOrderResponse> => {
+  return customFetch<HelpCategoryOrderResponse>(
+    getAdminSetHelpCategoryOrderUrl(),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(helpCategoryOrderResponse),
+    },
+  );
+};
+
+export const getAdminSetHelpCategoryOrderMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminSetHelpCategoryOrder>>,
+    TError,
+    { data: BodyType<HelpCategoryOrderResponse> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminSetHelpCategoryOrder>>,
+  TError,
+  { data: BodyType<HelpCategoryOrderResponse> },
+  TContext
+> => {
+  const mutationKey = ["adminSetHelpCategoryOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminSetHelpCategoryOrder>>,
+    { data: BodyType<HelpCategoryOrderResponse> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminSetHelpCategoryOrder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminSetHelpCategoryOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminSetHelpCategoryOrder>>
+>;
+export type AdminSetHelpCategoryOrderMutationBody =
+  BodyType<HelpCategoryOrderResponse>;
+export type AdminSetHelpCategoryOrderMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Set the custom sort order for help article categories — owner only
+ */
+export const useAdminSetHelpCategoryOrder = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminSetHelpCategoryOrder>>,
+    TError,
+    { data: BodyType<HelpCategoryOrderResponse> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminSetHelpCategoryOrder>>,
+  TError,
+  { data: BodyType<HelpCategoryOrderResponse> },
+  TContext
+> => {
+  return useMutation(getAdminSetHelpCategoryOrderMutationOptions(options));
 };
 
 /**

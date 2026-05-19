@@ -28,6 +28,11 @@ export interface HelpArticle {
   updatedAt: string;
 }
 
+export interface HelpCategoryOrderResponse {
+  /** Category names in desired display order */
+  order: string[];
+}
+
 export interface HelpArticleBody {
   /** URL-safe identifier (lowercase letters, numbers, hyphens only) */
   slug: string;

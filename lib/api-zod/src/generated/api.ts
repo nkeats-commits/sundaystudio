@@ -5075,6 +5075,30 @@ export const AdminCreateHelpArticleBody = zod.object({
 });
 
 /**
+ * @summary Get the custom sort order for help article categories — owner only
+ */
+export const AdminGetHelpCategoryOrderResponse = zod.object({
+  order: zod
+    .array(zod.string())
+    .describe("Category names in desired display order"),
+});
+
+/**
+ * @summary Set the custom sort order for help article categories — owner only
+ */
+export const AdminSetHelpCategoryOrderBody = zod.object({
+  order: zod
+    .array(zod.string())
+    .describe("Category names in desired display order"),
+});
+
+export const AdminSetHelpCategoryOrderResponse = zod.object({
+  order: zod
+    .array(zod.string())
+    .describe("Category names in desired display order"),
+});
+
+/**
  * @summary Update a help article — owner only
  */
 export const AdminUpdateHelpArticleParams = zod.object({
