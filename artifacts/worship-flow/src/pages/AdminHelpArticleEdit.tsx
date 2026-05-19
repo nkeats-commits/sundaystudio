@@ -368,13 +368,15 @@ export default function AdminHelpArticleEdit() {
               ref={textareaRef}
               value={form.body}
               onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+              readOnly={uploading}
               rows={20}
               placeholder={`## Overview\n\nStart writing your article here. Markdown is supported.\n\n**Bold text**, *italic text*, \`code\`, and lists work.\n\n* Bullet point one\n* Bullet point two\n\nPaste a YouTube or Vimeo URL on its own line to embed a video.`}
-              className="w-full px-3 py-2.5 rounded-lg border text-sm font-mono leading-relaxed outline-none resize-y"
+              className="w-full px-3 py-2.5 rounded-lg border text-sm font-mono leading-relaxed outline-none resize-y transition-opacity"
               style={{
                 borderColor: "var(--worship-border)",
                 backgroundColor: "var(--worship-cream)",
                 color: "var(--worship-charcoal)",
+                opacity: uploading ? 0.6 : 1,
               }}
             />
           </div>
