@@ -22,6 +22,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { CategoryOrderPanel } from "../components/CategoryOrderPanel";
+import { ArticleOrderPanel } from "../components/ArticleOrderPanel";
 
 export default function AdminHelpArticles() {
   const queryClient = useQueryClient();
@@ -57,6 +58,11 @@ export default function AdminHelpArticles() {
 
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [showCategoryOrder, setShowCategoryOrder] = useState(false);
+  const [expandedArticleOrder, setExpandedArticleOrder] = useState<Record<string, boolean>>({});
+
+  function toggleArticleOrder(cat: string) {
+    setExpandedArticleOrder((prev) => ({ ...prev, [cat]: !prev[cat] }));
+  }
 
   const grouped = (articles ?? []).reduce<Record<string, typeof articles>>((acc, a) => {
     const cat = a.category;
@@ -199,8 +205,10 @@ export default function AdminHelpArticles() {
                 ({grouped[cat]!.length})
               </span>
             </h2>
+
+            {/* Article rows */}
             <div
-              className="rounded-xl border overflow-hidden"
+              className="rounded-xl border overflow-hidden mb-2"
               style={{ borderColor: "var(--worship-border)" }}
             >
               {grouped[cat]!.map((article, i) => (
@@ -265,6 +273,59 @@ export default function AdminHelpArticles() {
                 </div>
               ))}
             </div>
+
+            {/* Article order toggle — only shown when there are 2+ articles */}
+            {grouped[cat]!.length >= 2 && (
+              <div
+                className="rounded-xl border overflow-hidden"
+                style={{ borderColor: "var(--worship-border)" }}
+              >
+                <button
+                  onClick={() => toggleArticleOrder(cat)}
+                  className="w-full flex items-center justify-between px-5 py-3 bg-white hover:bg-[var(--worship-cream)]/40 transition-colors text-left"
+                >
+                  <span
+                    className="flex items-center gap-2 text-sm font-medium"
+                    style={{ color: "var(--worship-navy)" }}
+                  >
+                    <ListOrdered
+                      className="w-4 h-4"
+                      style={{ color: "var(--worship-gold)" }}
+                    />
+                    Article order
+                    <span
+                      className="text-xs font-normal"
+                      style={{ color: "var(--worship-slate)" }}
+                    >
+                      — drag to set display order within this category
+                    </span>
+                  </span>
+                  {expandedArticleOrder[cat] ? (
+                    <ChevronUp
+                      className="w-4 h-4 shrink-0"
+                      style={{ color: "var(--worship-slate)" }}
+                    />
+                  ) : (
+                    <ChevronDown
+                      className="w-4 h-4 shrink-0"
+                      style={{ color: "var(--worship-slate)" }}
+                    />
+                  )}
+                </button>
+                {expandedArticleOrder[cat] && (
+                  <div className="border-t" style={{ borderColor: "var(--worship-border)" }}>
+                    <ArticleOrderPanel
+                      category={cat}
+                      articles={grouped[cat]!.map((a) => ({
+                        id: a.id,
+                        title: a.title,
+                        published: a.published,
+                      }))}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         ))}
       </div>

@@ -1188,6 +1188,7 @@ router.get(
         .orderBy(
           sql`COALESCE(${helpCategoryOrderTable.position}, 9999)`,
           helpArticlesTable.category,
+          sql`COALESCE(${helpArticlesTable.position}, 9999)`,
           helpArticlesTable.title,
         );
       res.json(articles);
@@ -1414,6 +1415,39 @@ router.put(
       }
       req.log.error({ err }, "admin update help article failed");
       res.status(500).json({ error: "Failed to update help article" });
+    }
+  },
+);
+
+router.put(
+  "/admin/help-articles/article-order",
+  requireAuth,
+  requireOwner,
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = z
+        .object({ category: z.string().min(1), ids: z.array(z.number().int()).min(1) })
+        .safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Invalid request body" });
+        return;
+      }
+      const { category, ids } = parsed.data;
+      // Write each article's new position; ignore ids that don't belong to this category
+      await db.transaction(async (tx) => {
+        for (let i = 0; i < ids.length; i++) {
+          await tx
+            .update(helpArticlesTable)
+            .set({ position: i })
+            .where(
+              sql`${helpArticlesTable.id} = ${ids[i]} AND ${helpArticlesTable.category} = ${category}`,
+            );
+        }
+      });
+      res.json({ category, ids });
+    } catch (err) {
+      req.log.error({ err }, "admin set help article order failed");
+      res.status(500).json({ error: "Failed to save article order" });
     }
   },
 );

@@ -17,6 +17,8 @@ export interface HelpArticle {
   category: string;
   /** Only published articles are visible on the public help center */
   published: boolean;
+  /** Display order within the category (null = sorted by title) */
+  position?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

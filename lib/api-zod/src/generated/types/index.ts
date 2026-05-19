@@ -121,6 +121,7 @@ export * from "./getAdminUsersStatus";
 export * from "./healthStatus";
 export * from "./helpArticle";
 export * from "./helpArticleBody";
+export * from "./helpArticleOrderRequest";
 export * from "./helpCategoryOrderResponse";
 export * from "./libraryItem";
 export * from "./libraryItemContent";

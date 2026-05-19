@@ -12,6 +12,7 @@ export const helpArticlesTable = pgTable("help_articles", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
+  position: integer("position"),
 });
 
 export type HelpArticle = typeof helpArticlesTable.$inferSelect;

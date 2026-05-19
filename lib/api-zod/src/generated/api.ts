@@ -5005,6 +5005,10 @@ export const ListHelpArticlesResponseItem = zod.object({
   published: zod
     .boolean()
     .describe("Only published articles are visible on the public help center"),
+  position: zod
+    .number()
+    .nullish()
+    .describe("Display order within the category (null = sorted by title)"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -5030,6 +5034,10 @@ export const GetHelpArticleResponse = zod.object({
   published: zod
     .boolean()
     .describe("Only published articles are visible on the public help center"),
+  position: zod
+    .number()
+    .nullish()
+    .describe("Display order within the category (null = sorted by title)"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -5050,6 +5058,10 @@ export const AdminListHelpArticlesResponseItem = zod.object({
   published: zod
     .boolean()
     .describe("Only published articles are visible on the public help center"),
+  position: zod
+    .number()
+    .nullish()
+    .describe("Display order within the category (null = sorted by title)"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -5072,6 +5084,27 @@ export const AdminCreateHelpArticleBody = zod.object({
   body: zod.string().default(adminCreateHelpArticleBodyBodyDefault),
   category: zod.string().default(adminCreateHelpArticleBodyCategoryDefault),
   published: zod.boolean().default(adminCreateHelpArticleBodyPublishedDefault),
+});
+
+/**
+ * @summary Set the display order of articles within a category — owner only
+ */
+export const AdminSetHelpArticleOrderBody = zod.object({
+  category: zod
+    .string()
+    .describe("The category whose articles are being reordered"),
+  ids: zod
+    .array(zod.number())
+    .describe("Article IDs in the desired display order"),
+});
+
+export const AdminSetHelpArticleOrderResponse = zod.object({
+  category: zod
+    .string()
+    .describe("The category whose articles are being reordered"),
+  ids: zod
+    .array(zod.number())
+    .describe("Article IDs in the desired display order"),
 });
 
 /**
@@ -5132,6 +5165,10 @@ export const AdminUpdateHelpArticleResponse = zod.object({
   published: zod
     .boolean()
     .describe("Only published articles are visible on the public help center"),
+  position: zod
+    .number()
+    .nullish()
+    .describe("Display order within the category (null = sorted by title)"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

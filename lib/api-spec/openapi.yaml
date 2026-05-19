@@ -2161,6 +2161,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
 
+  /admin/help-articles/article-order:
+    put:
+      operationId: adminSetHelpArticleOrder
+      tags: [admin]
+      summary: Set the display order of articles within a category — owner only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HelpArticleOrderRequest"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpArticleOrderRequest"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /admin/help-articles/category-order:
     get:
       operationId: adminGetHelpCategoryOrder
@@ -2311,12 +2338,29 @@ components:
         published:
           type: boolean
           description: Only published articles are visible on the public help center
+        position:
+          type: integer
+          nullable: true
+          description: Display order within the category (null = sorted by title)
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+
+    HelpArticleOrderRequest:
+      type: object
+      required: [category, ids]
+      properties:
+        category:
+          type: string
+          description: The category whose articles are being reordered
+        ids:
+          type: array
+          items:
+            type: integer
+          description: Article IDs in the desired display order
 
     HelpCategoryOrderResponse:
       type: object

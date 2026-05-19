@@ -24,8 +24,17 @@ export interface HelpArticle {
   category: string;
   /** Only published articles are visible on the public help center */
   published: boolean;
+  /** Display order within the category (null = sorted by title) */
+  position?: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface HelpArticleOrderRequest {
+  /** The category whose articles are being reordered */
+  category: string;
+  /** Article IDs in the desired display order */
+  ids: number[];
 }
 
 export interface HelpCategoryOrderResponse {

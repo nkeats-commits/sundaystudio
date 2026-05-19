@@ -93,6 +93,7 @@ import type {
   HealthStatus,
   HelpArticle,
   HelpArticleBody,
+  HelpArticleOrderRequest,
   HelpCategoryOrderResponse,
   LibraryItem,
   LinkedServiceRef,
@@ -7705,6 +7706,98 @@ export const useAdminCreateHelpArticle = <
   TContext
 > => {
   return useMutation(getAdminCreateHelpArticleMutationOptions(options));
+};
+
+/**
+ * @summary Set the display order of articles within a category — owner only
+ */
+export const getAdminSetHelpArticleOrderUrl = () => {
+  return `/api/admin/help-articles/article-order`;
+};
+
+export const adminSetHelpArticleOrder = async (
+  helpArticleOrderRequest: HelpArticleOrderRequest,
+  options?: RequestInit,
+): Promise<HelpArticleOrderRequest> => {
+  return customFetch<HelpArticleOrderRequest>(
+    getAdminSetHelpArticleOrderUrl(),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(helpArticleOrderRequest),
+    },
+  );
+};
+
+export const getAdminSetHelpArticleOrderMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminSetHelpArticleOrder>>,
+    TError,
+    { data: BodyType<HelpArticleOrderRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminSetHelpArticleOrder>>,
+  TError,
+  { data: BodyType<HelpArticleOrderRequest> },
+  TContext
+> => {
+  const mutationKey = ["adminSetHelpArticleOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminSetHelpArticleOrder>>,
+    { data: BodyType<HelpArticleOrderRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminSetHelpArticleOrder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminSetHelpArticleOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminSetHelpArticleOrder>>
+>;
+export type AdminSetHelpArticleOrderMutationBody =
+  BodyType<HelpArticleOrderRequest>;
+export type AdminSetHelpArticleOrderMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Set the display order of articles within a category — owner only
+ */
+export const useAdminSetHelpArticleOrder = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminSetHelpArticleOrder>>,
+    TError,
+    { data: BodyType<HelpArticleOrderRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminSetHelpArticleOrder>>,
+  TError,
+  { data: BodyType<HelpArticleOrderRequest> },
+  TContext
+> => {
+  return useMutation(getAdminSetHelpArticleOrderMutationOptions(options));
 };
 
 /**
