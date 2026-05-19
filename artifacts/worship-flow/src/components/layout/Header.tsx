@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, FileText, BookOpen, Mic, Music, X, Menu, ArrowLeft } from 'lucide-react';
+import { Search, FileText, BookOpen, Mic, Music, X, Menu, ArrowLeft, HelpCircle } from 'lucide-react';
 import { useLocation } from 'wouter';
 import {
   useListSermons,
@@ -290,6 +290,15 @@ export function Header({ title = 'Dashboard', onMenuClick }: { title?: string; o
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
+            <a
+              href="/help"
+              className="p-1.5 rounded-lg transition-colors hover:bg-[var(--worship-cream)]"
+              style={{ color: "var(--worship-slate)" }}
+              title="Help Center"
+              aria-label="Help Center"
+            >
+              <HelpCircle className="w-5 h-5" />
+            </a>
             <TrialPill />
 
             {/* Mobile: search icon opens overlay */}

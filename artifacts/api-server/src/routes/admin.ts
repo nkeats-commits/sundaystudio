@@ -7,6 +7,7 @@ import {
   servicePlansTable,
   sermonsTable,
   aiUsageEventsTable,
+  helpArticlesTable,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireOwner, getOwnerEmail } from "../middlewares/requireOwner";
@@ -1126,6 +1127,128 @@ router.delete(
     } catch (err) {
       req.log.error({ err }, "admin delete user failed");
       res.status(500).json({ error: "Failed to delete user" });
+    }
+  },
+);
+
+// ── Help Articles CRUD ────────────────────────────────────────────────────────
+
+const helpArticleBodySchema = z.object({
+  slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
+  title: z.string().min(1).max(300),
+  body: z.string().default(""),
+  category: z.string().min(1).max(100).default("General"),
+  published: z.boolean().default(false),
+});
+
+router.get(
+  "/admin/help-articles",
+  requireAuth,
+  requireOwner,
+  async (req: Request, res: Response) => {
+    try {
+      const articles = await db
+        .select()
+        .from(helpArticlesTable)
+        .orderBy(helpArticlesTable.category, helpArticlesTable.title);
+      res.json(articles);
+    } catch (err) {
+      req.log.error({ err }, "admin list help articles failed");
+      res.status(500).json({ error: "Failed to fetch help articles" });
+    }
+  },
+);
+
+router.post(
+  "/admin/help-articles",
+  requireAuth,
+  requireOwner,
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = helpArticleBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.flatten() });
+        return;
+      }
+      const [article] = await db
+        .insert(helpArticlesTable)
+        .values(parsed.data)
+        .returning();
+      res.status(201).json(article);
+    } catch (err: unknown) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code: string }).code === "23505"
+      ) {
+        res.status(409).json({ error: "A help article with that slug already exists" });
+        return;
+      }
+      req.log.error({ err }, "admin create help article failed");
+      res.status(500).json({ error: "Failed to create help article" });
+    }
+  },
+);
+
+router.put(
+  "/admin/help-articles/:id",
+  requireAuth,
+  requireOwner,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(String(req.params.id ?? ""), 10);
+      if (isNaN(id)) {
+        res.status(400).json({ error: "Invalid article id" });
+        return;
+      }
+      const parsed = helpArticleBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.flatten() });
+        return;
+      }
+      const [article] = await db
+        .update(helpArticlesTable)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(helpArticlesTable.id, id))
+        .returning();
+      if (!article) {
+        res.status(404).json({ error: "Article not found" });
+        return;
+      }
+      res.json(article);
+    } catch (err: unknown) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as { code: string }).code === "23505"
+      ) {
+        res.status(409).json({ error: "A help article with that slug already exists" });
+        return;
+      }
+      req.log.error({ err }, "admin update help article failed");
+      res.status(500).json({ error: "Failed to update help article" });
+    }
+  },
+);
+
+router.delete(
+  "/admin/help-articles/:id",
+  requireAuth,
+  requireOwner,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(String(req.params.id ?? ""), 10);
+      if (isNaN(id)) {
+        res.status(400).json({ error: "Invalid article id" });
+        return;
+      }
+      await db.delete(helpArticlesTable).where(eq(helpArticlesTable.id, id));
+      res.status(204).end();
+    } catch (err) {
+      req.log.error({ err }, "admin delete help article failed");
+      res.status(500).json({ error: "Failed to delete help article" });
     }
   },
 );

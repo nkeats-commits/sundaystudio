@@ -10,3 +10,4 @@ export * from "./externalSongLinks";
 export * from "./userSourcePreferences";
 export * from "./pastorManuscripts";
 export * from "./aiUsageEvents";
+export * from "./helpArticles";

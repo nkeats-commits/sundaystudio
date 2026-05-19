@@ -91,8 +91,11 @@ import type {
   GeneratedSpeakingMoment,
   GetAdminUsersParams,
   HealthStatus,
+  HelpArticle,
+  HelpArticleBody,
   LibraryItem,
   LinkedServiceRef,
+  ListHelpArticlesParams,
   ListLibraryItemsParams,
   MeResponse,
   NotFoundResponse,
@@ -7354,4 +7357,526 @@ export const useUpdateScholarlySourcePreferences = <
   return useMutation(
     getUpdateScholarlySourcePreferencesMutationOptions(options),
   );
+};
+
+/**
+ * @summary List all published help articles (optionally filtered by search query)
+ */
+export const getListHelpArticlesUrl = (params?: ListHelpArticlesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/help-articles?${stringifiedParams}`
+    : `/api/help-articles`;
+};
+
+export const listHelpArticles = async (
+  params?: ListHelpArticlesParams,
+  options?: RequestInit,
+): Promise<HelpArticle[]> => {
+  return customFetch<HelpArticle[]>(getListHelpArticlesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListHelpArticlesQueryKey = (
+  params?: ListHelpArticlesParams,
+) => {
+  return [`/api/help-articles`, ...(params ? [params] : [])] as const;
+};
+
+export const getListHelpArticlesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listHelpArticles>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListHelpArticlesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listHelpArticles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListHelpArticlesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listHelpArticles>>
+  > = ({ signal }) => listHelpArticles(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listHelpArticles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListHelpArticlesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listHelpArticles>>
+>;
+export type ListHelpArticlesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all published help articles (optionally filtered by search query)
+ */
+
+export function useListHelpArticles<
+  TData = Awaited<ReturnType<typeof listHelpArticles>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListHelpArticlesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listHelpArticles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListHelpArticlesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a single published help article by slug
+ */
+export const getGetHelpArticleUrl = (slug: string) => {
+  return `/api/help-articles/${slug}`;
+};
+
+export const getHelpArticle = async (
+  slug: string,
+  options?: RequestInit,
+): Promise<HelpArticle> => {
+  return customFetch<HelpArticle>(getGetHelpArticleUrl(slug), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHelpArticleQueryKey = (slug: string) => {
+  return [`/api/help-articles/${slug}`] as const;
+};
+
+export const getGetHelpArticleQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHelpArticle>>,
+  TError = ErrorType<NotFoundResponse>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getHelpArticle>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHelpArticleQueryKey(slug);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHelpArticle>>> = ({
+    signal,
+  }) => getHelpArticle(slug, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!slug,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHelpArticle>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHelpArticleQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHelpArticle>>
+>;
+export type GetHelpArticleQueryError = ErrorType<NotFoundResponse>;
+
+/**
+ * @summary Get a single published help article by slug
+ */
+
+export function useGetHelpArticle<
+  TData = Awaited<ReturnType<typeof getHelpArticle>>,
+  TError = ErrorType<NotFoundResponse>,
+>(
+  slug: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getHelpArticle>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHelpArticleQueryOptions(slug, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all help articles (including unpublished) — owner only
+ */
+export const getAdminListHelpArticlesUrl = () => {
+  return `/api/admin/help-articles`;
+};
+
+export const adminListHelpArticles = async (
+  options?: RequestInit,
+): Promise<HelpArticle[]> => {
+  return customFetch<HelpArticle[]>(getAdminListHelpArticlesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getAdminListHelpArticlesQueryKey = () => {
+  return [`/api/admin/help-articles`] as const;
+};
+
+export const getAdminListHelpArticlesQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminListHelpArticles>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminListHelpArticles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getAdminListHelpArticlesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof adminListHelpArticles>>
+  > = ({ signal }) => adminListHelpArticles({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminListHelpArticles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AdminListHelpArticlesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminListHelpArticles>>
+>;
+export type AdminListHelpArticlesQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List all help articles (including unpublished) — owner only
+ */
+
+export function useAdminListHelpArticles<
+  TData = Awaited<ReturnType<typeof adminListHelpArticles>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminListHelpArticles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAdminListHelpArticlesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new help article — owner only
+ */
+export const getAdminCreateHelpArticleUrl = () => {
+  return `/api/admin/help-articles`;
+};
+
+export const adminCreateHelpArticle = async (
+  helpArticleBody: HelpArticleBody,
+  options?: RequestInit,
+): Promise<HelpArticle> => {
+  return customFetch<HelpArticle>(getAdminCreateHelpArticleUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(helpArticleBody),
+  });
+};
+
+export const getAdminCreateHelpArticleMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminCreateHelpArticle>>,
+    TError,
+    { data: BodyType<HelpArticleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminCreateHelpArticle>>,
+  TError,
+  { data: BodyType<HelpArticleBody> },
+  TContext
+> => {
+  const mutationKey = ["adminCreateHelpArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminCreateHelpArticle>>,
+    { data: BodyType<HelpArticleBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminCreateHelpArticle(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminCreateHelpArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminCreateHelpArticle>>
+>;
+export type AdminCreateHelpArticleMutationBody = BodyType<HelpArticleBody>;
+export type AdminCreateHelpArticleMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Create a new help article — owner only
+ */
+export const useAdminCreateHelpArticle = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminCreateHelpArticle>>,
+    TError,
+    { data: BodyType<HelpArticleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminCreateHelpArticle>>,
+  TError,
+  { data: BodyType<HelpArticleBody> },
+  TContext
+> => {
+  return useMutation(getAdminCreateHelpArticleMutationOptions(options));
+};
+
+/**
+ * @summary Update a help article — owner only
+ */
+export const getAdminUpdateHelpArticleUrl = (id: number) => {
+  return `/api/admin/help-articles/${id}`;
+};
+
+export const adminUpdateHelpArticle = async (
+  id: number,
+  helpArticleBody: HelpArticleBody,
+  options?: RequestInit,
+): Promise<HelpArticle> => {
+  return customFetch<HelpArticle>(getAdminUpdateHelpArticleUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(helpArticleBody),
+  });
+};
+
+export const getAdminUpdateHelpArticleMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminUpdateHelpArticle>>,
+    TError,
+    { id: number; data: BodyType<HelpArticleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminUpdateHelpArticle>>,
+  TError,
+  { id: number; data: BodyType<HelpArticleBody> },
+  TContext
+> => {
+  const mutationKey = ["adminUpdateHelpArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminUpdateHelpArticle>>,
+    { id: number; data: BodyType<HelpArticleBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return adminUpdateHelpArticle(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminUpdateHelpArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminUpdateHelpArticle>>
+>;
+export type AdminUpdateHelpArticleMutationBody = BodyType<HelpArticleBody>;
+export type AdminUpdateHelpArticleMutationError = ErrorType<
+  ApiError | UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Update a help article — owner only
+ */
+export const useAdminUpdateHelpArticle = <
+  TError = ErrorType<ApiError | UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminUpdateHelpArticle>>,
+    TError,
+    { id: number; data: BodyType<HelpArticleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminUpdateHelpArticle>>,
+  TError,
+  { id: number; data: BodyType<HelpArticleBody> },
+  TContext
+> => {
+  return useMutation(getAdminUpdateHelpArticleMutationOptions(options));
+};
+
+/**
+ * @summary Delete a help article — owner only
+ */
+export const getAdminDeleteHelpArticleUrl = (id: number) => {
+  return `/api/admin/help-articles/${id}`;
+};
+
+export const adminDeleteHelpArticle = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getAdminDeleteHelpArticleUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getAdminDeleteHelpArticleMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteHelpArticle>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminDeleteHelpArticle>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["adminDeleteHelpArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminDeleteHelpArticle>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return adminDeleteHelpArticle(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminDeleteHelpArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminDeleteHelpArticle>>
+>;
+
+export type AdminDeleteHelpArticleMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Delete a help article — owner only
+ */
+export const useAdminDeleteHelpArticle = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteHelpArticle>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminDeleteHelpArticle>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getAdminDeleteHelpArticleMutationOptions(options));
 };

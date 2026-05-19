@@ -17,6 +17,7 @@ import {
   Layers,
   Plug,
   CreditCard,
+  HelpCircle,
   X,
   Loader2,
 } from 'lucide-react';
@@ -83,6 +84,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   ];
 
   const bottomItems = [
+    { icon: HelpCircle, label: 'Help Center', href: '/help' },
     { icon: Building, label: 'Your Profile', href: '/church' },
     { icon: Plug, label: 'Integrations', href: '/settings/integrations' },
     { icon: CreditCard, label: 'Billing', href: '/billing' },

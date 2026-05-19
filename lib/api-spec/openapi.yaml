@@ -36,6 +36,8 @@ tags:
     description: Subscription billing (trial + Stripe)
   - name: admin
     description: Owner-only admin panel (single-admin model gated by OWNER_EMAIL)
+  - name: help
+    description: Public help center articles
   - name: onboarding
     description: First-run onboarding wizard state
   - name: manuscripts
@@ -2067,6 +2069,150 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /help-articles:
+    get:
+      operationId: listHelpArticles
+      tags: [help]
+      summary: List all published help articles (optionally filtered by search query)
+      security: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Optional search query to filter by title, body, or category
+      responses:
+        "200":
+          description: List of published help articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HelpArticle"
+
+  /help-articles/{slug}:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getHelpArticle
+      tags: [help]
+      summary: Get a single published help article by slug
+      security: []
+      responses:
+        "200":
+          description: The help article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpArticle"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/help-articles:
+    get:
+      operationId: adminListHelpArticles
+      tags: [admin]
+      summary: List all help articles (including unpublished) — owner only
+      responses:
+        "200":
+          description: All help articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HelpArticle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: adminCreateHelpArticle
+      tags: [admin]
+      summary: Create a new help article — owner only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HelpArticleBody"
+      responses:
+        "201":
+          description: Created article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpArticle"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /admin/help-articles/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    put:
+      operationId: adminUpdateHelpArticle
+      tags: [admin]
+      summary: Update a help article — owner only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HelpArticleBody"
+      responses:
+        "200":
+          description: Updated article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpArticle"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: adminDeleteHelpArticle
+      tags: [admin]
+      summary: Delete a help article — owner only
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   parameters:
     IdParam:
@@ -2104,6 +2250,52 @@ components:
         error:
           type: string
       required: [error]
+
+    HelpArticle:
+      type: object
+      required: [id, slug, title, body, category, published, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+          description: URL-safe identifier (lowercase letters, numbers, hyphens)
+        title:
+          type: string
+        body:
+          type: string
+          description: Markdown content of the article
+        category:
+          type: string
+          description: Category label for grouping on the help center
+        published:
+          type: boolean
+          description: Only published articles are visible on the public help center
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    HelpArticleBody:
+      type: object
+      required: [slug, title]
+      properties:
+        slug:
+          type: string
+          description: URL-safe identifier (lowercase letters, numbers, hyphens only)
+        title:
+          type: string
+        body:
+          type: string
+          default: ""
+        category:
+          type: string
+          default: General
+        published:
+          type: boolean
+          default: false
 
     BillingRedirect:
       type: object

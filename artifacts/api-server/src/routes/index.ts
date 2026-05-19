@@ -16,6 +16,7 @@ import serviceTemplatesRouter from "./serviceTemplates";
 import integrationsPcsRouter from "./integrationsPcs";
 import billingRouter from "./billing";
 import adminRouter from "./admin";
+import helpArticlesRouter from "./helpArticles";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(serviceTemplatesRouter);
 router.use(integrationsPcsRouter);
 router.use(billingRouter);
 router.use(adminRouter);
+router.use(helpArticlesRouter);
 
 export default router;

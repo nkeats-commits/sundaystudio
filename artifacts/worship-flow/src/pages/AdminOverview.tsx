@@ -161,12 +161,18 @@ export default function AdminOverview() {
               Owner-only view of growth, billing, and trial health.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               href="/admin/email-events"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] text-sm font-medium"
             >
               Email Events
+            </Link>
+            <Link
+              href="/admin/help-articles"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-[var(--worship-navy)] hover:bg-[var(--worship-cream)] text-sm font-medium"
+            >
+              Help Articles
             </Link>
             <Link
               href="/admin/users"

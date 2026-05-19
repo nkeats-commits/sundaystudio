@@ -52,6 +52,9 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import AdminUserDetail from "./pages/AdminUserDetail";
 import { AdminEmailEvents } from "./pages/AdminEmailEvents";
+import HelpCenter from "./pages/HelpCenter";
+import HelpArticle from "./pages/HelpArticle";
+import AdminHelpArticles from "./pages/AdminHelpArticles";
 import { AdminOnly } from "./components/AdminOnly";
 import NotFound from "./pages/NotFound";
 import { OnboardingWizard } from "./components/OnboardingWizard";
@@ -443,6 +446,8 @@ function ClerkProviderWithRoutes() {
           <Route path="/settings">{() => <Protected component={Settings} />}</Route>
           <Route path="/pricing">{() => <Protected component={Pricing} />}</Route>
           <Route path="/billing">{() => <Protected component={Billing} />}</Route>
+          <Route path="/help" component={HelpCenter} />
+          <Route path="/help/:slug" component={HelpArticle} />
           <Route path="/privacy" component={PrivacyPolicy} />
           <Route path="/terms" component={TermsOfService} />
           <Route path="/admin">
@@ -484,6 +489,17 @@ function ClerkProviderWithRoutes() {
                 component={() => (
                   <AdminOnly>
                     <AdminEmailEvents />
+                  </AdminOnly>
+                )}
+              />
+            )}
+          </Route>
+          <Route path="/admin/help-articles">
+            {() => (
+              <Protected
+                component={() => (
+                  <AdminOnly>
+                    <AdminHelpArticles />
                   </AdminOnly>
                 )}
               />

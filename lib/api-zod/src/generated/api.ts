@@ -4981,3 +4981,140 @@ export const UpdateScholarlySourcePreferencesResponse = zod.object({
       "Curated default selection used when the user has no saved preferences.",
     ),
 });
+
+/**
+ * @summary List all published help articles (optionally filtered by search query)
+ */
+export const ListHelpArticlesQueryParams = zod.object({
+  q: zod.coerce
+    .string()
+    .optional()
+    .describe("Optional search query to filter by title, body, or category"),
+});
+
+export const ListHelpArticlesResponseItem = zod.object({
+  id: zod.number(),
+  slug: zod
+    .string()
+    .describe("URL-safe identifier (lowercase letters, numbers, hyphens)"),
+  title: zod.string(),
+  body: zod.string().describe("Markdown content of the article"),
+  category: zod
+    .string()
+    .describe("Category label for grouping on the help center"),
+  published: zod
+    .boolean()
+    .describe("Only published articles are visible on the public help center"),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListHelpArticlesResponse = zod.array(ListHelpArticlesResponseItem);
+
+/**
+ * @summary Get a single published help article by slug
+ */
+export const GetHelpArticleParams = zod.object({
+  slug: zod.coerce.string(),
+});
+
+export const GetHelpArticleResponse = zod.object({
+  id: zod.number(),
+  slug: zod
+    .string()
+    .describe("URL-safe identifier (lowercase letters, numbers, hyphens)"),
+  title: zod.string(),
+  body: zod.string().describe("Markdown content of the article"),
+  category: zod
+    .string()
+    .describe("Category label for grouping on the help center"),
+  published: zod
+    .boolean()
+    .describe("Only published articles are visible on the public help center"),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary List all help articles (including unpublished) — owner only
+ */
+export const AdminListHelpArticlesResponseItem = zod.object({
+  id: zod.number(),
+  slug: zod
+    .string()
+    .describe("URL-safe identifier (lowercase letters, numbers, hyphens)"),
+  title: zod.string(),
+  body: zod.string().describe("Markdown content of the article"),
+  category: zod
+    .string()
+    .describe("Category label for grouping on the help center"),
+  published: zod
+    .boolean()
+    .describe("Only published articles are visible on the public help center"),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const AdminListHelpArticlesResponse = zod.array(
+  AdminListHelpArticlesResponseItem,
+);
+
+/**
+ * @summary Create a new help article — owner only
+ */
+export const adminCreateHelpArticleBodyBodyDefault = ``;
+export const adminCreateHelpArticleBodyCategoryDefault = `General`;
+export const adminCreateHelpArticleBodyPublishedDefault = false;
+
+export const AdminCreateHelpArticleBody = zod.object({
+  slug: zod
+    .string()
+    .describe("URL-safe identifier (lowercase letters, numbers, hyphens only)"),
+  title: zod.string(),
+  body: zod.string().default(adminCreateHelpArticleBodyBodyDefault),
+  category: zod.string().default(adminCreateHelpArticleBodyCategoryDefault),
+  published: zod.boolean().default(adminCreateHelpArticleBodyPublishedDefault),
+});
+
+/**
+ * @summary Update a help article — owner only
+ */
+export const AdminUpdateHelpArticleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const adminUpdateHelpArticleBodyBodyDefault = ``;
+export const adminUpdateHelpArticleBodyCategoryDefault = `General`;
+export const adminUpdateHelpArticleBodyPublishedDefault = false;
+
+export const AdminUpdateHelpArticleBody = zod.object({
+  slug: zod
+    .string()
+    .describe("URL-safe identifier (lowercase letters, numbers, hyphens only)"),
+  title: zod.string(),
+  body: zod.string().default(adminUpdateHelpArticleBodyBodyDefault),
+  category: zod.string().default(adminUpdateHelpArticleBodyCategoryDefault),
+  published: zod.boolean().default(adminUpdateHelpArticleBodyPublishedDefault),
+});
+
+export const AdminUpdateHelpArticleResponse = zod.object({
+  id: zod.number(),
+  slug: zod
+    .string()
+    .describe("URL-safe identifier (lowercase letters, numbers, hyphens)"),
+  title: zod.string(),
+  body: zod.string().describe("Markdown content of the article"),
+  category: zod
+    .string()
+    .describe("Category label for grouping on the help center"),
+  published: zod
+    .boolean()
+    .describe("Only published articles are visible on the public help center"),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a help article — owner only
+ */
+export const AdminDeleteHelpArticleParams = zod.object({
+  id: zod.coerce.number(),
+});

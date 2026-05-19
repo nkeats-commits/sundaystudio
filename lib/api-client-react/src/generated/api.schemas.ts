@@ -13,6 +13,30 @@ export interface ApiError {
   error: string;
 }
 
+export interface HelpArticle {
+  id: number;
+  /** URL-safe identifier (lowercase letters, numbers, hyphens) */
+  slug: string;
+  title: string;
+  /** Markdown content of the article */
+  body: string;
+  /** Category label for grouping on the help center */
+  category: string;
+  /** Only published articles are visible on the public help center */
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HelpArticleBody {
+  /** URL-safe identifier (lowercase letters, numbers, hyphens only) */
+  slug: string;
+  title: string;
+  body?: string;
+  category?: string;
+  published?: boolean;
+}
+
 export interface BillingRedirect {
   /** URL the browser should be redirected to (Checkout or Portal). */
   url: string;
@@ -1843,4 +1867,11 @@ export type DeleteManuscript200 = {
 
 export type AnalyzeManuscripts200 = {
   status: string;
+};
+
+export type ListHelpArticlesParams = {
+  /**
+   * Optional search query to filter by title, body, or category
+   */
+  q?: string;
 };
