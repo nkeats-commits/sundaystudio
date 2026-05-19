@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { AppLayout } from "../components/layout/AppLayout";
 import {
@@ -16,6 +16,7 @@ import {
   EyeOff,
   Loader2,
   ExternalLink,
+  ImageIcon,
 } from "lucide-react";
 
 type ArticleForm = {
@@ -42,6 +43,51 @@ export default function AdminHelpArticleEdit() {
 
   const isNew = !idParam || idParam === "new";
   const articleId = isNew ? null : parseInt(idParam, 10);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleImageUpload(file: File) {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/help-articles/images", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Upload failed");
+      }
+      const { url } = await res.json() as { url: string };
+      const textarea = textareaRef.current;
+      const insertion = `![](${url})`;
+      if (textarea) {
+        const start = textarea.selectionStart ?? form.body.length;
+        const end = textarea.selectionEnd ?? form.body.length;
+        const before = form.body.slice(0, start);
+        const after = form.body.slice(end);
+        const newBody = `${before}${insertion}${after}`;
+        setForm((f) => ({ ...f, body: newBody }));
+        requestAnimationFrame(() => {
+          textarea.selectionStart = start + insertion.length;
+          textarea.selectionEnd = start + insertion.length;
+          textarea.focus();
+        });
+      } else {
+        setForm((f) => ({ ...f, body: f.body + `\n\n${insertion}` }));
+      }
+      toast.success("Image uploaded");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to upload image";
+      toast.error(message);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   const listQuery = useAdminListHelpArticles({
     query: { queryKey: getAdminListHelpArticlesQueryKey() },
@@ -285,17 +331,45 @@ export default function AdminHelpArticleEdit() {
 
           {/* Body */}
           <div>
-            <label
-              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
-              style={{ color: "var(--worship-navy)" }}
-            >
-              Body (Markdown)
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label
+                className="block text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--worship-navy)" }}
+              >
+                Body (Markdown)
+              </label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors hover:bg-[var(--worship-cream)] disabled:opacity-50"
+                style={{ borderColor: "var(--worship-border)", color: "var(--worship-slate)" }}
+                title="Upload image"
+              >
+                {uploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <ImageIcon className="w-3.5 h-3.5" />
+                )}
+                {uploading ? "Uploading…" : "Image"}
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleImageUpload(file);
+              }}
+            />
             <textarea
+              ref={textareaRef}
               value={form.body}
               onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
               rows={20}
-              placeholder={`## Overview\n\nStart writing your article here. Markdown is supported.\n\n**Bold text**, *italic text*, \`code\`, and lists work.\n\n* Bullet point one\n* Bullet point two`}
+              placeholder={`## Overview\n\nStart writing your article here. Markdown is supported.\n\n**Bold text**, *italic text*, \`code\`, and lists work.\n\n* Bullet point one\n* Bullet point two\n\nPaste a YouTube or Vimeo URL on its own line to embed a video.`}
               className="w-full px-3 py-2.5 rounded-lg border text-sm font-mono leading-relaxed outline-none resize-y"
               style={{
                 borderColor: "var(--worship-border)",

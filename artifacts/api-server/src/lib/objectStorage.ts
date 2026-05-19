@@ -204,6 +204,28 @@ export class ObjectStorageService {
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
   }
+
+  /**
+   * Upload a buffer to the first public search path under the given
+   * relative filePath (e.g. "help-articles/<uuid>.jpg").
+   * Returns the relative path that can be used with the public-objects
+   * serving endpoint: `/api/storage/public-objects/<filePath>`.
+   */
+  async uploadPublicObject(
+    filePath: string,
+    buffer: Buffer,
+    contentType: string,
+  ): Promise<string> {
+    const searchPaths = this.getPublicObjectSearchPaths();
+    const basePath = searchPaths[0];
+    if (!basePath) throw new Error("No public object search paths configured");
+    const fullPath = `${basePath.replace(/\/$/, "")}/${filePath}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.save(buffer, { contentType, resumable: false });
+    return filePath;
+  }
 }
 
 function parseObjectPath(path: string): {

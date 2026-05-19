@@ -1,6 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { count, desc, eq, gte, sql, getTableColumns, notInArray } from "drizzle-orm";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
+import path from "node:path";
+import multer from "multer";
 import {
   db,
   usersTable,
@@ -22,6 +25,7 @@ import {
   TRIAL_DAYS,
 } from "../lib/getAccessState";
 import { getMonthlyPriceId } from "../lib/getMonthlyPriceId";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 /**
  * One-shot probe (cached for the process) for whether the
@@ -1134,6 +1138,32 @@ router.delete(
 
 // ── Help Articles CRUD ────────────────────────────────────────────────────────
 
+const objectStorageService = new ObjectStorageService();
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"));
+    }
+  },
+});
+
+function mimeToExt(mime: string): string {
+  const map: Record<string, string> = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/svg+xml": ".svg",
+    "image/avif": ".avif",
+  };
+  return map[mime] ?? ".bin";
+}
+
 const helpArticleBodySchema = z.object({
   slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
   title: z.string().min(1).max(300),
@@ -1257,6 +1287,38 @@ router.put(
     } catch (err) {
       req.log.error({ err }, "set help category order failed");
       res.status(500).json({ error: "Failed to update category order" });
+    }
+  },
+);
+
+router.post(
+  "/admin/help-articles/images",
+  requireAuth,
+  requireOwner,
+  (req, res, next) => {
+    imageUpload.single("file")(req, res, (err) => {
+      if (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : "Upload error" });
+        return;
+      }
+      next();
+    });
+  },
+  async (req: Request, res: Response) => {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: "No file uploaded" });
+      return;
+    }
+    try {
+      const ext = path.extname(file.originalname).toLowerCase() || mimeToExt(file.mimetype);
+      const filePath = `help-articles/${randomUUID()}${ext}`;
+      await objectStorageService.uploadPublicObject(filePath, file.buffer, file.mimetype);
+      req.log.info({ filePath, size: file.size }, "help article image uploaded");
+      res.json({ url: `/api/storage/public-objects/${filePath}` });
+    } catch (err) {
+      req.log.error({ err }, "help article image upload failed");
+      res.status(500).json({ error: "Upload failed" });
     }
   },
 );

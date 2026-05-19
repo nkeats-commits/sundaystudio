@@ -17,8 +17,54 @@ function escapeAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function buildVideoEmbed(url: string): string | null {
+  const ytMatch = url.match(/youtube\.com\/watch\?.*?v=([\w-]+)/) ?? url.match(/youtu\.be\/([\w-]+)/);
+  if (ytMatch) {
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${ytMatch[1]}`;
+    return `<div class="my-6 rounded-xl overflow-hidden" style="position:relative;padding-bottom:56.25%;height:0"><iframe src="${escapeAttr(embedUrl)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy" title="Video"></iframe></div>`;
+  }
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) {
+    const embedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    return `<div class="my-6 rounded-xl overflow-hidden" style="position:relative;padding-bottom:56.25%;height:0"><iframe src="${escapeAttr(embedUrl)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" allowfullscreen loading="lazy" title="Video"></iframe></div>`;
+  }
+  return null;
+}
+
 function renderMarkdown(md: string): string {
-  return md
+  // PASS 1: extract images and bare video URLs into tokens BEFORE HTML-escaping
+  // so that special characters in URLs (& etc.) are never mangled.
+  const mediaTokens: string[] = [];
+
+  function tokenize(html: string): string {
+    const idx = mediaTokens.length;
+    mediaTokens.push(html);
+    return `\x00MEDIA_${idx}\x00`;
+  }
+
+  // Bare YouTube / Vimeo URLs on their own line
+  let processed = md.replace(
+    /^(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?|youtu\.be\/|vimeo\.com\/)[\w?=&%#/-]+)\s*$/gm,
+    (_m, url: string) => {
+      const embed = buildVideoEmbed(url);
+      return embed ? tokenize(embed) : url;
+    },
+  );
+
+  // Markdown image syntax: ![alt](url)
+  processed = processed.replace(
+    /!\[([^\]]*)\]\(([^)]+)\)/g,
+    (_m, alt: string, rawUrl: string) => {
+      const safe = escapeAttr(sanitizeUrl(rawUrl));
+      const safeAlt = escapeAttr(alt);
+      return tokenize(
+        `<img src="${safe}" alt="${safeAlt}" class="w-full rounded-lg my-6" style="display:block" />`,
+      );
+    },
+  );
+
+  // PASS 2: run the standard Markdown pipeline (HTML-escape + transforms)
+  let html = processed
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -39,6 +85,11 @@ function renderMarkdown(md: string): string {
       return `<a href="${safe}" class="underline" style="color:var(--worship-gold)" target="_blank" rel="noopener noreferrer">${text}</a>`;
     })
     .replace(/\n\n/g, '</p><p class="mb-4">');
+
+  // PASS 3: restore media tokens
+  html = html.replace(/\x00MEDIA_(\d+)\x00/g, (_m, idx) => mediaTokens[parseInt(idx, 10)] ?? "");
+
+  return html;
 }
 
 export default function HelpArticle() {
