@@ -108,7 +108,11 @@ The sidebar is always available. If the Dashboard doesn't show a shortcut you ne
 
 ## A note on loading
 
-The Dashboard pulls live data each time you open it, so it always reflects your most recent saves. If you just created a new service plan, give it a moment to appear — a quick refresh will show it.`,
+The Dashboard pulls live data each time you open it, so it always reflects your most recent saves. If you just created a new service plan, give it a moment to appear — a quick refresh will show it.
+
+## Making it a habit
+
+The most effective way to use the Dashboard is as a weekly ritual. Open Sunday Studio at the same time each week — Monday morning after the weekend, or Tuesday once the dust has settled — and let the Dashboard orient your planning session. See what's already saved, identify what still needs to be done, and use the quick links to move straight into the work. Over time, this rhythm transforms scattered planning into a calm, consistent process.`,
   },
   {
     slug: "understanding-the-ai",
