@@ -220,10 +220,24 @@ async function fetchServiceTypeSongIds(
       for (const item of body.included ?? []) {
         if (item.type !== "Item") continue;
         if (item.attributes?.["item_type"] !== "song") continue;
-        const songRel = item.relationships?.["song"]?.data;
-        if (songRel && !Array.isArray(songRel) && songRel.id) {
-          songIds.add(songRel.id);
+        // PCO may return the song relationship as data linkage OR as link-only
+        // (without a data member). Handle both:
+        //   data linkage:  relationships.song.data = { id, type }
+        //   link-only:     relationships.song.links.related = ".../songs/<id>"
+        const songRel = item.relationships?.["song"];
+        const songData = songRel?.data;
+        let songId: string | null = null;
+        if (songData && !Array.isArray(songData) && songData.id) {
+          songId = songData.id;
+        } else {
+          const relatedUrl = (songRel as { links?: { related?: unknown } } | undefined)
+            ?.links?.related;
+          if (typeof relatedUrl === "string") {
+            const m = relatedUrl.match(/\/songs\/(\d+)/);
+            if (m?.[1]) songId = m[1];
+          }
         }
+        if (songId) songIds.add(songId);
       }
       next = body.links?.next ?? null;
     }

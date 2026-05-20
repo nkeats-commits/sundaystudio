@@ -18,6 +18,8 @@ export * from "./adminMetricsSubscriptions";
 export * from "./adminMetricsTotals";
 export * from "./adminMetricsTrials";
 export * from "./adminSeriesPoint";
+export * from "./adminUploadHelpArticleImage200";
+export * from "./adminUploadHelpArticleImageBody";
 export * from "./adminUserAiUsage";
 export * from "./adminUserAiUsageAllTime";
 export * from "./adminUserAiUsageByType";

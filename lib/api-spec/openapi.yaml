@@ -2228,6 +2228,50 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /admin/help-articles/images:
+    post:
+      operationId: adminUploadHelpArticleImage
+      tags: [admin]
+      summary: Upload an image for use in a help article — owner only
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Image file (PNG, JPG, WebP, GIF — max 8 MB)
+      responses:
+        "200":
+          description: Uploaded image public URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: string
+                    description: Public URL to use in markdown as ![alt](url)
+        "400":
+          description: No file or invalid file type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Upload failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /admin/help-articles/{id}:
     parameters:
       - name: id

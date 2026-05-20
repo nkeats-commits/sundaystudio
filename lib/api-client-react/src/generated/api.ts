@@ -19,6 +19,8 @@ import type {
 import type {
   AdminMe,
   AdminMetrics,
+  AdminUploadHelpArticleImage200,
+  AdminUploadHelpArticleImageBody,
   AdminUserAiUsage,
   AdminUserDetail,
   AdminUserList,
@@ -7970,6 +7972,100 @@ export const useAdminSetHelpCategoryOrder = <
   TContext
 > => {
   return useMutation(getAdminSetHelpCategoryOrderMutationOptions(options));
+};
+
+/**
+ * @summary Upload an image for use in a help article — owner only
+ */
+export const getAdminUploadHelpArticleImageUrl = () => {
+  return `/api/admin/help-articles/images`;
+};
+
+export const adminUploadHelpArticleImage = async (
+  adminUploadHelpArticleImageBody: AdminUploadHelpArticleImageBody,
+  options?: RequestInit,
+): Promise<AdminUploadHelpArticleImage200> => {
+  const formData = new FormData();
+  formData.append(`file`, adminUploadHelpArticleImageBody.file);
+
+  return customFetch<AdminUploadHelpArticleImage200>(
+    getAdminUploadHelpArticleImageUrl(),
+    {
+      ...options,
+      method: "POST",
+      body: formData,
+    },
+  );
+};
+
+export const getAdminUploadHelpArticleImageMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminUploadHelpArticleImage>>,
+    TError,
+    { data: BodyType<AdminUploadHelpArticleImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminUploadHelpArticleImage>>,
+  TError,
+  { data: BodyType<AdminUploadHelpArticleImageBody> },
+  TContext
+> => {
+  const mutationKey = ["adminUploadHelpArticleImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminUploadHelpArticleImage>>,
+    { data: BodyType<AdminUploadHelpArticleImageBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminUploadHelpArticleImage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminUploadHelpArticleImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminUploadHelpArticleImage>>
+>;
+export type AdminUploadHelpArticleImageMutationBody =
+  BodyType<AdminUploadHelpArticleImageBody>;
+export type AdminUploadHelpArticleImageMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Upload an image for use in a help article — owner only
+ */
+export const useAdminUploadHelpArticleImage = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminUploadHelpArticleImage>>,
+    TError,
+    { data: BodyType<AdminUploadHelpArticleImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminUploadHelpArticleImage>>,
+  TError,
+  { data: BodyType<AdminUploadHelpArticleImageBody> },
+  TContext
+> => {
+  return useMutation(getAdminUploadHelpArticleImageMutationOptions(options));
 };
 
 /**

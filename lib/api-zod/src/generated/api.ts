@@ -5132,6 +5132,19 @@ export const AdminSetHelpCategoryOrderResponse = zod.object({
 });
 
 /**
+ * @summary Upload an image for use in a help article — owner only
+ */
+export const AdminUploadHelpArticleImageBody = zod.object({
+  file: zod
+    .instanceof(File)
+    .describe("Image file (PNG, JPG, WebP, GIF — max 8 MB)"),
+});
+
+export const AdminUploadHelpArticleImageResponse = zod.object({
+  url: zod.string().describe("Public URL to use in markdown as ![alt](url)"),
+});
+
+/**
  * @summary Update a help article — owner only
  */
 export const AdminUpdateHelpArticleParams = zod.object({

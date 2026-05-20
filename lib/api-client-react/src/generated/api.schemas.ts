@@ -1889,3 +1889,13 @@ export type ListHelpArticlesParams = {
    */
   q?: string;
 };
+
+export type AdminUploadHelpArticleImageBody = {
+  /** Image file (PNG, JPG, WebP, GIF — max 8 MB) */
+  file: Blob;
+};
+
+export type AdminUploadHelpArticleImage200 = {
+  /** Public URL to use in markdown as ![alt](url) */
+  url: string;
+};
