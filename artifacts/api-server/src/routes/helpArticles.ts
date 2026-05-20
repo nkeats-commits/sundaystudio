@@ -11,6 +11,7 @@ router.get("/help-articles", async (req, res) => {
     const orderBy = [
       sql`COALESCE(${helpCategoryOrderTable.position}, 9999)`,
       helpArticlesTable.category,
+      sql`COALESCE(${helpArticlesTable.position}, 9999)`,
       helpArticlesTable.title,
     ] as const;
 
