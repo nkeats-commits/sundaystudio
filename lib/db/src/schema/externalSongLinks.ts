@@ -6,6 +6,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { libraryItemsTable } from "./libraryItems";
 
 /**
  * Links a saved library_items row back to the external system it came from
@@ -23,7 +24,9 @@ export const externalSongLinksTable = pgTable(
   "external_song_links",
   {
     id: serial("id").primaryKey(),
-    libraryItemId: integer("library_item_id").notNull(),
+    libraryItemId: integer("library_item_id")
+      .notNull()
+      .references(() => libraryItemsTable.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull(),
     // Source system identifier. Today: "pcs". Future: "hymnary",
     // "crowdsource", etc. Kept as text rather than an enum so adding a new

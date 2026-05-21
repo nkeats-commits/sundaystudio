@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   db,
   externalSongLinksTable,
@@ -424,6 +424,47 @@ export async function importPcsSongs(
 
   const linkByExternalId = new Map(existingLinks.map((l) => [l.externalId, l]));
 
+  // Step 1b: detect orphaned links — external_song_links rows whose
+  // library_item_id no longer exists in library_items (e.g. the user deleted
+  // songs from the library but the link records were left behind).
+  // Songs matched by an orphaned link must go into toInsert, not toUpdate,
+  // otherwise the UPDATE silently affects 0 rows and the song never appears.
+  //
+  // Guard: inArray with an empty array throws in Drizzle, so skip when there
+  // are no existing links at all.
+  let confirmedItemIdSet = new Set<number>();
+  if (existingLinks.length > 0) {
+    const existingLibraryItemIds = existingLinks.map((l) => l.libraryItemId);
+    const confirmedItems = await db
+      .select({ id: libraryItemsTable.id })
+      .from(libraryItemsTable)
+      .where(
+        and(
+          eq(libraryItemsTable.userId, userId),
+          inArray(libraryItemsTable.id, existingLibraryItemIds),
+        ),
+      );
+    confirmedItemIdSet = new Set(confirmedItems.map((r) => r.id));
+    const orphanCount = existingLinks.length - confirmedItemIdSet.size;
+    if (orphanCount > 0) {
+      logger.warn(
+        { orphanCount, userId },
+        "PCS sync: detected orphaned external_song_links (library_items deleted). " +
+          "Orphaned songs will be re-inserted.",
+      );
+      // Delete the orphaned link rows so the subsequent batch INSERT into
+      // external_song_links doesn't hit the unique-index constraint.
+      // (The migration SQL also deletes these, but we handle it here too in
+      // case the migration hasn't yet run in a given environment.)
+      const orphanedLinkIds = existingLinks
+        .filter((l) => !confirmedItemIdSet.has(l.libraryItemId))
+        .map((l) => l.id);
+      await db
+        .delete(externalSongLinksTable)
+        .where(inArray(externalSongLinksTable.id, orphanedLinkIds));
+    }
+  }
+
   // Step 2 & 3: compute content + split into update/insert batches.
   type UpdateRecord = {
     libraryItemId: number;
@@ -525,7 +566,8 @@ export async function importPcsSongs(
       if (duration !== null) content["duration"] = duration;
 
       const existing = linkByExternalId.get(song.id);
-      if (existing) {
+      if (existing && confirmedItemIdSet.has(existing.libraryItemId)) {
+        // Link exists AND the library_item it points to still exists → update.
         toUpdate.push({
           libraryItemId: existing.libraryItemId,
           linkId: existing.id,
@@ -533,6 +575,10 @@ export async function importPcsSongs(
           content,
         });
       } else {
+        // Either no link at all, or link is orphaned (library_item deleted).
+        // Insert a fresh library_items row; the old orphaned link (if any)
+        // will be cleaned up by the ON DELETE CASCADE migration, or handled
+        // by the unique index at insert time if the migration hasn't run yet.
         toInsert.push({ externalId: song.id, title, content });
       }
     } catch (err) {
