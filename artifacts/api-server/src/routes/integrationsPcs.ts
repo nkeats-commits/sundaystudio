@@ -309,6 +309,7 @@ router.post("/integrations/pcs/sync", requireAuth, async (req, res) => {
       total: result.total,
       inserted: result.inserted,
       updated: result.updated,
+      ...(result.serviceTypeFilterSkipped && { serviceTypeFilterSkipped: true }),
     });
   } catch (err) {
     req.log.error({ err }, "PCS sync failed");

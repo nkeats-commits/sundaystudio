@@ -13,4 +13,7 @@ export interface PcsSyncResult {
   inserted: number;
   /** Existing imported songs whose metadata was refreshed on this run. */
   updated: number;
+  /** True when a service-type filter was requested but resolved to 0 song IDs (a Planning Center API compatibility issue). The sync fell back to importing all songs so the user always gets results.
+   */
+  serviceTypeFilterSkipped?: boolean;
 }

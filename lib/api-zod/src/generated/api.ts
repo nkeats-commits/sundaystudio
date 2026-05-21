@@ -4369,6 +4369,12 @@ export const SyncPcsSongsResponse = zod.object({
     .describe(
       "Existing imported songs whose metadata was refreshed on this run.",
     ),
+  serviceTypeFilterSkipped: zod
+    .boolean()
+    .optional()
+    .describe(
+      "True when a service-type filter was requested but resolved to 0 song IDs (a Planning Center API compatibility issue). The sync fell back to importing all songs so the user always gets results.\n",
+    ),
 });
 
 /**

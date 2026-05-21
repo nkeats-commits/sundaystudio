@@ -104,7 +104,13 @@ export default function Integrations() {
       const hasFilters = !!(filterBody.serviceTypeIds || filterBody.lastUsedSince);
 
       let message: string;
-      if (r.total === 0) {
+      if (r.serviceTypeFilterSkipped) {
+        // Service-type filter resolved to 0 — server imported all songs instead
+        const countNote = `${r.total} song${r.total === 1 ? '' : 's'}`;
+        message =
+          `Could not apply service type filter — imported all ${countNote} instead ` +
+          `(${r.inserted} new, ${r.updated} updated).`;
+      } else if (r.total === 0) {
         if (hasFilters) {
           message =
             'No songs matched your filters — try broadening your selection or syncing without filters.';

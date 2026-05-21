@@ -45,6 +45,12 @@ export type PcsImportResult = {
   inserted: number;
   updated: number;
   errors: string[];
+  /**
+   * True when the service-type filter was requested but resolved to 0 song IDs
+   * (likely a PCO API compatibility issue). In this case the import fell back
+   * to importing all songs (subject to lastUsedSince if set).
+   */
+  serviceTypeFilterSkipped?: boolean;
 };
 
 type PcsResource = {
@@ -200,14 +206,21 @@ async function fetchServiceTypeSongIds(
   // syntax is not supported on this endpoint and is silently ignored.
   const sinceDateStr = sinceIso.slice(0, 10); // YYYY-MM-DD
 
+  let isFirstPage = true;
+
   for (const stId of serviceTypeIds) {
-    let next: string | null =
+    // Always build the full URL for each page so query params (include=items)
+    // are never dropped. PCO's links.next sometimes omits include= params.
+    const baseUrl =
       `/services/v2/service_types/${stId}/plans` +
       `?per_page=25&include=items&order=-sort_date` +
       `&filter=after_date&after_date=${sinceDateStr}`;
+    let offset = 0;
+    let hasMore = true;
 
-    for (let page = 0; page < 200 && next; page += 1) {
-      const res = await pcsAuthedFetch(userId, next);
+    for (let page = 0; page < 200 && hasMore; page += 1) {
+      const url = page === 0 ? baseUrl : `${baseUrl}&offset=${offset}`;
+      const res = await pcsAuthedFetch(userId, url);
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         throw new Error(
@@ -217,29 +230,72 @@ async function fetchServiceTypeSongIds(
         );
       }
       const body = (await res.json()) as PcsListResponse;
+
+      // DIAGNOSTIC: log the shape of the first included page so we can see
+      // exactly what PCO returns (type strings, item_type values, relationship
+      // keys). Remove this block once the root cause is confirmed.
+      if (isFirstPage) {
+        isFirstPage = false;
+        const sample = (body.included ?? []).slice(0, 3).map((r) => ({
+          type: r.type,
+          item_type: r.attributes?.["item_type"],
+          relationshipKeys: Object.keys(r.relationships ?? {}),
+          songRelData: r.relationships?.["song"]?.data,
+          songRelLinks: (r.relationships?.["song"] as { links?: unknown } | undefined)?.links,
+          songIdAttr: r.attributes?.["song_id"],
+        }));
+        logger.warn(
+          {
+            serviceTypeId: stId,
+            includedCount: (body.included ?? []).length,
+            planCount: (body.data ?? []).length,
+            sample,
+          },
+          "PCS plans page diagnostic — included resources shape",
+        );
+      }
+
       for (const item of body.included ?? []) {
         if (item.type !== "Item") continue;
         if (item.attributes?.["item_type"] !== "song") continue;
-        // PCO may return the song relationship as data linkage OR as link-only
-        // (without a data member). Handle both:
-        //   data linkage:  relationships.song.data = { id, type }
-        //   link-only:     relationships.song.links.related = ".../songs/<id>"
+
+        // PCO may expose the linked song ID through several paths. Try all:
+        //
+        // 1. JSON:API data linkage:   relationships.song.data.id
+        // 2. JSON:API link-only:      relationships.song.links.related URL
+        // 3. Denormalised attribute:  attributes.song_id
         const songRel = item.relationships?.["song"];
         const songData = songRel?.data;
         let songId: string | null = null;
+
         if (songData && !Array.isArray(songData) && songData.id) {
+          // Path 1: standard JSON:API to-one relationship with data
           songId = songData.id;
         } else {
           const relatedUrl = (songRel as { links?: { related?: unknown } } | undefined)
             ?.links?.related;
           if (typeof relatedUrl === "string") {
+            // Path 2: link-only relationship — extract ID from the URL
             const m = relatedUrl.match(/\/songs\/(\d+)/);
             if (m?.[1]) songId = m[1];
           }
         }
+
+        if (!songId) {
+          // Path 3: some PCO accounts expose a denormalised song_id attribute
+          const rawSongId = item.attributes?.["song_id"];
+          if (typeof rawSongId === "string" && rawSongId) songId = rawSongId;
+          else if (typeof rawSongId === "number") songId = String(rawSongId);
+        }
+
         if (songId) songIds.add(songId);
       }
-      next = body.links?.next ?? null;
+
+      // Advance offset manually instead of following links.next so we never
+      // lose the include=items param that PCO may drop from pagination URLs.
+      const planCount = (body.data ?? []).length;
+      offset += planCount;
+      hasMore = planCount === 25 && !!body.links?.next;
     }
   }
   return songIds;
@@ -286,9 +342,14 @@ export async function importPcsSongs(
       logger.warn(
         { serviceTypeIds: options.serviceTypeIds },
         "PCS service-type filter resolved but matched 0 song IDs — " +
-          "selected service types may have no scheduled songs in the " +
-          "requested date range",
+          "falling back to full library import so the user gets songs. " +
+          "Check the diagnostic log above for the actual PCO response shape.",
       );
+      // Graceful fallback: clear the filter so we import all songs (still
+      // subject to lastUsedSince if set). This ensures the sync never returns
+      // 0 songs due to a PCO API compatibility issue with item relationship data.
+      allowedSongIds = undefined;
+      result.serviceTypeFilterSkipped = true;
     }
   }
 
