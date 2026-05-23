@@ -21,7 +21,11 @@ ALTER TABLE external_song_links
   DROP CONSTRAINT IF EXISTS external_song_links_library_item_id_fkey;--> statement-breakpoint
 
 -- Re-add with ON DELETE CASCADE.
+-- NOT VALID skips the full-table scan on existing rows (avoids FK-violation
+-- errors when old orphaned rows are still present at constraint-add time).
+-- The DELETE step above removes orphans so data is already clean; NOT VALID
+-- just avoids the redundant re-scan that was failing in production.
 ALTER TABLE external_song_links
   ADD CONSTRAINT external_song_links_library_item_id_fkey
     FOREIGN KEY (library_item_id) REFERENCES library_items(id)
-    ON DELETE CASCADE;
+    ON DELETE CASCADE NOT VALID;
