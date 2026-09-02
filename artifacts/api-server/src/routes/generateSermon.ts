@@ -30,6 +30,7 @@ import {
   repertoirePromptBlock,
 } from "../lib/repertoire";
 import { mergeScholarlyResources } from "../lib/scholarlyMerge";
+import type { ReferenceBundle } from "../lib/referenceSources";
 
 const router: IRouter = Router();
 
@@ -96,6 +97,8 @@ Hard rules for sermon content:
 - When a historical or cultural claim cannot be verified, mark the relevant illustration with "verifyBeforeUsing": true and add a short note saying what to verify.
 - Do not reproduce extended verbatim copyrighted material. Paraphrase pastorally instead. Public-domain excerpts may be quoted briefly with attribution but should usually be paraphrased and synthesized.
 - Treat "[Public-Domain Source]" excerpts the same way you would a pastor-supplied resource: lean on them for interpretation, surface where they agree or disagree, and attribute by their stated title and author.
+- Public-domain Bible text in the reference context is only a labeled comparison aid. Never silently substitute it for the pastor's chosen translation, and never reproduce it as an unattributed Bible quotation.
+- Cross-reference and dictionary/lexicon entries are study aids, not Bible text; keep their source kind and attribution when referring to them.
 - Separate observation, interpretation, application, and any resource-derived insights so the pastor can see your reasoning.
 - Surface "interpretiveCautions" where a passage is genuinely contested or easy to misuse.
 - Be concise. Finish within the requested length budget. No padding.
@@ -137,6 +140,8 @@ export interface SermonContext {
    * `mergeScholarlyResources` overwrites whatever the client sent.
    */
   resources?: { title: string; author?: string; excerpt: string }[];
+  referenceTerms?: string[];
+  referenceContext?: ReferenceBundle;
 }
 
 function sermonContextBlurb(s: SermonContext): string {
@@ -202,6 +207,41 @@ function resourceBlurb(s: SermonContext): string {
   return lines.join("\n");
 }
 
+function referenceBlurb(s: SermonContext): string {
+  const bundle = s.referenceContext;
+  if (!bundle) {
+    return "No Bible reference collections contributed lookup context.";
+  }
+  const lines: string[] = [];
+  if (bundle.translations.length) {
+    lines.push(
+      "Public-domain Bible text for passage checking only (each line includes its translation source; NEVER present it as the pastor's chosen Bible version):",
+    );
+    for (const item of bundle.translations) {
+      lines.push(`[Bible text · ${item.sourceTitle} · ${item.attribution}] ${item.reference}: ${item.text}`);
+    }
+  }
+  if (bundle.crossReferences.length) {
+    if (lines.length) lines.push("");
+    lines.push("Cross-references (relationships from the named source; do not treat them as quotations):");
+    for (const item of bundle.crossReferences) {
+      lines.push(
+        `[Cross-reference · ${item.sourceTitle} · ${item.attribution}] ${item.sourceReference} → ${item.targets.join(", ")}${item.note ? ` — ${item.note}` : ""}`,
+      );
+    }
+  }
+  if (bundle.lexicalEntries.length) {
+    if (lines.length) lines.push("");
+    lines.push("Dictionary / lexicon entries (source-labeled study aids, not Bible text):");
+    for (const item of bundle.lexicalEntries) {
+      lines.push(
+        `[Lexicon · ${item.sourceTitle} · ${item.attribution}] ${item.term} (${item.originalWord}; ${item.strongsNumber ?? "no Strong's number"}): ${item.definition}`,
+      );
+    }
+  }
+  return lines.length ? lines.join("\n") : "No Bible reference entries matched these passages.";
+}
+
 function refineBlurb(refineInstruction?: string, existingContent?: unknown): string {
   if (!refineInstruction && !existingContent) return "";
   const parts: string[] = [];
@@ -241,6 +281,8 @@ ${churchContextBlurb(ctx)}
 
 ${resourceBlurb(d)}
 
+${referenceBlurb(d)}
+
 ${refineBlurb(d.refineInstruction, d.existingContent)}
 
 Return JSON exactly in this shape:
@@ -276,7 +318,11 @@ Return JSON exactly in this shape:
     4000,
     "sermon study",
     GenerateSermonStudyResponse,
-    (parsed) => ({ ...parsed, consultedSources: merge.consultedSources }),
+    (parsed) => ({
+      ...parsed,
+      consultedSources: merge.consultedSources,
+      referenceContext: merge.referenceContext,
+    }),
   );
 
   // Fire first_sermon_generated once per user — atomic, best-effort, never blocks.
@@ -330,6 +376,8 @@ ${churchContextBlurb(ctx)}
 
 ${resourceBlurb(d)}
 
+${referenceBlurb(d)}
+
 ${d.study ? `Passage study so far:\n${JSON.stringify(d.study, null, 2)}` : ""}
 
 ${refineBlurb(d.refineInstruction)}
@@ -374,6 +422,8 @@ ${churchContextBlurb(ctx)}
 ${d.bigIdea ? `Working big idea: ${d.bigIdea}` : ""}
 
 ${resourceBlurb(d)}
+
+${referenceBlurb(d)}
 
 ${d.study ? `Passage study so far:\n${JSON.stringify(d.study, null, 2)}` : ""}
 
@@ -436,6 +486,8 @@ ${d.bigIdea ? `Big idea: ${d.bigIdea}` : ""}
 
 ${resourceBlurb(d)}
 
+${referenceBlurb(d)}
+
 ${d.study ? `Passage study:\n${JSON.stringify(d.study, null, 2)}` : ""}
 ${d.outline ? `Chosen outline:\n${JSON.stringify(d.outline, null, 2)}` : ""}
 
@@ -480,6 +532,8 @@ ${churchContextBlurb(ctx)}
 ${d.bigIdea ? `Big idea: ${d.bigIdea}` : ""}
 
 ${resourceBlurb(d)}
+
+${referenceBlurb(d)}
 
 ${d.study ? `Passage study:\n${JSON.stringify(d.study, null, 2)}` : ""}
 
@@ -528,6 +582,8 @@ ${d.applications ? `Sermon applications:\n${JSON.stringify(d.applications, null,
 
 ${resourceBlurb(d)}
 
+${referenceBlurb(d)}
+
 ${refineBlurb(d.refineInstruction)}
 
 Return JSON exactly in this shape:
@@ -571,6 +627,8 @@ ${d.bigIdea ? `Big idea: ${d.bigIdea}` : ""}
 ${d.outline ? `Outline:\n${JSON.stringify(d.outline, null, 2)}` : ""}
 
 ${resourceBlurb(d)}
+
+${referenceBlurb(d)}
 
 ${refineBlurb(d.refineInstruction)}
 
@@ -625,6 +683,8 @@ ${d.outline ? `Outline:\n${JSON.stringify(d.outline, null, 2)}` : ""}
 ${d.applications ? `Applications:\n${JSON.stringify(d.applications, null, 2)}` : ""}
 
 ${resourceBlurb(d)}
+
+${referenceBlurb(d)}
 
 ${refineBlurb(d.refineInstruction)}
 

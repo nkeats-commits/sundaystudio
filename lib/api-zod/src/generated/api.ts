@@ -1624,16 +1624,75 @@ export const GetSermonSeriesResponse = zod
                     title: zod.string(),
                     author: zod.string().nullish(),
                     kind: zod
-                      .enum(["public-domain", "library"])
+                      .enum([
+                        "public-domain",
+                        "library",
+                        "translation",
+                        "cross-reference",
+                        "lexicon",
+                      ])
                       .optional()
                       .describe(
-                        "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                        "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
                       ),
                   }),
                 )
                 .nullish()
                 .describe(
-                  'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+                  'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+                ),
+              referenceContext: zod
+                .object({
+                  translations: zod.array(
+                    zod.object({
+                      sourceId: zod.string(),
+                      sourceTitle: zod.string(),
+                      sourceAuthor: zod.string(),
+                      sourceUrl: zod.string(),
+                      attribution: zod.string(),
+                      reference: zod.string(),
+                      book: zod.string(),
+                      chapter: zod.number(),
+                      verse: zod.number(),
+                      text: zod.string(),
+                    }),
+                  ),
+                  crossReferences: zod.array(
+                    zod.object({
+                      sourceId: zod.string(),
+                      sourceTitle: zod.string(),
+                      sourceAuthor: zod.string(),
+                      sourceUrl: zod.string(),
+                      attribution: zod.string(),
+                      sourceReference: zod.string(),
+                      targets: zod.array(zod.string()),
+                      note: zod.string().nullish(),
+                    }),
+                  ),
+                  lexicalEntries: zod.array(
+                    zod.object({
+                      sourceId: zod.string(),
+                      sourceTitle: zod.string(),
+                      sourceAuthor: zod.string(),
+                      sourceUrl: zod.string(),
+                      attribution: zod.string(),
+                      key: zod.string(),
+                      term: zod.string(),
+                      strongsNumber: zod.string().nullish(),
+                      originalWord: zod.string(),
+                      transliteration: zod.string(),
+                      language: zod.enum(["Greek", "Hebrew"]),
+                      definition: zod.string(),
+                      references: zod.array(zod.string()),
+                    }),
+                  ),
+                })
+                .describe(
+                  "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+                )
+                .nullish()
+                .describe(
+                  "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
                 ),
             })
             .nullish(),
@@ -1913,16 +1972,75 @@ export const ListSermonsResponseItem = zod.object({
             title: zod.string(),
             author: zod.string().nullish(),
             kind: zod
-              .enum(["public-domain", "library"])
+              .enum([
+                "public-domain",
+                "library",
+                "translation",
+                "cross-reference",
+                "lexicon",
+              ])
               .optional()
               .describe(
-                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
               ),
           }),
         )
         .nullish()
         .describe(
-          'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+          'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+        ),
+      referenceContext: zod
+        .object({
+          translations: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              reference: zod.string(),
+              book: zod.string(),
+              chapter: zod.number(),
+              verse: zod.number(),
+              text: zod.string(),
+            }),
+          ),
+          crossReferences: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              sourceReference: zod.string(),
+              targets: zod.array(zod.string()),
+              note: zod.string().nullish(),
+            }),
+          ),
+          lexicalEntries: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              key: zod.string(),
+              term: zod.string(),
+              strongsNumber: zod.string().nullish(),
+              originalWord: zod.string(),
+              transliteration: zod.string(),
+              language: zod.enum(["Greek", "Hebrew"]),
+              definition: zod.string(),
+              references: zod.array(zod.string()),
+            }),
+          ),
+        })
+        .describe(
+          "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+        )
+        .nullish()
+        .describe(
+          "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
         ),
     })
     .nullish(),
@@ -2166,6 +2284,55 @@ export const PreviewSermonResourcesResponse = zod.object({
     .describe(
       'True when the sermon still has a non-empty attachedResourceIds list and is using legacy (allow-list) library semantics. UI should surface a \"Switch to auto-include\" affordance.',
     ),
+  referenceContext: zod
+    .object({
+      translations: zod.array(
+        zod.object({
+          sourceId: zod.string(),
+          sourceTitle: zod.string(),
+          sourceAuthor: zod.string(),
+          sourceUrl: zod.string(),
+          attribution: zod.string(),
+          reference: zod.string(),
+          book: zod.string(),
+          chapter: zod.number(),
+          verse: zod.number(),
+          text: zod.string(),
+        }),
+      ),
+      crossReferences: zod.array(
+        zod.object({
+          sourceId: zod.string(),
+          sourceTitle: zod.string(),
+          sourceAuthor: zod.string(),
+          sourceUrl: zod.string(),
+          attribution: zod.string(),
+          sourceReference: zod.string(),
+          targets: zod.array(zod.string()),
+          note: zod.string().nullish(),
+        }),
+      ),
+      lexicalEntries: zod.array(
+        zod.object({
+          sourceId: zod.string(),
+          sourceTitle: zod.string(),
+          sourceAuthor: zod.string(),
+          sourceUrl: zod.string(),
+          attribution: zod.string(),
+          key: zod.string(),
+          term: zod.string(),
+          strongsNumber: zod.string().nullish(),
+          originalWord: zod.string(),
+          transliteration: zod.string(),
+          language: zod.enum(["Greek", "Hebrew"]),
+          definition: zod.string(),
+          references: zod.array(zod.string()),
+        }),
+      ),
+    })
+    .describe(
+      "Bounded, source-labeled Bible text, cross-references, and lexical entries available for this passage.",
+    ),
 });
 
 /**
@@ -2255,16 +2422,75 @@ export const GetSermonResponse = zod.object({
             title: zod.string(),
             author: zod.string().nullish(),
             kind: zod
-              .enum(["public-domain", "library"])
+              .enum([
+                "public-domain",
+                "library",
+                "translation",
+                "cross-reference",
+                "lexicon",
+              ])
               .optional()
               .describe(
-                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
               ),
           }),
         )
         .nullish()
         .describe(
-          'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+          'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+        ),
+      referenceContext: zod
+        .object({
+          translations: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              reference: zod.string(),
+              book: zod.string(),
+              chapter: zod.number(),
+              verse: zod.number(),
+              text: zod.string(),
+            }),
+          ),
+          crossReferences: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              sourceReference: zod.string(),
+              targets: zod.array(zod.string()),
+              note: zod.string().nullish(),
+            }),
+          ),
+          lexicalEntries: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              key: zod.string(),
+              term: zod.string(),
+              strongsNumber: zod.string().nullish(),
+              originalWord: zod.string(),
+              transliteration: zod.string(),
+              language: zod.enum(["Greek", "Hebrew"]),
+              definition: zod.string(),
+              references: zod.array(zod.string()),
+            }),
+          ),
+        })
+        .describe(
+          "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+        )
+        .nullish()
+        .describe(
+          "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
         ),
     })
     .nullish(),
@@ -2503,16 +2729,75 @@ export const UpdateSermonBody = zod.object({
             title: zod.string(),
             author: zod.string().nullish(),
             kind: zod
-              .enum(["public-domain", "library"])
+              .enum([
+                "public-domain",
+                "library",
+                "translation",
+                "cross-reference",
+                "lexicon",
+              ])
               .optional()
               .describe(
-                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
               ),
           }),
         )
         .nullish()
         .describe(
-          'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+          'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+        ),
+      referenceContext: zod
+        .object({
+          translations: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              reference: zod.string(),
+              book: zod.string(),
+              chapter: zod.number(),
+              verse: zod.number(),
+              text: zod.string(),
+            }),
+          ),
+          crossReferences: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              sourceReference: zod.string(),
+              targets: zod.array(zod.string()),
+              note: zod.string().nullish(),
+            }),
+          ),
+          lexicalEntries: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              key: zod.string(),
+              term: zod.string(),
+              strongsNumber: zod.string().nullish(),
+              originalWord: zod.string(),
+              transliteration: zod.string(),
+              language: zod.enum(["Greek", "Hebrew"]),
+              definition: zod.string(),
+              references: zod.array(zod.string()),
+            }),
+          ),
+        })
+        .describe(
+          "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+        )
+        .nullish()
+        .describe(
+          "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
         ),
     })
     .nullish(),
@@ -2731,16 +3016,75 @@ export const UpdateSermonResponse = zod.object({
             title: zod.string(),
             author: zod.string().nullish(),
             kind: zod
-              .enum(["public-domain", "library"])
+              .enum([
+                "public-domain",
+                "library",
+                "translation",
+                "cross-reference",
+                "lexicon",
+              ])
               .optional()
               .describe(
-                "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
               ),
           }),
         )
         .nullish()
         .describe(
-          'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+          'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+        ),
+      referenceContext: zod
+        .object({
+          translations: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              reference: zod.string(),
+              book: zod.string(),
+              chapter: zod.number(),
+              verse: zod.number(),
+              text: zod.string(),
+            }),
+          ),
+          crossReferences: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              sourceReference: zod.string(),
+              targets: zod.array(zod.string()),
+              note: zod.string().nullish(),
+            }),
+          ),
+          lexicalEntries: zod.array(
+            zod.object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              key: zod.string(),
+              term: zod.string(),
+              strongsNumber: zod.string().nullish(),
+              originalWord: zod.string(),
+              transliteration: zod.string(),
+              language: zod.enum(["Greek", "Hebrew"]),
+              definition: zod.string(),
+              references: zod.array(zod.string()),
+            }),
+          ),
+        })
+        .describe(
+          "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+        )
+        .nullish()
+        .describe(
+          "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
         ),
     })
     .nullish(),
@@ -3120,6 +3464,12 @@ export const GenerateSermonStudyBody = zod
       .describe(
         "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
       ),
+    referenceTerms: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3188,16 +3538,75 @@ export const GenerateSermonStudyBody = zod
                 title: zod.string(),
                 author: zod.string().nullish(),
                 kind: zod
-                  .enum(["public-domain", "library"])
+                  .enum([
+                    "public-domain",
+                    "library",
+                    "translation",
+                    "cross-reference",
+                    "lexicon",
+                  ])
                   .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                    "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
                   ),
               }),
             )
             .nullish()
             .describe(
-              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+              'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
+          referenceContext: zod
+            .object({
+              translations: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  reference: zod.string(),
+                  book: zod.string(),
+                  chapter: zod.number(),
+                  verse: zod.number(),
+                  text: zod.string(),
+                }),
+              ),
+              crossReferences: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  sourceReference: zod.string(),
+                  targets: zod.array(zod.string()),
+                  note: zod.string().nullish(),
+                }),
+              ),
+              lexicalEntries: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  key: zod.string(),
+                  term: zod.string(),
+                  strongsNumber: zod.string().nullish(),
+                  originalWord: zod.string(),
+                  transliteration: zod.string(),
+                  language: zod.enum(["Greek", "Hebrew"]),
+                  definition: zod.string(),
+                  references: zod.array(zod.string()),
+                }),
+              ),
+            })
+            .describe(
+              "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+            )
+            .nullish()
+            .describe(
+              "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
             ),
         })
         .optional(),
@@ -3262,16 +3671,75 @@ export const GenerateSermonStudyResponse = zod.object({
         title: zod.string(),
         author: zod.string().nullish(),
         kind: zod
-          .enum(["public-domain", "library"])
+          .enum([
+            "public-domain",
+            "library",
+            "translation",
+            "cross-reference",
+            "lexicon",
+          ])
           .optional()
           .describe(
-            "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+            "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
           ),
       }),
     )
     .nullish()
     .describe(
-      'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+      'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+    ),
+  referenceContext: zod
+    .object({
+      translations: zod.array(
+        zod.object({
+          sourceId: zod.string(),
+          sourceTitle: zod.string(),
+          sourceAuthor: zod.string(),
+          sourceUrl: zod.string(),
+          attribution: zod.string(),
+          reference: zod.string(),
+          book: zod.string(),
+          chapter: zod.number(),
+          verse: zod.number(),
+          text: zod.string(),
+        }),
+      ),
+      crossReferences: zod.array(
+        zod.object({
+          sourceId: zod.string(),
+          sourceTitle: zod.string(),
+          sourceAuthor: zod.string(),
+          sourceUrl: zod.string(),
+          attribution: zod.string(),
+          sourceReference: zod.string(),
+          targets: zod.array(zod.string()),
+          note: zod.string().nullish(),
+        }),
+      ),
+      lexicalEntries: zod.array(
+        zod.object({
+          sourceId: zod.string(),
+          sourceTitle: zod.string(),
+          sourceAuthor: zod.string(),
+          sourceUrl: zod.string(),
+          attribution: zod.string(),
+          key: zod.string(),
+          term: zod.string(),
+          strongsNumber: zod.string().nullish(),
+          originalWord: zod.string(),
+          transliteration: zod.string(),
+          language: zod.enum(["Greek", "Hebrew"]),
+          definition: zod.string(),
+          references: zod.array(zod.string()),
+        }),
+      ),
+    })
+    .describe(
+      "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+    )
+    .nullish()
+    .describe(
+      "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
     ),
 });
 
@@ -3341,6 +3809,12 @@ export const GenerateSermonBigIdeaBody = zod
       .describe(
         "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
       ),
+    referenceTerms: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3408,16 +3882,75 @@ export const GenerateSermonBigIdeaBody = zod
                 title: zod.string(),
                 author: zod.string().nullish(),
                 kind: zod
-                  .enum(["public-domain", "library"])
+                  .enum([
+                    "public-domain",
+                    "library",
+                    "translation",
+                    "cross-reference",
+                    "lexicon",
+                  ])
                   .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                    "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
                   ),
               }),
             )
             .nullish()
             .describe(
-              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+              'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
+          referenceContext: zod
+            .object({
+              translations: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  reference: zod.string(),
+                  book: zod.string(),
+                  chapter: zod.number(),
+                  verse: zod.number(),
+                  text: zod.string(),
+                }),
+              ),
+              crossReferences: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  sourceReference: zod.string(),
+                  targets: zod.array(zod.string()),
+                  note: zod.string().nullish(),
+                }),
+              ),
+              lexicalEntries: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  key: zod.string(),
+                  term: zod.string(),
+                  strongsNumber: zod.string().nullish(),
+                  originalWord: zod.string(),
+                  transliteration: zod.string(),
+                  language: zod.enum(["Greek", "Hebrew"]),
+                  definition: zod.string(),
+                  references: zod.array(zod.string()),
+                }),
+              ),
+            })
+            .describe(
+              "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+            )
+            .nullish()
+            .describe(
+              "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
             ),
         })
         .optional(),
@@ -3501,6 +4034,12 @@ export const GenerateSermonOutlineBody = zod
       .describe(
         "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
       ),
+    referenceTerms: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3568,16 +4107,75 @@ export const GenerateSermonOutlineBody = zod
                 title: zod.string(),
                 author: zod.string().nullish(),
                 kind: zod
-                  .enum(["public-domain", "library"])
+                  .enum([
+                    "public-domain",
+                    "library",
+                    "translation",
+                    "cross-reference",
+                    "lexicon",
+                  ])
                   .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                    "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
                   ),
               }),
             )
             .nullish()
             .describe(
-              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+              'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
+          referenceContext: zod
+            .object({
+              translations: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  reference: zod.string(),
+                  book: zod.string(),
+                  chapter: zod.number(),
+                  verse: zod.number(),
+                  text: zod.string(),
+                }),
+              ),
+              crossReferences: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  sourceReference: zod.string(),
+                  targets: zod.array(zod.string()),
+                  note: zod.string().nullish(),
+                }),
+              ),
+              lexicalEntries: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  key: zod.string(),
+                  term: zod.string(),
+                  strongsNumber: zod.string().nullish(),
+                  originalWord: zod.string(),
+                  transliteration: zod.string(),
+                  language: zod.enum(["Greek", "Hebrew"]),
+                  definition: zod.string(),
+                  references: zod.array(zod.string()),
+                }),
+              ),
+            })
+            .describe(
+              "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+            )
+            .nullish()
+            .describe(
+              "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
             ),
         })
         .optional(),
@@ -3687,6 +4285,12 @@ export const GenerateSermonManuscriptBody = zod
       .describe(
         "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
       ),
+    referenceTerms: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3754,16 +4358,75 @@ export const GenerateSermonManuscriptBody = zod
                 title: zod.string(),
                 author: zod.string().nullish(),
                 kind: zod
-                  .enum(["public-domain", "library"])
+                  .enum([
+                    "public-domain",
+                    "library",
+                    "translation",
+                    "cross-reference",
+                    "lexicon",
+                  ])
                   .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                    "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
                   ),
               }),
             )
             .nullish()
             .describe(
-              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+              'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
+          referenceContext: zod
+            .object({
+              translations: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  reference: zod.string(),
+                  book: zod.string(),
+                  chapter: zod.number(),
+                  verse: zod.number(),
+                  text: zod.string(),
+                }),
+              ),
+              crossReferences: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  sourceReference: zod.string(),
+                  targets: zod.array(zod.string()),
+                  note: zod.string().nullish(),
+                }),
+              ),
+              lexicalEntries: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  key: zod.string(),
+                  term: zod.string(),
+                  strongsNumber: zod.string().nullish(),
+                  originalWord: zod.string(),
+                  transliteration: zod.string(),
+                  language: zod.enum(["Greek", "Hebrew"]),
+                  definition: zod.string(),
+                  references: zod.array(zod.string()),
+                }),
+              ),
+            })
+            .describe(
+              "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+            )
+            .nullish()
+            .describe(
+              "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
             ),
         })
         .optional(),
@@ -3866,6 +4529,12 @@ export const GenerateSermonApplicationsBody = zod
       .describe(
         "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
       ),
+    referenceTerms: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -3933,16 +4602,75 @@ export const GenerateSermonApplicationsBody = zod
                 title: zod.string(),
                 author: zod.string().nullish(),
                 kind: zod
-                  .enum(["public-domain", "library"])
+                  .enum([
+                    "public-domain",
+                    "library",
+                    "translation",
+                    "cross-reference",
+                    "lexicon",
+                  ])
                   .optional()
                   .describe(
-                    "Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).",
+                    "Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical\/dictionary source.",
                   ),
               }),
             )
             .nullish()
             .describe(
-              'Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+              'Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a \"Sources consulted\" footer.',
+            ),
+          referenceContext: zod
+            .object({
+              translations: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  reference: zod.string(),
+                  book: zod.string(),
+                  chapter: zod.number(),
+                  verse: zod.number(),
+                  text: zod.string(),
+                }),
+              ),
+              crossReferences: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  sourceReference: zod.string(),
+                  targets: zod.array(zod.string()),
+                  note: zod.string().nullish(),
+                }),
+              ),
+              lexicalEntries: zod.array(
+                zod.object({
+                  sourceId: zod.string(),
+                  sourceTitle: zod.string(),
+                  sourceAuthor: zod.string(),
+                  sourceUrl: zod.string(),
+                  attribution: zod.string(),
+                  key: zod.string(),
+                  term: zod.string(),
+                  strongsNumber: zod.string().nullish(),
+                  originalWord: zod.string(),
+                  transliteration: zod.string(),
+                  language: zod.enum(["Greek", "Hebrew"]),
+                  definition: zod.string(),
+                  references: zod.array(zod.string()),
+                }),
+              ),
+            })
+            .describe(
+              "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+            )
+            .nullish()
+            .describe(
+              "Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.",
             ),
         })
         .optional(),
@@ -4026,6 +4754,12 @@ export const GenerateSermonIllustrationsBody = zod
       .optional()
       .describe(
         "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
+      ),
+    referenceTerms: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.",
       ),
   })
   .describe(
@@ -4136,6 +4870,12 @@ export const GenerateSermonSmallGroupQuestionsBody = zod
       .describe(
         "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
       ),
+    referenceTerms: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.",
+      ),
   })
   .describe(
     "Common shape every sermon-generator request shares so the AI gets the\nsermon's context, the church's context, and any selected resources.\n",
@@ -4244,6 +4984,12 @@ export const GenerateSermonToServiceBody = zod
       .optional()
       .describe(
         "Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.",
+      ),
+    referenceTerms: zod
+      .array(zod.string())
+      .optional()
+      .describe(
+        "Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.",
       ),
   })
   .describe(
@@ -4898,7 +5644,7 @@ export const RequestUploadUrlResponse = zod.object({
 });
 
 /**
- * @summary List bundled public-domain commentary sources and the user's enabled set
+ * @summary List bundled public-domain commentary and Bible reference sources and the user's enabled set
  */
 export const ListScholarlySourcesResponse = zod.object({
   sources: zod
@@ -4926,10 +5672,25 @@ export const ListScholarlySourcesResponse = zod.object({
               "Canonical URL where the underlying public-domain text lives.",
             ),
           description: zod.string(),
+          kind: zod
+            .enum(["commentary", "translation", "cross-reference", "lexicon"])
+            .describe(
+              "The indexed data type. References are kept distinct from chapter commentaries.",
+            ),
+          lookupType: zod
+            .string()
+            .describe(
+              'Human-readable lookup behavior, such as \"verse text\" or \"cross-reference\".',
+            ),
+          attribution: zod
+            .string()
+            .describe(
+              "Attribution text that must remain with any displayed or generated reference context.",
+            ),
           bookCount: zod
             .number()
             .describe(
-              "Number of Bible books this source has commentary data for.",
+              "Number of Bible books represented by this source's indexed data.",
             ),
           scope: zod
             .string()
@@ -4943,7 +5704,7 @@ export const ListScholarlySourcesResponse = zod.object({
             ),
         })
         .describe(
-          "Metadata for a single bundled public-domain commentary source.",
+          "Metadata for a single bundled public-domain commentary or Bible reference source.",
         ),
     )
     .describe("All registered sources, alphabetical by title."),
@@ -4958,6 +5719,71 @@ export const ListScholarlySourcesResponse = zod.object({
       "Curated default selection used when the user has no saved preferences.",
     ),
 });
+
+/**
+ * @summary Look up bounded, source-labeled public-domain Bible references for a passage
+ */
+
+export const LookupBibleReferencesBody = zod.object({
+  passage: zod.string().min(1),
+  secondaryPassages: zod.array(zod.string()).optional(),
+  terms: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      "Optional terms, lexical keys, or Strong's numbers to prioritize.",
+    ),
+});
+
+export const LookupBibleReferencesResponse = zod
+  .object({
+    translations: zod.array(
+      zod.object({
+        sourceId: zod.string(),
+        sourceTitle: zod.string(),
+        sourceAuthor: zod.string(),
+        sourceUrl: zod.string(),
+        attribution: zod.string(),
+        reference: zod.string(),
+        book: zod.string(),
+        chapter: zod.number(),
+        verse: zod.number(),
+        text: zod.string(),
+      }),
+    ),
+    crossReferences: zod.array(
+      zod.object({
+        sourceId: zod.string(),
+        sourceTitle: zod.string(),
+        sourceAuthor: zod.string(),
+        sourceUrl: zod.string(),
+        attribution: zod.string(),
+        sourceReference: zod.string(),
+        targets: zod.array(zod.string()),
+        note: zod.string().nullish(),
+      }),
+    ),
+    lexicalEntries: zod.array(
+      zod.object({
+        sourceId: zod.string(),
+        sourceTitle: zod.string(),
+        sourceAuthor: zod.string(),
+        sourceUrl: zod.string(),
+        attribution: zod.string(),
+        key: zod.string(),
+        term: zod.string(),
+        strongsNumber: zod.string().nullish(),
+        originalWord: zod.string(),
+        transliteration: zod.string(),
+        language: zod.enum(["Greek", "Hebrew"]),
+        definition: zod.string(),
+        references: zod.array(zod.string()),
+      }),
+    ),
+  })
+  .describe(
+    "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
+  );
 
 /**
  * @summary Update which scholarly sources the Sermon Builder consults for this user
@@ -4996,10 +5822,25 @@ export const UpdateScholarlySourcePreferencesResponse = zod.object({
               "Canonical URL where the underlying public-domain text lives.",
             ),
           description: zod.string(),
+          kind: zod
+            .enum(["commentary", "translation", "cross-reference", "lexicon"])
+            .describe(
+              "The indexed data type. References are kept distinct from chapter commentaries.",
+            ),
+          lookupType: zod
+            .string()
+            .describe(
+              'Human-readable lookup behavior, such as \"verse text\" or \"cross-reference\".',
+            ),
+          attribution: zod
+            .string()
+            .describe(
+              "Attribution text that must remain with any displayed or generated reference context.",
+            ),
           bookCount: zod
             .number()
             .describe(
-              "Number of Bible books this source has commentary data for.",
+              "Number of Bible books represented by this source's indexed data.",
             ),
           scope: zod
             .string()
@@ -5013,7 +5854,7 @@ export const UpdateScholarlySourcePreferencesResponse = zod.object({
             ),
         })
         .describe(
-          "Metadata for a single bundled public-domain commentary source.",
+          "Metadata for a single bundled public-domain commentary or Bible reference source.",
         ),
     )
     .describe("All registered sources, alphabetical by title."),

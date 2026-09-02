@@ -5,9 +5,10 @@
  * Sunday Studio API
  * OpenAPI spec version: 0.1.0
  */
+import type { ScholarlySourceManifestKind } from "./scholarlySourceManifestKind";
 
 /**
- * Metadata for a single bundled public-domain commentary source.
+ * Metadata for a single bundled public-domain commentary or Bible reference source.
  */
 export interface ScholarlySourceManifest {
   /** Stable opaque identifier (also the directory name on disk). */
@@ -21,7 +22,13 @@ export interface ScholarlySourceManifest {
   /** Canonical URL where the underlying public-domain text lives. */
   sourceUrl: string;
   description: string;
-  /** Number of Bible books this source has commentary data for. */
+  /** The indexed data type. References are kept distinct from chapter commentaries. */
+  kind: ScholarlySourceManifestKind;
+  /** Human-readable lookup behavior, such as "verse text" or "cross-reference". */
+  lookupType: string;
+  /** Attribution text that must remain with any displayed or generated reference context. */
+  attribution: string;
+  /** Number of Bible books represented by this source's indexed data. */
   bookCount: number;
   /** Human-readable coverage summary derived from the corpus. Examples: "Whole Bible", "New Testament", "39 books", "Psalms only".
    */

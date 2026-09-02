@@ -1152,7 +1152,11 @@ export default function SermonBuilder() {
                 </div>
                 {(() => {
                   const totalIncluded =
-                    (preview?.publicDomain.length ?? 0) + (preview?.library.length ?? 0);
+                    (preview?.publicDomain.length ?? 0) +
+                    (preview?.library.length ?? 0) +
+                    (preview?.referenceContext.translations.length ?? 0) +
+                    (preview?.referenceContext.crossReferences.length ?? 0) +
+                    (preview?.referenceContext.lexicalEntries.length ?? 0);
                   const hasAnyExcluded =
                     previewExcluded.publicDomain.length > 0 || previewExcluded.library.length > 0;
                   if (!form.passage.trim()) {
@@ -1217,6 +1221,31 @@ export default function SermonBuilder() {
                               </div>
                             </label>
                           ))}
+                          {(preview.referenceContext.translations.length > 0 ||
+                            preview.referenceContext.crossReferences.length > 0 ||
+                            preview.referenceContext.lexicalEntries.length > 0) && (
+                            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)] bg-white border-b" style={{ borderColor: 'var(--worship-border)' }}>
+                              Bible references
+                            </div>
+                          )}
+                          {preview.referenceContext.translations.map((hit) => (
+                            <div key={`translation-${hit.sourceId}-${hit.reference}`} className="px-3 py-2 text-xs border-b" style={{ borderColor: 'var(--worship-border)' }}>
+                              <div className="font-semibold text-[var(--worship-navy)] truncate">Bible text · {hit.sourceTitle}</div>
+                              <div className="text-[10px] text-[var(--worship-slate)] truncate">{hit.reference} · {hit.attribution}</div>
+                            </div>
+                          ))}
+                          {preview.referenceContext.crossReferences.map((hit, i) => (
+                            <div key={`cross-${hit.sourceId}-${hit.sourceReference}-${i}`} className="px-3 py-2 text-xs border-b" style={{ borderColor: 'var(--worship-border)' }}>
+                              <div className="font-semibold text-[var(--worship-navy)] truncate">Cross-reference · {hit.sourceTitle}</div>
+                              <div className="text-[10px] text-[var(--worship-slate)] truncate">{hit.sourceReference} → {hit.targets.join(', ')}</div>
+                            </div>
+                          ))}
+                          {preview.referenceContext.lexicalEntries.map((hit) => (
+                            <div key={`lexicon-${hit.sourceId}-${hit.key}`} className="px-3 py-2 text-xs border-b" style={{ borderColor: 'var(--worship-border)' }}>
+                              <div className="font-semibold text-[var(--worship-navy)] truncate">Dictionary / lexicon · {hit.sourceTitle}</div>
+                              <div className="text-[10px] text-[var(--worship-slate)] truncate">{hit.term} · {hit.attribution}</div>
+                            </div>
+                          ))}
                           {previewExcluded.publicDomain.map((p) => (
                             <label key={`pd-ex-${p.sourceId}`} className="flex items-start gap-2 px-3 py-2 text-xs border-b last:border-b-0 opacity-60 cursor-pointer hover:opacity-100 hover:bg-white" style={{ borderColor: 'var(--worship-border)' }}>
                               <input
@@ -1272,7 +1301,7 @@ export default function SermonBuilder() {
                       </details>
                       {totalIncluded === 0 && !hasAnyExcluded && (
                         <p className="text-[11px] text-[var(--worship-muted-slate)] italic">
-                          Nothing matches this sermon's passages yet. Add commentary excerpts in Sermon Resources, or enable more public-domain sources in Settings.
+                          Nothing matches this sermon's passages yet. Add resources in Sermon Resources, or enable more public-domain sources in Settings.
                         </p>
                       )}
                     </div>
@@ -2348,7 +2377,13 @@ function StudyView({
           )}
         </div>
       )}
-      {(editing || data.resourceInsights || (data.consultedSources && data.consultedSources.length > 0)) && (
+      {(editing ||
+        data.resourceInsights ||
+        (data.consultedSources && data.consultedSources.length > 0) ||
+        (data.referenceContext &&
+          (data.referenceContext.translations.length > 0 ||
+            data.referenceContext.crossReferences.length > 0 ||
+            data.referenceContext.lexicalEntries.length > 0))) && (
         <div className="p-3 rounded-xl border bg-[var(--worship-pale-gold)]/40" style={{ borderColor: 'var(--worship-border)' }}>
           <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--worship-gold)] mb-2">Sources consulted</h4>
           {(editing || data.resourceInsights) && (
@@ -2395,6 +2430,38 @@ function StudyView({
               </div>
             );
           })()}
+          {data.referenceContext &&
+            (data.referenceContext.translations.length > 0 ||
+              data.referenceContext.crossReferences.length > 0 ||
+              data.referenceContext.lexicalEntries.length > 0) && (
+              <div className="mt-3 pt-3 border-t border-[var(--worship-border)]">
+                <p className="text-[11px] uppercase tracking-wider text-[var(--worship-slate)] font-semibold mb-1.5">
+                  Bible references used for study · not your selected translation
+                </p>
+                <ul className="space-y-1">
+                  {data.referenceContext.translations.map((hit) => (
+                    <li key={`study-translation-${hit.sourceId}-${hit.reference}`} className="text-xs text-[var(--worship-charcoal)]">
+                      <span className="font-medium text-[var(--worship-navy)]">Bible text · {hit.sourceTitle}</span>
+                      <span className="text-[var(--worship-slate)]"> · {hit.reference} · {hit.attribution} · </span>
+                      <a className="underline text-[var(--worship-navy)]" href={hit.sourceUrl} target="_blank" rel="noreferrer noopener">source</a>
+                      <p className="mt-1 text-[var(--worship-charcoal)] leading-relaxed">{hit.text}</p>
+                    </li>
+                  ))}
+                  {data.referenceContext.crossReferences.map((hit, i) => (
+                    <li key={`study-cross-${hit.sourceId}-${hit.sourceReference}-${i}`} className="text-xs text-[var(--worship-charcoal)]">
+                      <span className="font-medium text-[var(--worship-navy)]">Cross-reference · {hit.sourceTitle}</span>
+                      <span className="text-[var(--worship-slate)]"> · {hit.sourceReference} → {hit.targets.join(', ')}</span>
+                    </li>
+                  ))}
+                  {data.referenceContext.lexicalEntries.map((hit) => (
+                    <li key={`study-lexicon-${hit.sourceId}-${hit.key}`} className="text-xs text-[var(--worship-charcoal)]">
+                      <span className="font-medium text-[var(--worship-navy)]">Dictionary / lexicon · {hit.sourceTitle}</span>
+                      <span className="text-[var(--worship-slate)]"> · {hit.term} · {hit.attribution}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           <p className="mt-2 text-[11px] text-[var(--worship-slate)]">
             Auto-pulled from your <Link href="/resources" className="underline">Sermon Resources</Link> (rows whose passage matches) plus public-domain commentaries you've enabled in <Link href="/resources#commentaries" className="underline">Settings</Link>.
           </p>

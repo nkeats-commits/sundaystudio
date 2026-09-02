@@ -40,4 +40,6 @@ export interface SermonContextBlurb {
   excludedSourceIds?: string[];
   /** Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them. */
   attachedResourceIds?: number[];
+  /** Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups. */
+  referenceTerms?: string[];
 }

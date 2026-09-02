@@ -37,6 +37,7 @@ import {
   lookupCommentary,
   parsePassageRef,
 } from "./scholarlySources";
+import { isRegisteredReferenceSource, lookupReferenceBundle, REFERENCE_BUNDLE_BUDGET_CHARS, type ReferenceBundle } from "./referenceSources";
 
 export interface MergeableSermonContext {
   passage: string;
@@ -53,6 +54,10 @@ export interface MergeableSermonContext {
    */
   attachedResourceIds?: number[];
   resources?: { title: string; author?: string; excerpt: string }[];
+  /** Optional lexical keys/terms to prioritize in the reference bundle. */
+  referenceTerms?: string[];
+  /** Server-derived, bounded reference context; clients cannot inject it. */
+  referenceContext?: ReferenceBundle;
 }
 
 /**
@@ -66,12 +71,13 @@ export interface ConsultedSource {
   id: string;
   title: string;
   author?: string;
-  kind: "public-domain" | "library";
+  kind: "public-domain" | "library" | "translation" | "cross-reference" | "lexicon";
 }
 
 export interface MergeResult {
   count: number;
   consultedSources: ConsultedSource[];
+  referenceContext: ReferenceBundle;
 }
 
 /**
@@ -87,9 +93,9 @@ export async function getEnabledSourceIds(userId: string): Promise<string[]> {
     .from(userSourcePreferencesTable)
     .where(eq(userSourcePreferencesTable.userId, userId))
     .limit(1);
-  if (row) return row.enabledSourceIds.filter(isRegisteredSource);
+  if (row) return row.enabledSourceIds.filter((id) => isRegisteredSource(id) || isRegisteredReferenceSource(id));
 
-  const seeded = DEFAULT_ENABLED_SOURCE_IDS.filter(isRegisteredSource);
+  const seeded = DEFAULT_ENABLED_SOURCE_IDS.filter((id) => isRegisteredSource(id) || isRegisteredReferenceSource(id));
   await db
     .insert(userSourcePreferencesTable)
     .values({ userId, enabledSourceIds: seeded })
@@ -179,7 +185,15 @@ export async function mergeScholarlyResources(
   // lookupCommentary enforces a single total-character budget across all
   // sources (TOTAL_COMMENTARY_BUDGET_CHARS), so prompt size stays bounded
   // regardless of how many sources the pastor has enabled.
-  const pdHits = enabled.length ? lookupCommentary(enabled, passages) : [];
+  const commentaryIds = enabled.filter(isRegisteredSource);
+  const pdHits = commentaryIds.length ? lookupCommentary(commentaryIds, passages) : [];
+  const referenceContext = lookupReferenceBundle(
+    enabled,
+    passages,
+    ctx.referenceTerms ?? [],
+    REFERENCE_BUNDLE_BUDGET_CHARS,
+  );
+  ctx.referenceContext = referenceContext;
   const pdInjected = pdHits.map((h) => {
     const bookDisplay = h.bookCanonical
       .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -256,6 +270,21 @@ export async function mergeScholarlyResources(
       kind: "public-domain",
     });
   }
+  const referenceSources = [
+    ...referenceContext.translations,
+    ...referenceContext.crossReferences,
+    ...referenceContext.lexicalEntries,
+  ];
+  for (const ref of referenceSources) {
+    const kind = referenceContext.translations.includes(ref as typeof referenceContext.translations[number])
+      ? "translation"
+      : referenceContext.crossReferences.includes(ref as typeof referenceContext.crossReferences[number])
+        ? "cross-reference"
+        : "lexicon";
+    if (seenSources.has(ref.sourceId)) continue;
+    seenSources.add(ref.sourceId);
+    consultedSources.push({ id: ref.sourceId, title: ref.sourceTitle, author: ref.sourceAuthor, kind });
+  }
   for (const r of matchedLibrary) {
     consultedSources.push({
       id: `library:${r.id}`,
@@ -268,6 +297,7 @@ export async function mergeScholarlyResources(
   return {
     count: pdInjected.length + libInjected.length,
     consultedSources,
+    referenceContext,
   };
 }
 
@@ -296,6 +326,7 @@ export interface PreviewResult {
   publicDomain: PreviewPublicDomainHit[];
   library: PreviewLibraryHit[];
   legacyMode: boolean;
+  referenceContext: ReferenceBundle;
 }
 
 /**
@@ -337,7 +368,14 @@ export async function previewSermonResources(
   const enabled = enabledRaw.filter((id) => !excludedSources.has(id));
   // Use the same default budget as the merge path so the preview accurately
   // reflects which sources will actually contribute to the prompt.
-  const pdHits = enabled.length ? lookupCommentary(enabled, passages) : [];
+  const commentaryIds = enabled.filter(isRegisteredSource);
+  const pdHits = commentaryIds.length ? lookupCommentary(commentaryIds, passages) : [];
+  const referenceContext = lookupReferenceBundle(
+    enabled,
+    passages,
+    ctx.referenceTerms ?? [],
+    REFERENCE_BUNDLE_BUDGET_CHARS,
+  );
   const sourceMeta = new Map(
     listRegisteredSources().map((s) => [s.id, s] as const),
   );
@@ -415,5 +453,5 @@ export async function previewSermonResources(
     });
   }
 
-  return { publicDomain, library, legacyMode: legacy };
+  return { publicDomain, library, legacyMode: legacy, referenceContext };
 }

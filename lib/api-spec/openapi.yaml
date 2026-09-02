@@ -2057,7 +2057,7 @@ paths:
   /sources:
     get:
       operationId: listScholarlySources
-      summary: List bundled public-domain commentary sources and the user's enabled set
+      summary: List bundled public-domain commentary and Bible reference sources and the user's enabled set
       tags: [sources]
       responses:
         "200":
@@ -2066,6 +2066,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SourcesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sources/lookup:
+    post:
+      operationId: lookupBibleReferences
+      summary: Look up bounded, source-labeled public-domain Bible references for a passage
+      tags: [sources]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferenceLookupBody"
+      responses:
+        "200":
+          description: Bounded reference results from the user's enabled collections
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferenceBundle"
+        "400":
+          description: Invalid passage lookup request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -3992,9 +4019,14 @@ components:
         consultedSources:
           type: array
           nullable: true
-          description: Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer.
+          description: Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer.
           items:
             $ref: "#/components/schemas/ConsultedScholarlySource"
+        referenceContext:
+          allOf:
+            - $ref: "#/components/schemas/ReferenceBundle"
+          nullable: true
+          description: Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version.
 
     ConsultedScholarlySource:
       type: object
@@ -4009,8 +4041,8 @@ components:
           nullable: true
         kind:
           type: string
-          enum: [public-domain, library]
-          description: Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).
+          enum: [public-domain, library, translation, cross-reference, lexicon]
+          description: Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical/dictionary source.
       required: [id, title]
 
     SermonBigIdeaOption:
@@ -4573,7 +4605,10 @@ components:
         legacyMode:
           type: boolean
           description: True when the sermon still has a non-empty attachedResourceIds list and is using legacy (allow-list) library semantics. UI should surface a "Switch to auto-include" affordance.
-      required: [publicDomain, library, legacyMode]
+        referenceContext:
+          $ref: "#/components/schemas/ReferenceBundle"
+          description: Bounded, source-labeled Bible text, cross-references, and lexical entries available for this passage.
+      required: [publicDomain, library, legacyMode, referenceContext]
 
     PreviewPublicDomainHit:
       type: object
@@ -4607,6 +4642,80 @@ components:
           type: boolean
           description: True when this row matched because relatedPassage is empty (pastor-flagged as broadly relevant), false when it matched on (book, chapter) overlap.
       required: [id, title, relatedPassage, alwaysRelevant]
+
+    ReferenceBundle:
+      type: object
+      description: Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.
+      properties:
+        translations:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranslationReferenceHit"
+        crossReferences:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrossReferenceHit"
+        lexicalEntries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LexicalReferenceHit"
+      required: [translations, crossReferences, lexicalEntries]
+
+    TranslationReferenceHit:
+      type: object
+      properties:
+        sourceId: { type: string }
+        sourceTitle: { type: string }
+        sourceAuthor: { type: string }
+        sourceUrl: { type: string }
+        attribution: { type: string }
+        reference: { type: string }
+        book: { type: string }
+        chapter: { type: integer }
+        verse: { type: integer }
+        text: { type: string }
+      required: [sourceId, sourceTitle, sourceAuthor, sourceUrl, attribution, reference, book, chapter, verse, text]
+
+    CrossReferenceHit:
+      type: object
+      properties:
+        sourceId: { type: string }
+        sourceTitle: { type: string }
+        sourceAuthor: { type: string }
+        sourceUrl: { type: string }
+        attribution: { type: string }
+        sourceReference: { type: string }
+        targets:
+          type: array
+          items: { type: string }
+        note:
+          type: string
+          nullable: true
+      required: [sourceId, sourceTitle, sourceAuthor, sourceUrl, attribution, sourceReference, targets]
+
+    LexicalReferenceHit:
+      type: object
+      properties:
+        sourceId: { type: string }
+        sourceTitle: { type: string }
+        sourceAuthor: { type: string }
+        sourceUrl: { type: string }
+        attribution: { type: string }
+        key: { type: string }
+        term: { type: string }
+        strongsNumber:
+          type: string
+          nullable: true
+        originalWord: { type: string }
+        transliteration: { type: string }
+        language:
+          type: string
+          enum: [Greek, Hebrew]
+        definition: { type: string }
+        references:
+          type: array
+          items: { type: string }
+      required: [sourceId, sourceTitle, sourceAuthor, sourceUrl, attribution, key, term, originalWord, transliteration, language, definition, references]
 
     SermonSectionHashes:
       type: object
@@ -4987,6 +5096,11 @@ components:
           description: Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them.
           items:
             type: integer
+        referenceTerms:
+          type: array
+          description: Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups.
+          items:
+            type: string
       required: [passage]
 
     GenerateSermonStudyBody:
@@ -5093,8 +5207,8 @@ components:
 
     ScholarlySourceManifest:
       type: object
-      description: Metadata for a single bundled public-domain commentary source.
-      required: [id, title, author, year, license, sourceUrl, description, bookCount, scope, coveredBooks]
+      description: Metadata for a single bundled public-domain commentary or Bible reference source.
+      required: [id, title, author, year, license, sourceUrl, description, kind, lookupType, attribution, bookCount, scope, coveredBooks]
       properties:
         id:
           type: string
@@ -5114,9 +5228,19 @@ components:
           description: Canonical URL where the underlying public-domain text lives.
         description:
           type: string
+        kind:
+          type: string
+          enum: [commentary, translation, cross-reference, lexicon]
+          description: The indexed data type. References are kept distinct from chapter commentaries.
+        lookupType:
+          type: string
+          description: Human-readable lookup behavior, such as "verse text" or "cross-reference".
+        attribution:
+          type: string
+          description: Attribution text that must remain with any displayed or generated reference context.
         bookCount:
           type: integer
-          description: Number of Bible books this source has commentary data for.
+          description: Number of Bible books represented by this source's indexed data.
         scope:
           type: string
           description: >
@@ -5157,5 +5281,22 @@ components:
         enabledSourceIds:
           type: array
           description: Full replacement list of enabled source ids. Empty array disables all sources.
+          items:
+            type: string
+
+    ReferenceLookupBody:
+      type: object
+      required: [passage]
+      properties:
+        passage:
+          type: string
+          minLength: 1
+        secondaryPassages:
+          type: array
+          items:
+            type: string
+        terms:
+          type: array
+          description: Optional terms, lexical keys, or Strong's numbers to prioritize.
           items:
             type: string

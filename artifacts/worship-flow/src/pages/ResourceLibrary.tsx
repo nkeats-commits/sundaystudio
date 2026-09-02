@@ -10,11 +10,13 @@ import {
   useDeleteSermonResource,
   useListScholarlySources,
   useUpdateScholarlySourcePreferences,
+  useLookupBibleReferences,
   getListSermonResourcesQueryKey,
   getListScholarlySourcesQueryKey,
   type SermonResource,
   type ScholarlySourceManifest,
   type SourcesResponse,
+  type ReferenceBundle,
 } from '@workspace/api-client-react';
 import { toast } from 'sonner';
 import {
@@ -106,6 +108,7 @@ export default function ResourceLibrary() {
 
   const sources = useListScholarlySources();
   const updateSources = useUpdateScholarlySourcePreferences();
+  const lookupReferences = useLookupBibleReferences();
   const qc = useQueryClient();
   const { getToken } = useAuth();
 
@@ -113,6 +116,10 @@ export default function ResourceLibrary() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(blankDraft());
   const [addCommentaryOpen, setAddCommentaryOpen] = useState(false);
+  const [addReferenceOpen, setAddReferenceOpen] = useState(false);
+  const [referencePassage, setReferencePassage] = useState('');
+  const [referenceTerms, setReferenceTerms] = useState('');
+  const [referencePreview, setReferencePreview] = useState<ReferenceBundle | null>(null);
 
   // Loading states for the two utility actions
   const [extracting, setExtracting] = useState(false);
@@ -167,9 +174,15 @@ export default function ResourceLibrary() {
   const addedCommentaries: ScholarlySourceManifest[] = useMemo(() => {
     if (!sources.data) return [];
     const enabled = new Set(sources.data.enabledSourceIds);
-    return sources.data.sources.filter((s) => enabled.has(s.id));
+    return sources.data.sources.filter((s) => enabled.has(s.id) && s.kind === 'commentary');
   }, [sources.data]);
-  const totalCommentaries = sources.data?.sources.length ?? 0;
+  const addedReferences: ScholarlySourceManifest[] = useMemo(() => {
+    if (!sources.data) return [];
+    const enabled = new Set(sources.data.enabledSourceIds);
+    return sources.data.sources.filter((s) => enabled.has(s.id) && s.kind !== 'commentary');
+  }, [sources.data]);
+  const totalCommentaries = sources.data?.sources.filter((s) => s.kind === 'commentary').length ?? 0;
+  const totalReferences = sources.data?.sources.filter((s) => s.kind !== 'commentary').length ?? 0;
 
   const filteredSaved = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -189,8 +202,36 @@ export default function ResourceLibrary() {
       return hay.includes(q);
     });
   }, [addedCommentaries, search]);
+  const filteredReferences = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return addedReferences;
+    return addedReferences.filter((s) => {
+      const hay = [s.title, s.author, s.year, s.description, s.license, s.lookupType].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }, [addedReferences, search]);
 
-  const totalRows = filteredSaved.length + filteredCommentaries.length;
+  const totalRows = filteredSaved.length + filteredCommentaries.length + filteredReferences.length;
+
+  const previewReferences = () => {
+    const passage = referencePassage.trim();
+    if (!passage) {
+      toast.error('Enter a passage to preview.');
+      return;
+    }
+    lookupReferences.mutate(
+      {
+        data: {
+          passage,
+          terms: referenceTerms.split(',').map((term) => term.trim()).filter(Boolean),
+        },
+      },
+      {
+        onSuccess: setReferencePreview,
+        onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not preview references.'),
+      },
+    );
+  };
 
   const openNew = () => {
     setDraft(blankDraft());
@@ -375,7 +416,7 @@ export default function ResourceLibrary() {
         <div className="mb-8">
           <h1 className="text-3xl font-serif text-[var(--worship-navy)]">Sermon Resources</h1>
           <p className="text-sm mt-1 text-[var(--worship-slate)] max-w-2xl">
-            Everything the Sermon Builder is allowed to quote on your behalf, with attribution. Add bundled public-domain commentaries below, and save your own commentary excerpts, articles, and sermons.
+            Everything the Sermon Builder is allowed to consult on your behalf, with attribution. Add public-domain commentaries, Bible references, or save your own excerpts, articles, and sermons.
           </p>
         </div>
 
@@ -408,6 +449,113 @@ export default function ResourceLibrary() {
             >
               <Plus className="w-4 h-4" /> Add commentary
             </button>
+          </div>
+        </section>
+
+        <section id="bible-references" className="mb-10 scroll-mt-24">
+          <div className="worship-card">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0">
+                <BookOpen className="w-5 h-5 text-[var(--worship-gold)] shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <h2 className="text-lg font-serif text-[var(--worship-navy)]">Bible references</h2>
+                  <p className="text-xs text-[var(--worship-slate)] mt-1 max-w-2xl">
+                    Public-domain translations, Treasury cross-references, and dictionary/lexicon entries. Each result keeps its source, license, and lookup type visible; these references never replace your chosen Bible version.
+                    {' '}
+                    {sources.data ? <span className="font-medium text-[var(--worship-navy)]">{addedReferences.length} of {totalReferences} enabled.</span> : null}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAddReferenceOpen(true)}
+                disabled={updateSources.isPending}
+                className="worship-btn-primary px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 self-start md:self-auto shrink-0 disabled:opacity-60"
+              >
+                <Plus className="w-4 h-4" /> Add Bible references
+              </button>
+            </div>
+
+            <div className="mt-5 pt-5 border-t" style={{ borderColor: 'var(--worship-border)' }}>
+              {filteredReferences.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                  {filteredReferences.map((s) => (
+                    <div key={`reference-${s.id}`} className="rounded-lg border p-3" style={{ borderColor: 'var(--worship-border)' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-[var(--worship-gold)] font-bold">
+                            {s.kind} · enabled
+                          </div>
+                          <h3 className="font-serif text-base text-[var(--worship-navy)] truncate">{s.title}</h3>
+                        </div>
+                        <CoverageBadge source={s} />
+                      </div>
+                      <p className="text-xs text-[var(--worship-slate)] mt-1">{s.author} · {s.year} · {s.lookupType}</p>
+                      <p className="text-xs text-[var(--worship-slate)] mt-1">{s.scope}</p>
+                      <a href={s.sourceUrl} target="_blank" rel="noreferrer noopener" className="text-xs text-[var(--worship-gold)] underline mt-2 inline-block">
+                        Provenance · {s.license}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2 mb-3">
+                <Search className="w-4 h-4 text-[var(--worship-muted-slate)]" />
+                <h3 className="text-sm font-semibold text-[var(--worship-navy)]">Preview a passage or word</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
+                <input
+                  value={referencePassage}
+                  onChange={(e) => setReferencePassage(e.target.value)}
+                  placeholder="Passage, e.g. John 3:16"
+                  className="px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                />
+                <input
+                  value={referenceTerms}
+                  onChange={(e) => setReferenceTerms(e.target.value)}
+                  placeholder="Optional terms or Strong's numbers"
+                  className="px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]"
+                  style={{ borderColor: 'var(--worship-border)' }}
+                />
+                <button
+                  onClick={previewReferences}
+                  disabled={lookupReferences.isPending}
+                  className="worship-btn-gold px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                >
+                  {lookupReferences.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Preview'}
+                </button>
+              </div>
+              {referencePreview && (
+                <div className="mt-4 space-y-3">
+                  {referencePreview.translations.map((hit) => (
+                    <div key={`${hit.sourceId}-${hit.reference}`} className="rounded-lg bg-[var(--worship-cream)] p-3 text-sm">
+                      <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)]">Bible text · {hit.sourceTitle}</div>
+                      <div className="font-semibold text-[var(--worship-navy)] mt-1">{hit.reference}</div>
+                      <p className="text-[var(--worship-charcoal)] mt-1">{hit.text}</p>
+                      <div className="text-[10px] text-[var(--worship-slate)] mt-1">{hit.attribution} · <a className="underline" href={hit.sourceUrl} target="_blank" rel="noreferrer noopener">source</a></div>
+                    </div>
+                  ))}
+                  {referencePreview.crossReferences.map((hit, i) => (
+                    <div key={`${hit.sourceId}-${hit.sourceReference}-${i}`} className="rounded-lg bg-[var(--worship-cream)] p-3 text-sm">
+                      <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)]">Cross-reference · {hit.sourceTitle}</div>
+                      <div className="text-[var(--worship-navy)] mt-1">{hit.sourceReference} → {hit.targets.join(', ')}</div>
+                      {hit.note && <p className="text-xs text-[var(--worship-slate)] mt-1">{hit.note}</p>}
+                    </div>
+                  ))}
+                  {referencePreview.lexicalEntries.map((hit) => (
+                    <div key={`${hit.sourceId}-${hit.key}`} className="rounded-lg bg-[var(--worship-cream)] p-3 text-sm">
+                      <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)]">Dictionary / lexicon · {hit.sourceTitle}</div>
+                      <div className="font-semibold text-[var(--worship-navy)] mt-1">{hit.term} · {hit.originalWord}</div>
+                      <p className="text-[var(--worship-charcoal)] mt-1">{hit.definition}</p>
+                      <div className="text-[10px] text-[var(--worship-slate)] mt-1">{hit.attribution} · <a className="underline" href={hit.sourceUrl} target="_blank" rel="noreferrer noopener">source</a></div>
+                    </div>
+                  ))}
+                  {referencePreview.translations.length === 0 && referencePreview.crossReferences.length === 0 && referencePreview.lexicalEntries.length === 0 && (
+                    <p className="text-xs text-[var(--worship-slate)] italic">No enabled reference collection matched that lookup.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -551,6 +699,11 @@ export default function ResourceLibrary() {
       <AddCommentaryModal
         open={addCommentaryOpen}
         onClose={() => setAddCommentaryOpen(false)}
+      />
+      <AddCommentaryModal
+        open={addReferenceOpen}
+        onClose={() => setAddReferenceOpen(false)}
+        filterKind="reference"
       />
 
       {editorOpen && (

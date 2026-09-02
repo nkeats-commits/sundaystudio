@@ -1,6 +1,7 @@
 /**
- * Scholarly Sources API — list bundled public-domain commentaries and let
- * the user toggle which ones the Sermon Builder consults.
+ * Scholarly Sources API — list bundled public-domain commentaries and Bible
+ * reference collections and let the user toggle which ones the Sermon Builder
+ * consults.
  *
  * The actual commentary content is server-only. Clients receive only the
  * registry (id + metadata) and the user's enabled-id list.
@@ -8,16 +9,23 @@
 import { Router, type IRouter } from "express";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, userSourcePreferencesTable, usersTable } from "@workspace/db";
-import { UpdateScholarlySourcePreferencesBody } from "@workspace/api-zod";
+import {
+  LookupBibleReferencesBody,
+  UpdateScholarlySourcePreferencesBody,
+} from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { trackEvent } from "../lib/emailClient";
 import { EVENTS } from "../lib/eventRegistry";
 import {
   DEFAULT_ENABLED_SOURCE_IDS,
-  assertAllRegistered,
   isRegisteredSource,
   listRegisteredSources,
 } from "../lib/scholarlySources";
+import {
+  isRegisteredReferenceSource,
+  lookupReferenceBundle,
+  listRegisteredReferenceSources,
+} from "../lib/referenceSources";
 import { getEnabledSourceIds } from "../lib/scholarlyMerge";
 
 const router: IRouter = Router();
@@ -25,10 +33,24 @@ const router: IRouter = Router();
 router.get("/sources", requireAuth, async (req, res) => {
   const enabled = await getEnabledSourceIds(req.userId!);
   res.json({
-    sources: listRegisteredSources(),
+    sources: [...listRegisteredSources(), ...listRegisteredReferenceSources()]
+      .sort((a, b) => a.title.localeCompare(b.title)),
     enabledSourceIds: enabled,
-    defaults: DEFAULT_ENABLED_SOURCE_IDS.filter(isRegisteredSource),
+    defaults: DEFAULT_ENABLED_SOURCE_IDS.filter(
+      (id) => isRegisteredSource(id) || isRegisteredReferenceSource(id),
+    ),
   });
+});
+
+router.post("/sources/lookup", requireAuth, async (req, res) => {
+  const parsed = LookupBibleReferencesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const enabled = await getEnabledSourceIds(req.userId!);
+  const passages = [parsed.data.passage, ...(parsed.data.secondaryPassages ?? [])];
+  res.json(lookupReferenceBundle(enabled, passages, parsed.data.terms ?? []));
 });
 
 router.put("/sources/preferences", requireAuth, async (req, res) => {
@@ -40,12 +62,13 @@ router.put("/sources/preferences", requireAuth, async (req, res) => {
   // Dedupe + drop unknown ids gracefully on the validation pass; reject hard
   // if the client sent an obvious typo so they notice.
   const ids = Array.from(new Set(parsed.data.enabledSourceIds));
-  try {
-    assertAllRegistered(ids);
-  } catch (err) {
+  const unknownId = ids.find(
+    (id) => !isRegisteredSource(id) && !isRegisteredReferenceSource(id),
+  );
+  if (unknownId) {
     res
       .status(400)
-      .json({ error: err instanceof Error ? err.message : "Invalid source id" });
+      .json({ error: `Unknown source id: ${unknownId}` });
     return;
   }
   // Capture previous enabled count BEFORE the upsert so we can detect a true
@@ -73,9 +96,12 @@ router.put("/sources/preferences", requireAuth, async (req, res) => {
       },
     });
   res.json({
-    sources: listRegisteredSources(),
+    sources: [...listRegisteredSources(), ...listRegisteredReferenceSources()]
+      .sort((a, b) => a.title.localeCompare(b.title)),
     enabledSourceIds: ids,
-    defaults: DEFAULT_ENABLED_SOURCE_IDS.filter(isRegisteredSource),
+    defaults: DEFAULT_ENABLED_SOURCE_IDS.filter(
+      (id) => isRegisteredSource(id) || isRegisteredReferenceSource(id),
+    ),
   });
 
   // Fire scholarly_sources_enabled only on the first true enablement transition:

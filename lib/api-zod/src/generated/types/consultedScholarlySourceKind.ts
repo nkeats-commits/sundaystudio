@@ -7,7 +7,7 @@
  */
 
 /**
- * Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).
+ * Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical/dictionary source.
  */
 export type ConsultedScholarlySourceKind =
   (typeof ConsultedScholarlySourceKind)[keyof typeof ConsultedScholarlySourceKind];
@@ -15,4 +15,7 @@ export type ConsultedScholarlySourceKind =
 export const ConsultedScholarlySourceKind = {
   "public-domain": "public-domain",
   library: "library",
+  translation: "translation",
+  "cross-reference": "cross-reference",
+  lexicon: "lexicon",
 } as const;

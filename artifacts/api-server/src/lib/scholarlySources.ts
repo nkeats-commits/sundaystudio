@@ -92,13 +92,26 @@ export interface ScholarlySourceDiskManifest {
   license: string;
   sourceUrl: string;
   description: string;
+  /** Commentaries predate the typed reference catalog and default to this kind. */
+  kind?: ScholarlySourceKind;
+  lookupType?: string;
+  attribution?: string;
 }
+
+export type ScholarlySourceKind =
+  | "commentary"
+  | "translation"
+  | "cross-reference"
+  | "lexicon";
 
 /**
  * Full API-surface manifest: the disk fields plus server-derived coverage
  * metadata that is always present in `GET /api/sources` responses.
  */
 export interface ScholarlySourceManifest extends ScholarlySourceDiskManifest {
+  kind: ScholarlySourceKind;
+  lookupType: string;
+  attribution: string;
   bookCount: number;
   scope: string;
   coveredBooks: string[];
@@ -217,6 +230,12 @@ export interface CommentaryHit {
   chapter: number;
   title?: string;
   text: string;
+}
+
+export interface PassageVerseRef {
+  book: string;
+  chapter: number;
+  verse: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -428,6 +447,86 @@ export function parsePassageRef(
   return out;
 }
 
+/**
+ * Parse the verse portions of a passage for reference-library lookups.
+ * `parsePassageRef` intentionally works at chapter granularity for
+ * commentaries; this companion preserves verse numbers without changing that
+ * long-standing API.
+ */
+export function parsePassageVerses(
+  raw: string | null | undefined,
+): PassageVerseRef[] {
+  if (!raw?.trim()) return [];
+  const out: PassageVerseRef[] = [];
+  const seen = new Set<string>();
+  let lastBook: string | null = null;
+  let lastChapter: number | null = null;
+
+  for (const segment of raw.split(/[;,]+/).map((s) => s.trim()).filter(Boolean)) {
+    let book: string | null = null;
+    let rest = segment;
+    const match = segment.match(
+      /^\s*(?:([1-3])\s*)?([A-Za-z][A-Za-z .]*?)(?:\s+(\d.*))?$/,
+    );
+    if (match) {
+      const prefix = match[1] ? `${match[1]} ` : "";
+      const candidate = `${prefix}${match[2].trim()}`
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+      book = BOOK_ALIASES[candidate] ?? BOOK_ALIASES[match[2].trim().toLowerCase()];
+      if (book) rest = match[3] ?? "";
+    }
+    if (!book) {
+      book = lastBook;
+      rest = segment;
+    }
+    if (!book) continue;
+
+    const verseRange = /^(\d+)\s*:\s*(\d+)(?:\s*-\s*(?:(\d+)\s*:\s*)?(\d+))?$/.exec(rest.trim());
+    if (verseRange) {
+      const chapter = Number(verseRange[1]);
+      const first = Number(verseRange[2]);
+      const endChapter = verseRange[3] ? Number(verseRange[3]) : chapter;
+      const last = Number(verseRange[4] ?? verseRange[2]);
+      // Cross-chapter ranges are bounded to the explicitly named endpoints.
+      // We do not fabricate chapter lengths; the reference corpus can supply
+      // only verses it actually contains.
+      if (chapter > 0 && first > 0 && endChapter > 0 && last > 0) {
+        if (endChapter === chapter) {
+          for (let verse = first; verse <= last && verse - first < 100; verse++) {
+            const key = `${book}|${chapter}|${verse}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              out.push({ book, chapter, verse });
+            }
+          }
+        } else {
+          for (const verse of [first]) {
+            const key = `${book}|${chapter}|${verse}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              out.push({ book, chapter, verse });
+            }
+          }
+          for (const verse of [last]) {
+            const key = `${book}|${endChapter}|${verse}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              out.push({ book, chapter: endChapter, verse });
+            }
+          }
+        }
+        lastChapter = chapter;
+      }
+    } else {
+      const chapterRange = /^(\d+)(?:\s*-\s*(\d+))?$/.exec(rest.trim());
+      if (chapterRange) lastChapter = Number(chapterRange[1]);
+    }
+    lastBook = book;
+  }
+  return out;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Source registry — loaded once at module init                               */
 /* -------------------------------------------------------------------------- */
@@ -467,7 +566,13 @@ function loadSource(sourceId: string): LoadedSource | null {
       );
     }
   }
-  return { ...manifest, books };
+  return {
+    ...manifest,
+    kind: manifest.kind ?? "commentary",
+    lookupType: manifest.lookupType ?? "chapter commentary",
+    attribution: manifest.attribution ?? `${manifest.title} — ${manifest.author}`,
+    books,
+  };
 }
 
 const REGISTRY: Map<string, LoadedSource> = (() => {
@@ -528,6 +633,9 @@ export function listRegisteredSources(): ScholarlySourceManifest[] {
         license: s.license,
         sourceUrl: s.sourceUrl,
         description: s.description,
+        kind: s.kind ?? "commentary",
+        lookupType: s.lookupType ?? "chapter commentary",
+        attribution: s.attribution ?? `${s.title} — ${s.author}`,
         bookCount,
         scope,
         coveredBooks,
@@ -572,7 +680,7 @@ export function lookupCommentary(
   for (const sourceId of enabledSourceIds) {
     if (remaining <= 0) break;
     const src = REGISTRY.get(sourceId);
-    if (!src) continue;
+    if (!src || src.kind && src.kind !== "commentary") continue;
     for (const { book, chapter } of parsed) {
       if (remaining <= 0) break;
       const bookFile =

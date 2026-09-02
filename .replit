@@ -20,22 +20,6 @@ integrations = ["stripe:1.0.0", "resend:1.0.0"]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
 
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8081
-externalPort = 80
-
-[[ports]]
-localPort = 8082
-externalPort = 3001
-
-[[ports]]
-localPort = 23590
-externalPort = 3000
-
 [userenv]
 
 [userenv.shared]

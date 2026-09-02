@@ -21,9 +21,11 @@ import { toast } from 'sonner';
 export function AddCommentaryModal({
   open,
   onClose,
+  filterKind = 'commentary',
 }: {
   open: boolean;
   onClose: () => void;
+  filterKind?: 'commentary' | 'reference';
 }) {
   const qc = useQueryClient();
   const { data, isLoading, error } = useListScholarlySources();
@@ -48,6 +50,13 @@ export function AddCommentaryModal({
     for (const id of pending) if (!initial.has(id)) return true;
     return false;
   }, [pending, initial]);
+  const visibleSources = useMemo(
+    () => (data?.sources ?? []).filter((s) =>
+      filterKind === 'commentary' ? s.kind === 'commentary' : s.kind !== 'commentary',
+    ),
+    [data?.sources, filterKind],
+  );
+  const heading = filterKind === 'commentary' ? 'Add commentary' : 'Add Bible references';
 
   if (!open) return null;
 
@@ -99,7 +108,7 @@ export function AddCommentaryModal({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Add commentary"
+        aria-label={heading}
       >
         <div
           className="px-6 py-4 border-b flex items-center justify-between"
@@ -107,11 +116,13 @@ export function AddCommentaryModal({
         >
           <div className="min-w-0">
             <h2 className="font-serif text-xl text-[var(--worship-navy)]">
-              Add commentary
+              {heading}
             </h2>
             <p className="text-xs text-[var(--worship-slate)] mt-0.5">
-              Bundled public-domain commentaries the Sermon Builder will quote
-              on your behalf, with attribution. Add the ones you trust.
+              {filterKind === 'commentary'
+                ? 'Bundled public-domain commentaries the Sermon Builder will quote on your behalf, with attribution.'
+                : 'Public-domain Bible text, cross-references, and dictionary entries for passage study, always labeled by source.'}{' '}
+              Add the ones you trust.
             </p>
           </div>
           <button
@@ -133,15 +144,14 @@ export function AddCommentaryModal({
             <div className="text-sm text-red-700">
               Could not load commentaries. Please close and try again.
             </div>
-          ) : data.sources.length === 0 ? (
+          ) : visibleSources.length === 0 ? (
             <div className="text-sm text-[var(--worship-slate)] text-center py-8">
               <BookOpen className="w-10 h-10 mx-auto mb-3 text-[var(--worship-muted-slate)] opacity-60" />
-              No bundled commentaries are available yet. We're adding more —
-              check back soon.
+              No bundled {filterKind === 'commentary' ? 'commentaries' : 'Bible reference collections'} are available yet.
             </div>
           ) : (
             <ul className="divide-y" style={{ borderColor: 'var(--worship-border)' }}>
-              {data.sources.map((s) => {
+              {visibleSources.map((s) => {
                 const isAdded = pending.has(s.id);
                 return (
                   <li key={s.id} className="py-4 flex items-start gap-4 first:pt-0">
@@ -150,6 +160,9 @@ export function AddCommentaryModal({
                         <span className="font-medium text-[var(--worship-navy)]">
                           {s.title}
                         </span>
+                        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--worship-sand)] text-[var(--worship-navy)]">
+                          {s.lookupType}
+                        </span>
                         <CoverageBadge source={s} />
                       </div>
                       <p className="text-xs text-[var(--worship-slate)] mt-0.5">
@@ -157,6 +170,9 @@ export function AddCommentaryModal({
                       </p>
                       <p className="text-sm text-[var(--worship-slate)] mt-1">
                         {s.description}
+                      </p>
+                      <p className="text-xs text-[var(--worship-slate)] mt-1">
+                        {s.scope} · {s.attribution}
                       </p>
                       <a
                         href={s.sourceUrl}
@@ -199,7 +215,7 @@ export function AddCommentaryModal({
           style={{ borderColor: 'var(--worship-border)' }}
         >
           <span className="text-xs text-[var(--worship-slate)]">
-            {pending.size} {pending.size === 1 ? 'commentary' : 'commentaries'} selected
+            {pending.size} selected
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -220,7 +236,7 @@ export function AddCommentaryModal({
               ) : (
                 <Check className="w-4 h-4" />
               )}
-              Save
+              Save {filterKind === 'commentary' ? 'commentaries' : 'Bible references'}
             </button>
           </div>
         </div>

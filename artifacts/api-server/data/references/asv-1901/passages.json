@@ -1,0 +1,10 @@
+[
+  {"book":"John","chapter":3,"verse":16,"text":"For God so loved the world, that he gave his only begotten Son, that whosoever believeth on him should not perish, but have eternal life."},
+  {"book":"Romans","chapter":8,"verse":28,"text":"And we know that to them that love God all things work together for good, even to them that are called according to his purpose."},
+  {"book":"Romans","chapter":8,"verse":38,"text":"For I am persuaded, that neither death, nor life, nor angels, nor principalities, nor things present, nor things to come,"},
+  {"book":"Romans","chapter":8,"verse":39,"text":"nor height, nor depth, nor any other creature, shall be able to separate us from the love of God, which is in Christ Jesus our Lord."},
+  {"book":"Psalms","chapter":23,"verse":1,"text":"Jehovah is my shepherd; I shall not want."},
+  {"book":"Psalms","chapter":23,"verse":4,"text":"Yea, yea, though I walk through the valley of the shadow of death, I will fear no evil; for thou art with me; thy rod and thy staff, they comfort me."},
+  {"book":"Genesis","chapter":1,"verse":1,"text":"In the beginning God created the heavens and the earth."},
+  {"book":"1 Corinthians","chapter":13,"verse":13,"text":"But now abideth faith, hope, love, these three; and the greatest of these is love."}
+]

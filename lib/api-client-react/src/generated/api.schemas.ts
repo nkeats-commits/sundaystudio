@@ -1184,7 +1184,7 @@ export interface WordStudyEntry {
 }
 
 /**
- * Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`).
+ * Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical/dictionary source.
  */
 export type ConsultedScholarlySourceKind =
   (typeof ConsultedScholarlySourceKind)[keyof typeof ConsultedScholarlySourceKind];
@@ -1192,6 +1192,9 @@ export type ConsultedScholarlySourceKind =
 export const ConsultedScholarlySourceKind = {
   "public-domain": "public-domain",
   library: "library",
+  translation: "translation",
+  "cross-reference": "cross-reference",
+  lexicon: "lexicon",
 } as const;
 
 export interface ConsultedScholarlySource {
@@ -1199,8 +1202,65 @@ export interface ConsultedScholarlySource {
   id: string;
   title: string;
   author?: string | null;
-  /** Which channel contributed the excerpt — a bundled public-domain commentary or a row from the user's Resource Library. Optional for back-compat with study blobs persisted before the library channel existed (treat missing kind as `public-domain`). */
+  /** Which channel contributed context — commentary, personal library, Bible translation, cross-reference, or lexical/dictionary source. */
   kind?: ConsultedScholarlySourceKind;
+}
+
+export interface TranslationReferenceHit {
+  sourceId: string;
+  sourceTitle: string;
+  sourceAuthor: string;
+  sourceUrl: string;
+  attribution: string;
+  reference: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  text: string;
+}
+
+export interface CrossReferenceHit {
+  sourceId: string;
+  sourceTitle: string;
+  sourceAuthor: string;
+  sourceUrl: string;
+  attribution: string;
+  sourceReference: string;
+  targets: string[];
+  note?: string | null;
+}
+
+export type LexicalReferenceHitLanguage =
+  (typeof LexicalReferenceHitLanguage)[keyof typeof LexicalReferenceHitLanguage];
+
+export const LexicalReferenceHitLanguage = {
+  Greek: "Greek",
+  Hebrew: "Hebrew",
+} as const;
+
+export interface LexicalReferenceHit {
+  sourceId: string;
+  sourceTitle: string;
+  sourceAuthor: string;
+  sourceUrl: string;
+  attribution: string;
+  key: string;
+  term: string;
+  strongsNumber?: string | null;
+  originalWord: string;
+  transliteration: string;
+  language: LexicalReferenceHitLanguage;
+  definition: string;
+  references: string[];
+}
+
+/**
+ * Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.
+ */
+export interface ReferenceBundle {
+  translations: TranslationReferenceHit[];
+  crossReferences: CrossReferenceHit[];
+  lexicalEntries: LexicalReferenceHit[];
 }
 
 export interface SermonStudyOutput {
@@ -1213,8 +1273,10 @@ export interface SermonStudyOutput {
   resourceInsights?: string | null;
   /** 3–7 key terms from the passage whose original Greek or Hebrew meaning contributes to the sermon. AI-selected based on theological weight, not frequency. */
   wordStudies?: WordStudyEntry[] | null;
-  /** Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer. */
+  /** Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer. */
   consultedSources?: ConsultedScholarlySource[] | null;
+  /** Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version. */
+  referenceContext?: ReferenceBundle | null;
 }
 
 export interface SermonBigIdeaOption {
@@ -1483,6 +1545,8 @@ export interface PreviewSermonResourcesResponse {
   library: PreviewLibraryHit[];
   /** True when the sermon still has a non-empty attachedResourceIds list and is using legacy (allow-list) library semantics. UI should surface a "Switch to auto-include" affordance. */
   legacyMode: boolean;
+  /** Bounded, source-labeled Bible text, cross-references, and lexical entries available for this passage. */
+  referenceContext: ReferenceBundle;
 }
 
 export interface SermonResource {
@@ -1657,6 +1721,8 @@ export interface SermonContextBlurb {
   excludedSourceIds?: string[];
   /** Legacy. When present and non-empty on a saved sermon, the server uses these explicit ids as the library inclusion list instead of passage matching. Lets pre-task-71 sermons keep working until the pastor migrates them. */
   attachedResourceIds?: number[];
+  /** Optional English terms, lexical keys, or Strong's numbers to prioritize in enabled dictionary and lexicon lookups. */
+  referenceTerms?: string[];
 }
 
 export type GenerateSermonStudyBody = SermonContextBlurb & {
@@ -1711,7 +1777,20 @@ export type GenerateSermonSmallGroupQuestionsBody = SermonContextBlurb & {
 };
 
 /**
- * Metadata for a single bundled public-domain commentary source.
+ * The indexed data type. References are kept distinct from chapter commentaries.
+ */
+export type ScholarlySourceManifestKind =
+  (typeof ScholarlySourceManifestKind)[keyof typeof ScholarlySourceManifestKind];
+
+export const ScholarlySourceManifestKind = {
+  commentary: "commentary",
+  translation: "translation",
+  "cross-reference": "cross-reference",
+  lexicon: "lexicon",
+} as const;
+
+/**
+ * Metadata for a single bundled public-domain commentary or Bible reference source.
  */
 export interface ScholarlySourceManifest {
   /** Stable opaque identifier (also the directory name on disk). */
@@ -1725,7 +1804,13 @@ export interface ScholarlySourceManifest {
   /** Canonical URL where the underlying public-domain text lives. */
   sourceUrl: string;
   description: string;
-  /** Number of Bible books this source has commentary data for. */
+  /** The indexed data type. References are kept distinct from chapter commentaries. */
+  kind: ScholarlySourceManifestKind;
+  /** Human-readable lookup behavior, such as "verse text" or "cross-reference". */
+  lookupType: string;
+  /** Attribution text that must remain with any displayed or generated reference context. */
+  attribution: string;
+  /** Number of Bible books represented by this source's indexed data. */
   bookCount: number;
   /** Human-readable coverage summary derived from the corpus. Examples: "Whole Bible", "New Testament", "39 books", "Psalms only".
    */
@@ -1747,6 +1832,14 @@ export interface SourcesResponse {
 export interface UpdateSourcePreferencesBody {
   /** Full replacement list of enabled source ids. Empty array disables all sources. */
   enabledSourceIds: string[];
+}
+
+export interface ReferenceLookupBody {
+  /** @minLength 1 */
+  passage: string;
+  secondaryPassages?: string[];
+  /** Optional terms, lexical keys, or Strong's numbers to prioritize. */
+  terms?: string[];
 }
 
 /**

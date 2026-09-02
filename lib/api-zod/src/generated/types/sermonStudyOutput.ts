@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ConsultedScholarlySource } from "./consultedScholarlySource";
+import type { ReferenceBundle } from "./referenceBundle";
 import type { WordStudyEntry } from "./wordStudyEntry";
 
 export interface SermonStudyOutput {
@@ -18,6 +19,8 @@ export interface SermonStudyOutput {
   resourceInsights?: string | null;
   /** 3–7 key terms from the passage whose original Greek or Hebrew meaning contributes to the sermon. AI-selected based on theological weight, not frequency. */
   wordStudies?: WordStudyEntry[] | null;
-  /** Server-derived list of public-domain scholarly sources whose excerpts were actually injected into the prompt context for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer. */
+  /** Server-derived list of public-domain scholarly sources whose excerpts or reference context were actually injected for this passage. Deterministic; not produced by the model. The Study tab renders these as a "Sources consulted" footer. */
   consultedSources?: ConsultedScholarlySource[] | null;
+  /** Server-derived bounded Bible reference context. Translation text is explicitly labeled and is never the pastor's selected Bible version. */
+  referenceContext?: ReferenceBundle | null;
 }

@@ -11,7 +11,7 @@ import {
  * Compact pill shown in the Sermon Builder context column to remind the
  * pastor how many scholarly sources will be consulted on every generate.
  * Hover reveals the active source titles; clicking jumps to the Resource
- * Library, anchored to the public-domain commentaries section.
+ * Library, anchored to the Bible references section.
  */
 export function ScholarlySourcesChip() {
   const { data } = useListScholarlySources();
@@ -25,7 +25,7 @@ export function ScholarlySourcesChip() {
     <HoverCard openDelay={120} closeDelay={80}>
       <HoverCardTrigger asChild>
         <Link
-          href="/resources#commentaries"
+          href="/resources#bible-references"
           className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border bg-[var(--worship-cream)] text-[var(--worship-navy)] hover:bg-white transition-colors"
           style={{ borderColor: 'var(--worship-border)' }}
         >
@@ -45,7 +45,7 @@ export function ScholarlySourcesChip() {
         {activeSources.length === 0 ? (
           <p className="text-[var(--worship-slate)]">
             No sources are currently enabled. The Sermon Builder will not
-            inject any commentary excerpts on your behalf.
+            inject commentary or Bible reference context on your behalf.
           </p>
         ) : (
           <ul className="space-y-1.5">
@@ -58,14 +58,14 @@ export function ScholarlySourcesChip() {
                   {s.title}
                 </span>{' '}
                 <span className="text-xs text-[var(--worship-slate)]">
-                  · {s.author}
+                  · {s.kind} · {s.author}
                 </span>
               </li>
             ))}
           </ul>
         )}
         <Link
-          href="/resources#commentaries"
+          href="/resources#bible-references"
           className="mt-3 inline-flex items-center gap-1 text-xs text-[var(--worship-navy)] underline"
         >
           <LibraryIcon className="w-3 h-3" />

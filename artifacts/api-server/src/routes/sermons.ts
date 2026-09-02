@@ -30,6 +30,7 @@ import {
 } from "../lib/sermonExport";
 import { previewSermonResources } from "../lib/scholarlyMerge";
 import { isRegisteredSource } from "../lib/scholarlySources";
+import { isRegisteredReferenceSource } from "../lib/referenceSources";
 
 /**
  * Compose a fresh service plan around a sermon. We pull what we can from
@@ -201,7 +202,11 @@ async function validateResourceOwnership(
  */
 function validateExcludedSourceIds(ids: string[] | undefined): string | null {
   if (!ids || ids.length === 0) return null;
-  const bad = ids.filter((id) => typeof id !== "string" || !isRegisteredSource(id));
+  const bad = ids.filter(
+    (id) =>
+      typeof id !== "string" ||
+      (!isRegisteredSource(id) && !isRegisteredReferenceSource(id)),
+  );
   if (bad.length > 0) {
     return `Unknown excludedSourceIds: ${bad.join(", ")}`;
   }

@@ -7,6 +7,7 @@
  */
 import type { PreviewLibraryHit } from "./previewLibraryHit";
 import type { PreviewPublicDomainHit } from "./previewPublicDomainHit";
+import type { ReferenceBundle } from "./referenceBundle";
 
 export interface PreviewSermonResourcesResponse {
   /** Public-domain commentary sources that will be auto-included for these passages, after applying excludedSourceIds. De-duped to ONE entry per source (the AI prompt itself still receives one excerpt per matched chapter, but the preview surface answers "which sources will be consulted" rather than "how many excerpts"). */
@@ -15,4 +16,6 @@ export interface PreviewSermonResourcesResponse {
   library: PreviewLibraryHit[];
   /** True when the sermon still has a non-empty attachedResourceIds list and is using legacy (allow-list) library semantics. UI should surface a "Switch to auto-include" affordance. */
   legacyMode: boolean;
+  /** Bounded, source-labeled Bible text, cross-references, and lexical entries available for this passage. */
+  referenceContext: ReferenceBundle;
 }

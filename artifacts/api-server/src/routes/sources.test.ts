@@ -182,3 +182,47 @@ test("PUT /api/sources/preferences rejects malformed bodies", async () => {
     await close();
   }
 });
+
+test("POST /api/sources/lookup returns bounded, source-labeled reference results", async () => {
+  const uid = userId();
+  await cleanup(uid);
+  const { base, close } = await startServer();
+  try {
+    const preferences = await fetch(`${base}/api/sources/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({
+        enabledSourceIds: ["kjv-1769", "tsk-1830", "strongs-1890"],
+      }),
+    });
+    assert.equal(preferences.status, 200);
+
+    const res = await fetch(`${base}/api/sources/lookup`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({ passage: "John 3:16", terms: ["love"] }),
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      translations: Array<{ sourceId: string; attribution: string }>;
+      crossReferences: Array<{ sourceId: string; attribution: string }>;
+      lexicalEntries: Array<{ sourceId: string; attribution: string }>;
+    };
+    assert.ok(body.translations.some((hit) => hit.sourceId === "kjv-1769"));
+    assert.ok(body.crossReferences.some((hit) => hit.sourceId === "tsk-1830"));
+    assert.ok(body.lexicalEntries.some((hit) => hit.sourceId === "strongs-1890"));
+    assert.ok(
+      [...body.translations, ...body.crossReferences, ...body.lexicalEntries]
+        .every((hit) => hit.attribution),
+    );
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});

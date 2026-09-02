@@ -111,6 +111,8 @@ import type {
   PcsSyncResult,
   PreviewSermonResourcesBody,
   PreviewSermonResourcesResponse,
+  ReferenceBundle,
+  ReferenceLookupBody,
   Sermon,
   SermonApplicationsOutput,
   SermonBigIdeaOutput,
@@ -7285,7 +7287,7 @@ export const useRequestUploadUrl = <
 };
 
 /**
- * @summary List bundled public-domain commentary sources and the user's enabled set
+ * @summary List bundled public-domain commentary and Bible reference sources and the user's enabled set
  */
 export const getListScholarlySourcesUrl = () => {
   return `/api/sources`;
@@ -7336,7 +7338,7 @@ export type ListScholarlySourcesQueryResult = NonNullable<
 export type ListScholarlySourcesQueryError = ErrorType<UnauthorizedResponse>;
 
 /**
- * @summary List bundled public-domain commentary sources and the user's enabled set
+ * @summary List bundled public-domain commentary and Bible reference sources and the user's enabled set
  */
 
 export function useListScholarlySources<
@@ -7358,6 +7360,94 @@ export function useListScholarlySources<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Look up bounded, source-labeled public-domain Bible references for a passage
+ */
+export const getLookupBibleReferencesUrl = () => {
+  return `/api/sources/lookup`;
+};
+
+export const lookupBibleReferences = async (
+  referenceLookupBody: ReferenceLookupBody,
+  options?: RequestInit,
+): Promise<ReferenceBundle> => {
+  return customFetch<ReferenceBundle>(getLookupBibleReferencesUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(referenceLookupBody),
+  });
+};
+
+export const getLookupBibleReferencesMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lookupBibleReferences>>,
+    TError,
+    { data: BodyType<ReferenceLookupBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof lookupBibleReferences>>,
+  TError,
+  { data: BodyType<ReferenceLookupBody> },
+  TContext
+> => {
+  const mutationKey = ["lookupBibleReferences"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof lookupBibleReferences>>,
+    { data: BodyType<ReferenceLookupBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return lookupBibleReferences(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LookupBibleReferencesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof lookupBibleReferences>>
+>;
+export type LookupBibleReferencesMutationBody = BodyType<ReferenceLookupBody>;
+export type LookupBibleReferencesMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Look up bounded, source-labeled public-domain Bible references for a passage
+ */
+export const useLookupBibleReferences = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lookupBibleReferences>>,
+    TError,
+    { data: BodyType<ReferenceLookupBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof lookupBibleReferences>>,
+  TError,
+  { data: BodyType<ReferenceLookupBody> },
+  TContext
+> => {
+  return useMutation(getLookupBibleReferencesMutationOptions(options));
+};
 
 /**
  * @summary Update which scholarly sources the Sermon Builder consults for this user
