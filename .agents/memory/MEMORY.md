@@ -1,0 +1,1 @@
+- [Trial conversion analytics](trial-conversion-analytics.md) — Keep local funnel history independent from Resend delivery and retry failed lifecycle handoffs.

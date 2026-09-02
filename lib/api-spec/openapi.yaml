@@ -129,6 +129,33 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /trial-events:
+    post:
+      operationId: recordTrialEvent
+      tags: [billing]
+      summary: Record a trial conversion funnel event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrialEventBody"
+      responses:
+        "202":
+          description: Event accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrialEventAccepted"
+        "400":
+          description: Invalid event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /service-plans:
     get:
       operationId: listServicePlans
@@ -2484,6 +2511,24 @@ components:
           description: Length of the free trial in days.
       required: [state, trialDays]
 
+    TrialEventBody:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [ss_upgrade_prompt_shown, ss_upgrade_prompt_clicked, ss_checkout_started]
+        context:
+          type: object
+          additionalProperties: true
+
+    TrialEventAccepted:
+      type: object
+      required: [accepted]
+      properties:
+        accepted:
+          type: boolean
+
     AdminMe:
       type: object
       properties:
@@ -2496,7 +2541,7 @@ components:
 
     AdminMetrics:
       type: object
-      required: [totals, trials, subscriptions, revenue, series, stripeAvailable]
+      required: [totals, trials, subscriptions, revenue, series, stripeAvailable, conversion]
       properties:
         totals:
           type: object
@@ -2556,6 +2601,8 @@ components:
                 $ref: "#/components/schemas/AdminSeriesPoint"
         stripeAvailable:
           type: boolean
+        conversion:
+          $ref: "#/components/schemas/AdminConversionFunnel"
         aiCost:
           type: object
           required:
@@ -2582,6 +2629,34 @@ components:
               description: Last 30 days of daily cost data for a bar chart.
               items:
                 $ref: "#/components/schemas/AdminCostSeriesPoint"
+
+    AdminConversionFunnel:
+      type: object
+      required: [activatedUsers, promptShown, promptClicked, checkoutStarted, subscriptionsStarted, activatedToPaidRate, byTrialDay]
+      properties:
+        activatedUsers: { type: integer }
+        promptShown: { type: integer }
+        promptClicked: { type: integer }
+        checkoutStarted: { type: integer }
+        subscriptionsStarted: { type: integer }
+        activatedToPaidRate:
+          type: number
+          description: Activated-to-paid conversion rate (%).
+        byTrialDay:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminConversionDay"
+
+    AdminConversionDay:
+      type: object
+      required: [trialDay, activated, promptShown, promptClicked, checkoutStarted, subscriptionsStarted]
+      properties:
+        trialDay: { type: integer }
+        activated: { type: integer }
+        promptShown: { type: integer }
+        promptClicked: { type: integer }
+        checkoutStarted: { type: integer }
+        subscriptionsStarted: { type: integer }
 
     AdminCostSeriesPoint:
       type: object
@@ -3317,7 +3392,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DashboardSuggestion"
-      required: [verseOfDay, recentServices, servicesThisMonth, librarySize, totalServices, suggestions]
+        trial:
+          $ref: "#/components/schemas/DashboardTrialSummary"
+      required: [verseOfDay, recentServices, servicesThisMonth, librarySize, totalServices, suggestions, trial]
+
+    DashboardTrialSummary:
+      type: object
+      required: [isActive, daysLeft, trialEndsAt, activated, servicePlans, sermons, libraryItems]
+      properties:
+        isActive:
+          type: boolean
+        daysLeft:
+          type: integer
+          nullable: true
+        trialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+        activated:
+          type: boolean
+        servicePlans:
+          type: integer
+        sermons:
+          type: integer
+        libraryItems:
+          type: integer
 
     GenerateServicePlanBody:
       type: object

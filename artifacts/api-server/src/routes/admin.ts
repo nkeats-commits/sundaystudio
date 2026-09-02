@@ -226,6 +226,91 @@ const router: IRouter = Router();
 const MONTHLY_AMOUNT_CENTS = 999;
 const COMP_COUPON_LOOKUP = "worshipflow_owner_comp";
 
+type ConversionFunnelMetrics = {
+  activatedUsers: number;
+  promptShown: number;
+  promptClicked: number;
+  checkoutStarted: number;
+  subscriptionsStarted: number;
+  activatedToPaidRate: number;
+  byTrialDay: Array<{
+    trialDay: number;
+    activated: number;
+    promptShown: number;
+    promptClicked: number;
+    checkoutStarted: number;
+    subscriptionsStarted: number;
+  }>;
+};
+
+async function getConversionFunnelMetrics(): Promise<ConversionFunnelMetrics> {
+  const empty: ConversionFunnelMetrics = {
+    activatedUsers: 0,
+    promptShown: 0,
+    promptClicked: 0,
+    checkoutStarted: 0,
+    subscriptionsStarted: 0,
+    activatedToPaidRate: 0,
+    byTrialDay: [],
+  };
+  try {
+    const rows = await db.execute(sql`
+      SELECT
+        trial_day::int AS trial_day,
+        COUNT(*) FILTER (WHERE event_name = 'ss_trial_activated')::int AS activated,
+        COUNT(*) FILTER (WHERE event_name = 'ss_upgrade_prompt_shown')::int AS prompt_shown,
+        COUNT(*) FILTER (WHERE event_name = 'ss_upgrade_prompt_clicked')::int AS prompt_clicked,
+        COUNT(*) FILTER (WHERE event_name = 'ss_checkout_started')::int AS checkout_started,
+        COUNT(*) FILTER (WHERE event_name = 'ss_subscription_started')::int AS subscriptions_started
+      FROM trial_events
+      GROUP BY trial_day
+      ORDER BY trial_day ASC
+    `);
+    const byTrialDay = (rows.rows as Array<Record<string, number | string>>).map((row) => ({
+      trialDay: Number(row.trial_day),
+      activated: Number(row.activated),
+      promptShown: Number(row.prompt_shown),
+      promptClicked: Number(row.prompt_clicked),
+      checkoutStarted: Number(row.checkout_started),
+      subscriptionsStarted: Number(row.subscriptions_started),
+    }));
+    const total = byTrialDay.reduce(
+      (acc, row) => ({
+        activated: acc.activated + row.activated,
+        promptShown: acc.promptShown + row.promptShown,
+        promptClicked: acc.promptClicked + row.promptClicked,
+        checkoutStarted: acc.checkoutStarted + row.checkoutStarted,
+        subscriptionsStarted: acc.subscriptionsStarted + row.subscriptionsStarted,
+      }),
+      { activated: 0, promptShown: 0, promptClicked: 0, checkoutStarted: 0, subscriptionsStarted: 0 },
+    );
+    const distinctUsers = await db.execute(sql`
+      SELECT
+        COUNT(DISTINCT user_id) FILTER (WHERE event_name = 'ss_trial_activated')::int AS activated_users
+      FROM trial_events
+    `);
+    const activatedUsers = Number(
+      (distinctUsers.rows[0] as { activated_users?: number | string } | undefined)?.activated_users ?? 0,
+    );
+    return {
+      activatedUsers,
+      promptShown: total.promptShown,
+      promptClicked: total.promptClicked,
+      checkoutStarted: total.checkoutStarted,
+      subscriptionsStarted: total.subscriptionsStarted,
+      activatedToPaidRate:
+        activatedUsers > 0
+          ? Math.round((total.subscriptionsStarted / activatedUsers) * 1000) / 10
+          : 0,
+      byTrialDay,
+    };
+  } catch (err) {
+    // Keep the existing admin overview usable during first deploy, before the
+    // additive trial_events migration has been applied.
+    return empty;
+  }
+}
+
 // Runtime input schemas — every admin endpoint validates params/query/body
 // through these before touching the DB. Failures return 400 with details
 // so the UI (and curl probes) get an actionable message.
@@ -543,6 +628,7 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
       },
       series: { signups: signupSeries, subscriptions: subSeries },
       stripeAvailable,
+      conversion: await getConversionFunnelMetrics(),
       aiCost: {
         totalInputTokensThisMonth,
         totalOutputTokensThisMonth,

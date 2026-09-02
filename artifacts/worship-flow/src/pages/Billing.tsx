@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import {
   useCreateBillingCheckoutSession,
   useCreateBillingPortalSession,
+  useRecordTrialEvent,
 } from "@workspace/api-client-react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
@@ -72,6 +73,7 @@ export default function Billing() {
   const [location] = useLocation();
   const checkout = useCreateBillingCheckoutSession();
   const portal = useCreateBillingPortalSession();
+  const { mutate: recordTrialEvent } = useRecordTrialEvent();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -87,7 +89,19 @@ export default function Billing() {
 
   const startCheckout = async () => {
     setBusy(true);
+    recordTrialEvent({
+      data: {
+        event: "ss_upgrade_prompt_clicked",
+        context: { surface: "billing", state: state?.kind ?? "unknown" },
+      },
+    });
     try {
+      recordTrialEvent({
+        data: {
+          event: "ss_checkout_started",
+          context: { surface: "billing", state: state?.kind ?? "unknown" },
+        },
+      });
       const r = await checkout.mutateAsync();
       if (r?.url) window.location.href = r.url;
       else {
@@ -126,9 +140,9 @@ export default function Billing() {
   if (isLoading || !state) {
     return (
       <AppLayout title="Billing">
-        <div className="flex items-center gap-2 text-sm text-[var(--worship-muted-slate)]">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading billing
-          status…
+        <div data-testid="loading-billing" className="max-w-2xl animate-pulse space-y-4">
+          <div className="h-8 w-48 rounded-lg bg-[var(--worship-sand)] opacity-50" />
+          <div className="h-64 rounded-2xl bg-[var(--worship-sand)] opacity-35" />
         </div>
       </AppLayout>
     );
@@ -151,6 +165,7 @@ export default function Billing() {
           <div className="flex justify-center">
             {state.kind === "trial" ? (
               <div
+                data-testid={state.kind === "trial" ? "status-billing-trial" : "status-billing-lapsed"}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
                 style={{
                   backgroundColor: "var(--worship-pale-gold)",
@@ -158,7 +173,9 @@ export default function Billing() {
                 }}
               >
                 <Sparkles className="w-4 h-4" style={{ color: "var(--worship-gold)" }} />
-                {state.daysLeft === 1
+                {state.daysLeft === null
+                  ? "Your free trial is active"
+                  : state.daysLeft === 1
                   ? "1 day left in your free trial"
                   : `${state.daysLeft} days left in your free trial`}
               </div>
@@ -176,7 +193,8 @@ export default function Billing() {
 
           {/* ── StoryBrand hero: problem + guide ── */}
           <div className="text-center space-y-3">
-            <h1
+              <h1
+                data-testid="text-billing-heading"
               className="text-4xl font-medium leading-tight"
               style={{
                 color: "var(--worship-navy)",
@@ -187,7 +205,8 @@ export default function Billing() {
                 ? "Ready to plan with confidence again?"
                 : "Sunday keeps coming.\nSunday Studio keeps you ready."}
             </h1>
-            <p
+              <p
+                data-testid="text-billing-description"
               className="text-base max-w-lg mx-auto"
               style={{ color: "var(--worship-muted-slate)" }}
             >
@@ -230,6 +249,7 @@ export default function Billing() {
 
             <button
               type="button"
+              data-testid="button-billing-subscribe"
               onClick={startCheckout}
               disabled={busy}
               className="w-full py-3.5 rounded-xl text-base font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-3"
@@ -251,13 +271,48 @@ export default function Billing() {
             </button>
 
             <p
+              data-testid="text-billing-terms"
               className="text-xs text-center"
               style={{ color: "var(--worship-muted-slate)" }}
             >
-              Cancel anytime from the billing portal. Secure checkout via
-              Stripe.
+              {state.kind === "trial"
+                ? `No charge today. Your first $9.99 charge is scheduled for ${formatDate(state.trialEndsAt)}. Cancel before then or anytime from the billing portal.`
+                : "Cancel anytime from the billing portal. Secure checkout via Stripe."}
             </p>
           </div>
+
+          {state.kind === "trial" && (
+            <div
+              data-testid="card-billing-trial-reassurance"
+              className="rounded-xl border p-5"
+              style={{
+                backgroundColor: "var(--worship-white)",
+                borderColor: "var(--worship-border)",
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <Check className="mt-0.5 h-5 w-5 shrink-0" style={{ color: "var(--worship-success)" }} />
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--worship-navy)" }}>
+                    Your saved work is safe
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--worship-muted-slate)" }}>
+                    Service plans, sermons, and library items you created during the trial stay in your workspace. Subscription keeps them ready for the next Sunday.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isExpiredOrCanceled && (
+            <p
+              data-testid="text-billing-lapsed-work"
+              className="text-center text-xs"
+              style={{ color: "var(--worship-muted-slate)" }}
+            >
+              Your saved plans, sermons, and library items remain associated with your workspace. Subscribe whenever you are ready to return to them.
+            </p>
+          )}
 
           {/* ── Outcome cards ── */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -377,6 +432,7 @@ export default function Billing() {
 
           <button
             type="button"
+            data-testid="button-billing-portal"
             onClick={openPortal}
             disabled={busy}
             className="px-5 py-2.5 rounded-lg text-sm font-semibold border disabled:opacity-60 flex items-center gap-2"

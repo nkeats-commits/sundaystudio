@@ -129,6 +129,8 @@ import type {
   ServiceTemplate,
   SetRepertoireBody,
   SourcesResponse,
+  TrialEventAccepted,
+  TrialEventBody,
   UnauthorizedResponse,
   UpdateLibraryItem400,
   UpdateLibraryItemBody,
@@ -533,6 +535,94 @@ export function useGetDashboard<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Record a trial conversion funnel event
+ */
+export const getRecordTrialEventUrl = () => {
+  return `/api/trial-events`;
+};
+
+export const recordTrialEvent = async (
+  trialEventBody: TrialEventBody,
+  options?: RequestInit,
+): Promise<TrialEventAccepted> => {
+  return customFetch<TrialEventAccepted>(getRecordTrialEventUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(trialEventBody),
+  });
+};
+
+export const getRecordTrialEventMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordTrialEvent>>,
+    TError,
+    { data: BodyType<TrialEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof recordTrialEvent>>,
+  TError,
+  { data: BodyType<TrialEventBody> },
+  TContext
+> => {
+  const mutationKey = ["recordTrialEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof recordTrialEvent>>,
+    { data: BodyType<TrialEventBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return recordTrialEvent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RecordTrialEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof recordTrialEvent>>
+>;
+export type RecordTrialEventMutationBody = BodyType<TrialEventBody>;
+export type RecordTrialEventMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Record a trial conversion funnel event
+ */
+export const useRecordTrialEvent = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordTrialEvent>>,
+    TError,
+    { data: BodyType<TrialEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof recordTrialEvent>>,
+  TError,
+  { data: BodyType<TrialEventBody> },
+  TContext
+> => {
+  return useMutation(getRecordTrialEventMutationOptions(options));
+};
 
 /**
  * @summary List all service plans for the current user

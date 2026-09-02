@@ -5,6 +5,7 @@
  * Sunday Studio API
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminConversionFunnel } from "./adminConversionFunnel";
 import type { AdminMetricsAiCost } from "./adminMetricsAiCost";
 import type { AdminMetricsRevenue } from "./adminMetricsRevenue";
 import type { AdminMetricsSeries } from "./adminMetricsSeries";
@@ -19,5 +20,6 @@ export interface AdminMetrics {
   revenue: AdminMetricsRevenue;
   series: AdminMetricsSeries;
   stripeAvailable: boolean;
+  conversion: AdminConversionFunnel;
   aiCost?: AdminMetricsAiCost;
 }

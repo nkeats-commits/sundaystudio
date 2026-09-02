@@ -275,6 +275,66 @@ export default function AdminOverview() {
               </div>
             </div>
 
+            <section className="worship-card space-y-4">
+              <div>
+                <h2 className="font-medium text-[var(--worship-navy)]">
+                  Trial conversion funnel
+                </h2>
+                <p className="mt-1 text-xs text-[var(--worship-slate)]">
+                  Durable product events by trial day. Use activated-to-paid conversion as the success measure.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                {[
+                  ["Activated", data.conversion.activatedUsers],
+                  ["Prompts shown", data.conversion.promptShown],
+                  ["Prompt clicks", data.conversion.promptClicked],
+                  ["Checkout starts", data.conversion.checkoutStarted],
+                  ["Subscriptions", data.conversion.subscriptionsStarted],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl bg-[var(--worship-cream)] p-3">
+                    <p className="text-xl font-semibold text-[var(--worship-navy)]">{value}</p>
+                    <p className="mt-1 text-xs text-[var(--worship-muted-slate)]">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between border-t border-[var(--worship-border)] pt-3">
+                <span className="text-sm text-[var(--worship-slate)]">Activated → paid</span>
+                <span className="text-lg font-semibold text-[var(--worship-navy)]">
+                  {data.conversion.activatedToPaidRate.toFixed(1)}%
+                </span>
+              </div>
+              {data.conversion.byTrialDay.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[620px] text-left text-xs">
+                    <caption className="sr-only">Trial conversion events by trial day</caption>
+                    <thead className="text-[var(--worship-muted-slate)]">
+                      <tr className="border-b border-[var(--worship-border)]">
+                        <th className="py-2 pr-3 font-medium">Trial day</th>
+                        <th className="py-2 pr-3 font-medium">Activated</th>
+                        <th className="py-2 pr-3 font-medium">Prompts</th>
+                        <th className="py-2 pr-3 font-medium">Clicks</th>
+                        <th className="py-2 pr-3 font-medium">Checkout</th>
+                        <th className="py-2 font-medium">Subscriptions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.conversion.byTrialDay.map((row) => (
+                        <tr key={row.trialDay} className="border-b border-[var(--worship-border)] last:border-0">
+                          <td className="py-2 pr-3 font-medium text-[var(--worship-navy)]">Day {row.trialDay}</td>
+                          <td className="py-2 pr-3">{row.activated}</td>
+                          <td className="py-2 pr-3">{row.promptShown}</td>
+                          <td className="py-2 pr-3">{row.promptClicked}</td>
+                          <td className="py-2 pr-3">{row.checkoutStarted}</td>
+                          <td className="py-2">{row.subscriptionsStarted}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
             {/* AI Cost Section */}
             {data.aiCost && (
               <>

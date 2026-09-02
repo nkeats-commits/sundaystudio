@@ -8,6 +8,8 @@
 
 export * from "./accessState";
 export * from "./accessStateKind";
+export * from "./adminConversionDay";
+export * from "./adminConversionFunnel";
 export * from "./adminCostSeriesPoint";
 export * from "./adminMe";
 export * from "./adminMetrics";
@@ -61,6 +63,7 @@ export * from "./dashboardResponseVerseOfDay";
 export * from "./dashboardStat";
 export * from "./dashboardSuggestion";
 export * from "./dashboardSuggestionKind";
+export * from "./dashboardTrialSummary";
 export * from "./deleteManuscript200";
 export * from "./exportSermonBody";
 export * from "./exportSermonBodyFormat";
@@ -186,6 +189,10 @@ export * from "./songSuggestion";
 export * from "./soulCarePractice";
 export * from "./soulCareScripture";
 export * from "./sourcesResponse";
+export * from "./trialEventAccepted";
+export * from "./trialEventBody";
+export * from "./trialEventBodyContext";
+export * from "./trialEventBodyEvent";
 export * from "./unauthorizedResponse";
 export * from "./updateLibraryItem400";
 export * from "./updateLibraryItemBody";

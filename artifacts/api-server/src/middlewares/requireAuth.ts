@@ -2,8 +2,8 @@ import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { trackEvent } from "../lib/emailClient";
 import { EVENTS } from "../lib/eventRegistry";
+import { recordTrialEvent } from "../lib/trialAnalytics";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -64,13 +64,9 @@ export const requireAuth: RequestHandler = async (
     if (inserted) {
       // Brand-new user: fire trial_started. The RETURNING guarantee means at
       // most one concurrent request reaches this branch per user.
-      void trackEvent(
-        EVENTS.TRIAL_STARTED,
-        userId,
-        inserted.email,
-        { firstName: inserted.firstName },
-        req.log,
-      );
+      void recordTrialEvent(userId, EVENTS.TRIAL_STARTED, {
+        firstName: inserted.firstName,
+      }, req.log);
     } else {
       // Existing user: refresh missing identity fields when Clerk supplies them.
       // We don't overwrite non-empty values to avoid clobbering manual edits.

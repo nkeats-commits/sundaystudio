@@ -7,6 +7,7 @@
  */
 import type { DashboardResponseVerseOfDay } from "./dashboardResponseVerseOfDay";
 import type { DashboardSuggestion } from "./dashboardSuggestion";
+import type { DashboardTrialSummary } from "./dashboardTrialSummary";
 import type { ServicePlan } from "./servicePlan";
 
 export interface DashboardResponse {
@@ -16,4 +17,5 @@ export interface DashboardResponse {
   librarySize: number;
   totalServices: number;
   suggestions: DashboardSuggestion[];
+  trial: DashboardTrialSummary;
 }

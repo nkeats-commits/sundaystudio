@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { and, count, desc, eq, gte } from "drizzle-orm";
-import { db, libraryItemsTable, servicePlansTable } from "@workspace/db";
+import { db, libraryItemsTable, servicePlansTable, sermonsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
+import { getAccessState } from "../lib/getAccessState";
 
 const router: IRouter = Router();
 
@@ -54,6 +55,15 @@ router.get("/dashboard", requireAuth, async (req, res) => {
     .from(servicePlansTable)
     .where(eq(servicePlansTable.userId, userId));
 
+  const [{ value: totalSermons } = { value: 0 }] = await db
+    .select({ value: count() })
+    .from(sermonsTable)
+    .where(eq(sermonsTable.userId, userId));
+
+  const accessState = await getAccessState(userId);
+  const isActiveTrial = accessState.kind === "trial";
+  const activated = Number(totalServices) > 0 || Number(totalSermons) > 0;
+
   const verseOfDay = VERSES_OF_DAY[now.getDate() % VERSES_OF_DAY.length];
 
   res.json({
@@ -62,6 +72,15 @@ router.get("/dashboard", requireAuth, async (req, res) => {
     servicesThisMonth: Number(monthCount),
     librarySize: Number(librarySize),
     totalServices: Number(totalServices),
+    trial: {
+      isActive: isActiveTrial,
+      daysLeft: isActiveTrial ? accessState.daysLeft : null,
+      trialEndsAt: isActiveTrial ? accessState.trialEndsAt : null,
+      activated,
+      servicePlans: Number(totalServices),
+      sermons: Number(totalSermons),
+      libraryItems: Number(librarySize),
+    },
     suggestions: SUGGESTIONS,
   });
 });

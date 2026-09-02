@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { Link } from "wouter";
-import { Check, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Check, Sparkles, ArrowLeft, Loader2, CalendarDays, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { useCreateBillingCheckoutSession } from "@workspace/api-client-react";
+import {
+  useCreateBillingCheckoutSession,
+  useRecordTrialEvent,
+} from "@workspace/api-client-react";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
 
 const FEATURES = [
@@ -14,17 +17,58 @@ const FEATURES = [
   "Export to Markdown, plain text, and email",
 ];
 
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "the end of your trial";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function Pricing() {
   const { state, trialDays } = useSubscriptionStatus();
   const checkout = useCreateBillingCheckoutSession();
+  const { mutate: recordTrialEvent } = useRecordTrialEvent();
+  const [location] = useLocation();
   const [loading, setLoading] = useState(false);
+  const params = new URLSearchParams(location.split("?")[1] ?? "");
+  const returnToParam = params.get("returnTo");
+  const returnTo =
+    returnToParam && returnToParam.startsWith("/")
+      ? returnToParam
+      : "/dashboard";
+  const returnLabel =
+    returnTo === "/dashboard" ? "dashboard" : "where you were planning";
 
   const isLapsed =
     state?.kind === "expired" || state?.kind === "canceled";
 
   const onSubscribe = async () => {
     setLoading(true);
+    recordTrialEvent({
+      data: {
+        event: "ss_upgrade_prompt_clicked",
+        context: {
+          surface: "pricing",
+          returnTo,
+          state: state?.kind ?? "unknown",
+        },
+      },
+    });
     try {
+      recordTrialEvent({
+        data: {
+          event: "ss_checkout_started",
+          context: {
+            surface: "pricing",
+            returnTo,
+            state: state?.kind ?? "unknown",
+          },
+        },
+      });
       const result = await checkout.mutateAsync();
       if (result?.url) {
         window.location.href = result.url;
@@ -43,6 +87,7 @@ export default function Pricing() {
   const trialBanner =
     state?.kind === "trial" ? (
       <div
+        data-testid="status-pricing-trial"
         className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6"
         style={{
           backgroundColor: "var(--worship-pale-gold)",
@@ -50,20 +95,24 @@ export default function Pricing() {
         }}
       >
         <Sparkles className="w-4 h-4" />
-        {state.daysLeft === 1
+        {state.daysLeft === null
+          ? "Your trial is active"
+          : state.daysLeft === 1
           ? "1 day left in your trial"
           : `${state.daysLeft} days left in your trial`}
       </div>
     ) : null;
 
   return (
-    <div
-      className="min-h-screen worship-theme"
+      <div
+        data-testid="page-pricing"
+        className="min-h-[100dvh] worship-theme"
       style={{ backgroundColor: "var(--worship-cream)" }}
     >
       <div className="max-w-3xl mx-auto px-6 py-12">
         <Link
-          href="/dashboard"
+          href={returnTo}
+          data-testid="link-pricing-back"
           className="inline-flex items-center gap-2 text-sm mb-8 hover:underline"
           style={{ color: "var(--worship-muted-slate)" }}
         >
@@ -73,6 +122,7 @@ export default function Pricing() {
         <div className="text-center mb-10">
           {trialBanner}
           <h1
+            data-testid="text-pricing-heading"
             className="text-4xl font-medium mb-3"
             style={{
               color: "var(--worship-navy)",
@@ -83,11 +133,16 @@ export default function Pricing() {
           </h1>
           {isLapsed ? (
             <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
-              Your trial has ended — here's everything waiting for you:
+              Your trial has ended. Your saved work is still here when you are ready:
             </p>
           ) : (
             <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
-              Try every feature free for {trialDays} days. No card required.
+              Try the complete Sunday rhythm free for {trialDays} days. No card required.
+            </p>
+          )}
+          {returnToParam && (
+            <p data-testid="text-pricing-return-context" className="mt-3 text-xs" style={{ color: "var(--worship-muted-slate)" }}>
+              You can return to {returnLabel} after choosing.
             </p>
           )}
         </div>
@@ -124,7 +179,8 @@ export default function Pricing() {
           </div>
         )}
 
-        <div
+          <div
+            data-testid="card-pricing-plan"
           className="rounded-2xl border p-8 shadow-sm"
           style={{
             backgroundColor: "var(--worship-white)",
@@ -147,13 +203,14 @@ export default function Pricing() {
               className="text-5xl font-bold"
               style={{ color: "var(--worship-navy)" }}
             >
-              $9.99
+              <span data-testid="text-pricing-price">$9.99</span>
             </span>
             <span style={{ color: "var(--worship-muted-slate)" }}>/ month</span>
           </div>
 
           <button
             type="button"
+              data-testid="button-pricing-subscribe"
             onClick={onSubscribe}
             disabled={loading || checkout.isPending}
             className="w-full py-3 rounded-xl text-base font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -173,14 +230,49 @@ export default function Pricing() {
             )}
           </button>
 
-          <p
+            <p
+              data-testid="text-pricing-terms"
             className="text-xs text-center mt-3"
             style={{ color: "var(--worship-muted-slate)" }}
           >
-            Cancel anytime from the billing portal. Secure checkout via Stripe.
+              Cancel anytime from the billing portal. Secure checkout via Stripe.
           </p>
 
-          {!isLapsed && (
+           {state?.kind === "trial" && (
+             <div
+               data-testid="card-pricing-trial-details"
+               className="mt-6 grid gap-3 rounded-xl border p-4 sm:grid-cols-2"
+               style={{
+                 backgroundColor: "var(--worship-cream)",
+                 borderColor: "var(--worship-border)",
+               }}
+             >
+               <div className="flex items-start gap-3">
+                 <CalendarDays className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--worship-gold)" }} />
+                 <div>
+                   <p className="text-sm font-semibold" style={{ color: "var(--worship-navy)" }}>
+                     No charge until {formatDate(state.trialEndsAt)}
+                   </p>
+                   <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--worship-muted-slate)" }}>
+                     Your first $9.99 charge is scheduled for that date. Cancel before then and you will not be charged.
+                   </p>
+                 </div>
+               </div>
+               <div className="flex items-start gap-3">
+                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--worship-success)" }} />
+                 <div>
+                   <p className="text-sm font-semibold" style={{ color: "var(--worship-navy)" }}>
+                     Your work stays available
+                   </p>
+                   <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--worship-muted-slate)" }}>
+                     Plans, sermons, and library items you have saved remain part of your Sunday Studio workspace.
+                   </p>
+                 </div>
+               </div>
+             </div>
+           )}
+
+           {!isLapsed && (
             <ul className="mt-8 space-y-3">
               {FEATURES.map((feat) => (
                 <li

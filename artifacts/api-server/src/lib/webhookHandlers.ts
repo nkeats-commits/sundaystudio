@@ -1,9 +1,9 @@
 import { getStripeSync } from "./stripeClient";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { trackEvent } from "./emailClient";
 import { EVENTS } from "./eventRegistry";
 import { logger } from "./logger";
+import { recordTrialEvent } from "./trialAnalytics";
 
 /**
  * Stripe subscription statuses that indicate the subscription was NOT active.
@@ -101,7 +101,7 @@ async function fireSubscriptionEvent(payload: Buffer): Promise<void> {
 
     if (!user?.email) return;
 
-    await trackEvent(eventName, user.id, user.email, {
+    await recordTrialEvent(user.id, eventName, {
       customerId,
       stripeEvent: stripeType,
       previousStatus,

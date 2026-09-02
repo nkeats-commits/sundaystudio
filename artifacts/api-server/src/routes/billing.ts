@@ -8,6 +8,7 @@ import {
 } from "../lib/stripeClient";
 import { getAccessState, TRIAL_DAYS } from "../lib/getAccessState";
 import { getMonthlyPriceId } from "../lib/getMonthlyPriceId";
+import { recordTrialEvent } from "../lib/trialAnalytics";
 
 const router: IRouter = Router();
 
@@ -119,6 +120,11 @@ router.post("/billing/checkout-session", requireAuth, async (req, res) => {
       cancel_url: `${origin}/pricing?status=canceled`,
       allow_promotion_codes: true,
     });
+
+    void recordTrialEvent(req.userId!, "ss_checkout_started", {
+      source: "checkout_session",
+      trialEndsAt: subscriptionData ? new Date(trialEndMs).toISOString() : null,
+    }, req.log);
 
     res.json({ url: session.url });
   } catch (err) {

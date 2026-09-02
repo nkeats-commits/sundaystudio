@@ -13,6 +13,7 @@ import {
 } from "@workspace/db";
 import { trackEvent } from "../lib/emailClient";
 import { EVENTS } from "../lib/eventRegistry";
+import { recordActivationOnce, recordTrialEvent } from "../lib/trialAnalytics";
 import {
   CreateSermonBody,
   UpdateSermonBody,
@@ -307,6 +308,8 @@ router.post("/sermons", requireAuth, requireActiveAccess, async (req, res) => {
     })
     .returning();
   res.status(201).json(row);
+
+  void recordActivationOnce(req.userId!, { milestone: "sermon_saved" }, req.log);
 });
 
 /**
@@ -637,10 +640,10 @@ router.post("/sermons/:id/export", requireAuth, async (req, res) => {
         .where(eq(usersTable.id, req.userId!))
         .limit(1);
       if (user) {
-        await trackEvent(EVENTS.SERMON_EXPORTED, user.id, user.email, {
+        await recordTrialEvent(user.id, EVENTS.SERMON_EXPORTED, {
           sermonId: id,
           format: parsed.data.format,
-        });
+        }, req.log);
       }
     } catch (err) {
       void err;

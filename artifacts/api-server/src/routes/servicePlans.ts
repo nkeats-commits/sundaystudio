@@ -15,6 +15,7 @@ import {
 } from "../lib/servicePlanExport";
 import { trackEvent } from "../lib/emailClient";
 import { EVENTS } from "../lib/eventRegistry";
+import { recordActivationOnce, recordTrialEvent } from "../lib/trialAnalytics";
 
 const router: IRouter = Router();
 
@@ -47,6 +48,8 @@ router.post("/service-plans", requireAuth, requireActiveAccess, async (req, res)
     })
     .returning();
   res.status(201).json(row);
+
+  void recordActivationOnce(req.userId!, { milestone: "service_plan_saved" }, req.log);
 
   // Fire first_service_plan_saved once per user — atomic, best-effort, never blocks.
   void (async () => {
@@ -162,10 +165,10 @@ router.post("/service-plans/:id/export", requireAuth, async (req, res) => {
         .where(eq(usersTable.id, req.userId!))
         .limit(1);
       if (user) {
-        await trackEvent(EVENTS.SERVICE_PLAN_EXPORTED, user.id, user.email, {
+        await recordTrialEvent(user.id, EVENTS.SERVICE_PLAN_EXPORTED, {
           servicePlanId: id,
           format: parsed.data.format,
-        });
+        }, req.log);
       }
     } catch (err) {
       req.log.warn({ err }, "service_plan_exported event tracking failed");

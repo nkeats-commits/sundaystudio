@@ -9,6 +9,7 @@ import {
 } from "@workspace/db";
 import { trackEvent } from "../lib/emailClient";
 import { EVENTS } from "../lib/eventRegistry";
+import { recordTrialEvent } from "../lib/trialAnalytics";
 import { requireAuth } from "../middlewares/requireAuth";
 import {
   exchangeToken,
@@ -182,7 +183,12 @@ router.get("/integrations/pcs/callback", async (req, res) => {
           .where(and(eq(usersTable.id, userId), isNull(usersTable.planningCenterEventFiredAt)))
           .returning({ id: usersTable.id, email: usersTable.email });
         if (claimed) {
-          const delivered = await trackEvent(EVENTS.PLANNING_CENTER_CONNECTED, claimed.id, claimed.email, {}, req.log);
+          const delivered = await recordTrialEvent(
+            claimed.id,
+            EVENTS.PLANNING_CENTER_CONNECTED,
+            { source: "planning_center_oauth" },
+            req.log,
+          );
           if (!delivered) {
             await db.update(usersTable)
               .set({ planningCenterEventFiredAt: null })

@@ -1,11 +1,188 @@
-import { AppLayout } from '../components/layout/AppLayout';
-import { Layers, Music, BookOpen, Mic, Users, Calendar, ChevronRight, FileText, Sparkles, PenLine } from 'lucide-react';
-import { Link, useLocation } from 'wouter';
-import { useUser } from '@clerk/react';
-import { useGetDashboard, useGetMe } from '@workspace/api-client-react';
-import { OnboardingBanner } from '../components/OnboardingBanner';
-import { UpgradeBanner } from '../components/UpgradeBanner';
-import { PersonalizationCard } from '../components/PersonalizationCard';
+import { useEffect, useRef } from "react";
+import { AppLayout } from "../components/layout/AppLayout";
+import {
+  Layers,
+  Music,
+  BookOpen,
+  Mic,
+  Users,
+  Calendar,
+  ChevronRight,
+  FileText,
+  Sparkles,
+  PenLine,
+  ArrowRight,
+  CheckCircle2,
+} from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { useUser } from "@clerk/react";
+import {
+  useGetDashboard,
+  useGetMe,
+  useRecordTrialEvent,
+} from "@workspace/api-client-react";
+import { OnboardingBanner } from "../components/OnboardingBanner";
+import { UpgradeBanner } from "../components/UpgradeBanner";
+import { PersonalizationCard } from "../components/PersonalizationCard";
+
+function formatTrialDate(iso: string | null): string {
+  if (!iso) return "the end of your trial";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+type TrialSummary = {
+  isActive: boolean;
+  daysLeft: number | null;
+  trialEndsAt: string | null;
+  activated: boolean;
+  servicePlans: number;
+  sermons: number;
+  libraryItems: number;
+};
+
+function TrialValueSurface({ trial }: { trial: TrialSummary }) {
+  const [, setLocation] = useLocation();
+  const { mutate } = useRecordTrialEvent();
+  const mutateRef = useRef(mutate);
+  const shownRef = useRef(false);
+  mutateRef.current = mutate;
+
+  useEffect(() => {
+    if (!trial.isActive || shownRef.current) return;
+    shownRef.current = true;
+    mutateRef.current({
+      data: {
+        event: "ss_upgrade_prompt_shown",
+        context: {
+          surface: "dashboard-trial-value",
+          activated: trial.activated,
+          daysLeft: trial.daysLeft,
+        },
+      },
+    });
+  }, [trial.isActive, trial.activated, trial.daysLeft]);
+
+  if (!trial.isActive) return null;
+
+  const daysLabel =
+    trial.daysLeft === null
+      ? "Your trial is active"
+      : trial.daysLeft === 1
+        ? "1 day remaining"
+        : `${trial.daysLeft} days remaining`;
+  const pricingHref = `/pricing?returnTo=${encodeURIComponent("/dashboard")}`;
+  const onValueCta = () => {
+    mutateRef.current({
+      data: {
+        event: "ss_upgrade_prompt_clicked",
+        context: {
+          surface: "dashboard-trial-value",
+          activated: trial.activated,
+          daysLeft: trial.daysLeft,
+        },
+      },
+    });
+    setLocation(trial.activated ? pricingHref : "/service-builder");
+  };
+
+  return (
+    <section
+      data-testid="card-trial-value"
+      className="overflow-hidden rounded-2xl border"
+      style={{
+        backgroundColor: "var(--worship-white)",
+        borderColor: "var(--worship-border)",
+      }}
+    >
+      <div className="grid gap-6 p-5 sm:p-6 md:grid-cols-[1fr_auto] md:items-center">
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span
+              data-testid="status-trial-active"
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+              style={{
+                backgroundColor: "var(--worship-pale-gold)",
+                color: "var(--worship-navy)",
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--worship-gold)" }} />
+              {daysLabel}
+            </span>
+            <span
+              data-testid="text-trial-no-charge"
+              className="text-xs"
+              style={{ color: "var(--worship-muted-slate)" }}
+            >
+              No charge until {formatTrialDate(trial.trialEndsAt)}
+            </span>
+          </div>
+          <h2 className="mb-1 text-xl font-medium" style={{ color: "var(--worship-navy)" }}>
+            You have already started your Sunday rhythm.
+          </h2>
+          <p
+            className="max-w-2xl text-sm leading-relaxed"
+            style={{ color: "var(--worship-slate)" }}
+          >
+            {trial.activated
+              ? "Your plans, sermons, and saved resources are gathered here. Keep that preparation available every week for $9.99/month."
+              : "Take one small next step and make this workspace yours: create your first service plan, then come back to build on it."}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          data-testid="button-trial-value-cta"
+          onClick={onValueCta}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-transform hover:-translate-y-0.5 sm:w-auto"
+          style={{
+            backgroundColor: "var(--worship-navy)",
+            color: "var(--worship-cream)",
+          }}
+        >
+          {trial.activated ? "Keep your work going" : "Create your first plan"}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div
+        className="grid grid-cols-3 border-t"
+        style={{ borderColor: "var(--worship-border)", backgroundColor: "var(--worship-cream)" }}
+      >
+        {[
+          { label: "Service plans", value: trial.servicePlans, id: "service-plans" },
+          { label: "Sermons", value: trial.sermons, id: "sermons" },
+          { label: "Library items", value: trial.libraryItems, id: "library-items" },
+        ].map((item) => (
+          <div key={item.id} data-testid={`metric-trial-${item.id}`} className="px-3 py-3 sm:px-5">
+            <p className="text-lg font-semibold" style={{ color: "var(--worship-navy)" }}>
+              {item.value}
+            </p>
+            <p className="text-[11px] leading-tight sm:text-xs" style={{ color: "var(--worship-muted-slate)" }}>
+              {item.label}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {trial.activated && (
+        <div
+          data-testid="text-trial-value-reassurance"
+          className="flex items-center gap-2 border-t px-5 py-3 text-xs"
+          style={{ borderColor: "var(--worship-border)", color: "var(--worship-muted-slate)" }}
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: "var(--worship-success)" }} />
+          Your saved work stays available when you continue with Pro.
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -22,8 +199,14 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <AppLayout title="Dashboard">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C99A3D]"></div>
+        <div data-testid="loading-dashboard" className="mx-auto max-w-6xl animate-pulse space-y-6">
+          <div className="h-28 rounded-2xl bg-[var(--worship-sand)] opacity-50" />
+          <div className="h-24 rounded-2xl bg-[var(--worship-sand)] opacity-40" />
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+            {[0, 1, 2, 3, 4].map((item) => (
+              <div key={item} className="h-28 rounded-2xl bg-[var(--worship-sand)] opacity-35" />
+            ))}
+          </div>
         </div>
       </AppLayout>
     );
@@ -35,14 +218,15 @@ export default function Dashboard() {
 
         <OnboardingBanner />
         <UpgradeBanner />
+        {dashboard?.trial && <TrialValueSurface trial={dashboard.trial} />}
 
         {/* Welcome Section */}
         <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 pb-6 border-b" style={{ borderColor: 'var(--worship-border)' }}>
           <div>
-            <h1 className="text-2xl md:text-3xl mb-2 font-serif text-[var(--worship-navy)]">Welcome back, {firstName}.</h1>
+            <h1 data-testid="text-dashboard-welcome" className="text-2xl md:text-3xl mb-2 font-serif text-[var(--worship-navy)]">Welcome back, {firstName}.</h1>
             <p className="text-base md:text-lg mb-3 md:mb-4" style={{ color: 'var(--worship-slate)' }}>What are you planning this week?</p>
             {dashboard?.verseOfDay && (
-              <p className="text-sm italic max-w-2xl" style={{ color: 'var(--worship-muted-slate)', fontFamily: 'var(--font-serif)' }}>
+              <p data-testid="text-verse-of-day" className="text-sm italic max-w-2xl" style={{ color: 'var(--worship-muted-slate)', fontFamily: 'var(--font-serif)' }}>
                 "{dashboard.verseOfDay.text}" — {dashboard.verseOfDay.reference}
               </p>
             )}
@@ -71,7 +255,7 @@ export default function Dashboard() {
               { icon: Users, label: "Team Devotional", href: "/generators/devotional" },
               { icon: Mic, label: "Speaking Moment", href: "/generators/speaking-moment" }
             ].map((action, i) => (
-              <Link key={i} href={action.href} className="worship-card flex flex-col items-center justify-center gap-3 p-4 hover:-translate-y-1 transition-transform">
+              <Link key={i} href={action.href} data-testid={`link-quick-action-${i}`} className="worship-card flex flex-col items-center justify-center gap-3 p-4 hover:-translate-y-1 transition-transform">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--worship-pale-gold)', color: 'var(--worship-navy)' }}>
                   <action.icon className="w-5 h-5" />
                 </div>
@@ -99,8 +283,9 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               {dashboard.recentServices.map((service) => (
-                <div 
+                <div
                   key={service.id} 
+                  data-testid={`card-recent-service-${service.id}`}
                   onClick={() => setLocation(`/services/${service.id}`)}
                   className="worship-card cursor-pointer group hover:border-[var(--worship-gold)] transition-colors"
                 >

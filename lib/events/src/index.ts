@@ -15,6 +15,14 @@ export const EVENTS = {
   TRIAL_EXPIRING: "ss_trial_expiring",
   /** Day-14 expiry: trial has ended. Fires via the trial email cron. */
   TRIAL_EXPIRED: "ss_trial_expired",
+  /** User reaches the activation milestone during their trial. */
+  TRIAL_ACTIVATED: "ss_trial_activated",
+  /** Activation handoff for a newly active user, used by lifecycle automations. */
+  TRIAL_ACTIVATION_HANDOFF: "ss_trial_activation_handoff",
+  /** Midpoint value recap: day 7 of the trial. */
+  TRIAL_MIDPOINT: "ss_trial_midpoint",
+  /** Final pre-expiry reminder: day 13 of the trial. */
+  TRIAL_FINAL_REMINDER: "ss_trial_final_reminder",
   /** User subscribes via Stripe (subscription.created webhook). */
   SUBSCRIPTION_STARTED: "ss_subscription_started",
   /** User cancels their subscription (subscription.deleted webhook). */
@@ -50,6 +58,12 @@ export const EVENTS = {
   SERMON_EXPORTED: "ss_sermon_exported",
   /** Pastor exports a service plan (any format). */
   SERVICE_PLAN_EXPORTED: "ss_service_plan_exported",
+  /** A contextual upgrade invitation was displayed. */
+  UPGRADE_PROMPT_SHOWN: "ss_upgrade_prompt_shown",
+  /** A contextual upgrade invitation was selected. */
+  UPGRADE_PROMPT_CLICKED: "ss_upgrade_prompt_clicked",
+  /** The user entered Stripe Checkout from a trial conversion surface. */
+  CHECKOUT_STARTED: "ss_checkout_started",
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
@@ -58,7 +72,8 @@ export type EventCategory =
   | "Account Lifecycle"
   | "Onboarding Milestones"
   | "Feature Adoption"
-  | "High-Intent Actions";
+  | "High-Intent Actions"
+  | "Conversion Funnel";
 
 /** Human-readable metadata for each event — consumed by the Admin reference page. */
 export interface EventMeta {
@@ -89,6 +104,34 @@ export const EVENT_CATALOG: EventMeta[] = [
     category: "Account Lifecycle",
     description: "Trial period has ended (day 14+)",
     firesWhen: "Trial email cron — day 14 of trial",
+    frequency: "Once",
+  },
+  {
+    name: EVENTS.TRIAL_ACTIVATED,
+    category: "Conversion Funnel",
+    description: "User completed a meaningful first workflow",
+    firesWhen: "First saved service plan or sermon",
+    frequency: "Once",
+  },
+  {
+    name: EVENTS.TRIAL_ACTIVATION_HANDOFF,
+    category: "Conversion Funnel",
+    description: "Activation handoff sent with the user's first outcome",
+    firesWhen: "Immediately after the activation milestone",
+    frequency: "Once",
+  },
+  {
+    name: EVENTS.TRIAL_MIDPOINT,
+    category: "Conversion Funnel",
+    description: "Mid-trial value recap",
+    firesWhen: "Trial email cron — day 7 of trial",
+    frequency: "Once",
+  },
+  {
+    name: EVENTS.TRIAL_FINAL_REMINDER,
+    category: "Conversion Funnel",
+    description: "Final reminder before the trial ends",
+    firesWhen: "Trial email cron — day 13 of trial",
     frequency: "Once",
   },
   {
@@ -177,6 +220,27 @@ export const EVENT_CATALOG: EventMeta[] = [
     firesWhen: "POST /api/service-plans/:id/export",
     frequency: "Per occurrence",
   },
+  {
+    name: EVENTS.UPGRADE_PROMPT_SHOWN,
+    category: "Conversion Funnel",
+    description: "A contextual upgrade prompt was shown",
+    firesWhen: "Frequency-capped client prompt is displayed",
+    frequency: "Per occurrence",
+  },
+  {
+    name: EVENTS.UPGRADE_PROMPT_CLICKED,
+    category: "Conversion Funnel",
+    description: "A contextual upgrade prompt was clicked",
+    firesWhen: "User selects the prompt's upgrade action",
+    frequency: "Per occurrence",
+  },
+  {
+    name: EVENTS.CHECKOUT_STARTED,
+    category: "Conversion Funnel",
+    description: "User started Stripe Checkout",
+    firesWhen: "Checkout session request accepted",
+    frequency: "Per occurrence",
+  },
 ];
 
 export const EVENT_CATEGORIES: EventCategory[] = [
@@ -184,4 +248,5 @@ export const EVENT_CATEGORIES: EventCategory[] = [
   "Onboarding Milestones",
   "Feature Adoption",
   "High-Intent Actions",
+  "Conversion Funnel",
 ];

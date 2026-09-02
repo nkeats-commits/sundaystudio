@@ -93,6 +93,26 @@ export interface BillingStatusResponse {
   trialDays: number;
 }
 
+export type TrialEventBodyEvent =
+  (typeof TrialEventBodyEvent)[keyof typeof TrialEventBodyEvent];
+
+export const TrialEventBodyEvent = {
+  ss_upgrade_prompt_shown: "ss_upgrade_prompt_shown",
+  ss_upgrade_prompt_clicked: "ss_upgrade_prompt_clicked",
+  ss_checkout_started: "ss_checkout_started",
+} as const;
+
+export type TrialEventBodyContext = { [key: string]: unknown };
+
+export interface TrialEventBody {
+  event: TrialEventBodyEvent;
+  context?: TrialEventBodyContext;
+}
+
+export interface TrialEventAccepted {
+  accepted: boolean;
+}
+
 export interface AdminMe {
   ownerEmail?: string | null;
   userId: string;
@@ -156,6 +176,26 @@ export type AdminMetricsAiCost = {
   dailyCost: AdminCostSeriesPoint[];
 };
 
+export interface AdminConversionDay {
+  trialDay: number;
+  activated: number;
+  promptShown: number;
+  promptClicked: number;
+  checkoutStarted: number;
+  subscriptionsStarted: number;
+}
+
+export interface AdminConversionFunnel {
+  activatedUsers: number;
+  promptShown: number;
+  promptClicked: number;
+  checkoutStarted: number;
+  subscriptionsStarted: number;
+  /** Activated-to-paid conversion rate (%). */
+  activatedToPaidRate: number;
+  byTrialDay: AdminConversionDay[];
+}
+
 export interface AdminMetrics {
   totals: AdminMetricsTotals;
   trials: AdminMetricsTrials;
@@ -163,6 +203,7 @@ export interface AdminMetrics {
   revenue: AdminMetricsRevenue;
   series: AdminMetricsSeries;
   stripeAvailable: boolean;
+  conversion: AdminConversionFunnel;
   aiCost?: AdminMetricsAiCost;
 }
 
@@ -619,6 +660,16 @@ export type DashboardResponseVerseOfDay = {
   reference: string;
 };
 
+export interface DashboardTrialSummary {
+  isActive: boolean;
+  daysLeft: number | null;
+  trialEndsAt: string | null;
+  activated: boolean;
+  servicePlans: number;
+  sermons: number;
+  libraryItems: number;
+}
+
 export interface DashboardResponse {
   verseOfDay: DashboardResponseVerseOfDay;
   recentServices: ServicePlan[];
@@ -626,6 +677,7 @@ export interface DashboardResponse {
   librarySize: number;
   totalServices: number;
   suggestions: DashboardSuggestion[];
+  trial: DashboardTrialSummary;
 }
 
 export type ServiceFlowStepKind =

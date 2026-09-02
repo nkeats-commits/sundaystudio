@@ -176,6 +176,27 @@ export const GetDashboardResponse = zod.object({
       ]),
     }),
   ),
+  trial: zod.object({
+    isActive: zod.boolean(),
+    daysLeft: zod.number().nullable(),
+    trialEndsAt: zod.coerce.date().nullable(),
+    activated: zod.boolean(),
+    servicePlans: zod.number(),
+    sermons: zod.number(),
+    libraryItems: zod.number(),
+  }),
+});
+
+/**
+ * @summary Record a trial conversion funnel event
+ */
+export const RecordTrialEventBody = zod.object({
+  event: zod.enum([
+    "ss_upgrade_prompt_shown",
+    "ss_upgrade_prompt_clicked",
+    "ss_checkout_started",
+  ]),
+  context: zod.record(zod.string(), zod.unknown()).optional(),
 });
 
 /**
@@ -4493,6 +4514,26 @@ export const GetAdminMetricsResponse = zod.object({
     ),
   }),
   stripeAvailable: zod.boolean(),
+  conversion: zod.object({
+    activatedUsers: zod.number(),
+    promptShown: zod.number(),
+    promptClicked: zod.number(),
+    checkoutStarted: zod.number(),
+    subscriptionsStarted: zod.number(),
+    activatedToPaidRate: zod
+      .number()
+      .describe("Activated-to-paid conversion rate (%)."),
+    byTrialDay: zod.array(
+      zod.object({
+        trialDay: zod.number(),
+        activated: zod.number(),
+        promptShown: zod.number(),
+        promptClicked: zod.number(),
+        checkoutStarted: zod.number(),
+        subscriptionsStarted: zod.number(),
+      }),
+    ),
+  }),
   aiCost: zod
     .object({
       totalInputTokensThisMonth: zod.number(),
