@@ -101,27 +101,22 @@ test("parsePassageRef: empty / garbage", () => {
 
 test("registry: only sources with populated book corpora are registered", () => {
   const sources = listRegisteredSources();
-  // Batch 1 of bundled commentaries: Henry, JFB, Barnes, Pulpit. Other
-  // manifest-only stubs (Adam Clarke, John Gill, Keil & Delitzsch) are
-  // explicitly skipped by the loader so users never see no-op toggles.
-  assert.ok(sources.length >= 4, `expected ≥4 sources, got ${sources.length}`);
+  // The first two shipped batches provide seven task-relevant sources. Later
+  // batches may add more, so assert the floor rather than an exact total.
+  assert.ok(sources.length >= 7, `expected ≥7 sources, got ${sources.length}`);
   assert.ok(sources.every((s) => s.id && s.title && s.license));
   for (const required of [
     "matthew-henry-concise",
     "jamieson-fausset-brown",
     "barnes-notes",
     "pulpit-commentary",
+    "adam-clarke",
+    "john-gill",
+    "keil-delitzsch",
   ]) {
     assert.ok(
       sources.some((s) => s.id === required),
       `${required} must be registered`,
-    );
-  }
-  // Remaining stub sources must NOT appear until their corpora ship.
-  for (const stub of ["keil-delitzsch", "john-gill", "adam-clarke"]) {
-    assert.ok(
-      !isRegisteredSource(stub),
-      `${stub} should be excluded (manifest-only)`,
     );
   }
 });
@@ -143,10 +138,11 @@ test("lookupCommentary: hits Matthew Henry on Romans 8", () => {
 });
 
 test("registry: bundled commentaries cover ~all 66 books × 1189 chapters", () => {
-  // Defense against a future re-ingest silently dropping content. JFB and
-  // Pulpit cover the full canon; Barnes upstream legitimately omits 3
-  // chapters (Exodus 37, Exodus 39, 2 Chronicles 10). If these numbers drift
-  // downward without a corresponding upstream change, something is wrong.
+  // Defense against a future re-ingest silently dropping content. These are
+  // the hand-verified upstream totals: Barnes omits four chapters, Gill omits
+  // twelve Chronicles chapters, and K&D is OT-only with two Chronicles gaps.
+  // If these numbers drift downward without a corresponding upstream change,
+  // something is wrong.
   // Note: matthew-henry-concise is intentionally excluded — its existing
   // file inventory uses `song-of-solomon.json` while the passage parser
   // canonicalizes "Song of Solomon" to "song of songs", so a strict 66/66
@@ -156,34 +152,36 @@ test("registry: bundled commentaries cover ~all 66 books × 1189 chapters", () =
     "jamieson-fausset-brown": { books: 66, chapters: 1189 },
     "barnes-notes": { books: 66, chapters: 1185 },
     "pulpit-commentary": { books: 66, chapters: 1189 },
+    "adam-clarke": { books: 66, chapters: 1189 },
+    "john-gill": { books: 66, chapters: 1177 },
+    "keil-delitzsch": { books: 39, chapters: 927 },
   };
+  const CANONICAL_BOOKS: ReadonlyArray<readonly [string, number]> = [
+    ["Genesis", 50], ["Exodus", 40], ["Leviticus", 27], ["Numbers", 36],
+    ["Deuteronomy", 34], ["Joshua", 24], ["Judges", 21], ["Ruth", 4],
+    ["1 Samuel", 31], ["2 Samuel", 24], ["1 Kings", 22], ["2 Kings", 25],
+    ["1 Chronicles", 29], ["2 Chronicles", 36], ["Ezra", 10],
+    ["Nehemiah", 13], ["Esther", 10], ["Job", 42], ["Psalms", 150],
+    ["Proverbs", 31], ["Ecclesiastes", 12], ["Song of Solomon", 8],
+    ["Isaiah", 66], ["Jeremiah", 52], ["Lamentations", 5], ["Ezekiel", 48],
+    ["Daniel", 12], ["Hosea", 14], ["Joel", 3], ["Amos", 9],
+    ["Obadiah", 1], ["Jonah", 4], ["Micah", 7], ["Nahum", 3],
+    ["Habakkuk", 3], ["Zephaniah", 3], ["Haggai", 2], ["Zechariah", 14],
+    ["Malachi", 4], ["Matthew", 28], ["Mark", 16], ["Luke", 24],
+    ["John", 21], ["Acts", 28], ["Romans", 16], ["1 Corinthians", 16],
+    ["2 Corinthians", 13], ["Galatians", 6], ["Ephesians", 6],
+    ["Philippians", 4], ["Colossians", 4], ["1 Thessalonians", 5],
+    ["2 Thessalonians", 3], ["1 Timothy", 6], ["2 Timothy", 4],
+    ["Titus", 3], ["Philemon", 1], ["Hebrews", 13], ["James", 5],
+    ["1 Peter", 5], ["2 Peter", 3], ["1 John", 5], ["2 John", 1],
+    ["3 John", 1], ["Jude", 1], ["Revelation", 22],
+  ];
   for (const [sourceId, expected] of Object.entries(expectations)) {
     const src = listRegisteredSources().find((s) => s.id === sourceId);
     assert.ok(src, `${sourceId} not registered`);
-    // listRegisteredSources doesn't surface book/chapter counts directly, so
-    // probe via lookupCommentary across a representative sample (one
-    // passage per book × first chapter). A miss on any book → fail loud.
-    // We also count chapter coverage by walking the canon.
-    const SAMPLE_BOOKS = [
-      "Genesis 1:1", "Exodus 1:1", "Leviticus 1:1", "Numbers 1:1",
-      "Deuteronomy 1:1", "Joshua 1:1", "Judges 1:1", "Ruth 1:1",
-      "1 Samuel 1:1", "2 Samuel 1:1", "1 Kings 1:1", "2 Kings 1:1",
-      "1 Chronicles 1:1", "2 Chronicles 1:1", "Ezra 1:1", "Nehemiah 1:1",
-      "Esther 1:1", "Job 1:1", "Psalms 1:1", "Proverbs 1:1",
-      "Ecclesiastes 1:1", "Song of Solomon 1:1", "Isaiah 1:1",
-      "Jeremiah 1:1", "Lamentations 1:1", "Ezekiel 1:1", "Daniel 1:1",
-      "Hosea 1:1", "Joel 1:1", "Amos 1:1", "Obadiah 1:1", "Jonah 1:1",
-      "Micah 1:1", "Nahum 1:1", "Habakkuk 1:1", "Zephaniah 1:1",
-      "Haggai 1:1", "Zechariah 1:1", "Malachi 1:1",
-      "Matthew 1:1", "Mark 1:1", "Luke 1:1", "John 1:1", "Acts 1:1",
-      "Romans 1:1", "1 Corinthians 1:1", "2 Corinthians 1:1",
-      "Galatians 1:1", "Ephesians 1:1", "Philippians 1:1",
-      "Colossians 1:1", "1 Thessalonians 1:1", "2 Thessalonians 1:1",
-      "1 Timothy 1:1", "2 Timothy 1:1", "Titus 1:1", "Philemon 1:1",
-      "Hebrews 1:1", "James 1:1", "1 Peter 1:1", "2 Peter 1:1",
-      "1 John 1:1", "2 John 1:1", "3 John 1:1", "Jude 1:1",
-      "Revelation 1:1",
-    ];
+    // listRegisteredSources doesn't surface chapter counts directly, so probe
+    // every canonical chapter. A miss on any expected chapter fails loud.
+    const SAMPLE_BOOKS = CANONICAL_BOOKS.map(([book]) => `${book} 1:1`);
     assert.equal(SAMPLE_BOOKS.length, 66);
     let bookHits = 0;
     for (const ref of SAMPLE_BOOKS) {
@@ -194,6 +192,19 @@ test("registry: bundled commentaries cover ~all 66 books × 1189 chapters", () =
       bookHits,
       expected.books,
       `${sourceId}: expected hits for ${expected.books} books, got ${bookHits}`,
+    );
+
+    let chapterHits = 0;
+    for (const [book, chapterCount] of CANONICAL_BOOKS) {
+      for (let chapter = 1; chapter <= chapterCount; chapter++) {
+        const hits = lookupCommentary([sourceId], [`${book} ${chapter}`]);
+        if (hits.length === 1) chapterHits++;
+      }
+    }
+    assert.equal(
+      chapterHits,
+      expected.chapters,
+      `${sourceId}: expected ${expected.chapters} chapters, got ${chapterHits}`,
     );
   }
 });
@@ -219,12 +230,21 @@ test("lookupCommentary: each batch-1 source returns a hit on a covered passage",
   }
 });
 
-test("lookupCommentary: returns nothing for sources excluded from registry", () => {
-  // adam-clarke is manifest-only (no book corpus yet) and skipped by the
-  // loader, so even if a stale preference row references it, lookupCommentary
-  // must yield 0.
-  const hits = lookupCommentary(["adam-clarke"], ["Romans 8:28"]);
-  assert.equal(hits.length, 0);
+test("lookupCommentary: each batch-2 source returns a hit on covered passages", () => {
+  const passages: Record<string, string> = {
+    "adam-clarke": "Romans 8:28",
+    "john-gill": "Romans 8:28",
+    "keil-delitzsch": "Genesis 1:1",
+  };
+  for (const [sourceId, passage] of Object.entries(passages)) {
+    const hits = lookupCommentary([sourceId], [passage]);
+    assert.equal(hits.length, 1, `${sourceId} should hit ${passage}`);
+    assert.equal(hits[0].sourceId, sourceId);
+    assert.ok(
+      hits[0].text.length > 200,
+      `${sourceId} excerpt suspiciously short (${hits[0].text.length} chars)`,
+    );
+  }
 });
 
 test("lookupCommentary: gracefully ignores unknown source ids", () => {

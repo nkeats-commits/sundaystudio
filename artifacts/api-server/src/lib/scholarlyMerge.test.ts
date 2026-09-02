@@ -23,6 +23,7 @@ test("merge bookkeeping: dedupes consulted sources by id", () => {
   const hits = lookupCommentary(
     ["matthew-henry-concise"],
     ["Romans 8:28", "John 3:16"],
+    20_000,
   );
   assert.ok(hits.length >= 2, "fixture passages should both hit MH");
   const seen = new Set<string>();
@@ -37,10 +38,8 @@ test("merge bookkeeping: dedupes consulted sources by id", () => {
 });
 
 test("merge bookkeeping: empty when no passages match", () => {
-  // Source that the loader excluded → zero hits, zero consulted sources.
-  // (barnes-notes used to be manifest-only; it now ships content. Use
-  // adam-clarke, which is still a manifest-only stub.)
-  const hits = lookupCommentary(["adam-clarke"], ["Romans 8:28"]);
+  // An unknown source id must produce zero hits and zero consulted sources.
+  const hits = lookupCommentary(["not-a-real-source"], ["Romans 8:28"]);
   assert.equal(hits.length, 0);
 });
 

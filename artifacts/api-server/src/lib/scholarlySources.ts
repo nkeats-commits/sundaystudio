@@ -72,9 +72,8 @@ const TOTAL_COMMENTARY_BUDGET_CHARS = 1800;
  *
  * Only sources with populated book corpora belong here — toggling on a
  * source with no excerpt data would silently inject nothing and confuse
- * pastors. v1 ships only Matthew Henry's Concise Commentary with seeded
- * book files; the other registered manifests are visible in Settings but
- * default off until their corpora are populated (see follow-up task).
+ * pastors. Matthew Henry remains the initial default; additional shipped
+ * sources are available for pastors to opt into from Settings.
  */
 export const DEFAULT_ENABLED_SOURCE_IDS: string[] = [
   "matthew-henry-concise",
