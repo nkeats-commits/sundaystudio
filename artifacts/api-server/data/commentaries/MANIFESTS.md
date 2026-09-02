@@ -42,7 +42,7 @@ license + source URL for traceability. Each per-book `<book-slug>.json` also
 records the URL it was sourced from in a top-level `_sourceUrl` field
 (ignored by the loader; present purely for provenance / future re-ingest).
 
-### Provenance note (batch 1: JFB, Barnes, Pulpit)
+### Provenance note (BibleHub-hosted editions)
 
 The original task spec named CCEL as the upstream for these three works, but
 CCEL only ships a per-work plain-text dump for JFB (and that dump's per-book
@@ -60,6 +60,45 @@ upstream BibleHub edition actually carries Barnes for the entire OT — only
 4 chapters are genuinely empty (Exodus 36, 37, 39, and 2 Chronicles 10, the
 1 Kings // 2 Chronicles parallel) and those are tracked in the script's
 `KNOWN_EMPTY_UPSTREAM` allowlist.
+
+### Provenance note (bundle: Poole, Wesley, Ellicott)
+
+The three bundled works are public-domain editions published before 1929:
+
+- **Matthew Poole's Annotations** — the 1683-1685 work, cross-checked against
+  the 1683 digitized *Annotations upon the Holy Bible* record at
+  [Internet Archive](https://archive.org/details/bim_early-english-books-1641-1700_annotations-upon-the-hol_poole-matthew_1683).
+  Chapter text is normalized from BibleHub's Poole per-chapter pages. The
+  attribution shown to users is the title and author from the manifest.
+- **John Wesley's Explanatory Notes** — Wesley's *Explanatory Notes Upon the
+  New Testament* (1755) and the companion Old Testament notes published
+  1754-1765. CCEL identifies the New Testament text as John Wesley's work and
+  public domain at [Wesley's Notes](https://www.ccel.org/ccel/wesley/notes.i.html);
+  Bible Study Tools also explicitly identifies the whole-Bible files as public
+  domain. The importer uses its per-book chapter pages because CCEL's exposed
+  reader is New Testament-only. The importer uses BibleHub's `wes` chapter
+  pages for the checked-in whole-Bible corpus. All 66 canonical books are
+  present; 14 pages contain only an attribution footer and no separate note:
+  2 Samuel 22 and 24; 1 Chronicles 14 and 18; Psalms 70, 100, 108, 116,
+  117, 128, and 143; and Isaiah 36, 37, and 39.
+- **Ellicott's Commentary for English Readers** — the 1878-1905 multi-volume
+  edition edited by Charles John Ellicott. Volume 1 is preserved in the
+  [Internet Archive record](https://archive.org/details/biblecommentaryf01elliuoft),
+  which identifies the work and publication provenance. Chapter text is
+  normalized from BibleHub's Ellicott per-chapter pages; contributors vary by
+  book, so the manifest attributes the edition to Ellicott as editor. The
+  digitized host has no usable notes for Zephaniah or Zechariah, and 14 other
+  chapter pages contain only an attribution footer: Genesis 39 and 44;
+  Numbers 2, 5, and 7; Joshua 12, 17, and 20; 2 Samuel 9; Psalms 108 and 117;
+  Jeremiah 45; Ezekiel 15; and 1 John 3.
+
+BibleHub and Bible Study Tools are text hosts, not the license evidence. Their
+page markup is only an ingest transport: the generated JSON is checked in and
+runtime code never fetches either site. Poole is expected to cover all 66 books
+and 1,189 canonical chapters. Wesley is expected to cover all 66 books and
+1,175 chapters. Ellicott is expected to cover 64 books and 1,158 chapters. Any
+gap outside those hand-checked inventories fails the ingest gate rather than
+creating a partial-looking corpus.
 
 ## How to ingest a new source
 
@@ -81,6 +120,9 @@ Currently wired sources:
 - `keil-delitzsch`         → `https://biblehub.com/commentaries/kad/` (OT only — pass `otOnly=true`)
 - `calvin-commentaries`    → `https://biblehub.com/commentaries/calvin/` (48 of 65 non-Revelation books — Calvin wrote no Revelation commentary and skipped Chronicles, Samuel, Kings, Ruth, Judges, Esther, Ezra, Nehemiah, Job, Proverbs, Ecclesiastes, Song of Songs, 2-3 John; the gate uses `minBooksOverride=45, minChaptersOverride=750`)
 - `spurgeon-treasury`      → `https://biblehub.com/commentaries/tod/` (Psalms only — pass `psalmsOnly=true`)
+- `matthew-poole`          → `https://biblehub.com/commentaries/poole/` (whole Bible)
+- `ellicott-english-readers` → `https://biblehub.com/commentaries/ellicott/` (64 books / 1,158 chapters; known gaps above)
+- `wesley-explanatory-notes` → `https://biblehub.com/commentaries/wes/` (66 books / 1,175 chapters; known gaps above)
 
 Why BibleHub: CCEL only publishes plain-text dumps for a few works, and the
 JFB dump's per-book headers vary across the canon (`THE FIRST BOOK OF MOSES,
@@ -103,8 +145,22 @@ The script:
 - aborts with a non-zero exit if the parsed total is implausibly small
   (guard against silent BibleHub DOM drift).
 
-To add a fourth source backed by BibleHub, add a `case` in the script's
+The normal minimum cleaned excerpt length is 200 characters. Wesley uses a
+100-character floor because a few authentic chapter notes are intentionally
+brief (for example, Psalms 131 and 150); footer-only pages become empty after
+boilerplate cleanup and still fail the completeness gate unless allowlisted.
+
+To add another source backed by BibleHub, add a `case` in the script's
 `main()` switch with the BibleHub path segment, then run the script. To add
-a source from a different upstream, write a new ingest function that
-populates the same `Map<canonical, BookOut>` shape and pass it to
-`writeBooks()`.
+a source from a different upstream, write a dedicated extractor and ingest
+function that populates the same `Map<canonical, BookOut>` shape and pass it
+to `writeBooks()`.
+
+### Failure checklist
+
+Before accepting a new corpus, verify that the ingest command exits
+successfully, the book and chapter totals match the manifest's documented
+scope, representative JSON entries contain no HTML or navigation text, and
+lookup tests hit a common passage. A missing body marker, HTTP failure,
+unexpectedly short chapter, or unexpected chapter gap must remain fatal; do
+not lower the completeness floor to make a run pass.

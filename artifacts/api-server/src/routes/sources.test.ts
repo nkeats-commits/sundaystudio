@@ -81,6 +81,20 @@ test("GET /api/sources returns registry + defaults for a fresh user", async () =
       body.sources.some((s) => s.id === "matthew-henry-concise"),
       "registry must include matthew-henry-concise",
     );
+    for (const sourceId of [
+      "matthew-poole",
+      "wesley-explanatory-notes",
+      "ellicott-english-readers",
+    ]) {
+      assert.ok(
+        body.sources.some((s) => s.id === sourceId),
+        `registry must include ${sourceId}`,
+      );
+      assert.ok(
+        !body.defaults.includes(sourceId),
+        `${sourceId} must remain opt-in`,
+      );
+    }
     // Fresh user falls back to defaults.
     assert.deepEqual(body.enabledSourceIds, body.defaults);
     assert.ok(body.defaults.includes("matthew-henry-concise"));

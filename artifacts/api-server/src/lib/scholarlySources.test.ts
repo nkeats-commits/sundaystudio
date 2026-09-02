@@ -7,6 +7,8 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import {
   parsePassageRef,
   lookupCommentary,
@@ -101,9 +103,9 @@ test("parsePassageRef: empty / garbage", () => {
 
 test("registry: only sources with populated book corpora are registered", () => {
   const sources = listRegisteredSources();
-  // The first two shipped batches provide seven task-relevant sources. Later
+  // The first three shipped batches provide ten task-relevant sources. Later
   // batches may add more, so assert the floor rather than an exact total.
-  assert.ok(sources.length >= 7, `expected ≥7 sources, got ${sources.length}`);
+  assert.ok(sources.length >= 10, `expected ≥10 sources, got ${sources.length}`);
   assert.ok(sources.every((s) => s.id && s.title && s.license));
   for (const required of [
     "matthew-henry-concise",
@@ -113,6 +115,9 @@ test("registry: only sources with populated book corpora are registered", () => 
     "adam-clarke",
     "john-gill",
     "keil-delitzsch",
+    "matthew-poole",
+    "wesley-explanatory-notes",
+    "ellicott-english-readers",
   ]) {
     assert.ok(
       sources.some((s) => s.id === required),
@@ -122,6 +127,11 @@ test("registry: only sources with populated book corpora are registered", () => 
 });
 
 test("registry: defaults are all registered", () => {
+  assert.deepEqual(
+    DEFAULT_ENABLED_SOURCE_IDS,
+    ["matthew-henry-concise"],
+    "new commentary bundles must remain opt-in",
+  );
   assert.ok(DEFAULT_ENABLED_SOURCE_IDS.length > 0, "defaults must not be empty");
   for (const id of DEFAULT_ENABLED_SOURCE_IDS) {
     assert.ok(isRegisteredSource(id), `default ${id} not in registry`);
@@ -155,6 +165,9 @@ test("registry: bundled commentaries cover ~all 66 books × 1189 chapters", () =
     "adam-clarke": { books: 66, chapters: 1189 },
     "john-gill": { books: 66, chapters: 1177 },
     "keil-delitzsch": { books: 39, chapters: 927 },
+    "matthew-poole": { books: 66, chapters: 1189 },
+    "wesley-explanatory-notes": { books: 66, chapters: 1175 },
+    "ellicott-english-readers": { books: 64, chapters: 1158 },
   };
   const CANONICAL_BOOKS: ReadonlyArray<readonly [string, number]> = [
     ["Genesis", 50], ["Exodus", 40], ["Leviticus", 27], ["Numbers", 36],
@@ -245,6 +258,63 @@ test("lookupCommentary: each batch-2 source returns a hit on covered passages", 
       `${sourceId} excerpt suspiciously short (${hits[0].text.length} chars)`,
     );
   }
+});
+
+test("lookupCommentary: each new public-domain source returns clean attributed text", () => {
+  for (const sourceId of [
+    "matthew-poole",
+    "wesley-explanatory-notes",
+    "ellicott-english-readers",
+  ]) {
+    const hits = lookupCommentary([sourceId], ["Romans 8:28"]);
+    assert.equal(hits.length, 1, `${sourceId} should hit Romans 8`);
+    assert.equal(hits[0].sourceId, sourceId);
+    assert.ok(hits[0].sourceTitle, `${sourceId} must expose a title`);
+    assert.ok(hits[0].sourceAuthor, `${sourceId} must expose an author`);
+    assert.ok(
+      hits[0].text.length > 200,
+      `${sourceId} excerpt suspiciously short (${hits[0].text.length} chars)`,
+    );
+    assert.doesNotMatch(
+      hits[0].text,
+      /<[^>]+>|javascript:|advertisement|related resources|See note at/i,
+      `${sourceId} excerpt contains upstream page artifacts`,
+    );
+  }
+});
+
+test("new commentary corpora contain no upstream placeholders, HTML, or footers", () => {
+  const root = join(process.cwd(), "data", "commentaries");
+  for (const sourceId of [
+    "matthew-poole",
+    "wesley-explanatory-notes",
+    "ellicott-english-readers",
+  ]) {
+    for (const file of readdirSync(join(root, sourceId))) {
+      if (file === "MANIFEST.json" || !file.endsWith(".json")) continue;
+      const raw = readFileSync(join(root, sourceId, file), "utf8");
+      assert.doesNotMatch(
+        raw,
+        /<[^>]+>|No text from Poole|Used by Permission|Matthew Poole's Commentary|Ellicott's Commentary for English Readers/,
+        `${sourceId}/${file} contains upstream page artifacts`,
+      );
+    }
+  }
+});
+
+test("lookupCommentary: disabled new sources contribute no context", () => {
+  const hits = lookupCommentary(["matthew-henry-concise"], ["Romans 8:28"]);
+  assert.ok(hits.length > 0);
+  assert.ok(
+    hits.every(
+      (hit) =>
+        ![
+          "matthew-poole",
+          "wesley-explanatory-notes",
+          "ellicott-english-readers",
+        ].includes(hit.sourceId),
+    ),
+  );
 });
 
 test("lookupCommentary: gracefully ignores unknown source ids", () => {

@@ -2,9 +2,9 @@
  * Unified ingest for bundled public-domain commentaries.
  *
  * Run:
- *   pnpm --filter @workspace/scripts run ingest-commentary -- <source-id>
+ *   pnpm --filter @workspace/scripts run ingest-commentary <source-id>
  *
- * Supported source ids (all scrape biblehub.com per chapter):
+ * Supported source ids (most scrape biblehub.com per chapter):
  *   - jamieson-fausset-brown   → /commentaries/jfb/<book>/<ch>.htm
  *   - barnes-notes             → /commentaries/barnes/<book>/<ch>.htm
  *   - pulpit-commentary        → /commentaries/pulpit/<book>/<ch>.htm
@@ -13,14 +13,17 @@
  *   - keil-delitzsch           → /commentaries/kad/<book>/<ch>.htm (OT only)
  *   - calvin-commentaries      → /commentaries/calvin/<book>/<ch>.htm (whole Bible except Revelation)
  *   - spurgeon-treasury        → /commentaries/tod/<book>/<ch>.htm (Psalms only)
+ *   - matthew-poole            → /commentaries/poole/<book>/<ch>.htm
+ *   - ellicott-english-readers → /commentaries/ellicott/<book>/<ch>.htm
+ *   - wesley-explanatory-notes → /commentaries/wes/<book>/<ch>.htm
  *
  * Why BibleHub and not CCEL? CCEL serves a per-work plain-text dump only for
  * a few commentaries (Henry, JFB) and the JFB dump's per-book headers vary
  * wildly across the canon ("THE FIRST BOOK OF MOSES, CALLED \n GENESIS",
  * "THE \n BOOK OF JOSHUA", "THE EPISTLE OF PAUL THE APOSTLE TO THE \n
  * ROMANS", and several books with no explicit header at all). BibleHub's
- * per-chapter pages have a consistent DOM shape across all three
- * commentaries, which gives one parser for the whole pipeline.
+ * per-chapter pages have a consistent DOM shape across the BibleHub-backed
+ * commentaries, which gives one parser for that part of the pipeline.
  *
  * Output: writes one `<book-slug>.json` per Bible book into
  * `artifacts/api-server/data/commentaries/<source-id>/`, in the schema
@@ -34,10 +37,11 @@
  * top-level keys.
  */
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
-  readdirSync,
-  unlinkSync,
+  renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -186,6 +190,63 @@ function stripHtml(s: string): string {
     .trim();
 }
 
+function finalizeExcerpt(combined: string): string {
+  combined = combined.replace(/\s+/g, " ").trim();
+  combined = combined
+    .replace(/\bNo text from Poole on this verse\.?/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Strip common aggregator attribution/footer boilerplate. These markers
+  // must be removed before truncation so a footer cannot crowd out commentary.
+  const FOOTER_MARKERS = [
+    /\bText Courtesy of [^.]*\./i,
+    /\bOld and New Testaments by Robert Jamieson[\s\S]*$/i,
+    /\bBible Hub\s*$/i,
+    /\bbiblehub\.com[\s\S]*$/i,
+    /\bInternet Sacred Texts Archive[\s\S]*$/i,
+    /\bMatthew Poole's Commentary[\s\S]*$/i,
+    /\bExplanatory Notes on the Whole Bible by John Wesley[\s\S]*$/i,
+    /\bEllicott's Commentary for English Readers[\s\S]*$/i,
+  ];
+  for (const re of FOOTER_MARKERS) combined = combined.replace(re, "").trim();
+
+  // End at a sentence boundary where possible, otherwise at a word boundary.
+  // The ellipsis is deliberate and tells the model that the excerpt is capped.
+  if (combined.length > TARGET_EXCERPT_CHARS) {
+    const cut = combined.slice(0, TARGET_EXCERPT_CHARS);
+    const lastStop = Math.max(
+      cut.lastIndexOf(". "),
+      cut.lastIndexOf("! "),
+      cut.lastIndexOf("? "),
+    );
+    if (lastStop > TARGET_EXCERPT_CHARS - 300) {
+      combined = cut.slice(0, lastStop + 1);
+    } else {
+      const lastSpace = cut.lastIndexOf(" ");
+      combined = (lastSpace > 100 ? cut.slice(0, lastSpace) : cut).trimEnd() + "…";
+    }
+  } else {
+    const tail = combined.slice(-1);
+    if (tail && !/[.!?")\]]/.test(tail)) {
+      const lastStop = Math.max(
+        combined.lastIndexOf(". "),
+        combined.lastIndexOf("! "),
+        combined.lastIndexOf("? "),
+      );
+      if (lastStop > combined.length - 400 && lastStop > 200) {
+        combined = combined.slice(0, lastStop + 1);
+      } else if (combined.length > 200) {
+        const lastSpace = combined.lastIndexOf(" ");
+        if (lastSpace > combined.length - 30) {
+          combined = combined.slice(0, lastSpace).trimEnd() + "…";
+        }
+      }
+    }
+  }
+  return combined;
+}
+
 /**
  * Extract a chapter-overview excerpt from a BibleHub commentary HTML page.
  *
@@ -245,65 +306,31 @@ export function extractBibleHubExcerpt(html: string): string {
   }
   let combined = collected.join(" ").replace(/\s+/g, " ").trim();
 
-  // Strip BibleHub's appended attribution/footer boilerplate. The site
-  // emits these inline with the last verse on some chapter pages, so they
-  // bleed into our extraction and read as garbage.
-  // Cut at the first occurrence of any boilerplate marker.
-  const FOOTER_MARKERS = [
-    /\bText Courtesy of [^.]*\./i,                 // Barnes ("Text Courtesy of Internet Sacred Texts Archive .")
-    /\bOld and New Testaments by Robert Jamieson[\s\S]*$/i, // JFB title-page footer
-    /\bBible Hub\s*$/i,                            // trailing "Bible Hub"
-    /\bbiblehub\.com[\s\S]*$/i,
-    /\bInternet Sacred Texts Archive[\s\S]*$/i,
-  ];
-  for (const re of FOOTER_MARKERS) {
-    combined = combined.replace(re, "").trim();
-  }
-
-  // Final cut to TARGET_EXCERPT_CHARS, ending on a sentence boundary if
-  // possible, otherwise on a word boundary — never mid-word.
-  if (combined.length > TARGET_EXCERPT_CHARS) {
-    const cut = combined.slice(0, TARGET_EXCERPT_CHARS);
-    const lastStop = Math.max(
-      cut.lastIndexOf(". "),
-      cut.lastIndexOf("! "),
-      cut.lastIndexOf("? "),
-    );
-    if (lastStop > TARGET_EXCERPT_CHARS - 300) {
-      combined = cut.slice(0, lastStop + 1);
-    } else {
-      const lastSpace = cut.lastIndexOf(" ");
-      combined = (lastSpace > 100 ? cut.slice(0, lastSpace) : cut).trimEnd() + "…";
-    }
-  } else {
-    // Even when within the cap, the final text can end mid-word because
-    // upstream `<div class="versenum">` boundaries often fall mid-sentence
-    // of the previous verse's commentary. Trim back to the last sentence
-    // stop or word boundary so excerpts always read cleanly.
-    const tail = combined.slice(-1);
-    if (tail && !/[.!?")\]]/.test(tail)) {
-      const lastStop = Math.max(
-        combined.lastIndexOf(". "),
-        combined.lastIndexOf("! "),
-        combined.lastIndexOf("? "),
-      );
-      if (lastStop > combined.length - 400 && lastStop > 200) {
-        combined = combined.slice(0, lastStop + 1);
-      } else if (combined.length > 200) {
-        const lastSpace = combined.lastIndexOf(" ");
-        if (lastSpace > combined.length - 30) {
-          combined = combined.slice(0, lastSpace).trimEnd() + "…";
-        }
-      }
-    }
-  }
-  return combined;
+  return finalizeExcerpt(combined);
 }
 
 interface BookOut {
   book: string;
   chapters: Record<string, { text: string }>;
   _sourceUrl: string;
+}
+
+export function diffExactCoverage(
+  got: ReadonlySet<string>,
+  booksScope: ReadonlyArray<Pick<BookSpec, "canonical" | "chapters">>,
+  knownEmpty: readonly string[],
+): { missing: string[]; unexpected: string[] } {
+  const expected = new Set<string>();
+  for (const spec of booksScope) {
+    for (let ch = 1; ch <= spec.chapters; ch++) {
+      const key = `${spec.canonical} ${ch}`;
+      if (!knownEmpty.includes(key)) expected.add(key);
+    }
+  }
+  return {
+    missing: [...expected].filter((key) => !got.has(key)),
+    unexpected: [...got].filter((key) => !expected.has(key)),
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -349,8 +376,22 @@ async function ingestBibleHub(
     | "john-gill"
     | "keil-delitzsch"
     | "calvin-commentaries"
-    | "spurgeon-treasury",
-  bhPath: "jfb" | "barnes" | "pulpit" | "clarke" | "gill" | "kad" | "calvin" | "tod",
+    | "spurgeon-treasury"
+    | "matthew-poole"
+    | "wesley-explanatory-notes"
+    | "ellicott-english-readers",
+  bhPath:
+    | "jfb"
+    | "barnes"
+    | "pulpit"
+    | "clarke"
+    | "gill"
+    | "kad"
+    | "calvin"
+    | "tod"
+    | "poole"
+    | "wes"
+    | "ellicott",
   /** When true, only OT books are fetched (for OT-only commentaries like K&D). */
   otOnly = false,
   /** When true, only Psalms is fetched (for Spurgeon's Treasury of David). */
@@ -367,6 +408,11 @@ async function ingestBibleHub(
    * Set alongside minBooksOverride for partial-canon commentaries.
    */
   minChaptersOverride?: number,
+  /**
+   * Minimum cleaned commentary length accepted as a real chapter entry.
+   * Wesley has a few authentic, concise notes below the shared 200-char floor.
+   */
+  minExcerptChars = MIN_EXCERPT_CHARS,
 ): Promise<void> {
   let booksScope: BookSpec[];
   if (psalmsOnly) {
@@ -404,7 +450,7 @@ async function ingestBibleHub(
           continue;
         }
         const excerpt = extractBibleHubExcerpt(html);
-        if (excerpt.length >= MIN_EXCERPT_CHARS) {
+        if (excerpt.length >= minExcerptChars) {
           let book = books.get(spec.canonical);
           if (!book) {
             book = {
@@ -453,60 +499,46 @@ function writeBooks(
   minChaptersOverride?: number,
 ): void {
   const outDir = join(DATA_ROOT, sourceId);
-  if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
-
-  // Wipe existing per-book .json files (preserve MANIFEST.json).
-  for (const f of readdirSync(outDir)) {
-    if (f.endsWith(".json") && f !== "MANIFEST.json") {
-      unlinkSync(join(outDir, f));
-    }
-  }
-
-  let totalChapters = 0;
-  let totalBytes = 0;
   const sortedCanonicals = Array.from(books.keys()).sort(
     (a, b) =>
       BOOKS.findIndex((b1) => b1.canonical === a) -
       BOOKS.findIndex((b2) => b2.canonical === b),
   );
+  const got = new Set<string>();
   for (const canonical of sortedCanonicals) {
     const out = books.get(canonical)!;
-    const numChapters = Object.keys(out.chapters).length;
-    if (numChapters === 0) continue;
-    const path = join(outDir, `${bookSlug(canonical)}.json`);
-    const json = JSON.stringify(out, null, 2);
-    writeFileSync(path, json);
-    totalChapters += numChapters;
-    totalBytes += json.length;
+    for (const ch of Object.keys(out.chapters)) got.add(`${canonical} ${ch}`);
   }
-  console.log(
-    `[${sourceId}] wrote ${books.size} books, ${totalChapters} chapters, ${(
-      totalBytes /
-      1024 /
-      1024
-    ).toFixed(2)} MB → ${outDir}`,
-  );
+  const totalChapters = got.size;
 
-  // Strict completeness gate. Required totals = scope (all of booksScope
-  // minus known upstream omissions). If we land below the floor, BibleHub's
-  // DOM has likely drifted or we're rate-limited.
+  // Exact sources must match scope minus the hand-checked allowlist. The older
+  // Calvin adapter retains its explicit floor because its partial canon has
+  // not yet been inventoried chapter by chapter.
   const scopeChapters = booksScope.reduce((s, b) => s + b.chapters, 0);
   const expectedChapters =
     minChaptersOverride ??
     scopeChapters - KNOWN_EMPTY_UPSTREAM[sourceId].length;
   const expectedBooks = minBooksOverride ?? booksScope.length;
 
-  if (books.size < expectedBooks) {
+  if (minBooksOverride === undefined && minChaptersOverride === undefined) {
+    const { missing, unexpected } = diffExactCoverage(
+      got,
+      booksScope,
+      KNOWN_EMPTY_UPSTREAM[sourceId],
+    );
+    if (missing.length > 0 || unexpected.length > 0) {
+      throw new Error(
+        `[${sourceId}] FATAL: exact coverage mismatch; ` +
+          `${missing.length} unexpected gaps (${missing.slice(0, 10).join(", ")}); ` +
+          `${unexpected.length} allowlisted/out-of-scope chapters unexpectedly present ` +
+          `(${unexpected.slice(0, 10).join(", ")})`,
+      );
+    }
+  } else if (books.size < expectedBooks) {
     throw new Error(
       `[${sourceId}] FATAL: only ${books.size}/${expectedBooks} books — likely an upstream format change.`,
     );
-  }
-  if (totalChapters < expectedChapters) {
-    const got = new Set<string>();
-    for (const c of sortedCanonicals) {
-      const b = books.get(c)!;
-      for (const ch of Object.keys(b.chapters)) got.add(`${c} ${ch}`);
-    }
+  } else if (totalChapters < expectedChapters) {
     const missing: string[] = [];
     for (const spec of booksScope) {
       for (let ch = 1; ch <= spec.chapters; ch++) {
@@ -526,6 +558,48 @@ function writeBooks(
           .join(", ")}`,
     );
   }
+
+  // Only replace the live corpus after validation. Build a complete sibling
+  // directory, then swap it into place; a failed ingest leaves the prior
+  // corpus untouched.
+  const stageDir = `${outDir}.ingest-${process.pid}`;
+  const backupDir = `${outDir}.backup-${process.pid}`;
+  rmSync(stageDir, { recursive: true, force: true });
+  rmSync(backupDir, { recursive: true, force: true });
+  mkdirSync(stageDir, { recursive: true });
+  const manifestPath = join(outDir, "MANIFEST.json");
+  if (existsSync(manifestPath)) {
+    copyFileSync(manifestPath, join(stageDir, "MANIFEST.json"));
+  }
+
+  let totalBytes = 0;
+  for (const canonical of sortedCanonicals) {
+    const out = books.get(canonical)!;
+    if (Object.keys(out.chapters).length === 0) continue;
+    const json = JSON.stringify(out, null, 2);
+    writeFileSync(join(stageDir, `${bookSlug(canonical)}.json`), json);
+    totalBytes += json.length;
+  }
+
+  try {
+    if (existsSync(outDir)) renameSync(outDir, backupDir);
+    renameSync(stageDir, outDir);
+    rmSync(backupDir, { recursive: true, force: true });
+  } catch (error) {
+    if (!existsSync(outDir) && existsSync(backupDir)) {
+      renameSync(backupDir, outDir);
+    }
+    rmSync(stageDir, { recursive: true, force: true });
+    throw error;
+  }
+
+  console.log(
+    `[${sourceId}] wrote ${books.size} books, ${totalChapters} chapters, ${(
+      totalBytes /
+      1024 /
+      1024
+    ).toFixed(2)} MB → ${outDir}`,
+  );
 }
 
 /**
@@ -570,6 +644,60 @@ const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
   "calvin-commentaries": [],
   // Spurgeon covers all 150 Psalms; no known upstream gaps.
   "spurgeon-treasury": [],
+  "matthew-poole": [],
+  // These pages contain only BibleHub's "used by permission" footer and no
+  // Ellicott commentary. Zephaniah and Zechariah are wholly absent.
+  "ellicott-english-readers": [
+    "genesis 39",
+    "genesis 44",
+    "numbers 2",
+    "numbers 5",
+    "numbers 7",
+    "joshua 12",
+    "joshua 17",
+    "joshua 20",
+    "2 samuel 9",
+    "psalms 108",
+    "psalms 117",
+    "jeremiah 45",
+    "ezekiel 15",
+    "zephaniah 1",
+    "zephaniah 2",
+    "zephaniah 3",
+    "zechariah 1",
+    "zechariah 2",
+    "zechariah 3",
+    "zechariah 4",
+    "zechariah 5",
+    "zechariah 6",
+    "zechariah 7",
+    "zechariah 8",
+    "zechariah 9",
+    "zechariah 10",
+    "zechariah 11",
+    "zechariah 12",
+    "zechariah 13",
+    "zechariah 14",
+    "1 john 3",
+  ],
+  // These parallel/repeated-song chapters contain only BibleHub's Wesley
+  // attribution footer; Wesley supplied no separate note body on the page.
+  "wesley-explanatory-notes": [
+    "2 samuel 22",
+    "2 samuel 24",
+    "1 chronicles 14",
+    "1 chronicles 18",
+    "psalms 70",
+    "psalms 100",
+    "psalms 108",
+    "psalms 116",
+    "psalms 117",
+    "psalms 128",
+    "psalms 143",
+    "isaiah 36",
+    "isaiah 37",
+    "isaiah 39",
+  ],
 };
 
 /* -------------------------------------------------------------------------- */
@@ -580,7 +708,7 @@ async function main() {
   const sourceId = process.argv[2];
   if (!sourceId) {
     console.error(
-      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury>",
+      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury|matthew-poole|wesley-explanatory-notes|ellicott-english-readers>",
     );
     process.exit(1);
   }
@@ -625,6 +753,24 @@ async function main() {
       // Spurgeon's Treasury covers Psalms only — psalmsOnly=true restricts
       // both the work list and the completeness gate to 150 chapters.
       await ingestBibleHub("spurgeon-treasury", "tod", false, true);
+      break;
+    case "matthew-poole":
+      await ingestBibleHub("matthew-poole", "poole");
+      break;
+    case "ellicott-english-readers":
+      await ingestBibleHub("ellicott-english-readers", "ellicott");
+      break;
+    case "wesley-explanatory-notes":
+      await ingestBibleHub(
+        "wesley-explanatory-notes",
+        "wes",
+        false,
+        false,
+        false,
+        undefined,
+        undefined,
+        100,
+      );
       break;
     default:
       console.error(`Unknown source id: ${sourceId}`);
