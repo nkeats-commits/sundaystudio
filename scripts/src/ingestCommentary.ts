@@ -41,7 +41,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MONOREPO_ROOT = join(__dirname, "..", "..");
@@ -197,7 +197,7 @@ function stripHtml(s: string): string {
  * roughly TARGET_EXCERPT_CHARS of text. We strip the scripture text so
  * the excerpt is pure commentary.
  */
-function extractBibleHubExcerpt(html: string): string {
+export function extractBibleHubExcerpt(html: string): string {
   // Strip noise that confuses the text extractor:
   //  - <script>/<style> blocks (inline JS often appears mid-content for ads)
   //  - <noscript> blocks
@@ -632,7 +632,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(2);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(2);
+  });
+}

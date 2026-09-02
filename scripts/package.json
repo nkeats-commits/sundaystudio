@@ -9,6 +9,7 @@
     "seed-help": "tsx ./src/seed-help-articles.ts",
     "ingest-mhcc": "tsx ./src/ingest-mhcc.ts",
     "ingest-commentary": "tsx ./src/ingestCommentary.ts",
+    "test": "node --import tsx --test src/ingestCommentary.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
