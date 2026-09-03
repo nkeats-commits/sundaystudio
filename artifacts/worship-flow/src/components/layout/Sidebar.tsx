@@ -154,7 +154,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         <div className="my-4 mx-3 h-px bg-white/10" />
         <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">OTHER TOOLS</div>
         {otherItems.map((item, i) => {
-          const active = location === item.href;
+          const active = location === item.href || location.startsWith(item.href + '/');
           return (
             <Link
               key={`o-${i}`}
