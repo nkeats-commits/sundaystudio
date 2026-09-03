@@ -6,5 +6,14 @@
   {"book":"Psalms","chapter":23,"verse":1,"text":"Jehovah is my shepherd; I shall not want."},
   {"book":"Psalms","chapter":23,"verse":4,"text":"Yea, yea, though I walk through the valley of the shadow of death, I will fear no evil; for thou art with me; thy rod and thy staff, they comfort me."},
   {"book":"Genesis","chapter":1,"verse":1,"text":"In the beginning God created the heavens and the earth."},
-  {"book":"1 Corinthians","chapter":13,"verse":13,"text":"But now abideth faith, hope, love, these three; and the greatest of these is love."}
+  {"book":"1 Corinthians","chapter":13,"verse":13,"text":"But now abideth faith, hope, love, these three; and the greatest of these is love."},
+  {"book":"Matthew","chapter":11,"verse":28,"text":"Come unto me, all ye that labor and are heavy laden, and I will give you rest."},
+  {"book":"Matthew","chapter":28,"verse":19,"text":"Go ye therefore, and make disciples of all the nations, baptizing them into the name of the Father and of the Son and of the Holy Spirit:"},
+  {"book":"Matthew","chapter":28,"verse":20,"text":"teaching them to observe all things whatsoever I commanded you: and lo, I am with you always, even unto the end of the world."},
+  {"book":"Psalms","chapter":46,"verse":1,"text":"God is our refuge and strength, A very present help in trouble."},
+  {"book":"Proverbs","chapter":3,"verse":5,"text":"Trust in Jehovah with all thy heart, And lean not upon thine own understanding:"},
+  {"book":"Proverbs","chapter":3,"verse":6,"text":"In all thy ways acknowledge him, And he will direct thy paths."},
+  {"book":"Isaiah","chapter":53,"verse":5,"text":"But he was wounded for our transgressions, he was bruised for our iniquities; the chastisement of our peace was upon him; and with his stripes we are healed."},
+  {"book":"Ephesians","chapter":2,"verse":8,"text":"for by grace have ye been saved through faith; and that not of yourselves, it is the gift of God;"},
+  {"book":"Ephesians","chapter":2,"verse":9,"text":"not of works, that no man should glory."}
 ]

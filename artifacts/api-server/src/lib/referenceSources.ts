@@ -111,7 +111,8 @@ interface LoadedReference {
 }
 
 function normalizeBook(book: string): string {
-  return book.trim().toLowerCase().replace(/\s+/g, " ");
+  const normalized = book.trim().toLowerCase().replace(/\s+/g, " ");
+  return parsePassageRef(`${normalized} 1`)[0]?.book ?? normalized;
 }
 
 function verseKey(book: string, chapter: number, verse: number): string {
@@ -285,7 +286,7 @@ export function lookupReferenceBundle(
   const normalizedTerms = new Set(terms.map((term) => term.trim().toLowerCase()).filter(Boolean));
   const bundle: ReferenceBundle = { translations: [], crossReferences: [], lexicalEntries: [] };
   let remaining = Math.max(0, Math.floor(totalBudgetChars));
-  for (const sourceId of enabledSourceIds) {
+  for (const sourceId of new Set(enabledSourceIds)) {
     const source = REGISTRY.get(sourceId);
     if (!source || remaining <= 0) continue;
     const { manifest } = source;
@@ -312,9 +313,13 @@ export function lookupReferenceBundle(
         if (remaining <= 0) break;
       }
     } else if (manifest.kind === "cross-reference") {
+      const seen = new Set<string>();
       for (const chapter of requestedChapters) {
         const rows = source.crossReferences.get(`${chapter.book}|${chapter.chapter}`) ?? [];
         for (const row of rows) {
+          const key = `${row.sourceReference}|${row.targets.join("\u0000")}|${row.note ?? ""}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
           const label = `${manifest.title} — ${row.sourceReference}: ${row.targets.join(", ")}`;
           const text = label.slice(0, remaining);
           if (!text) continue;

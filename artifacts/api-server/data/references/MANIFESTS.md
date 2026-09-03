@@ -20,3 +20,9 @@ a claim of complete Bible coverage. Each source must retain its exact edition,
 provenance URL, license, and attribution text when expanded. Do not add an
 aggregator dump with ambiguous rights; validate duplicate keys, malformed
 passages, and missing provenance before registration.
+
+The indexed additions in this slice remain covered by the source manifest for
+their collection: KJV and ASV verse rows, TSK passage relationships, Strong's
+lexical entries, and Easton's dictionary entries. A data-row addition does not
+change the edition, publication year, attribution, provenance URL, or
+public-domain evidence above.
