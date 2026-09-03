@@ -19,13 +19,12 @@ import { db, usersTable, libraryItemsTable, servicePlansTable, sermonsTable } fr
 import { isNull, isNotNull, and, lte, gt, eq } from "drizzle-orm";
 import { logger } from "./logger";
 import { EVENTS } from "./eventRegistry";
-import { recordTrialEvent } from "./trialAnalytics";
+import { recordTrialEvent, trialDayWindow } from "./trialAnalytics";
 
 const TRIAL_DAYS = 14;
 const MIDPOINT_DAY = 7;
 const REMINDER_DAY = 11; // fire trial_expiring on day 11 (3 days before expiry)
 const FINAL_REMINDER_DAY = 13;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Returns true if we should skip the event for this user.
@@ -93,13 +92,12 @@ export async function runTrialEmailCron(): Promise<void> {
   };
 
   // ── trial_midpoint: value recap around day 7 ─────────────────────────────
-  const midpointEnd = new Date(now.getTime() - MIDPOINT_DAY * DAY_MS);
-  const midpointStart = new Date(now.getTime() - (MIDPOINT_DAY + 1) * DAY_MS);
+  const midpointWindow = trialDayWindow(now, MIDPOINT_DAY);
   const midpointCandidates = await db.select().from(usersTable).where(and(
     isNull(usersTable.trialMidpointEmailSentAt),
     isNotNull(usersTable.email),
-    lte(usersTable.trialStartedAt, midpointEnd),
-    gt(usersTable.trialStartedAt, midpointStart),
+    lte(usersTable.trialStartedAt, midpointWindow.endInclusive),
+    gt(usersTable.trialStartedAt, midpointWindow.startExclusive),
   ));
   for (const user of midpointCandidates) {
     try {
@@ -110,13 +108,12 @@ export async function runTrialEmailCron(): Promise<void> {
   }
 
   // ── trial_final_reminder: final, respectful reminder on day 13 ──────────
-  const finalEnd = new Date(now.getTime() - FINAL_REMINDER_DAY * DAY_MS);
-  const finalStart = new Date(now.getTime() - (FINAL_REMINDER_DAY + 1) * DAY_MS);
+  const finalWindow = trialDayWindow(now, FINAL_REMINDER_DAY);
   const finalCandidates = await db.select().from(usersTable).where(and(
     isNull(usersTable.trialFinalReminderEmailSentAt),
     isNotNull(usersTable.email),
-    lte(usersTable.trialStartedAt, finalEnd),
-    gt(usersTable.trialStartedAt, finalStart),
+    lte(usersTable.trialStartedAt, finalWindow.endInclusive),
+    gt(usersTable.trialStartedAt, finalWindow.startExclusive),
   ));
   for (const user of finalCandidates) {
     try {
@@ -128,8 +125,7 @@ export async function runTrialEmailCron(): Promise<void> {
 
   // ── trial_expiring: users whose trial is on day 11 (started 11–12 days ago) ──
   // Idempotency is guaranteed by the trialReminderSentAt stamp.
-  const reminderWindowEnd = new Date(now.getTime() - REMINDER_DAY * DAY_MS);
-  const reminderWindowStart = new Date(now.getTime() - (REMINDER_DAY + 1) * DAY_MS);
+  const reminderWindow = trialDayWindow(now, REMINDER_DAY);
 
   const reminderCandidates = await db
     .select()
@@ -138,8 +134,8 @@ export async function runTrialEmailCron(): Promise<void> {
       and(
         isNull(usersTable.trialReminderSentAt),
         isNotNull(usersTable.email),
-        lte(usersTable.trialStartedAt, reminderWindowEnd),
-        gt(usersTable.trialStartedAt, reminderWindowStart),
+         lte(usersTable.trialStartedAt, reminderWindow.endInclusive),
+         gt(usersTable.trialStartedAt, reminderWindow.startExclusive),
       ),
     );
 
@@ -164,8 +160,7 @@ export async function runTrialEmailCron(): Promise<void> {
 
   // ── trial_expired: users whose trial ended on day 14 (started 14–15 days ago) ──
   // Idempotency is guaranteed by the trialExpiredEmailSentAt stamp.
-  const expiredWindowEnd = new Date(now.getTime() - TRIAL_DAYS * DAY_MS);
-  const expiredWindowStart = new Date(now.getTime() - (TRIAL_DAYS + 1) * DAY_MS);
+  const expiredWindow = trialDayWindow(now, TRIAL_DAYS);
 
   const expiredCandidates = await db
     .select()
@@ -174,8 +169,8 @@ export async function runTrialEmailCron(): Promise<void> {
       and(
         isNull(usersTable.trialExpiredEmailSentAt),
         isNotNull(usersTable.email),
-        lte(usersTable.trialStartedAt, expiredWindowEnd),
-        gt(usersTable.trialStartedAt, expiredWindowStart),
+         lte(usersTable.trialStartedAt, expiredWindow.endInclusive),
+         gt(usersTable.trialStartedAt, expiredWindow.startExclusive),
       ),
     );
 

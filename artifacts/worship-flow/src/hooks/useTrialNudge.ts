@@ -4,6 +4,11 @@ import { useUser } from "@clerk/react";
 import { toast } from "sonner";
 import { useRecordTrialEvent } from "@workspace/api-client-react";
 import { useSubscriptionStatus } from "./useSubscriptionStatus";
+import {
+  claimTrialNudge,
+  pricingPathWithReturnTo,
+  TRIAL_NUDGE_TOAST_OPTIONS,
+} from "../lib/trialConversion";
 
 interface NudgeCopy {
   message: string;
@@ -50,19 +55,15 @@ export function useTrialNudge() {
 
       const userKey = user?.id ?? "anonymous";
       const today = new Date().toISOString().slice(0, 10);
-      const sessionKey = `ss-trial-nudge:${userKey}:${nudgeKey}`;
-      const dayKey = `ss-trial-nudge:${userKey}:${nudgeKey}:day`;
-      let alreadyShown = false;
-      try {
-        alreadyShown =
-          window.sessionStorage.getItem(sessionKey) === "1" ||
-          window.localStorage.getItem(dayKey) === today;
-        if (alreadyShown) return;
-        window.sessionStorage.setItem(sessionKey, "1");
-        window.localStorage.setItem(dayKey, today);
-      } catch {
-        // Continue without a persistence cap if browser storage is unavailable.
-      }
+      if (
+        !claimTrialNudge({
+          userId: userKey,
+          nudgeKey,
+          today,
+          sessionStorage: window.sessionStorage,
+          localStorage: window.localStorage,
+        })
+      ) return;
 
       const copy: NudgeCopy = NUDGE_COPY[nudgeKey] ?? {
         message: 'Your Sunday preparation is moving forward.',
@@ -82,8 +83,7 @@ export function useTrialNudge() {
 
       toast(copy.message, {
         description: copy.description,
-        duration: 10_000,
-        closeButton: true,
+        ...TRIAL_NUDGE_TOAST_OPTIONS,
         action: {
           label: 'See your options',
           onClick: () => {
@@ -93,9 +93,12 @@ export function useTrialNudge() {
                 context: { source: nudgeKey, surface: "trial-nudge" },
               },
             });
-            const returnTo =
-              window.location.pathname + window.location.search;
-            setLocation(`/pricing?returnTo=${encodeURIComponent(returnTo)}`);
+            setLocation(
+              pricingPathWithReturnTo(
+                window.location.pathname,
+                window.location.search,
+              ),
+            );
           },
         },
       });

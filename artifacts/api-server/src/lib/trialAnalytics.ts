@@ -30,6 +30,26 @@ export function trialDay(trialStartedAt: Date | string | null | undefined): numb
 }
 
 /**
+ * Returns the timestamp window used by lifecycle jobs for a trial-day event.
+ *
+ * The lower bound is exclusive and the upper bound is inclusive. This keeps
+ * the query stable at exact day boundaries while preserving the existing
+ * "started N–N+1 days ago" cron semantics.
+ */
+export function trialDayWindow(
+  now: Date,
+  day: number,
+): { startExclusive: Date; endInclusive: Date } {
+  if (!Number.isInteger(day) || day < 1 || day > TRIAL_DAYS) {
+    throw new RangeError(`Trial day must be an integer from 1 to ${TRIAL_DAYS}`);
+  }
+  return {
+    startExclusive: new Date(now.getTime() - (day + 1) * DAY_MS),
+    endInclusive: new Date(now.getTime() - day * DAY_MS),
+  };
+}
+
+/**
  * Records a conversion event locally and mirrors it to Resend when the event
  * belongs in lifecycle automation. Never lets analytics break the primary UX.
  */

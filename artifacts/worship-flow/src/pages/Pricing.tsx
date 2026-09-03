@@ -7,6 +7,13 @@ import {
   useRecordTrialEvent,
 } from "@workspace/api-client-react";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
+import {
+  ACTIVE_TRIAL_CHARGE_COPY,
+  ACTIVE_TRIAL_SUBSCRIBE_COPY,
+  formatTrialEndDate,
+  getPricingReturnContext,
+  trialBannerCopy,
+} from "../lib/trialConversion";
 
 const FEATURES = [
   "Unlimited service plans + AI generators",
@@ -17,31 +24,14 @@ const FEATURES = [
   "Export to Markdown, plain text, and email",
 ];
 
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "the end of your trial";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString(undefined, {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 export default function Pricing() {
   const { state, trialDays } = useSubscriptionStatus();
   const checkout = useCreateBillingCheckoutSession();
   const { mutate: recordTrialEvent } = useRecordTrialEvent();
   const [location] = useLocation();
   const [loading, setLoading] = useState(false);
-  const params = new URLSearchParams(location.split("?")[1] ?? "");
-  const returnToParam = params.get("returnTo");
-  const returnTo =
-    returnToParam && returnToParam.startsWith("/")
-      ? returnToParam
-      : "/dashboard";
-  const returnLabel =
-    returnTo === "/dashboard" ? "dashboard" : "where you were planning";
+  const { returnTo, hasReturnContext, returnLabel } =
+    getPricingReturnContext(location);
 
   const isLapsed =
     state?.kind === "expired" || state?.kind === "canceled";
@@ -96,10 +86,8 @@ export default function Pricing() {
       >
         <Sparkles className="w-4 h-4" />
         {state.daysLeft === null
-          ? "Your trial is active"
-          : state.daysLeft === 1
-          ? "1 day left in your trial"
-          : `${state.daysLeft} days left in your trial`}
+          ? trialBannerCopy(null)
+          : trialBannerCopy(state.daysLeft)}
       </div>
     ) : null;
 
@@ -140,7 +128,7 @@ export default function Pricing() {
               Try the complete Sunday rhythm free for {trialDays} days. No card required.
             </p>
           )}
-          {returnToParam && (
+          {hasReturnContext && (
             <p data-testid="text-pricing-return-context" className="mt-3 text-xs" style={{ color: "var(--worship-muted-slate)" }}>
               You can return to {returnLabel} after choosing.
             </p>
@@ -224,7 +212,7 @@ export default function Pricing() {
                 <Loader2 className="w-4 h-4 animate-spin" /> Starting checkout…
               </>
             ) : state?.kind === "trial" ? (
-              "Subscribe — billing starts when your trial ends"
+              ACTIVE_TRIAL_SUBSCRIBE_COPY
             ) : (
               "Subscribe to Sunday Studio Pro"
             )}
@@ -251,10 +239,10 @@ export default function Pricing() {
                  <CalendarDays className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--worship-gold)" }} />
                  <div>
                    <p className="text-sm font-semibold" style={{ color: "var(--worship-navy)" }}>
-                     No charge until {formatDate(state.trialEndsAt)}
+                      {ACTIVE_TRIAL_CHARGE_COPY.heading(formatTrialEndDate(state.trialEndsAt))}
                    </p>
                    <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--worship-muted-slate)" }}>
-                     Your first $9.99 charge is scheduled for that date. Cancel before then and you will not be charged.
+                      {ACTIVE_TRIAL_CHARGE_COPY.description}
                    </p>
                  </div>
                </div>
