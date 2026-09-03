@@ -1,1 +1,2 @@
 - [Trial conversion analytics](trial-conversion-analytics.md) — Keep local funnel history independent from Resend delivery and retry failed lifecycle handoffs.
+- [Node DOM component tests](node-dom-component-tests.md) — Direct Node JSX tests need the module-mocks flag, jsdom globals, and a React global alongside Vite.

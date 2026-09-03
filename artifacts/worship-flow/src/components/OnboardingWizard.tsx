@@ -23,7 +23,7 @@ import {
   type MeResponse,
 } from '@workspace/api-client-react';
 
-const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const basePath = (import.meta.env?.BASE_URL ?? '/').replace(/\/$/, '');
 
 const profileSchema = z.object({
   churchName: z.string().min(1, 'Church name is required'),
