@@ -45,7 +45,10 @@ const schema = z.object({
   denomination: z.string().optional(),
   theology: z.string().optional(),
   location: z.string().optional(),
-  averageAttendance: z.coerce.number().optional().nullable(),
+  averageAttendance: z.preprocess(
+    (value) => (value === '' ? null : value),
+    z.coerce.number().optional().nullable(),
+  ),
   musicStyle: z.string().optional(),
   traditions: z.string().optional(),
   leaderName: z.string().min(1, 'Leader name is required'),

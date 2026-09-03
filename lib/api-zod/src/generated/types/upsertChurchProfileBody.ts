@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * On updates, omitted optional properties retain their existing values. Send an explicit empty string, null, or empty array to clear a value from the full Profile page.
+ */
 export interface UpsertChurchProfileBody {
   /** @minLength 1 */
   churchName: string;

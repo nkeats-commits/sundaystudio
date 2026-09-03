@@ -58,20 +58,24 @@ export const CompleteOnboardingResponse = zod.object({
  * @summary Create or update the church profile
  */
 
-export const UpdateChurchProfileBody = zod.object({
-  churchName: zod.string().min(1),
-  denomination: zod.string().optional(),
-  theology: zod.string().optional(),
-  location: zod.string().optional(),
-  averageAttendance: zod.number().nullish(),
-  musicStyle: zod.string().optional(),
-  traditions: zod.string().optional(),
-  leaderName: zod.string().min(1),
-  leaderRole: zod.string().optional(),
-  toneDescription: zod.string().optional(),
-  missionStatement: zod.string().optional(),
-  focusAreas: zod.array(zod.string()).optional(),
-});
+export const UpdateChurchProfileBody = zod
+  .object({
+    churchName: zod.string().min(1),
+    denomination: zod.string().optional(),
+    theology: zod.string().optional(),
+    location: zod.string().optional(),
+    averageAttendance: zod.number().nullish(),
+    musicStyle: zod.string().optional(),
+    traditions: zod.string().optional(),
+    leaderName: zod.string().min(1),
+    leaderRole: zod.string().optional(),
+    toneDescription: zod.string().optional(),
+    missionStatement: zod.string().optional(),
+    focusAreas: zod.array(zod.string()).optional(),
+  })
+  .describe(
+    "On updates, omitted optional properties retain their existing values. Send an explicit empty string, null, or empty array to clear a value from the full Profile page.",
+  );
 
 export const UpdateChurchProfileResponse = zod.object({
   id: zod.number(),

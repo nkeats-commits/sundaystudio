@@ -136,7 +136,17 @@ function Step1Profile({
 
   const onSubmit = async (data: ProfileFormData) => {
     try {
-      const savedProfile = await updateProfile.mutateAsync({ data });
+      const onboardingData = {
+        churchName: data.churchName,
+        leaderName: data.leaderName,
+        ...(data.leaderRole?.trim() ? { leaderRole: data.leaderRole } : {}),
+        ...(data.denomination?.trim()
+          ? { denomination: data.denomination }
+          : {}),
+        ...(data.musicStyle?.trim() ? { musicStyle: data.musicStyle } : {}),
+        ...(data.theology?.trim() ? { theology: data.theology } : {}),
+      };
+      const savedProfile = await updateProfile.mutateAsync({ data: onboardingData });
 
       // Keep the saved profile available immediately while /api/me refreshes.
       queryClient.setQueryData<MeResponse | undefined>(
@@ -404,6 +414,13 @@ export function OnboardingWizard() {
   if (!meFetched) return null;
   if (dismissed) return null;
   if (me?.onboardingCompletedAt) return null;
+  if (
+    step === 1 &&
+    !!me?.profile?.churchName?.trim() &&
+    !!me?.profile?.leaderName?.trim()
+  ) {
+    return null;
+  }
 
   const existingProfile = me?.profile
     ? {

@@ -49,7 +49,10 @@ export function OnboardingBanner() {
 
   // Users who completed the onboarding wizard already set up their profile —
   // no need to show the checklist banner.
-  if (meQ.data?.onboardingCompletedAt) return null;
+  if (
+    meQ.data?.onboardingCompletedAt ||
+    profileReady
+  ) return null;
 
   const steps: Step[] = [
     {

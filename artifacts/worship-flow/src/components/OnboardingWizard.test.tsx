@@ -121,6 +121,7 @@ afterEach(() => {
 
 test('keeps the wizard mounted while a successful profile save refetches the current user', async () => {
   let getMeCalls = 0;
+  let profileRequestBody: Record<string, unknown> | undefined;
   let resolveRefetch: ((value: Response) => void) | undefined;
   const refetchPending = new Promise<Response>((resolve) => {
     resolveRefetch = resolve;
@@ -135,6 +136,7 @@ test('keeps the wizard mounted while a successful profile save refetches the cur
         : refetchPending;
     }
     if (url === '/api/me/church') {
+      profileRequestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
       return response(savedProfile);
     }
     throw new Error(`Unexpected request: ${url}`);
@@ -150,8 +152,28 @@ test('keeps the wizard mounted while a successful profile save refetches the cur
   assert.equal(getMeCalls, 2);
   assert.ok(screen.getByText('Step 2 of 3'));
   assert.ok(screen.getByRole('button', { name: /Plan this Sunday.s service/ }));
+  assert.deepEqual(profileRequestBody, {
+    churchName: savedProfile.churchName,
+    leaderName: savedProfile.leaderName,
+  });
 
   resolveRefetch?.(response({ ...initialMe, profile: savedProfile }));
+});
+
+test('does not show the wizard for an established profile without a completion marker', async () => {
+  globalThis.fetch = async (input) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/me') {
+      return response({ ...initialMe, profile: savedProfile });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  renderWizard();
+
+  await waitFor(() => {
+    assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+  });
 });
 
 test('keeps profile values visible and offers a retry when profile save fails', async () => {
