@@ -1,2 +1,3 @@
 - [Trial conversion analytics](trial-conversion-analytics.md) — Keep local funnel history independent from Resend delivery and retry failed lifecycle handoffs.
 - [Node DOM component tests](node-dom-component-tests.md) — Direct Node JSX tests need the module-mocks flag, jsdom globals, and a React global alongside Vite.
+- [Publish schema diffs](publish-schema-diff.md) — Publish generates DDL from live schema differences, not from Drizzle migration text.
