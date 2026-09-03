@@ -71,8 +71,11 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     { icon: LibraryIcon, label: 'Sermon Resources', href: '/resources' },
   ];
 
-  const navItems = [
+  const dashboardItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+  ];
+
+  const otherItems = [
     { icon: ListVideo, label: 'Service Builder', href: '/service-builder' },
     { icon: BookOpen, label: 'Liturgy Generator', href: '/generators/liturgy' },
     { icon: Music, label: 'Song Assistant', href: '/generators/songs' },
@@ -103,7 +106,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const navContent = (
     <>
       <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-3">
-        {navItems.map((item, i) => {
+        {dashboardItems.map((item, i) => {
           const active = location === item.href;
           return (
             <Link
@@ -122,7 +125,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         })}
 
         <div className="my-4 mx-3 h-px bg-white/10" />
-        <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Sermon Prep</div>
+        <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">SERMON PREP</div>
         {sermonItems.map((item, i) => {
           const active =
             location === item.href ||
@@ -135,6 +138,26 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           return (
             <Link
               key={`s-${i}`}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                active
+                  ? 'bg-white/10 text-white'
+                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
+              {item.label}
+            </Link>
+          );
+        })}
+
+        <div className="my-4 mx-3 h-px bg-white/10" />
+        <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">OTHER TOOLS</div>
+        {otherItems.map((item, i) => {
+          const active = location === item.href;
+          return (
+            <Link
+              key={`o-${i}`}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 active
