@@ -20,6 +20,7 @@ import {
   useUpdateChurchProfile,
   useCompleteOnboarding,
   getGetMeQueryKey,
+  type MeResponse,
 } from '@workspace/api-client-react';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -134,19 +135,19 @@ function Step1Profile({
   });
 
   const onSubmit = async (data: ProfileFormData) => {
-    await new Promise<void>((resolve, reject) => {
-      updateProfile.mutate(
-        { data },
-        {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-            resolve();
-          },
-          onError: reject,
-        },
+    try {
+      const savedProfile = await updateProfile.mutateAsync({ data });
+
+      // Keep the saved profile available immediately while /api/me refreshes.
+      queryClient.setQueryData<MeResponse | undefined>(
+        getGetMeQueryKey(),
+        (current) => (current ? { ...current, profile: savedProfile } : current),
       );
-    });
-    onNext();
+      void queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      onNext();
+    } catch {
+      // The mutation state renders the retryable error while keeping the form mounted.
+    }
   };
 
   const inputClass =
@@ -213,13 +214,28 @@ function Step1Profile({
         </div>
       </div>
 
+      {updateProfile.isError && (
+        <p
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
+          We couldn&apos;t save your profile. Please try again.
+        </p>
+      )}
+
       <div className="flex justify-end pt-2">
         <button
           type="submit"
           disabled={isSubmitting || updateProfile.isPending}
           className="worship-btn-primary px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 disabled:opacity-50"
         >
-          {isSubmitting || updateProfile.isPending ? 'Saving...' : <>Next <ChevronRight className="w-4 h-4" /></>}
+          {isSubmitting || updateProfile.isPending ? (
+            'Saving...'
+          ) : (
+            <>
+              {updateProfile.isError ? 'Try again' : 'Next'} <ChevronRight className="w-4 h-4" />
+            </>
+          )}
         </button>
       </div>
     </form>
@@ -231,11 +247,13 @@ function Step2Paths({
   onSelect,
   onNext,
   onSkip,
+  isSkipping,
 }: {
   selectedPath: PathId | null;
   onSelect: (id: PathId) => void;
   onNext: () => void;
   onSkip: () => void;
+  isSkipping: boolean;
 }) {
   return (
     <div className="space-y-5">
@@ -256,6 +274,7 @@ function Step2Paths({
               key={id}
               type="button"
               onClick={() => onSelect(id)}
+              disabled={isSkipping}
               className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-all ${
                 selected
                   ? 'border-[var(--worship-gold)] bg-[var(--worship-pale-gold)]'
@@ -291,14 +310,15 @@ function Step2Paths({
         <button
           type="button"
           onClick={onSkip}
-          className="text-sm text-[var(--worship-slate)] hover:text-[var(--worship-navy)] underline"
+          disabled={isSkipping}
+          className="text-sm text-[var(--worship-slate)] hover:text-[var(--worship-navy)] underline disabled:opacity-50"
         >
-          Skip for now
+          {isSkipping ? 'Saving...' : 'Skip for now'}
         </button>
         <button
           type="button"
           onClick={onNext}
-          disabled={!selectedPath}
+          disabled={!selectedPath || isSkipping}
           className="worship-btn-primary px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Next <ChevronRight className="w-4 h-4" />
@@ -368,18 +388,20 @@ function Step3Ready({
 
 export function OnboardingWizard() {
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
-  const { data: me, isLoading: meLoading } = useGetMe({
+  const { data: me, isFetched: meFetched } = useGetMe({
     query: { enabled: authLoaded && !!isSignedIn, queryKey: getGetMeQueryKey() },
   });
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedPath, setSelectedPath] = useState<PathId | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const completeOnboarding = useCompleteOnboarding();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
   if (!authLoaded || !isSignedIn) return null;
-  if (meLoading) return null;
+  // Keep the shell mounted during invalidation/refetches after the first result.
+  if (!meFetched) return null;
   if (dismissed) return null;
   if (me?.onboardingCompletedAt) return null;
 
@@ -394,23 +416,27 @@ export function OnboardingWizard() {
       }
     : null;
 
-  const handleComplete = (href: string) => {
-    completeOnboarding.mutate(undefined, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-        setDismissed(true);
-        setLocation(href);
-      },
-    });
+  const handleComplete = async (href: string) => {
+    setActionError(null);
+    try {
+      await completeOnboarding.mutateAsync();
+      void queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      setDismissed(true);
+      setLocation(href);
+    } catch {
+      setActionError('We couldn’t finish setup. Please try again.');
+    }
   };
 
-  const handleSkip = () => {
-    completeOnboarding.mutate(undefined, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-        setDismissed(true);
-      },
-    });
+  const handleSkip = async () => {
+    setActionError(null);
+    try {
+      await completeOnboarding.mutateAsync();
+      void queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      setDismissed(true);
+    } catch {
+      setActionError('We couldn’t skip setup. Please try again.');
+    }
   };
 
   return (
@@ -441,6 +467,7 @@ export function OnboardingWizard() {
                 <button
                   type="button"
                   onClick={handleSkip}
+                  disabled={completeOnboarding.isPending}
                   className="text-[var(--worship-slate)] hover:text-[var(--worship-navy)] transition-colors"
                   aria-label="Skip setup"
                 >
@@ -452,6 +479,14 @@ export function OnboardingWizard() {
 
           {/* Body — scrolls independently on short screens */}
           <div className="p-6 md:p-8 overflow-y-auto flex-1 min-h-0">
+            {actionError && (
+              <p
+                role="alert"
+                className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              >
+                {actionError}
+              </p>
+            )}
             {step === 1 && (
               <Step1Profile
                 onNext={() => setStep(2)}
@@ -464,6 +499,7 @@ export function OnboardingWizard() {
                 onSelect={setSelectedPath}
                 onNext={() => setStep(3)}
                 onSkip={handleSkip}
+                isSkipping={completeOnboarding.isPending}
               />
             )}
             {step === 3 && (
