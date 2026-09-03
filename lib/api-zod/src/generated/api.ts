@@ -106,62 +106,18 @@ export const GetDashboardResponse = zod.object({
     reference: zod.string(),
   }),
   recentServices: zod.array(
-    zod.object({
-      id: zod.number(),
-      userId: zod.string(),
-      title: zod.string(),
-      scripture: zod.string(),
-      theme: zod.string(),
-      season: zod.string(),
-      serviceDate: zod.coerce.date().nullish(),
-      content: zod
-        .object({
-          callToWorship: zod.string().nullish(),
-          openingPrayer: zod.string().nullish(),
-          scriptureReading: zod.string().nullish(),
-          sermonNotes: zod.string().nullish(),
-          confession: zod.string().nullish(),
-          assurance: zod.string().nullish(),
-          benediction: zod.string().nullish(),
-          notes: zod.string().nullish(),
-          order: zod.array(
-            zod.object({
-              id: zod.string(),
-              kind: zod.enum([
-                "song",
-                "scripture",
-                "prayer",
-                "sermon",
-                "communion",
-                "offering",
-                "welcome",
-                "benediction",
-                "transition",
-                "custom",
-              ]),
-              title: zod.string(),
-              body: zod.string(),
-              durationMinutes: zod.number().nullish(),
-              linkedKind: zod
-                .enum(["sermon", "library_item"])
-                .nullish()
-                .describe(
-                  'Optional source this slot was pulled from. When present, the\nUI shows a \"Linked to ...\" pill that navigates to the source.\n`body` always carries a snapshot so the slot keeps rendering\neven if the source is later edited or deleted.\n',
-                ),
-              linkedId: zod.number().nullish(),
-              linkedTitle: zod
-                .string()
-                .nullish()
-                .describe(
-                  "Snapshot of the linked source's title for display when the source is gone.",
-                ),
-            }),
-          ),
-        })
-        .describe("Structured content for a service plan"),
-      createdAt: zod.coerce.date(),
-      updatedAt: zod.coerce.date(),
-    }),
+    zod
+      .object({
+        id: zod.number(),
+        title: zod.string(),
+        scripture: zod.string(),
+        theme: zod.string(),
+        season: zod.string(),
+        serviceDate: zod.coerce.date().nullable(),
+      })
+      .describe(
+        "The service-plan fields rendered by recent-service dashboard cards.",
+      ),
   ),
   servicesThisMonth: zod.number(),
   librarySize: zod.number(),

@@ -28,39 +28,57 @@ router.get("/dashboard", requireAuth, async (req, res) => {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const recentServices = await db
-    .select()
-    .from(servicePlansTable)
-    .where(eq(servicePlansTable.userId, userId))
-    .orderBy(desc(servicePlansTable.updatedAt))
-    .limit(3);
-
-  const [{ value: monthCount } = { value: 0 }] = await db
-    .select({ value: count() })
-    .from(servicePlansTable)
-    .where(
-      and(
-        eq(servicePlansTable.userId, userId),
-        gte(servicePlansTable.createdAt, startOfMonth),
+  // These reads are independent. Starting them together removes the serial
+  // database waterfall while keeping the response semantics unchanged.
+  const [
+    recentServices,
+    monthCountRows,
+    librarySizeRows,
+    totalServicesRows,
+    totalSermonsRows,
+    accessState,
+  ] = await Promise.all([
+    db
+      .select({
+        id: servicePlansTable.id,
+        title: servicePlansTable.title,
+        scripture: servicePlansTable.scripture,
+        theme: servicePlansTable.theme,
+        season: servicePlansTable.season,
+        serviceDate: servicePlansTable.serviceDate,
+      })
+      .from(servicePlansTable)
+      .where(eq(servicePlansTable.userId, userId))
+      .orderBy(desc(servicePlansTable.updatedAt))
+      .limit(3),
+    db
+      .select({ value: count() })
+      .from(servicePlansTable)
+      .where(
+        and(
+          eq(servicePlansTable.userId, userId),
+          gte(servicePlansTable.createdAt, startOfMonth),
+        ),
       ),
-    );
+    db
+      .select({ value: count() })
+      .from(libraryItemsTable)
+      .where(eq(libraryItemsTable.userId, userId)),
+    db
+      .select({ value: count() })
+      .from(servicePlansTable)
+      .where(eq(servicePlansTable.userId, userId)),
+    db
+      .select({ value: count() })
+      .from(sermonsTable)
+      .where(eq(sermonsTable.userId, userId)),
+    getAccessState(userId),
+  ]);
 
-  const [{ value: librarySize } = { value: 0 }] = await db
-    .select({ value: count() })
-    .from(libraryItemsTable)
-    .where(eq(libraryItemsTable.userId, userId));
-
-  const [{ value: totalServices } = { value: 0 }] = await db
-    .select({ value: count() })
-    .from(servicePlansTable)
-    .where(eq(servicePlansTable.userId, userId));
-
-  const [{ value: totalSermons } = { value: 0 }] = await db
-    .select({ value: count() })
-    .from(sermonsTable)
-    .where(eq(sermonsTable.userId, userId));
-
-  const accessState = await getAccessState(userId);
+  const [{ value: monthCount } = { value: 0 }] = monthCountRows;
+  const [{ value: librarySize } = { value: 0 }] = librarySizeRows;
+  const [{ value: totalServices } = { value: 0 }] = totalServicesRows;
+  const [{ value: totalSermons } = { value: 0 }] = totalSermonsRows;
   const isActiveTrial = accessState.kind === "trial";
   const activated = Number(totalServices) > 0 || Number(totalSermons) > 0;
 

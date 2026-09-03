@@ -59,6 +59,7 @@ export * from "./createServiceTemplate400";
 export * from "./createServiceTemplate409";
 export * from "./createServiceTemplateBody";
 export * from "./crossReferenceHit";
+export * from "./dashboardRecentService";
 export * from "./dashboardResponse";
 export * from "./dashboardResponseVerseOfDay";
 export * from "./dashboardStat";

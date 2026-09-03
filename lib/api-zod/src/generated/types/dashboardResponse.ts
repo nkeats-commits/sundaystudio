@@ -5,14 +5,14 @@
  * Sunday Studio API
  * OpenAPI spec version: 0.1.0
  */
+import type { DashboardRecentService } from "./dashboardRecentService";
 import type { DashboardResponseVerseOfDay } from "./dashboardResponseVerseOfDay";
 import type { DashboardSuggestion } from "./dashboardSuggestion";
 import type { DashboardTrialSummary } from "./dashboardTrialSummary";
-import type { ServicePlan } from "./servicePlan";
 
 export interface DashboardResponse {
   verseOfDay: DashboardResponseVerseOfDay;
-  recentServices: ServicePlan[];
+  recentServices: DashboardRecentService[];
   servicesThisMonth: number;
   librarySize: number;
   totalServices: number;

@@ -2,3 +2,4 @@
 - [Node DOM component tests](node-dom-component-tests.md) — Direct Node JSX tests need the module-mocks flag, jsdom globals, and a React global alongside Vite.
 - [Publish schema diffs](publish-schema-diff.md) — Publish generates DDL from live schema differences, not from Drizzle migration text.
 - [Profile save semantics](profile-save-semantics.md) — Omitted profile fields retain saved data; explicit empty values remain the intentional clear path.
+- [Development schema drift](development-schema-drift.md) — Local database columns can lag the Drizzle schema; keep feature validation separate from schema-sync work.

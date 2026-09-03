@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test src/lib/scholarlySources.test.ts src/lib/referenceSources.test.ts src/lib/scholarlyMerge.test.ts src/lib/trialAnalytics.test.ts src/routes/sources.test.ts src/routes/library.test.ts src/routes/sermons.test.ts src/routes/trialEvents.test.ts src/routes/me.test.ts"
+    "test": "node --import tsx --test src/lib/scholarlySources.test.ts src/lib/referenceSources.test.ts src/lib/scholarlyMerge.test.ts src/lib/trialAnalytics.test.ts src/routes/sources.test.ts src/routes/library.test.ts src/routes/sermons.test.ts src/routes/trialEvents.test.ts src/routes/me.test.ts src/routes/dashboard.test.ts"
   },
   "dependencies": {
     "@clerk/express": "^1.4.0",

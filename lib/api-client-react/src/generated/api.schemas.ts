@@ -495,6 +495,18 @@ export interface ServicePlan {
   updatedAt: string;
 }
 
+/**
+ * The service-plan fields rendered by recent-service dashboard cards.
+ */
+export interface DashboardRecentService {
+  id: number;
+  title: string;
+  scripture: string;
+  theme: string;
+  season: string;
+  serviceDate: string | null;
+}
+
 export interface CreateServicePlanBody {
   /** @minLength 1 */
   title: string;
@@ -675,7 +687,7 @@ export interface DashboardTrialSummary {
 
 export interface DashboardResponse {
   verseOfDay: DashboardResponseVerseOfDay;
-  recentServices: ServicePlan[];
+  recentServices: DashboardRecentService[];
   servicesThisMonth: number;
   librarySize: number;
   totalServices: number;

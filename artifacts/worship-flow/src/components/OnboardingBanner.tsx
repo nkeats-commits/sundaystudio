@@ -1,10 +1,6 @@
 import { Link } from 'wouter';
 import { Check, ArrowRight, Sparkles } from 'lucide-react';
-import {
-  useGetMe,
-  useListSermons,
-  useListServicePlans,
-} from '@workspace/api-client-react';
+import type { DashboardResponse, MeResponse } from '@workspace/api-client-react';
 
 type Step = {
   key: string;
@@ -17,7 +13,7 @@ type Step = {
 
 /**
  * Three-step onboarding banner. Hidden once all three are complete.
- * State derives entirely from existing endpoints (no new schema):
+ * State derives from the dashboard summary and existing profile response:
  *   1. Church profile filled (church + leader names)
  *   2. At least one sermon OR service plan exists
  *   3. At least one service plan saved
@@ -25,32 +21,46 @@ type Step = {
  * Step 2 catches the user who started a sermon but no service yet, and
  * step 3 nudges them across the line into a finished plan.
  */
-export function OnboardingBanner() {
-  const meQ = useGetMe();
-  const sermonsQ = useListSermons();
-  const servicesQ = useListServicePlans();
-
-  const profile = meQ.data?.profile;
+export function OnboardingBanner({
+  dashboard,
+  dashboardLoading,
+  dashboardError,
+  me,
+  meLoading,
+}: {
+  dashboard?: DashboardResponse;
+  dashboardLoading: boolean;
+  dashboardError: boolean;
+  me?: MeResponse;
+  meLoading: boolean;
+}) {
+  const profile = me?.profile;
   const profileReady =
     !!(profile?.churchName ?? '').trim() &&
     !!(profile?.leaderName ?? '').trim();
 
-  const sermons = sermonsQ.data ?? [];
-  const services = servicesQ.data ?? [];
-  const hasAnyContent = sermons.length > 0 || services.length > 0;
-  const hasService = services.length > 0;
+  const servicePlans = dashboard?.trial.servicePlans ?? 0;
+  const sermons = dashboard?.trial.sermons ?? 0;
+  const hasAnyContent = sermons > 0 || servicePlans > 0;
+  const hasService = servicePlans > 0;
 
-  // Wait for all queries to resolve before deciding to render — we don't
-  // want to flash the banner for a returning user while their /me request
-  // is still in flight.
-  const stillLoading =
-    meQ.isLoading || sermonsQ.isLoading || servicesQ.isLoading;
-  if (stillLoading) return null;
+  // Wait for the existing summary/profile requests rather than starting
+  // archive requests just to decide whether onboarding is complete.
+  if (dashboardLoading || meLoading) {
+    return (
+      <section
+        data-testid="loading-onboarding"
+        aria-label="Loading onboarding progress"
+        className="h-32 animate-pulse rounded-2xl bg-[var(--worship-sand)] opacity-40"
+      />
+    );
+  }
+  if (dashboardError || !dashboard) return null;
 
   // Users who completed the onboarding wizard already set up their profile —
   // no need to show the checklist banner.
   if (
-    meQ.data?.onboardingCompletedAt ||
+    me?.onboardingCompletedAt ||
     profileReady
   ) return null;
 

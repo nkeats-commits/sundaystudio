@@ -42,7 +42,11 @@ export function isAccessAllowed(state: AccessState): boolean {
  */
 export async function getAccessState(userId: string): Promise<AccessState> {
   const [user] = await db
-    .select()
+    .select({
+      stripeCustomerId: usersTable.stripeCustomerId,
+      trialStartedAt: usersTable.trialStartedAt,
+      createdAt: usersTable.createdAt,
+    })
     .from(usersTable)
     .where(eq(usersTable.id, userId))
     .limit(1);

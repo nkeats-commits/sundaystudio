@@ -184,11 +184,59 @@ function TrialValueSurface({ trial }: { trial: TrialSummary }) {
   );
 }
 
+function SectionSkeleton({
+  className = "h-24",
+  label,
+}: {
+  className?: string;
+  label: string;
+}) {
+  return (
+    <div
+      data-testid={`loading-${label}`}
+      aria-label={`Loading ${label}`}
+      className={`${className} animate-pulse rounded-2xl bg-[var(--worship-sand)] opacity-40`}
+    />
+  );
+}
+
+function DashboardSummaryError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <section
+      data-testid="error-dashboard-summary"
+      role="alert"
+      className="rounded-2xl border p-5"
+      style={{
+        backgroundColor: "var(--worship-white)",
+        borderColor: "var(--worship-gold)",
+      }}
+    >
+      <h2 className="font-semibold" style={{ color: "var(--worship-navy)" }}>
+        We couldn’t load your dashboard summary.
+      </h2>
+      <p className="mt-1 text-sm" style={{ color: "var(--worship-slate)" }}>
+        Your quick actions are still available. Try again to load your recent
+        services, stats, and trial details.
+      </p>
+      <button
+        type="button"
+        data-testid="button-retry-dashboard"
+        onClick={onRetry}
+        className="worship-btn-outline mt-4 rounded-lg px-4 py-2 text-sm font-medium"
+      >
+        Try again
+      </button>
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useUser();
   const [, setLocation] = useLocation();
-  const { data: dashboard, isLoading } = useGetDashboard();
-  const { data: me } = useGetMe();
+  const dashboardQuery = useGetDashboard();
+  const { data: dashboard, isLoading, isError, refetch } = dashboardQuery;
+  const meQuery = useGetMe();
+  const { data: me } = meQuery;
 
   const firstName =
     me?.profile?.leaderName?.split(' ')[0] ||
@@ -196,40 +244,37 @@ export default function Dashboard() {
     user?.fullName?.split(' ')[0] ||
     'Pastor';
 
-  if (isLoading) {
-    return (
-      <AppLayout title="Dashboard">
-        <div data-testid="loading-dashboard" className="mx-auto max-w-6xl animate-pulse space-y-6">
-          <div className="h-28 rounded-2xl bg-[var(--worship-sand)] opacity-50" />
-          <div className="h-24 rounded-2xl bg-[var(--worship-sand)] opacity-40" />
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-            {[0, 1, 2, 3, 4].map((item) => (
-              <div key={item} className="h-28 rounded-2xl bg-[var(--worship-sand)] opacity-35" />
-            ))}
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
   return (
     <AppLayout title="Dashboard">
       <div className="max-w-6xl mx-auto space-y-8 md:space-y-10">
 
-        <OnboardingBanner />
+        {isError && <DashboardSummaryError onRetry={() => void refetch()} />}
+        <OnboardingBanner
+          dashboard={dashboard}
+          dashboardLoading={isLoading}
+          dashboardError={isError}
+          me={me}
+          meLoading={meQuery.isLoading}
+        />
         <UpgradeBanner />
-        {dashboard?.trial && <TrialValueSurface trial={dashboard.trial} />}
+        {dashboard?.trial ? (
+          <TrialValueSurface trial={dashboard.trial} />
+        ) : isLoading ? (
+          <SectionSkeleton className="h-48" label="trial-details" />
+        ) : null}
 
         {/* Welcome Section */}
         <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 pb-6 border-b" style={{ borderColor: 'var(--worship-border)' }}>
           <div>
             <h1 data-testid="text-dashboard-welcome" className="text-2xl md:text-3xl mb-2 font-serif text-[var(--worship-navy)]">Welcome back, {firstName}.</h1>
             <p className="text-base md:text-lg mb-3 md:mb-4" style={{ color: 'var(--worship-slate)' }}>What are you planning this week?</p>
-            {dashboard?.verseOfDay && (
+            {dashboard?.verseOfDay ? (
               <p data-testid="text-verse-of-day" className="text-sm italic max-w-2xl" style={{ color: 'var(--worship-muted-slate)', fontFamily: 'var(--font-serif)' }}>
                 "{dashboard.verseOfDay.text}" — {dashboard.verseOfDay.reference}
               </p>
-            )}
+            ) : isLoading ? (
+              <div data-testid="loading-verse" aria-label="Loading verse of the day" className="h-5 w-80 max-w-full animate-pulse rounded bg-[var(--worship-sand)] opacity-50" />
+            ) : null}
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <Link href="/generators/liturgy" className="px-5 py-2.5 rounded-xl font-medium worship-btn-outline flex items-center justify-center gap-2 text-sm">
@@ -274,7 +319,17 @@ export default function Dashboard() {
             </Link>
           </div>
           
-          {!dashboard?.recentServices?.length ? (
+          {isLoading ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+              {[0, 1, 2].map((item) => (
+                <SectionSkeleton key={item} className="h-48" label={`recent-service-${item}`} />
+              ))}
+            </div>
+          ) : !dashboard ? (
+            <div className="worship-card p-6 text-sm" style={{ color: 'var(--worship-slate)' }}>
+              Recent services will appear after the dashboard summary loads.
+            </div>
+          ) : !dashboard.recentServices.length ? (
              <div className="worship-card p-8 flex flex-col items-center justify-center text-center">
                <FileText className="w-12 h-12 mb-4 text-[var(--worship-gold)] opacity-50" />
                <p className="text-[var(--worship-slate)] font-medium mb-4">No services planned yet.</p>
@@ -311,7 +366,11 @@ export default function Dashboard() {
         </section>
 
         {/* Seasonal Prompts */}
-        {dashboard?.suggestions && dashboard.suggestions.length > 0 && (
+        {isLoading ? (
+          <section aria-label="Loading ideas">
+            <SectionSkeleton className="h-24" label="ideas" />
+          </section>
+        ) : dashboard?.suggestions && dashboard.suggestions.length > 0 ? (
           <section>
             <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--worship-muted-slate)' }}>Ideas For You</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
@@ -339,15 +398,17 @@ export default function Dashboard() {
               })}
             </div>
           </section>
-        )}
+        ) : null}
         
         {/* Stats */}
-        {dashboard && (
+        {dashboard ? (
           <div className="pt-6 md:pt-8 flex flex-wrap items-center gap-4 md:gap-6 text-sm" style={{ color: 'var(--worship-muted-slate)' }}>
             <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {dashboard.servicesThisMonth} plans created this month</span>
             <span className="flex items-center gap-2"><BookOpen className="w-4 h-4" /> {dashboard.librarySize} items in library</span>
           </div>
-        )}
+        ) : isLoading ? (
+          <SectionSkeleton className="h-8" label="stats" />
+        ) : null}
 
       </div>
     </AppLayout>

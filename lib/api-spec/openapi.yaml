@@ -3175,6 +3175,26 @@ components:
         - createdAt
         - updatedAt
 
+    DashboardRecentService:
+      type: object
+      description: The service-plan fields rendered by recent-service dashboard cards.
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        scripture:
+          type: string
+        theme:
+          type: string
+        season:
+          type: string
+        serviceDate:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, title, scripture, theme, season, serviceDate]
+
     CreateServicePlanBody:
       type: object
       properties:
@@ -3409,7 +3429,7 @@ components:
         recentServices:
           type: array
           items:
-            $ref: "#/components/schemas/ServicePlan"
+            $ref: "#/components/schemas/DashboardRecentService"
         servicesThisMonth:
           type: integer
         librarySize:
