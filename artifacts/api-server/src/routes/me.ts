@@ -72,54 +72,65 @@ router.put("/me/church", requireAuth, async (req, res) => {
     missionStatement: data.missionStatement ?? "",
     focusAreas: data.focusAreas ?? [],
   };
+  // Optional properties are intentionally conditional: onboarding submits
+  // only the six basic fields, while the full Profile page can still clear
+  // a field by explicitly sending "" / null / [].
+  const updateValues = {
+    churchName: data.churchName,
+    leaderName: data.leaderName,
+    ...(data.denomination !== undefined
+      ? { denomination: data.denomination }
+      : {}),
+    ...(data.theology !== undefined ? { theology: data.theology } : {}),
+    ...(data.location !== undefined ? { location: data.location } : {}),
+    ...(data.averageAttendance !== undefined
+      ? { averageAttendance: data.averageAttendance }
+      : {}),
+    ...(data.musicStyle !== undefined
+      ? { musicStyle: data.musicStyle }
+      : {}),
+    ...(data.traditions !== undefined
+      ? { traditions: data.traditions }
+      : {}),
+    ...(data.leaderRole !== undefined
+      ? { leaderRole: data.leaderRole }
+      : {}),
+    ...(data.toneDescription !== undefined
+      ? { toneDescription: data.toneDescription }
+      : {}),
+    ...(data.missionStatement !== undefined
+      ? { missionStatement: data.missionStatement }
+      : {}),
+    ...(data.focusAreas !== undefined ? { focusAreas: data.focusAreas } : {}),
+  };
 
-  const [existing] = await db
-    .select()
-    .from(churchProfilesTable)
-    .where(eq(churchProfilesTable.userId, userId))
-    .limit(1);
-
-  let result;
-  if (existing) {
-    // Optional properties are intentionally conditional: onboarding submits
-    // only the six basic fields, while the full Profile page can still clear
-    // a field by explicitly sending "" / null / [].
-    const updateValues = {
-      churchName: data.churchName,
-      leaderName: data.leaderName,
-      ...(data.denomination !== undefined
-        ? { denomination: data.denomination }
-        : {}),
-      ...(data.theology !== undefined ? { theology: data.theology } : {}),
-      ...(data.location !== undefined ? { location: data.location } : {}),
-      ...(data.averageAttendance !== undefined
-        ? { averageAttendance: data.averageAttendance }
-        : {}),
-      ...(data.musicStyle !== undefined
-        ? { musicStyle: data.musicStyle }
-        : {}),
-      ...(data.traditions !== undefined
-        ? { traditions: data.traditions }
-        : {}),
-      ...(data.leaderRole !== undefined
-        ? { leaderRole: data.leaderRole }
-        : {}),
-      ...(data.toneDescription !== undefined
-        ? { toneDescription: data.toneDescription }
-        : {}),
-      ...(data.missionStatement !== undefined
-        ? { missionStatement: data.missionStatement }
-        : {}),
-      ...(data.focusAreas !== undefined ? { focusAreas: data.focusAreas } : {}),
-    };
-    [result] = await db
-      .update(churchProfilesTable)
-      .set(updateValues)
-      .where(eq(churchProfilesTable.userId, userId))
+  const result = await db.transaction(async (tx) => {
+    const [savedProfile] = await tx
+      .insert(churchProfilesTable)
+      .values(createValues)
+      .onConflictDoUpdate({
+        target: churchProfilesTable.userId,
+        set: updateValues,
+      })
       .returning();
-  } else {
-    [result] = await db.insert(churchProfilesTable).values(createValues).returning();
-  }
+
+    // A confirmed usable profile is the durable first-run completion signal.
+    // Stamp it in the same transaction as the profile so an interrupted later
+    // wizard step cannot make onboarding return on another device.
+    if (data.churchName.trim() && data.leaderName.trim()) {
+      await tx
+        .update(usersTable)
+        .set({ onboardingCompletedAt: new Date() })
+        .where(
+          and(
+            eq(usersTable.id, userId),
+            isNull(usersTable.onboardingCompletedAt),
+          ),
+        );
+    }
+
+    return savedProfile;
+  });
   res.json(result);
 
   // Fire church_profile_completed once per user — best-effort, never blocks.

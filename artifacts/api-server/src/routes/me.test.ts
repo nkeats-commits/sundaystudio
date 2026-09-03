@@ -123,6 +123,66 @@ test("PUT /api/me/church preserves omitted profile fields but honors explicit cl
   }
 });
 
+test("concurrent first profile saves resolve to one complete persisted profile", async () => {
+  const uid = userId();
+  await cleanup(uid);
+  await db.insert(usersTable).values({ id: uid });
+  const { base, close } = await startServer();
+
+  try {
+    const [first, second] = await Promise.all([
+      fetch(`${base}/api/me/church`, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          "x-test-user-id": uid,
+        },
+        body: JSON.stringify({
+          churchName: "Grace Community Church",
+          leaderName: "Pastor Jane Smith",
+          location: "Austin, TX",
+        }),
+      }),
+      fetch(`${base}/api/me/church`, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          "x-test-user-id": uid,
+        },
+        body: JSON.stringify({
+          churchName: "Grace Community Church",
+          leaderName: "Pastor Jane Smith",
+          missionStatement: "To know Christ and make Him known",
+        }),
+      }),
+    ]);
+
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+
+    const [persisted] = await db
+      .select()
+      .from(churchProfilesTable)
+      .where(eq(churchProfilesTable.userId, uid));
+    assert.equal(persisted.churchName, "Grace Community Church");
+    assert.equal(persisted.leaderName, "Pastor Jane Smith");
+    assert.equal(persisted.location, "Austin, TX");
+    assert.equal(
+      persisted.missionStatement,
+      "To know Christ and make Him known",
+    );
+
+    const [user] = await db
+      .select({ onboardingCompletedAt: usersTable.onboardingCompletedAt })
+      .from(usersTable)
+      .where(eq(usersTable.id, uid));
+    assert.ok(user.onboardingCompletedAt);
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});
+
 test("GET /api/me reconciles a usable profile with a missing onboarding marker", async () => {
   const uid = userId();
   await cleanup(uid);

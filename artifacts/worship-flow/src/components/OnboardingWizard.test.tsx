@@ -153,12 +153,12 @@ function renderSession(queryClient: QueryClient) {
   );
 }
 
-test('keeps the wizard mounted while a successful profile save refetches the current user', async () => {
+test('keeps a successful profile save authoritative over an older current-user request', async () => {
   let getMeCalls = 0;
   let profileRequestBody: Record<string, unknown> | undefined;
-  let resolveRefetch: ((value: Response) => void) | undefined;
-  const refetchPending = new Promise<Response>((resolve) => {
-    resolveRefetch = resolve;
+  let resolveStaleRequest: ((value: Response) => void) | undefined;
+  const staleRequest = new Promise<Response>((resolve) => {
+    resolveStaleRequest = resolve;
   });
 
   globalThis.fetch = async (input, init) => {
@@ -167,7 +167,7 @@ test('keeps the wizard mounted while a successful profile save refetches the cur
       getMeCalls += 1;
       return getMeCalls === 1
         ? response(initialMe)
-        : refetchPending;
+        : staleRequest;
     }
     if (url === '/api/me/church') {
       profileRequestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -176,9 +176,14 @@ test('keeps the wizard mounted while a successful profile save refetches the cur
     throw new Error(`Unexpected request: ${url}`);
   };
 
-  renderWizard();
+  const queryClient = makeQueryClient();
+  renderWizard(queryClient);
   const user = userEvent.setup();
-  await user.type(await screen.findByPlaceholderText('Grace Community Church'), savedProfile.churchName);
+  await screen.findByPlaceholderText('Grace Community Church');
+  void queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+  await waitFor(() => assert.equal(getMeCalls, 2));
+
+  await user.type(screen.getByPlaceholderText('Grace Community Church'), savedProfile.churchName);
   await user.type(screen.getByPlaceholderText('Pastor John Smith'), savedProfile.leaderName);
   await user.click(screen.getByRole('button', { name: /^Next/ }));
 
@@ -191,7 +196,16 @@ test('keeps the wizard mounted while a successful profile save refetches the cur
     leaderName: savedProfile.leaderName,
   });
 
-  resolveRefetch?.(response({ ...initialMe, profile: savedProfile }));
+  resolveStaleRequest?.(response(initialMe));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    queryClient.getQueryData<MeResponse>(getGetMeQueryKey())?.profile?.churchName,
+    savedProfile.churchName,
+  );
+  assert.ok(
+    queryClient.getQueryData<MeResponse>(getGetMeQueryKey())
+      ?.onboardingCompletedAt,
+  );
 });
 
 test('does not show the wizard for an established profile without a completion marker', async () => {
@@ -207,6 +221,25 @@ test('does not show the wizard for an established profile without a completion m
 
   await waitFor(() => {
     assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+  });
+});
+
+test('does not interpret a failed current-user request as an empty profile', async () => {
+  globalThis.fetch = async (input) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/me') {
+      return response({ error: 'temporary failure' }, 500);
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  renderWizard();
+
+  await waitFor(() => {
+    assert.equal(
+      screen.queryByRole('heading', { name: 'Tell us about yourself' }),
+      null,
+    );
   });
 });
 

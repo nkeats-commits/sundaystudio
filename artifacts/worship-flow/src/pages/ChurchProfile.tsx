@@ -17,6 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useLocation } from 'wouter';
 import { Upload, Trash2, FileText, Loader2, Sparkles, Plus, X, ArrowDown } from 'lucide-react';
+import { useAuth } from '@clerk/react';
 
 const PRESET_FOCUS_AREAS = [
   'Discipleship',
@@ -61,10 +62,18 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function ChurchProfile() {
-  const { data: me } = useGetMe();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const meQuery = useGetMe({
+    query: {
+      enabled: authLoaded && !!isSignedIn,
+      queryKey: getGetMeQueryKey(),
+    },
+  });
+  const { data: me } = meQuery;
   const updateProfile = useUpdateChurchProfile();
   const queryClient = useQueryClient();
-  const initRef = useRef(false);
+  const initializedUserIdRef = useRef<string | null>(null);
+  const acceptedProfileUpdatedAtRef = useRef<number>(0);
   const [, setLocation] = useLocation();
 
   const [focusAreas, setFocusAreas] = useState<string[]>([]);
@@ -94,7 +103,13 @@ export default function ChurchProfile() {
     }
   })();
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    getValues,
+    formState: { errors, isSubmitting, isDirty },
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       churchName: '',
@@ -113,29 +128,93 @@ export default function ChurchProfile() {
   });
 
   useEffect(() => {
-    if (me?.profile && !initRef.current) {
-      initRef.current = true;
-      reset(me.profile);
-      setFocusAreas((me.profile.focusAreas as string[]) ?? []);
-    }
-  }, [me, reset]);
+    if (!me) return;
 
-  const onSubmit = (data: FormData) => {
-    updateProfile.mutate(
-      { data: { ...data, focusAreas } },
-      {
-        onSuccess: () => {
-          toast.success('Your profile updated', {
-            description: 'Your Sunday Studio results will now use this context.',
-          });
-          queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-          if (nextPath) setLocation(nextPath);
-        },
-        onError: () => {
-          toast.error('Failed to update profile');
-        },
-      },
-    );
+    const userChanged = initializedUserIdRef.current !== me.userId;
+    const incomingUpdatedAt = me.profile?.updatedAt
+      ? Date.parse(me.profile.updatedAt)
+      : 0;
+    const incomingIsNewer =
+      incomingUpdatedAt >= acceptedProfileUpdatedAtRef.current;
+
+    if (userChanged || (!isDirty && incomingIsNewer)) {
+      initializedUserIdRef.current = me.userId;
+      acceptedProfileUpdatedAtRef.current = incomingUpdatedAt;
+      reset({
+        churchName: me.profile?.churchName ?? '',
+        denomination: me.profile?.denomination ?? '',
+        theology: me.profile?.theology ?? '',
+        location: me.profile?.location ?? '',
+        averageAttendance: me.profile?.averageAttendance ?? null,
+        musicStyle: me.profile?.musicStyle ?? '',
+        traditions: me.profile?.traditions ?? '',
+        leaderName: me.profile?.leaderName ?? '',
+        leaderRole: me.profile?.leaderRole ?? '',
+        toneDescription: me.profile?.toneDescription ?? '',
+        missionStatement: me.profile?.missionStatement ?? '',
+        focusAreas: me.profile?.focusAreas ?? [],
+      });
+      setFocusAreas(me.profile?.focusAreas ?? []);
+    }
+  }, [isDirty, me, reset]);
+
+  const onSubmit = async (data: FormData) => {
+    const submittedValues = getValues();
+    const submittedFocusAreas = [...focusAreas];
+    try {
+      const savedProfile = await updateProfile.mutateAsync({
+        data: { ...data, focusAreas: submittedFocusAreas },
+      });
+      await queryClient.cancelQueries({ queryKey: getGetMeQueryKey() });
+      acceptedProfileUpdatedAtRef.current = Date.parse(savedProfile.updatedAt);
+      queryClient.setQueryData(
+        getGetMeQueryKey(),
+        (current: typeof me) =>
+          current
+            ? {
+                ...current,
+                profile: savedProfile,
+                onboardingCompletedAt:
+                  current.onboardingCompletedAt ??
+                  (savedProfile.churchName.trim() &&
+                  savedProfile.leaderName.trim()
+                    ? new Date().toISOString()
+                    : null),
+              }
+            : current,
+      );
+
+      const valuesUnchanged =
+        JSON.stringify(getValues()) === JSON.stringify(submittedValues);
+      const focusUnchanged =
+        JSON.stringify(focusAreas) === JSON.stringify(submittedFocusAreas);
+      if (valuesUnchanged && focusUnchanged) {
+        reset({
+          churchName: savedProfile.churchName,
+          denomination: savedProfile.denomination,
+          theology: savedProfile.theology,
+          location: savedProfile.location,
+          averageAttendance: savedProfile.averageAttendance ?? null,
+          musicStyle: savedProfile.musicStyle,
+          traditions: savedProfile.traditions,
+          leaderName: savedProfile.leaderName,
+          leaderRole: savedProfile.leaderRole,
+          toneDescription: savedProfile.toneDescription,
+          missionStatement: savedProfile.missionStatement,
+          focusAreas: savedProfile.focusAreas,
+        });
+        setFocusAreas(savedProfile.focusAreas);
+      }
+
+      toast.success('Your profile updated', {
+        description: 'Your Sunday Studio results will now use this context.',
+      });
+      if (nextPath) setLocation(nextPath);
+    } catch {
+      toast.error('Failed to update profile', {
+        description: 'Your changes are still here. Please try saving again.',
+      });
+    }
   };
 
   const toggleFocusArea = (area: string) => {
@@ -253,6 +332,49 @@ export default function ChurchProfile() {
   };
 
   const customAreas = focusAreas.filter((a) => !PRESET_FOCUS_AREAS.includes(a));
+
+  if (
+    !authLoaded ||
+    !isSignedIn ||
+    meQuery.isLoading ||
+    (!meQuery.isFetched && !me)
+  ) {
+    return (
+      <AppLayout title="Your Profile">
+        <div
+          aria-label="Loading your saved profile"
+          className="mx-auto max-w-3xl space-y-4"
+        >
+          <div className="h-24 animate-pulse rounded-2xl bg-[var(--worship-sand)] opacity-50" />
+          <div className="h-64 animate-pulse rounded-2xl bg-[var(--worship-sand)] opacity-40" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (meQuery.isError || !me) {
+    return (
+      <AppLayout title="Your Profile">
+        <div
+          role="alert"
+          className="mx-auto max-w-3xl rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800"
+        >
+          <h1 className="font-serif text-xl">We couldn&apos;t load your saved profile.</h1>
+          <p className="mt-2 text-sm">
+            Nothing can be saved until the current profile loads, so your existing
+            information is protected.
+          </p>
+          <button
+            type="button"
+            onClick={() => void meQuery.refetch()}
+            className="worship-btn-outline mt-4 rounded-lg px-4 py-2 text-sm font-medium"
+          >
+            Try again
+          </button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="Your Profile">
@@ -558,7 +680,11 @@ export default function ChurchProfile() {
           <div className="flex justify-end pb-8">
             <button
               type="submit"
-              disabled={isSubmitting || updateProfile.isPending}
+              disabled={
+                isSubmitting ||
+                updateProfile.isPending ||
+                !meQuery.isSuccess
+              }
               className="worship-btn-primary px-6 py-2.5 rounded-xl font-medium disabled:opacity-50"
             >
               {isSubmitting || updateProfile.isPending ? 'Saving…' : 'Save Profile'}

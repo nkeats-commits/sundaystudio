@@ -109,10 +109,10 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 }
 
 function Step1Profile({
-  onNext,
+  onSaved,
   existingProfile,
 }: {
-  onNext: () => void;
+  onSaved: () => void;
   existingProfile: ProfileFormData | null;
 }) {
   const updateProfile = useUpdateChurchProfile();
@@ -148,13 +148,22 @@ function Step1Profile({
       };
       const savedProfile = await updateProfile.mutateAsync({ data: onboardingData });
 
-      // Keep the saved profile available immediately while /api/me refreshes.
+      // Stop an older /api/me request before publishing the authoritative
+      // mutation result, otherwise a late stale response can replace it.
+      await queryClient.cancelQueries({ queryKey: getGetMeQueryKey() });
       queryClient.setQueryData<MeResponse | undefined>(
         getGetMeQueryKey(),
-        (current) => (current ? { ...current, profile: savedProfile } : current),
+        (current) =>
+          current
+            ? {
+                ...current,
+                profile: savedProfile,
+                onboardingCompletedAt:
+                  current.onboardingCompletedAt ?? new Date().toISOString(),
+              }
+            : current,
       );
-      void queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-      onNext();
+      onSaved();
     } catch {
       // The mutation state renders the retryable error while keeping the form mounted.
     }
@@ -398,10 +407,15 @@ function Step3Ready({
 
 export function OnboardingWizard() {
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
-  const { data: me, isFetched: meFetched } = useGetMe({
+  const {
+    data: me,
+    isFetched: meFetched,
+    isError: meError,
+  } = useGetMe({
     query: { enabled: authLoaded && !!isSignedIn, queryKey: getGetMeQueryKey() },
   });
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [profileSavedThisSession, setProfileSavedThisSession] = useState(false);
   const [selectedPath, setSelectedPath] = useState<PathId | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -412,8 +426,10 @@ export function OnboardingWizard() {
   if (!authLoaded || !isSignedIn) return null;
   // Keep the shell mounted during invalidation/refetches after the first result.
   if (!meFetched) return null;
+  // A failed current-user request is not evidence of an empty profile.
+  if (meError || !me) return null;
   if (dismissed) return null;
-  if (me?.onboardingCompletedAt) return null;
+  if (me.onboardingCompletedAt && !profileSavedThisSession) return null;
   if (
     step === 1 &&
     !!me?.profile?.churchName?.trim() &&
@@ -506,7 +522,10 @@ export function OnboardingWizard() {
             )}
             {step === 1 && (
               <Step1Profile
-                onNext={() => setStep(2)}
+                onSaved={() => {
+                  setProfileSavedThisSession(true);
+                  setStep(2);
+                }}
                 existingProfile={existingProfile}
               />
             )}
