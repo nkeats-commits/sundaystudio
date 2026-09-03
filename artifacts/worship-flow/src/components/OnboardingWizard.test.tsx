@@ -25,10 +25,11 @@ Object.defineProperty(globalThis, 'React', {
 
 let currentLocation = '/dashboard';
 const setLocationCalls: string[] = [];
+let authState = { isLoaded: true, isSignedIn: true };
 
 mock.module('@clerk/react', {
   namedExports: {
-    useAuth: () => ({ isLoaded: true, isSignedIn: true }),
+    useAuth: () => authState,
   },
 });
 
@@ -93,14 +94,16 @@ function response(body: unknown, status = 200) {
   });
 }
 
-function renderWizard() {
-  const queryClient = new QueryClient({
+function makeQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   });
+}
 
+function renderWizard(queryClient = makeQueryClient()) {
   return render(
     <QueryClientProvider client={queryClient}>
       <OnboardingWizard />
@@ -111,6 +114,7 @@ function renderWizard() {
 beforeEach(() => {
   currentLocation = '/dashboard';
   setLocationCalls.length = 0;
+  authState = { isLoaded: true, isSignedIn: true };
   document.body.innerHTML = '';
 });
 
@@ -174,6 +178,73 @@ test('does not show the wizard for an established profile without a completion m
   await waitFor(() => {
     assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
   });
+});
+
+test('keeps an established profile hidden through auth hydration and a fresh mount', async () => {
+  let getMeCalls = 0;
+  globalThis.fetch = async (input) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/me') {
+      getMeCalls += 1;
+      return response({ ...initialMe, profile: savedProfile });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  authState = { isLoaded: false, isSignedIn: false };
+  const firstSessionQueryClient = makeQueryClient();
+  const firstSession = renderWizard(firstSessionQueryClient);
+  assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+
+  authState = { isLoaded: true, isSignedIn: true };
+  firstSession.rerender(
+    <QueryClientProvider client={firstSessionQueryClient}>
+      <OnboardingWizard />
+    </QueryClientProvider>,
+  );
+  await waitFor(() => {
+    assert.equal(getMeCalls, 1);
+    assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+  });
+
+  firstSession.unmount();
+  renderWizard();
+  await waitFor(() => {
+    assert.equal(getMeCalls, 2);
+    assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+  });
+});
+
+test('walks a new account through all three onboarding steps', async () => {
+  let completeCalls = 0;
+  globalThis.fetch = async (input) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/me') return response(initialMe);
+    if (url === '/api/me/church') return response(savedProfile);
+    if (url === '/api/onboarding/complete') {
+      completeCalls += 1;
+      return response({ onboardingCompletedAt: '2026-09-03T00:00:00.000Z' });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  renderWizard();
+  const user = userEvent.setup();
+  await user.type(await screen.findByPlaceholderText('Grace Community Church'), savedProfile.churchName);
+  await user.type(screen.getByPlaceholderText('Pastor John Smith'), savedProfile.leaderName);
+  await user.click(screen.getByRole('button', { name: /^Next/ }));
+  assert.ok(await screen.findByRole('heading', { name: 'What would you like to do first?' }));
+
+  await user.click(screen.getByRole('button', { name: /Plan this Sunday.s service/ }));
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  assert.ok(await screen.findByRole('heading', { name: "You're all set!" }));
+
+  await user.click(screen.getByRole('button', { name: 'Open Service Builder' }));
+  await waitFor(() => {
+    assert.equal(screen.queryByRole('heading', { name: "You're all set!" }), null);
+  });
+  assert.equal(completeCalls, 1);
+  assert.deepEqual(setLocationCalls, ['/service-builder']);
 });
 
 test('keeps profile values visible and offers a retry when profile save fails', async () => {
