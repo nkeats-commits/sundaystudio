@@ -3,6 +3,7 @@ import { mock, test, beforeEach, afterEach } from 'node:test';
 import { JSDOM } from 'jsdom';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { getGetMeQueryKey } from '@workspace/api-client-react';
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
   url: 'http://localhost/',
@@ -26,10 +27,24 @@ Object.defineProperty(globalThis, 'React', {
 let currentLocation = '/dashboard';
 const setLocationCalls: string[] = [];
 let authState = { isLoaded: true, isSignedIn: true };
+let clerkListener:
+  | ((payload: { user?: { id: string } | null }) => void)
+  | undefined;
+const clerk = {
+  addListener: (
+    listener: (payload: { user?: { id: string } | null }) => void,
+  ) => {
+    clerkListener = listener;
+    return () => {
+      if (clerkListener === listener) clerkListener = undefined;
+    };
+  },
+};
 
 mock.module('@clerk/react', {
   namedExports: {
     useAuth: () => authState,
+    useClerk: () => clerk,
   },
 });
 
@@ -48,6 +63,7 @@ mock.module('wouter', {
 const { render, screen, waitFor, cleanup } = await import('@testing-library/react');
 const userEvent = (await import('@testing-library/user-event')).default;
 const { OnboardingWizard } = await import('./OnboardingWizard');
+const { ClerkQueryClientCacheInvalidator } = await import('./ClerkQueryClientCacheInvalidator');
 
 type Profile = {
   churchName: string;
@@ -115,6 +131,7 @@ beforeEach(() => {
   currentLocation = '/dashboard';
   setLocationCalls.length = 0;
   authState = { isLoaded: true, isSignedIn: true };
+  clerkListener = undefined;
   document.body.innerHTML = '';
 });
 
@@ -122,6 +139,19 @@ afterEach(() => {
   cleanup();
   mock.timers.reset();
 });
+
+function emitClerkUser(userId: string | null) {
+  clerkListener?.({ user: userId ? { id: userId } : null });
+}
+
+function renderSession(queryClient: QueryClient) {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ClerkQueryClientCacheInvalidator />
+      <OnboardingWizard />
+    </QueryClientProvider>,
+  );
+}
 
 test('keeps the wizard mounted while a successful profile save refetches the current user', async () => {
   let getMeCalls = 0;
@@ -212,6 +242,94 @@ test('keeps an established profile hidden through auth hydration and a fresh mou
   await waitFor(() => {
     assert.equal(getMeCalls, 2);
     assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+  });
+});
+
+test('clears the user cache when switching accounts so onboarding follows the signed-in user', async () => {
+  let activeUserId = 'user-1';
+  let getMeCalls = 0;
+  globalThis.fetch = async (input) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/me') {
+      getMeCalls += 1;
+      return activeUserId === 'user-1'
+        ? response({ ...initialMe, profile: savedProfile })
+        : response({
+            ...initialMe,
+            userId: 'user-2',
+            email: 'new-pastor@example.com',
+          });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  const queryClient = makeQueryClient();
+  const session = renderSession(queryClient);
+  emitClerkUser('user-1');
+
+  await waitFor(() => {
+    assert.equal(getMeCalls, 1);
+    assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+    assert.equal(queryClient.getQueryData<MeResponse>(getGetMeQueryKey())?.userId, 'user-1');
+  });
+
+  authState = { isLoaded: true, isSignedIn: false };
+  emitClerkUser(null);
+  session.rerender(
+    <QueryClientProvider client={queryClient}>
+      <ClerkQueryClientCacheInvalidator />
+      <OnboardingWizard />
+    </QueryClientProvider>,
+  );
+
+  await waitFor(() => {
+    assert.equal(queryClient.getQueryData(getGetMeQueryKey()), undefined);
+    assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+  });
+
+  activeUserId = 'user-2';
+  authState = { isLoaded: true, isSignedIn: true };
+  emitClerkUser('user-2');
+  session.rerender(
+    <QueryClientProvider client={queryClient}>
+      <ClerkQueryClientCacheInvalidator />
+      <OnboardingWizard />
+    </QueryClientProvider>,
+  );
+
+  await waitFor(() => {
+    assert.equal(getMeCalls, 2);
+    assert.ok(screen.getByRole('heading', { name: 'Tell us about yourself' }));
+    assert.equal(queryClient.getQueryData<MeResponse>(getGetMeQueryKey())?.userId, 'user-2');
+  });
+
+  authState = { isLoaded: true, isSignedIn: false };
+  emitClerkUser(null);
+  session.rerender(
+    <QueryClientProvider client={queryClient}>
+      <ClerkQueryClientCacheInvalidator />
+      <OnboardingWizard />
+    </QueryClientProvider>,
+  );
+
+  await waitFor(() => {
+    assert.equal(queryClient.getQueryData(getGetMeQueryKey()), undefined);
+  });
+
+  activeUserId = 'user-1';
+  authState = { isLoaded: true, isSignedIn: true };
+  emitClerkUser('user-1');
+  session.rerender(
+    <QueryClientProvider client={queryClient}>
+      <ClerkQueryClientCacheInvalidator />
+      <OnboardingWizard />
+    </QueryClientProvider>,
+  );
+
+  await waitFor(() => {
+    assert.equal(getMeCalls, 3);
+    assert.equal(screen.queryByRole('heading', { name: 'Tell us about yourself' }), null);
+    assert.equal(queryClient.getQueryData<MeResponse>(getGetMeQueryKey())?.userId, 'user-1');
   });
 });
 
