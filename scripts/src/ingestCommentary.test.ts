@@ -11,6 +11,7 @@ import test from "node:test";
 import {
   diffExactCoverage,
   extractBibleHubExcerpt,
+  extractSermonIndexExcerpt,
 } from "./ingestCommentary.js";
 
 const bibleHubChapterFixture = readFileSync(
@@ -90,6 +91,23 @@ test("extractBibleHubExcerpt handles Wesley's chapter-page shape", () => {
     "Wesley calls the church to trust the promise and walk in holiness.",
   );
   assert.doesNotMatch(excerpt, /scripture text|navigation|advertisement/);
+});
+
+test("extractSermonIndexExcerpt keeps commentary and strips verse/page noise", () => {
+  const excerpt = extractSermonIndexExcerpt(
+    readFileSync(
+      new URL("./fixtures/sermonindex-trapp.html", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    excerpt,
+    "Trapp explains the opening verse with concise theological and practical observations for the reader. The second note supplies further explanatory context.",
+  );
+  assert.doesNotMatch(
+    excerpt,
+    /Genesis 1:1|Genesis 1:2|In the beginning|without form|navigation|SermonIndex/,
+  );
 });
 
 test("diffExactCoverage rejects both unlisted gaps and stale allowlist entries", () => {

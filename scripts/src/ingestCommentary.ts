@@ -16,6 +16,9 @@
  *   - matthew-poole            → /commentaries/poole/<book>/<ch>.htm
  *   - ellicott-english-readers → /commentaries/ellicott/<book>/<ch>.htm
  *   - wesley-explanatory-notes → /commentaries/wes/<book>/<ch>.htm
+ *   - joseph-benson            → /commentaries/benson/<book>/<ch>.htm
+ *   - john-trapp               → SermonIndex /commentary/trapp/<book>/<ch>
+ *   - thomas-scott             → SermonIndex /commentary/tscott/PSA/<ch>
  *
  * Why BibleHub and not CCEL? CCEL serves a per-work plain-text dump only for
  * a few commentaries (Henry, JFB) and the JFB dump's per-book headers vary
@@ -59,6 +62,9 @@ const DATA_ROOT = join(
 
 const TARGET_EXCERPT_CHARS = 1400; // registry truncates at 1500
 const MIN_EXCERPT_CHARS = 200; // skip "no commentary available" stubs
+// SermonIndex preserves authentic cross-reference notes that can be shorter
+// than BibleHub's normal floor (for example, Trapp's Isaiah 36 note).
+const SERMON_INDEX_MIN_EXCERPT_CHARS = 80;
 
 interface BookSpec {
   /** Display name for `book` field, e.g. "1 Corinthians". */
@@ -151,6 +157,75 @@ const BOOKS: BookSpec[] = [
   chapters: chapters as number,
 }));
 
+const SERMON_INDEX_CODES: Record<string, string> = {
+  genesis: "GEN",
+  exodus: "EXO",
+  leviticus: "LEV",
+  numbers: "NUM",
+  deuteronomy: "DEU",
+  joshua: "JOS",
+  judges: "JDG",
+  ruth: "RUT",
+  "1 samuel": "1SA",
+  "2 samuel": "2SA",
+  "1 kings": "1KI",
+  "2 kings": "2KI",
+  "1 chronicles": "1CH",
+  "2 chronicles": "2CH",
+  ezra: "EZR",
+  nehemiah: "NEH",
+  esther: "EST",
+  job: "JOB",
+  psalms: "PSA",
+  proverbs: "PRO",
+  ecclesiastes: "ECC",
+  "song of songs": "SOS",
+  isaiah: "ISA",
+  jeremiah: "JER",
+  lamentations: "LAM",
+  ezekiel: "EZK",
+  daniel: "DAN",
+  hosea: "HOS",
+  joel: "JOL",
+  amos: "AMO",
+  obadiah: "OBA",
+  jonah: "JON",
+  micah: "MIC",
+  nahum: "NAH",
+  habakkuk: "HAB",
+  zephaniah: "ZEP",
+  haggai: "HAG",
+  zechariah: "ZEC",
+  malachi: "MAL",
+  matthew: "MAT",
+  mark: "MRK",
+  luke: "LUK",
+  john: "JHN",
+  acts: "ACT",
+  romans: "ROM",
+  "1 corinthians": "1CO",
+  "2 corinthians": "2CO",
+  galatians: "GAL",
+  ephesians: "EPH",
+  philippians: "PHP",
+  colossians: "COL",
+  "1 thessalonians": "1TH",
+  "2 thessalonians": "2TH",
+  "1 timothy": "1TI",
+  "2 timothy": "2TI",
+  titus: "TIT",
+  philemon: "PHM",
+  hebrews: "HEB",
+  james: "JAS",
+  "1 peter": "1PE",
+  "2 peter": "2PE",
+  "1 john": "1JN",
+  "2 john": "2JN",
+  "3 john": "3JN",
+  jude: "JUD",
+  revelation: "REV",
+};
+
 function bookSlug(canonical: string): string {
   return canonical.replace(/\s+/g, "-");
 }
@@ -208,6 +283,9 @@ function finalizeExcerpt(combined: string): string {
     /\bMatthew Poole's Commentary[\s\S]*$/i,
     /\bExplanatory Notes on the Whole Bible by John Wesley[\s\S]*$/i,
     /\bEllicott's Commentary for English Readers[\s\S]*$/i,
+    /\bBenson Commentary on the Old and New Testaments[\s\S]*$/i,
+    /\bCheck citations for accuracy before use[\s\S]*$/i,
+    /\bSermonIndex\.net[\s\S]*$/i,
   ];
   for (const re of FOOTER_MARKERS) combined = combined.replace(re, "").trim();
 
@@ -379,7 +457,8 @@ async function ingestBibleHub(
     | "spurgeon-treasury"
     | "matthew-poole"
     | "wesley-explanatory-notes"
-    | "ellicott-english-readers",
+    | "ellicott-english-readers"
+    | "joseph-benson",
   bhPath:
     | "jfb"
     | "barnes"
@@ -391,7 +470,8 @@ async function ingestBibleHub(
     | "tod"
     | "poole"
     | "wes"
-    | "ellicott",
+    | "ellicott"
+    | "benson",
   /** When true, only OT books are fetched (for OT-only commentaries like K&D). */
   otOnly = false,
   /** When true, only Psalms is fetched (for Spurgeon's Treasury of David). */
@@ -475,6 +555,116 @@ async function ingestBibleHub(
   await Promise.all(Array.from({ length: concurrency }, () => next()));
   console.log(`[${sourceId}] done: ${done} fetched, ${kept} kept across ${books.size} books`);
   writeBooks(sourceId, books, booksScope, minBooksOverride, minChaptersOverride);
+}
+
+function extractSermonIndexContent(html: string): string {
+  const marker = '<div class="bch-content comm-content">';
+  const start = html.indexOf(marker);
+  if (start < 0) return "";
+
+  const contentStart = start + marker.length;
+  const tags = /<\/?div\b[^>]*>/gi;
+  tags.lastIndex = contentStart;
+  let depth = 1;
+  let match: RegExpExecArray | null;
+  while ((match = tags.exec(html))) {
+    if (match[0].startsWith("</")) {
+      depth--;
+    } else {
+      depth++;
+    }
+    if (depth === 0) return html.slice(contentStart, match.index);
+  }
+  return html.slice(contentStart);
+}
+
+/**
+ * SermonIndex pages group verse-level notes beneath h3 headings. The first
+ * paragraph in each group also contains the Bible text, followed by a
+ * "Ver. N." or "V. N." marker where the commentary begins. Strip that
+ * scripture lead-in and the citation footer before applying the shared cap.
+ */
+export function extractSermonIndexExcerpt(html: string): string {
+  const content = extractSermonIndexContent(html);
+  if (!content) return "";
+
+  const sections = content.split(/<h3\b[^>]*>[\s\S]*?<\/h3>/i).slice(1);
+  const excerpts: string[] = [];
+  for (const section of sections) {
+    let text = stripHtml(section)
+      .replace(/\\+/g, " ")
+      // SermonIndex's Scott transcription has one encoded OCR typo:
+      // "Th&lt; leaders" should read "The leaders".
+      .replace(/\bTh<\s+leaders\b/gi, "The leaders")
+      .replace(/\s+/g, " ")
+      .trim();
+    const marker = /\b(?:Ver\.|V\.)\s*[\d\s.,&–—-]+/i.exec(text);
+    if (marker) {
+      text = text.slice(marker.index + marker[0].length).trim();
+    }
+    if (text.length >= 30) excerpts.push(text);
+  }
+
+  return finalizeExcerpt(excerpts.join(" "));
+}
+
+async function ingestSermonIndex(
+  sourceId: "john-trapp" | "thomas-scott",
+  path: "trapp" | "tscott",
+  booksScope: BookSpec[],
+): Promise<void> {
+  const books = new Map<string, BookOut>();
+  const work: { spec: BookSpec; ch: number }[] = [];
+  for (const spec of booksScope) {
+    for (let ch = 1; ch <= spec.chapters; ch++) work.push({ spec, ch });
+  }
+  console.log(`[${sourceId}] fetching ${work.length} chapter pages…`);
+
+  let done = 0;
+  let kept = 0;
+  let i = 0;
+  const concurrency = 12;
+  const next = async (): Promise<void> => {
+    while (true) {
+      const idx = i++;
+      if (idx >= work.length) return;
+      const { spec, ch } = work[idx];
+      const code = SERMON_INDEX_CODES[spec.canonical];
+      if (!code) throw new Error(`No SermonIndex code for ${spec.canonical}`);
+      const url = `https://www.sermonindex.net/commentary/${path}/${code}/${ch}`;
+      try {
+        const html = await fetchWithRetry(url);
+        if (!html) {
+          done++;
+          continue;
+        }
+        const excerpt = extractSermonIndexExcerpt(html);
+        if (excerpt.length >= SERMON_INDEX_MIN_EXCERPT_CHARS) {
+          let book = books.get(spec.canonical);
+          if (!book) {
+            book = {
+              book: spec.name,
+              chapters: {},
+              _sourceUrl: `https://www.sermonindex.net/commentary/${path}/${code}/`,
+            };
+            books.set(spec.canonical, book);
+          }
+          book.chapters[String(ch)] = { text: excerpt };
+          kept++;
+        }
+      } catch (err) {
+        console.warn(`  ${url}: ${(err as Error).message}`);
+      }
+      done++;
+      if (done % 100 === 0) {
+        console.log(`  ${done}/${work.length} fetched, ${kept} kept`);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: concurrency }, () => next()));
+  console.log(`[${sourceId}] done: ${done} fetched, ${kept} kept across ${books.size} books`);
+  writeBooks(sourceId, books, booksScope);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -645,6 +835,18 @@ const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
   // Spurgeon covers all 150 Psalms; no known upstream gaps.
   "spurgeon-treasury": [],
   "matthew-poole": [],
+  // These Benson pages contain only the attribution footer and no separate
+  // commentary body in the BibleHub edition.
+  "joseph-benson": [
+    "2 samuel 22",
+    "isaiah 37",
+    "isaiah 39",
+  ],
+  // SermonIndex has no Trapp body for these pages; Jude is absent from its
+  // book index and the other two pages are upstream 404/attribution-only.
+  "john-trapp": ["exodus 37", "isaiah 39", "jude 1"],
+  // SermonIndex has no Scott body for Psalm 59; the page is an upstream 404.
+  "thomas-scott": ["psalms 59"],
   // These pages contain only BibleHub's "used by permission" footer and no
   // Ellicott commentary. Zephaniah and Zechariah are wholly absent.
   "ellicott-english-readers": [
@@ -708,7 +910,7 @@ async function main() {
   const sourceId = process.argv[2];
   if (!sourceId) {
     console.error(
-      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury|matthew-poole|wesley-explanatory-notes|ellicott-english-readers>",
+      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury|matthew-poole|ellicott-english-readers|wesley-explanatory-notes|joseph-benson|john-trapp|thomas-scott>",
     );
     process.exit(1);
   }
@@ -757,6 +959,9 @@ async function main() {
     case "matthew-poole":
       await ingestBibleHub("matthew-poole", "poole");
       break;
+    case "joseph-benson":
+      await ingestBibleHub("joseph-benson", "benson");
+      break;
     case "ellicott-english-readers":
       await ingestBibleHub("ellicott-english-readers", "ellicott");
       break;
@@ -771,6 +976,12 @@ async function main() {
         undefined,
         100,
       );
+      break;
+    case "john-trapp":
+      await ingestSermonIndex("john-trapp", "trapp", BOOKS);
+      break;
+    case "thomas-scott":
+      await ingestSermonIndex("thomas-scott", "tscott", PSALMS_BOOKS);
       break;
     default:
       console.error(`Unknown source id: ${sourceId}`);

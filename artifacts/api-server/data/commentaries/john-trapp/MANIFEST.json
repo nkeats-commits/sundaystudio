@@ -1,0 +1,12 @@
+{
+  "id": "john-trapp",
+  "title": "Trapp's Complete Commentary on the Old and New Testaments",
+  "author": "John Trapp",
+  "year": "1647–1660",
+  "license": "Public domain (seventeenth-century edition)",
+  "sourceUrl": "https://www.sermonindex.net/commentary/trapp/",
+  "description": "Pithy verse-level exposition from John Trapp's five-volume commentary on the Old and New Testaments; the bundled SermonIndex corpus covers 65 books and 1,186 chapters, with three verified upstream gaps.",
+  "kind": "commentary",
+  "lookupType": "chapter commentary",
+  "attribution": "John Trapp, Trapp's Complete Commentary on the Old and New Testaments"
+}

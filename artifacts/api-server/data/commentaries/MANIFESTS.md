@@ -123,6 +123,9 @@ Currently wired sources:
 - `matthew-poole`          → `https://biblehub.com/commentaries/poole/` (whole Bible)
 - `ellicott-english-readers` → `https://biblehub.com/commentaries/ellicott/` (64 books / 1,158 chapters; known gaps above)
 - `wesley-explanatory-notes` → `https://biblehub.com/commentaries/wes/` (66 books / 1,175 chapters; known gaps above)
+- `joseph-benson`          → `https://biblehub.com/commentaries/benson/` (66 books / 1,186 chapters; three verified upstream gaps)
+- `john-trapp`             → `https://www.sermonindex.net/commentary/trapp/` (65 books / 1,186 chapters; three verified upstream gaps)
+- `thomas-scott`           → `https://www.sermonindex.net/commentary/tscott/` (Psalms 1–150 except Psalm 59; 149 chapters)
 
 Why BibleHub: CCEL only publishes plain-text dumps for a few works, and the
 JFB dump's per-book headers vary across the canon (`THE FIRST BOOK OF MOSES,
@@ -155,6 +158,30 @@ To add another source backed by BibleHub, add a `case` in the script's
 a source from a different upstream, write a dedicated extractor and ingest
 function that populates the same `Map<canonical, BookOut>` shape and pass it
 to `writeBooks()`.
+
+### Provenance note (bundle: Benson, Trapp, Scott)
+
+- **Benson's Commentary on the Old and New Testaments** — Joseph Benson's
+  nineteenth-century commentary, represented here by the 1850 edition. The
+  BibleHub chapter pages are the checked-in text host; the edition itself is
+  public domain. The manifest identifies BibleHub as the transport source and
+  attributes the work to Joseph Benson. 2 Samuel 22, Isaiah 37, and Isaiah 39
+  are verified attribution-only upstream pages.
+- **Trapp's Complete Commentary on the Old and New Testaments** — John Trapp's
+  seventeenth-century five-volume work, published across 1647–1660 and public
+  domain. SermonIndex supplies pages for 65 books; Exodus 37, Isaiah 39, and
+  Jude 1 are verified upstream gaps. The checked-in data is normalized from
+  those pages and runtime code never fetches the site.
+- **Thomas Scott's Explanatory Notes on the Bible** — Scott's explanatory
+  notes were published in weekly parts from 1788–1792 and are public domain.
+  SermonIndex currently exposes the Psalms corpus for this source, with Psalm
+  59 unavailable upstream. The manifest and derived coverage intentionally say
+  “Psalms only” rather than implying whole-Bible coverage.
+
+SermonIndex is the text host for Trapp and Scott, not the license evidence.
+The importer strips the scripture lead-in, verse headings, HTML, and citation
+footer from each chapter page before writing normalized JSON. The generated
+files are checked in and the runtime loader never fetches SermonIndex.
 
 ### Failure checklist
 

@@ -118,6 +118,9 @@ test("registry: only sources with populated book corpora are registered", () => 
     "matthew-poole",
     "wesley-explanatory-notes",
     "ellicott-english-readers",
+    "joseph-benson",
+    "john-trapp",
+    "thomas-scott",
   ]) {
     assert.ok(
       sources.some((s) => s.id === required),
@@ -168,6 +171,9 @@ test("registry: bundled commentaries cover ~all 66 books × 1189 chapters", () =
     "matthew-poole": { books: 66, chapters: 1189 },
     "wesley-explanatory-notes": { books: 66, chapters: 1175 },
     "ellicott-english-readers": { books: 64, chapters: 1158 },
+    "joseph-benson": { books: 66, chapters: 1186 },
+    "john-trapp": { books: 65, chapters: 1186 },
+    "thomas-scott": { books: 1, chapters: 149 },
   };
   const CANONICAL_BOOKS: ReadonlyArray<readonly [string, number]> = [
     ["Genesis", 50], ["Exodus", 40], ["Leviticus", 27], ["Numbers", 36],
@@ -265,6 +271,8 @@ test("lookupCommentary: each new public-domain source returns clean attributed t
     "matthew-poole",
     "wesley-explanatory-notes",
     "ellicott-english-readers",
+    "joseph-benson",
+    "john-trapp",
   ]) {
     const hits = lookupCommentary([sourceId], ["Romans 8:28"]);
     assert.equal(hits.length, 1, `${sourceId} should hit Romans 8`);
@@ -283,19 +291,40 @@ test("lookupCommentary: each new public-domain source returns clean attributed t
   }
 });
 
+test("lookupCommentary: Scott returns clean Psalms-only text with attribution", () => {
+  const hits = lookupCommentary(["thomas-scott"], ["Psalms 23:1"]);
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].sourceId, "thomas-scott");
+  assert.equal(hits[0].sourceAuthor, "Thomas Scott");
+  assert.ok(hits[0].text.length >= 80);
+  assert.doesNotMatch(
+    hits[0].text,
+    /<[^>]+>|javascript:|advertisement|SermonIndex|Thomas Scott's Explanatory Notes on the Bible/i,
+  );
+});
+
 test("new commentary corpora contain no upstream placeholders, HTML, or footers", () => {
   const root = join(process.cwd(), "data", "commentaries");
   for (const sourceId of [
     "matthew-poole",
     "wesley-explanatory-notes",
     "ellicott-english-readers",
+    "joseph-benson",
+    "john-trapp",
+    "thomas-scott",
   ]) {
     for (const file of readdirSync(join(root, sourceId))) {
       if (file === "MANIFEST.json" || !file.endsWith(".json")) continue;
       const raw = readFileSync(join(root, sourceId, file), "utf8");
+      const parsed = JSON.parse(raw) as {
+        chapters: Record<string, { text: string }>;
+      };
+      const commentaryText = Object.values(parsed.chapters)
+        .map((chapter) => chapter.text)
+        .join("\n");
       assert.doesNotMatch(
-        raw,
-        /<[^>]+>|No text from Poole|Used by Permission|Matthew Poole's Commentary|Ellicott's Commentary for English Readers/,
+        commentaryText,
+        /<[^>]+>|No text from Poole|Used by Permission|Matthew Poole's Commentary|Ellicott's Commentary for English Readers|SermonIndex\.net|Thomas Scott's Explanatory Notes on the Bible/,
         `${sourceId}/${file} contains upstream page artifacts`,
       );
     }

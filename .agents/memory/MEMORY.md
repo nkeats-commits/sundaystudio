@@ -3,3 +3,4 @@
 - [Publish schema diffs](publish-schema-diff.md) — Publish generates DDL from live schema differences, not from Drizzle migration text.
 - [Profile save semantics](profile-save-semantics.md) — Omitted profile fields retain saved data; explicit empty values remain the intentional clear path.
 - [Development schema drift](development-schema-drift.md) — Local database columns can lag the Drizzle schema; keep feature validation separate from schema-sync work.
+- [Public commentary corpus ingestion](commentary-corpus-ingest.md) — Exact coverage gates need verified gap allowlists and source-specific floors for authentic short notes.

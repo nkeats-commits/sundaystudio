@@ -85,6 +85,9 @@ test("GET /api/sources returns registry + defaults for a fresh user", async () =
       "matthew-poole",
       "wesley-explanatory-notes",
       "ellicott-english-readers",
+      "joseph-benson",
+      "john-trapp",
+      "thomas-scott",
     ]) {
       assert.ok(
         body.sources.some((s) => s.id === sourceId),

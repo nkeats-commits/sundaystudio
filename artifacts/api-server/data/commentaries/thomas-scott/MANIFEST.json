@@ -1,0 +1,12 @@
+{
+  "id": "thomas-scott",
+  "title": "Thomas Scott's Explanatory Notes on the Bible",
+  "author": "Thomas Scott",
+  "year": "1788–1792",
+  "license": "Public domain (published 1788–1792)",
+  "sourceUrl": "https://www.sermonindex.net/commentary/tscott/",
+  "description": "Doctrinal and practical explanatory notes from Thomas Scott's Bible commentary; the bundled SermonIndex corpus covers 149 Psalms chapters, with Psalm 59 unavailable upstream.",
+  "kind": "commentary",
+  "lookupType": "chapter commentary",
+  "attribution": "Thomas Scott, Explanatory Notes on the Bible"
+}
