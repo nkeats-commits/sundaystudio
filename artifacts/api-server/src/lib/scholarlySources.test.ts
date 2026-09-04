@@ -303,6 +303,37 @@ test("lookupCommentary: Scott returns clean Psalms-only text with attribution", 
   );
 });
 
+test("lookupCommentary: every bundled corpus has a representative hit", () => {
+  const representatives: Record<string, { passage: string; minimum: number }> = {
+    "matthew-henry-concise": { passage: "Genesis 1:1", minimum: 1 },
+    "jamieson-fausset-brown": { passage: "Romans 8:28", minimum: 200 },
+    "barnes-notes": { passage: "Romans 8:28", minimum: 200 },
+    "pulpit-commentary": { passage: "Romans 8:28", minimum: 200 },
+    "adam-clarke": { passage: "Romans 8:28", minimum: 200 },
+    "john-gill": { passage: "Romans 8:28", minimum: 200 },
+    "keil-delitzsch": { passage: "Genesis 1:1", minimum: 200 },
+    "calvin-commentaries": { passage: "Romans 8:28", minimum: 200 },
+    "spurgeon-treasury": { passage: "Psalms 23:1", minimum: 200 },
+    "matthew-poole": { passage: "Romans 8:28", minimum: 200 },
+    "ellicott-english-readers": { passage: "Romans 8:28", minimum: 200 },
+    "wesley-explanatory-notes": { passage: "Romans 8:28", minimum: 100 },
+    "joseph-benson": { passage: "Romans 8:28", minimum: 200 },
+    "john-trapp": { passage: "Romans 8:28", minimum: 80 },
+    "thomas-scott": { passage: "Psalms 23:1", minimum: 80 },
+  };
+  for (const [sourceId, representative] of Object.entries(representatives)) {
+    const hits = lookupCommentary([sourceId], [representative.passage]);
+    assert.equal(hits.length, 1, `${sourceId} should hit ${representative.passage}`);
+    assert.equal(hits[0].sourceId, sourceId);
+    assert.ok(
+      hits[0].text.length >= representative.minimum,
+      `${sourceId} representative excerpt is too short`,
+    );
+    assert.ok(hits[0].sourceTitle, `${sourceId} must expose a title`);
+    assert.ok(hits[0].sourceAuthor, `${sourceId} must expose an author`);
+  }
+});
+
 test("new commentary corpora contain no upstream placeholders, HTML, or footers", () => {
   const root = join(process.cwd(), "data", "commentaries");
   for (const sourceId of [

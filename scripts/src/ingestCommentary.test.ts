@@ -13,6 +13,11 @@ import {
   extractBibleHubExcerpt,
   extractSermonIndexExcerpt,
 } from "./ingestCommentary.js";
+import {
+  COMMENTARY_VALIDATION_SPECS,
+  expectedChapterTotal,
+  validateCoverage,
+} from "./commentaryValidation.js";
 
 const bibleHubChapterFixture = readFileSync(
   new URL("./fixtures/biblehub-genesis-1.html", import.meta.url),
@@ -120,4 +125,33 @@ test("diffExactCoverage rejects both unlisted gaps and stale allowlist entries",
     missing: ["genesis 2"],
     unexpected: ["genesis 3"],
   });
+});
+
+test("commentary validation contract keeps documented totals and gaps exact", () => {
+  const barnes = COMMENTARY_VALIDATION_SPECS.find(
+    (spec) => spec.sourceId === "barnes-notes",
+  );
+  assert.ok(barnes);
+  assert.equal(expectedChapterTotal(barnes), 1185);
+  const coverage = validateCoverage(
+    barnes,
+    new Map([
+      ["genesis", Array.from({ length: 50 }, (_, index) => index + 1)],
+    ]),
+  );
+  assert.ok(coverage.missing.includes("exodus 1"));
+  assert.ok(coverage.unexpected.length === 0);
+});
+
+test("commentary validation contract preserves source-specific excerpt floors", () => {
+  assert.equal(
+    COMMENTARY_VALIDATION_SPECS.find((spec) => spec.sourceId === "wesley-explanatory-notes")
+      ?.minimumExcerptChars,
+    100,
+  );
+  assert.equal(
+    COMMENTARY_VALIDATION_SPECS.find((spec) => spec.sourceId === "thomas-scott")
+      ?.minimumExcerptChars,
+    80,
+  );
 });

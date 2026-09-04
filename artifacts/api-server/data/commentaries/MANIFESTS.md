@@ -191,3 +191,22 @@ scope, representative JSON entries contain no HTML or navigation text, and
 lookup tests hit a common passage. A missing body marker, HTTP failure,
 unexpectedly short chapter, or unexpected chapter gap must remain fatal; do
 not lower the completeness floor to make a run pass.
+
+## Maintenance validation
+
+Run the offline corpus audit before committing a refreshed bundle:
+
+```sh
+pnpm --filter @workspace/scripts run validate-commentary
+```
+
+The command audits all bundled source directories. It checks required
+attribution metadata, expected book and chapter totals, the verified
+`KNOWN_EMPTY_UPSTREAM` gap inventory for exact sources, source-specific
+minimum excerpt lengths, clean text without host/page artifacts, provenance
+URLs on refreshed book files, and one representative chapter hit per source.
+It exits non-zero and reports the source plus book/chapter when any check
+fails. Matthew Henry's original bundle and Calvin's previously partial
+inventory are retained as legacy exceptions for per-book provenance and exact
+gap inventory; their checked-in book/chapter totals and text cleanliness are
+still enforced.

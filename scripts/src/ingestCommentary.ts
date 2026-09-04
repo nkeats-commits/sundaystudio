@@ -66,7 +66,7 @@ const MIN_EXCERPT_CHARS = 200; // skip "no commentary available" stubs
 // than BibleHub's normal floor (for example, Trapp's Isaiah 36 note).
 const SERMON_INDEX_MIN_EXCERPT_CHARS = 80;
 
-interface BookSpec {
+export interface BookSpec {
   /** Display name for `book` field, e.g. "1 Corinthians". */
   name: string;
   /** Canonical lowercase form, also the `<book-slug>` (with dashes). */
@@ -77,7 +77,7 @@ interface BookSpec {
   chapters: number;
 }
 
-const BOOKS: BookSpec[] = [
+export const BOOKS: BookSpec[] = [
   // OT
   ["Genesis", "genesis", 50],
   ["Exodus", "exodus", 40],
@@ -800,7 +800,7 @@ function writeBooks(
  * eyeball the upstream URL to confirm it's genuinely empty, not a parser miss.
  * Format: "<canonical> <chapter>".
  */
-const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
+export const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
   "jamieson-fausset-brown": [],
   "barnes-notes": [
     "exodus 36",
