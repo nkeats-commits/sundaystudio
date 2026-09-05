@@ -12,8 +12,10 @@ Object.defineProperties(globalThis, {
   document: { configurable: true, writable: true, value: dom.window.document },
   navigator: { configurable: true, writable: true, value: dom.window.navigator },
   HTMLElement: { configurable: true, writable: true, value: dom.window.HTMLElement },
+  Element: { configurable: true, writable: true, value: dom.window.Element },
   Node: { configurable: true, writable: true, value: dom.window.Node },
   Event: { configurable: true, writable: true, value: dom.window.Event },
+  CustomEvent: { configurable: true, writable: true, value: dom.window.CustomEvent },
   MouseEvent: { configurable: true, writable: true, value: dom.window.MouseEvent },
   FocusEvent: { configurable: true, writable: true, value: dom.window.FocusEvent },
   getComputedStyle: { configurable: true, writable: true, value: dom.window.getComputedStyle },
@@ -55,13 +57,24 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+async function findTooltipParagraph(text: string) {
+  let paragraph: HTMLParagraphElement | undefined;
+  await waitFor(() => {
+    paragraph = Array.from(document.querySelectorAll('p')).find(
+      (element) => element.textContent?.replace(/\s+/g, ' ').trim() === text,
+    );
+    assert.ok(paragraph);
+  });
+  return paragraph!;
+}
+
 test('coverage tooltip keeps its content readable on hover', async () => {
   render(<CoverageBadge source={source} />);
   const trigger = screen.getByText('2 books');
 
   fireEvent.pointerMove(trigger, { pointerType: 'mouse' });
-  const title = await screen.findByText('2 books covered');
-  const bookList = await screen.findByText('Genesis, Psalms');
+  const title = await findTooltipParagraph('2 books covered');
+  const bookList = await findTooltipParagraph('Genesis, Psalms');
 
   assert.match(title.className, /text-primary-foreground/);
   assert.match(bookList.className, /text-primary-foreground/);
@@ -72,8 +85,8 @@ test('coverage tooltip opens with a keyboard focus event', async () => {
   const trigger = screen.getByText('2 books');
 
   fireEvent.focus(trigger);
-  await waitFor(() => {
-    assert.ok(screen.getByText('2 books covered'));
-  });
-  assert.match(screen.getByText('Genesis, Psalms').className, /text-primary-foreground/);
+  const title = await findTooltipParagraph('2 books covered');
+  const bookList = await findTooltipParagraph('Genesis, Psalms');
+  assert.match(title.className, /text-primary-foreground/);
+  assert.match(bookList.className, /text-primary-foreground/);
 });
