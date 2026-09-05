@@ -11,7 +11,8 @@
     "ingest-references": "tsx ./src/ingestReferences.ts",
     "ingest-commentary": "tsx ./src/ingestCommentary.ts",
     "validate-commentary": "tsx ./src/validateCommentary.ts",
-    "test": "node --import tsx --test src/ingestCommentary.test.ts",
+    "validate-references": "tsx ./src/validateReferences.ts",
+    "test": "node --import tsx --test src/ingestCommentary.test.ts src/validateReferences.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

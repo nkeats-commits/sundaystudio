@@ -5,8 +5,19 @@
   "year": "1901",
   "license": "Public Domain",
   "sourceUrl": "https://github.com/openbibleinfo/American-Standard-Version-Bible/tree/5c83ee265c75b3b1c056435eff622a875f1edc45/usx",
+  "sourceRevision": "5c83ee265c75b3b1c056435eff622a875f1edc45",
   "description": "Complete available 31,086-verse ASV corpus across all 66 canonical books. Sixteen verses absent from this verified public-domain edition's USX source are documented in MANIFESTS.md.",
   "kind": "translation",
   "lookupType": "verse text",
-  "attribution": "American Standard Version (1901), public domain; high-fidelity USX text pinned to the 5c83ee2 openbible snapshot."
+  "attribution": "American Standard Version (1901), public domain; high-fidelity USX text pinned to the 5c83ee2 openbible snapshot.",
+  "integrity": {
+    "file": "passages.json",
+    "sha256": "0d06ddfa90f8f8872d0e24f60caf78763a26c3fb08c1ee3cd493429745caf128",
+    "rowCount": 31086
+  },
+  "gapAllowlist": {
+    "count": 16,
+    "sha256": "67253d8496e443a89b8292f629499ab95d70ca91f965afd6e6847410e6e49880"
+  },
+  "gapAllowlistSha256": "67253d8496e443a89b8292f629499ab95d70ca91f965afd6e6847410e6e49880"
 }

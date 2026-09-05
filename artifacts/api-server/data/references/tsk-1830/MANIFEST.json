@@ -5,8 +5,19 @@
   "year": "1830",
   "license": "Public Domain",
   "sourceUrl": "https://github.com/neuu-org/bible-crossrefs-dataset/tree/8aa012820f5881a787e87d71005a22f52844c4fb/data/00_raw/souliberty",
+  "sourceRevision": "8aa012820f5881a787e87d71005a22f52844c4fb",
   "description": "30,412 TSK source passages with one or more cross-references; 690 of the 31,102 canonical verse keys have no relationship in the verified source and are documented in MANIFESTS.md.",
   "kind": "cross-reference",
   "lookupType": "cross-reference",
-  "attribution": "Treasury of Scripture Knowledge (1830), public domain; normalized from the pinned SoulLiberty public-domain cross-reference snapshot."
+  "attribution": "Treasury of Scripture Knowledge (1830), public domain; normalized from the pinned SoulLiberty public-domain cross-reference snapshot.",
+  "integrity": {
+    "file": "cross-references.json",
+    "sha256": "867b8be9c63de13119d1ad3d46dd0d3dc5dc1b233073702ea17fbafc0693aedd",
+    "rowCount": 30412
+  },
+  "gapAllowlist": {
+    "count": 690,
+    "sha256": "35ac911119093a36387ad113b6f0f1b566c92172615fee3560b602873f1cb6d6"
+  },
+  "gapAllowlistSha256": "35ac911119093a36387ad113b6f0f1b566c92172615fee3560b602873f1cb6d6"
 }

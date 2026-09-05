@@ -5,8 +5,19 @@
   "year": "1769",
   "license": "Public Domain",
   "sourceUrl": "https://github.com/jsubroto/bible-api/tree/c9de1e6c17ffdc9be4626b57d588e03ff33c4f66/versions/kjv",
+  "sourceRevision": "c9de1e6c17ffdc9be4626b57d588e03ff33c4f66",
   "description": "Complete 31,102-verse KJV corpus across all 66 canonical books for passage checking. It is never used as a substitute for the pastor's chosen translation.",
   "kind": "translation",
   "lookupType": "verse text",
-  "attribution": "King James Version (1769), public domain; structured text pinned to the c9de1e6 bible-api snapshot."
+  "attribution": "King James Version (1769), public domain; structured text pinned to the c9de1e6 bible-api snapshot.",
+  "integrity": {
+    "file": "passages.json",
+    "sha256": "fc40f076430996c202b5c0ff95ef46f73ff7d51a7d4eee258299196d4649f0ce",
+    "rowCount": 31102
+  },
+  "gapAllowlist": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "gapAllowlistSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
 }

@@ -5,8 +5,19 @@
   "year": "1890",
   "license": "Public Domain",
   "sourceUrl": "https://github.com/openscriptures/strongs/tree/0acd2f251c2d35ff8db2dece4e0593979d3ac223",
+  "sourceRevision": "0acd2f251c2d35ff8db2dece4e0593979d3ac223",
   "description": "Complete verified Strong's lexical index with 5,523 Greek and 8,674 Hebrew entries, keyed by stable Strong's numbers.",
   "kind": "lexicon",
   "lookupType": "lexical entry",
-  "attribution": "Strong's Exhaustive Concordance (1890), public domain; Open Scriptures dictionary data pinned to 0acd2f2."
+  "attribution": "Strong's Exhaustive Concordance (1890), public domain; Open Scriptures dictionary data pinned to 0acd2f2.",
+  "integrity": {
+    "file": "entries.json",
+    "sha256": "131ae9207b5982a898c1f62e9b779829625df0844ce9459198b92a65795e141d",
+    "rowCount": 14197
+  },
+  "gapAllowlist": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "gapAllowlistSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
 }

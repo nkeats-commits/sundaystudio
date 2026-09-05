@@ -32,4 +32,16 @@ server-side; lookup responses remain bounded and attributed.
 The ingestion command is `pnpm --filter @workspace/scripts run
 ingest-references` with pinned source roots. It normalizes duplicate TSK shard
 keys, rejects malformed rows at load time, and writes only the bounded lookup
-indexes used by the API.
+indexes used by the API. Ingestion writes each corpus's pinned `sourceRevision`,
+generated file SHA-256, row count, and gap-allowlist SHA-256 into its
+`MANIFEST.json`. The command validates a complete staging directory against the
+trusted revision/count/checksum contract before replacing the live directory.
+
+To validate checked-in data without source inputs, run:
+
+```sh
+pnpm --filter @workspace/scripts run validate-references
+```
+
+The validation contract rejects unexpected row counts, duplicate keys,
+malformed rows, changed generated checksums, and changed gap allowlists.

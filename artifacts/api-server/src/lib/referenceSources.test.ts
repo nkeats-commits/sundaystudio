@@ -74,6 +74,24 @@ test("reference indexes match their verified corpus targets", () => {
   assert.equal(sources.get("tsk-1830")?.bookCount, 66);
 });
 
+test("reference manifests pin source revisions and generated integrity metadata", () => {
+  const root = new URL("../../data/references/", import.meta.url);
+  for (const sourceId of ["kjv-1769", "asv-1901", "tsk-1830", "strongs-1890", "eastons-1897"]) {
+    const manifest = JSON.parse(
+      readFileSync(new URL(`${sourceId}/MANIFEST.json`, root), "utf8"),
+    ) as {
+      sourceRevision?: unknown;
+      integrity?: { file?: unknown; sha256?: unknown; rowCount?: unknown };
+      gapAllowlist?: { count?: unknown; sha256?: unknown };
+    };
+    assert.match(String(manifest.sourceRevision), /^[0-9a-f]{40}$/);
+    assert.match(String(manifest.integrity?.sha256), /^[0-9a-f]{64}$/);
+    assert.ok(Number(manifest.integrity?.rowCount) > 0);
+    assert.equal(typeof manifest.gapAllowlist?.count, "number");
+    assert.match(String(manifest.gapAllowlist?.sha256), /^[0-9a-f]{64}$/);
+  }
+});
+
 test("translation and cross-reference gaps match the documented allowlists", () => {
   const readData = (path: string) => JSON.parse(
     readFileSync(new URL(`../../data/references/${path}`, import.meta.url), "utf8"),

@@ -5,8 +5,19 @@
   "year": "1897",
   "license": "Public Domain",
   "sourceUrl": "https://github.com/garydavenport73/eastons-bible-dictionary-json/tree/aef63dff5364f28beea1deb9d288c1fd9dbfca33/eastons.jsonl",
+  "sourceRevision": "aef63dff5364f28beea1deb9d288c1fd9dbfca33",
   "description": "Complete 3,961-entry Easton's Bible Dictionary corpus for historical and cultural background, kept distinct from lexical definitions.",
   "kind": "lexicon",
   "lookupType": "dictionary entry",
-  "attribution": "Easton's Bible Dictionary (1897), public domain; normalized from the pinned 3,961-entry source snapshot."
+  "attribution": "Easton's Bible Dictionary (1897), public domain; normalized from the pinned 3,961-entry source snapshot.",
+  "integrity": {
+    "file": "entries.json",
+    "sha256": "2164ec0815fa264d36c7f48aefdee184145bb60df93c76c6ba62361f17ea3f6e",
+    "rowCount": 3961
+  },
+  "gapAllowlist": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "gapAllowlistSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
 }

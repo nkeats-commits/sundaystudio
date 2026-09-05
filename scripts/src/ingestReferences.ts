@@ -1,5 +1,20 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
+import {
+  REFERENCE_CORPUS_SPECS,
+  gapAllowlistHash,
+  getGapAllowlist,
+  sha256,
+} from "./referenceCorpus.js";
+import { validateReferenceCorpus } from "./validateReferences.js";
 
 type TranslationRow = {
   book: string;
@@ -257,11 +272,6 @@ function readEaston(eastonFile: string): LexicalRow[] {
     .sort((a, b) => a.key.localeCompare(b.key));
 }
 
-function writeJson(path: string, value: unknown): void {
-  mkdirSync(resolve(path, ".."), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(value)}\n`);
-}
-
 const parsed = args();
 const repoRoot = resolve(import.meta.dirname, "../..");
 const outputRoot = resolve(parsed.output ?? join(repoRoot, "artifacts/api-server/data/references"));
@@ -277,11 +287,66 @@ const tsk = readTsk(crossrefsRoot);
 const strongs = readStrongs(strongsRoot);
 const easton = readEaston(eastonFile);
 
-writeJson(join(outputRoot, "kjv-1769", "passages.json"), kjv);
-writeJson(join(outputRoot, "asv-1901", "passages.json"), asv);
-writeJson(join(outputRoot, "tsk-1830", "cross-references.json"), tsk);
-writeJson(join(outputRoot, "strongs-1890", "entries.json"), strongs);
-writeJson(join(outputRoot, "eastons-1897", "entries.json"), easton);
+const generated = new Map<string, TranslationRow[] | CrossReferenceRow[] | LexicalRow[]>([
+  ["kjv-1769", kjv],
+  ["asv-1901", asv],
+  ["tsk-1830", tsk],
+  ["strongs-1890", strongs],
+  ["eastons-1897", easton],
+]);
+const kjvRows = kjv;
+const stageRoot = `${outputRoot}.ingest-${process.pid}`;
+const backupRoot = `${outputRoot}.backup-${process.pid}`;
+rmSync(stageRoot, { recursive: true, force: true });
+rmSync(backupRoot, { recursive: true, force: true });
+mkdirSync(stageRoot, { recursive: true });
+
+try {
+  for (const spec of REFERENCE_CORPUS_SPECS) {
+    const rows = generated.get(spec.id);
+    if (!rows) throw new Error(`No generated rows for ${spec.id}`);
+    const dataContent = `${JSON.stringify(rows)}\n`;
+    const gaps = getGapAllowlist(spec, rows, kjvRows);
+    const manifest = {
+      id: spec.id,
+      title: spec.title,
+      author: spec.author,
+      year: spec.year,
+      license: spec.license,
+      sourceUrl: spec.sourceUrl,
+      sourceRevision: spec.sourceRevision,
+      description: spec.description,
+      kind: spec.kind,
+      lookupType: spec.lookupType,
+      attribution: spec.attribution,
+      integrity: {
+        file: spec.dataFile,
+        sha256: sha256(dataContent),
+        rowCount: rows.length,
+      },
+      gapAllowlist: {
+        count: gaps.length,
+        sha256: gapAllowlistHash(gaps),
+      },
+      gapAllowlistSha256: gapAllowlistHash(gaps),
+    };
+    const sourceDir = join(stageRoot, spec.id);
+    mkdirSync(sourceDir, { recursive: true });
+    writeFileSync(join(sourceDir, spec.dataFile), dataContent);
+    writeFileSync(join(sourceDir, "MANIFEST.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  }
+
+  validateReferenceCorpus(stageRoot);
+  if (existsSync(outputRoot)) renameSync(outputRoot, backupRoot);
+  renameSync(stageRoot, outputRoot);
+  rmSync(backupRoot, { recursive: true, force: true });
+} catch (error) {
+  if (!existsSync(outputRoot) && existsSync(backupRoot)) renameSync(backupRoot, outputRoot);
+  throw error;
+} finally {
+  if (existsSync(stageRoot)) rmSync(stageRoot, { recursive: true, force: true });
+  if (existsSync(backupRoot) && existsSync(outputRoot)) rmSync(backupRoot, { recursive: true, force: true });
+}
 
 console.log(JSON.stringify({
   kjvVerses: kjv.length,
