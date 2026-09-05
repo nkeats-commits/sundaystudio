@@ -31,10 +31,10 @@ export function CoverageBadge({ source }: { source: ScholarlySourceManifest }) {
         </TooltipTrigger>
         {books.length > 0 && (
           <TooltipContent side="bottom" align="start" className="max-w-xs p-3">
-            <p className="text-xs font-semibold mb-1 text-[var(--worship-navy)]">
+            <p className="text-xs font-semibold mb-1 text-primary-foreground">
               {source.bookCount} book{source.bookCount === 1 ? '' : 's'} covered
             </p>
-            <p className="text-xs leading-relaxed text-[var(--worship-charcoal)]">
+            <p className="text-xs leading-relaxed text-primary-foreground">
               {books.join(', ')}
             </p>
           </TooltipContent>

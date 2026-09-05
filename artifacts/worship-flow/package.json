@@ -8,7 +8,7 @@
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-test-module-mocks --import tsx --test src/lib/parsePcoCsv.test.ts src/lib/passageMatch.test.ts src/lib/trialConversion.test.ts src/components/OnboardingWizard.test.tsx src/components/OnboardingBanner.test.tsx src/pages/ChurchProfile.test.tsx src/pages/Dashboard.test.tsx src/components/layout/Sidebar.test.tsx"
+    "test": "node --experimental-test-module-mocks --import tsx --test src/lib/parsePcoCsv.test.ts src/lib/passageMatch.test.ts src/lib/trialConversion.test.ts src/components/OnboardingWizard.test.tsx src/components/OnboardingBanner.test.tsx src/components/CoverageBadge.test.tsx src/pages/ChurchProfile.test.tsx src/pages/Dashboard.test.tsx src/components/layout/Sidebar.test.tsx"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
