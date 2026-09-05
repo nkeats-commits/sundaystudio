@@ -12,4 +12,5 @@ export type LexicalReferenceHitLanguage =
 export const LexicalReferenceHitLanguage = {
   Greek: "Greek",
   Hebrew: "Hebrew",
+  English: "English",
 } as const;

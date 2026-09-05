@@ -4731,7 +4731,7 @@ components:
         transliteration: { type: string }
         language:
           type: string
-          enum: [Greek, Hebrew]
+          enum: [Greek, Hebrew, English]
         definition: { type: string }
         references:
           type: array

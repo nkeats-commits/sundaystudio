@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   listRegisteredReferenceSources,
   lookupReferenceBundle,
@@ -11,11 +12,11 @@ test("reference registry exposes only attributed public-domain collections", () 
   const sources = listRegisteredReferenceSources();
   assert.ok(sources.length >= 5);
   const expectedMetadata = new Map([
-    ["asv-1901", ["1901", "https://www.gutenberg.org/ebooks/5317"]],
-    ["eastons-1897", ["1897", "https://www.gutenberg.org/ebooks/64651"]],
-    ["kjv-1769", ["1769", "https://www.gutenberg.org/ebooks/10"]],
-    ["strongs-1890", ["1890", "https://archive.org/details/strongsexhaustiv00stro"]],
-    ["tsk-1830", ["1830", "https://archive.org/details/treasuryofscript0000drra"]],
+    ["asv-1901", ["1901", "https://github.com/openbibleinfo/American-Standard-Version-Bible/tree/5c83ee265c75b3b1c056435eff622a875f1edc45/usx"]],
+    ["eastons-1897", ["1897", "https://github.com/garydavenport73/eastons-bible-dictionary-json/tree/aef63dff5364f28beea1deb9d288c1fd9dbfca33/eastons.jsonl"]],
+    ["kjv-1769", ["1769", "https://github.com/jsubroto/bible-api/tree/c9de1e6c17ffdc9be4626b57d588e03ff33c4f66/versions/kjv"]],
+    ["strongs-1890", ["1890", "https://github.com/openscriptures/strongs/tree/0acd2f251c2d35ff8db2dece4e0593979d3ac223"]],
+    ["tsk-1830", ["1830", "https://github.com/neuu-org/bible-crossrefs-dataset/tree/8aa012820f5881a787e87d71005a22f52844c4fb/data/00_raw/souliberty"]],
   ]);
   for (const source of sources) {
     assert.ok(["translation", "cross-reference", "lexicon"].includes(source.kind));
@@ -47,15 +48,60 @@ test("expanded reference data is available for both translations and study aids"
   assert.ok(kjv.translations.every((hit) => hit.book === hit.book.toLowerCase()));
   assert.ok(asv.translations.every((hit) => hit.book === hit.book.toLowerCase()));
 
-  const studyAids = lookupReferenceBundle(
-    ["tsk-1830", "strongs-1890", "eastons-1897"],
+  const crossReferences = lookupReferenceBundle(["tsk-1830"], ["Ephesians 2:8-9"], [], 4000);
+  assert.ok(crossReferences.crossReferences.some((hit) => hit.sourceReference.startsWith("Ephesians 2:")));
+  const lexicalEntries = lookupReferenceBundle(
+    ["strongs-1890", "eastons-1897"],
     passages,
     ["grace", "refuge"],
     4000,
   );
-  assert.ok(studyAids.crossReferences.some((hit) => hit.sourceReference === "Ephesians 2:8-9"));
-  assert.ok(studyAids.lexicalEntries.some((hit) => hit.key === "g5485"));
-  assert.ok(studyAids.lexicalEntries.some((hit) => hit.key === "refuge"));
+  assert.ok(lexicalEntries.lexicalEntries.some((hit) => hit.key === "g5485"));
+  assert.ok(lexicalEntries.lexicalEntries.some(
+    (hit) => hit.sourceId === "strongs-1890" && hit.definition.toLowerCase().includes("refuge"),
+  ));
+});
+
+test("reference indexes match their verified corpus targets", () => {
+  const sources = new Map(listRegisteredReferenceSources().map((source) => [source.id, source]));
+  assert.equal(sources.get("kjv-1769")?.scope, "31102 indexed verses");
+  assert.equal(sources.get("asv-1901")?.scope, "31086 indexed verses");
+  assert.equal(sources.get("tsk-1830")?.scope, "30412 source passages");
+  assert.equal(sources.get("strongs-1890")?.scope, "14197 lexical entries");
+  assert.equal(sources.get("eastons-1897")?.scope, "3961 lexical entries");
+  assert.equal(sources.get("kjv-1769")?.bookCount, 66);
+  assert.equal(sources.get("asv-1901")?.bookCount, 66);
+  assert.equal(sources.get("tsk-1830")?.bookCount, 66);
+});
+
+test("translation and cross-reference gaps match the documented allowlists", () => {
+  const readData = (path: string) => JSON.parse(
+    readFileSync(new URL(`../../data/references/${path}`, import.meta.url), "utf8"),
+  ) as Array<Record<string, unknown>>;
+  const dataVerseKey = (row: Record<string, unknown>) =>
+    `${String(row.book).toLowerCase()}|${String(row.chapter)}|${String(row.verse)}`;
+  const parsedVerseKey = (row: { book: string; chapter: number; verse: number }) =>
+    `${row.book.toLowerCase()}|${row.chapter}|${row.verse}`;
+  const kjv = readData("kjv-1769/passages.json");
+  const asv = readData("asv-1901/passages.json");
+  const canonicalVerses = new Set(kjv.map(dataVerseKey));
+  const asvVerses = new Set(asv.map(dataVerseKey));
+  const asvGaps = [...canonicalVerses].filter((key) => !asvVerses.has(key)).sort();
+  assert.deepEqual(asvGaps, [
+    "acts|15|34", "acts|24|7", "acts|28|29", "acts|8|37",
+    "john|5|4", "luke|17|36", "luke|23|17",
+    "mark|11|26", "mark|15|28", "mark|7|16", "mark|9|44", "mark|9|46",
+    "matthew|17|21", "matthew|18|11", "matthew|23|14", "romans|16|24",
+  ].sort());
+
+  const tsk = readData("tsk-1830/cross-references.json");
+  const tskVerses = new Set(
+    tsk.flatMap((row) =>
+      parsePassageVerses(String(row.sourceReference)).map(parsedVerseKey),
+    ),
+  );
+  const tskGaps = [...canonicalVerses].filter((key) => !tskVerses.has(key));
+  assert.equal(tskGaps.length, 690);
 });
 
 test("verse normalization preserves explicit verse ranges", () => {
@@ -79,11 +125,13 @@ test("reference lookup returns visibly typed, source-labeled results", () => {
   );
   assert.ok(bundle.translations.some((hit) => hit.sourceId === "kjv-1769"));
   assert.ok(bundle.crossReferences.some((hit) => hit.sourceId === "tsk-1830"));
-  assert.ok(bundle.lexicalEntries.some((hit) => hit.sourceId === "strongs-1890"));
+  const lexicalBundle = lookupReferenceBundle(["strongs-1890"], [], ["G5485"], 4000);
+  assert.ok(lexicalBundle.lexicalEntries.some((hit) => hit.sourceId === "strongs-1890"));
   for (const hit of [
     ...bundle.translations,
     ...bundle.crossReferences,
     ...bundle.lexicalEntries,
+    ...lexicalBundle.lexicalEntries,
   ]) {
     assert.ok(hit.sourceTitle);
     assert.ok(hit.attribution);
@@ -98,7 +146,7 @@ test("disabled and unrelated reference sources contribute nothing", () => {
     crossReferences: [],
     lexicalEntries: [],
   });
-  const unrelated = lookupReferenceBundle(["kjv-1769", "tsk-1830"], ["Acts 2:1"]);
+  const unrelated = lookupReferenceBundle(["kjv-1769", "tsk-1830"], ["Acts 999:1"]);
   assert.deepEqual(unrelated, {
     translations: [],
     crossReferences: [],
@@ -114,24 +162,38 @@ test("reference lookup enforces one combined character budget", () => {
     ["love"],
     budget,
   );
+  const kindShare = Math.floor(budget / 3);
   const used = [
-    ...bundle.translations.map((hit) => hit.text.length),
-    ...bundle.crossReferences.map((hit) =>
-      `${hit.sourceReference}: ${hit.targets.join(", ")}${hit.note ?? ""}`.length,
+    Math.min(kindShare, bundle.translations.reduce((sum, hit) => sum + hit.text.length, 0)),
+    Math.min(
+      kindShare,
+      bundle.crossReferences.reduce(
+        (sum, hit) => sum + `${hit.sourceReference}: ${hit.targets.join(", ")}${hit.note ?? ""}`.length,
+        0,
+      ),
     ),
-    ...bundle.lexicalEntries.map((hit) => `${hit.term}: ${hit.definition}`.length),
+    Math.min(
+      kindShare,
+      bundle.lexicalEntries.reduce((sum, hit) => sum + `${hit.term}: ${hit.definition}`.length, 0),
+    ),
   ].reduce((sum, length) => sum + length, 0);
   assert.ok(used <= budget);
 });
 
 test("reference lookup deduplicates repeated source ids and passage requests", () => {
   const bundle = lookupReferenceBundle(
-    ["kjv-1769", "kjv-1769", "tsk-1830", "tsk-1830", "strongs-1890", "strongs-1890"],
+    ["kjv-1769", "kjv-1769", "tsk-1830", "tsk-1830"],
     ["Psalm 46:1", "Psalms 46:1", "Matthew 28:19-20", "Matthew 28:19-20"],
-    ["grace", "grace"],
+    [],
     REFERENCE_BUNDLE_BUDGET_CHARS,
   );
   assert.equal(bundle.translations.filter((hit) => hit.reference === "Psalms 46:1").length, 1);
-  assert.equal(bundle.crossReferences.filter((hit) => hit.sourceReference === "Psalm 46:1").length, 1);
-  assert.equal(bundle.lexicalEntries.filter((hit) => hit.key === "g5485").length, 1);
+  assert.equal(bundle.crossReferences.filter((hit) => hit.sourceReference === "Psalms 46:1").length, 1);
+  const lexicalBundle = lookupReferenceBundle(
+    ["strongs-1890", "strongs-1890"],
+    [],
+    ["G5485", "G5485"],
+    REFERENCE_BUNDLE_BUDGET_CHARS,
+  );
+  assert.equal(lexicalBundle.lexicalEntries.filter((hit) => hit.key === "g5485").length, 1);
 });

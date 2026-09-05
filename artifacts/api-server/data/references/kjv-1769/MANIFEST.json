@@ -4,9 +4,9 @@
   "author": "King James Version translators",
   "year": "1769",
   "license": "Public Domain",
-  "sourceUrl": "https://www.gutenberg.org/ebooks/10",
-  "description": "Selected verse text from the 1769 standardized King James Version for passage checking. It is never used as a substitute for the pastor's chosen translation.",
+  "sourceUrl": "https://github.com/jsubroto/bible-api/tree/c9de1e6c17ffdc9be4626b57d588e03ff33c4f66/versions/kjv",
+  "description": "Complete 31,102-verse KJV corpus across all 66 canonical books for passage checking. It is never used as a substitute for the pastor's chosen translation.",
   "kind": "translation",
   "lookupType": "verse text",
-  "attribution": "King James Version (1769), public domain; text basis: Project Gutenberg eBook 10."
+  "attribution": "King James Version (1769), public domain; structured text pinned to the c9de1e6 bible-api snapshot."
 }

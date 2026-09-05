@@ -4,9 +4,9 @@
   "author": "James Strong",
   "year": "1890",
   "license": "Public Domain",
-  "sourceUrl": "https://archive.org/details/strongsexhaustiv00stro",
-  "description": "Selected Strong's lexical entries keyed by stable Strong's numbers and linked to relevant sermon passages.",
+  "sourceUrl": "https://github.com/openscriptures/strongs/tree/0acd2f251c2d35ff8db2dece4e0593979d3ac223",
+  "description": "Complete verified Strong's lexical index with 5,523 Greek and 8,674 Hebrew entries, keyed by stable Strong's numbers.",
   "kind": "lexicon",
   "lookupType": "lexical entry",
-  "attribution": "Strong's Exhaustive Concordance (1890), public domain; selected lexical reference data."
+  "attribution": "Strong's Exhaustive Concordance (1890), public domain; Open Scriptures dictionary data pinned to 0acd2f2."
 }

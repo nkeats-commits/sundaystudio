@@ -68,7 +68,7 @@ export interface LexicalHit {
   strongsNumber?: string;
   originalWord: string;
   transliteration: string;
-  language: "Greek" | "Hebrew";
+  language: "Greek" | "Hebrew" | "English";
   definition: string;
   references: string[];
 }
@@ -98,7 +98,7 @@ interface LexicalRow {
   strongsNumber?: string;
   originalWord: string;
   transliteration: string;
-  language: "Greek" | "Hebrew";
+  language: "Greek" | "Hebrew" | "English";
   definition: string;
   references?: string[];
 }
@@ -121,7 +121,9 @@ function verseKey(book: string, chapter: number, verse: number): string {
 
 function passageKey(ref: string): string {
   const [first] = parsePassageRef(ref);
-  return first ? `${first.book}|${first.chapter}` : "";
+  if (!first) return "";
+  const verse = /:\s*(\d+)/.exec(ref)?.[1] ?? "";
+  return `${first.book}|${first.chapter}|${verse}`;
 }
 
 function sourceManifest(raw: unknown): ReferenceManifest | null {
@@ -199,7 +201,7 @@ function loadReference(id: string): LoadedReference | null {
         if (!row || typeof row.key !== "string" || !row.key.trim() ||
             typeof row.term !== "string" || typeof row.originalWord !== "string" ||
             typeof row.transliteration !== "string" ||
-            !["Greek", "Hebrew"].includes(row.language) ||
+            !["Greek", "Hebrew", "English"].includes(row.language) ||
             typeof row.definition !== "string" || !row.definition.trim()) continue;
         const key = row.key.trim().toLowerCase();
         if (lexicon.has(key)) {
@@ -286,7 +288,32 @@ export function lookupReferenceBundle(
   const normalizedTerms = new Set(terms.map((term) => term.trim().toLowerCase()).filter(Boolean));
   const bundle: ReferenceBundle = { translations: [], crossReferences: [], lexicalEntries: [] };
   let remaining = Math.max(0, Math.floor(totalBudgetChars));
-  for (const sourceId of new Set(enabledSourceIds)) {
+  const sourceIds = Array.from(new Set(enabledSourceIds))
+    .filter((sourceId) => REGISTRY.has(sourceId))
+    .sort((a, b) => {
+      const priority = (id: string) => {
+        const kind = REGISTRY.get(id)?.manifest.kind;
+        return kind === "translation" ? 0 : kind === "lexicon" ? 1 : 2;
+      };
+      return priority(a) - priority(b);
+    });
+  const activeKinds = new Set(
+    sourceIds.map((sourceId) => REGISTRY.get(sourceId)?.manifest.kind).filter(Boolean),
+  );
+  const kindRemaining = new Map<ReferenceManifest["kind"], number>(
+    Array.from(
+      activeKinds,
+      (kind) => [kind as ReferenceManifest["kind"], Math.floor(remaining / activeKinds.size)],
+    ),
+  );
+  const takeText = (value: string, kind: ReferenceManifest["kind"]) => {
+    const kindBudget = kindRemaining.get(kind) ?? remaining;
+    const text = value.slice(0, Math.min(remaining, kindBudget));
+    remaining -= text.length;
+    kindRemaining.set(kind, kindBudget - text.length);
+    return text;
+  };
+  for (const sourceId of sourceIds) {
     const source = REGISTRY.get(sourceId);
     if (!source || remaining <= 0) continue;
     const { manifest } = source;
@@ -301,7 +328,7 @@ export function lookupReferenceBundle(
         const key = verseKey(row.book, row.chapter, row.verse);
         if (seen.has(key)) continue;
         seen.add(key);
-        const text = row.text.slice(0, remaining);
+        const text = takeText(row.text, manifest.kind);
         if (!text) continue;
         bundle.translations.push({
           sourceId, sourceTitle: manifest.title, sourceAuthor: manifest.author,
@@ -309,40 +336,55 @@ export function lookupReferenceBundle(
           reference: `${row.book.replace(/\b\w/g, (c) => c.toUpperCase())} ${row.chapter}:${row.verse}`,
           book: row.book, chapter: row.chapter, verse: row.verse, text,
         });
-        remaining -= text.length;
         if (remaining <= 0) break;
       }
     } else if (manifest.kind === "cross-reference") {
       const seen = new Set<string>();
       for (const chapter of requestedChapters) {
-        const rows = source.crossReferences.get(`${chapter.book}|${chapter.chapter}`) ?? [];
+        const chapterPrefix = `${chapter.book}|${chapter.chapter}|`;
+        const rows = Array.from(source.crossReferences.entries())
+          .filter(([key]) => key.startsWith(chapterPrefix))
+          .flatMap(([, values]) => values);
         for (const row of rows) {
           const key = `${row.sourceReference}|${row.targets.join("\u0000")}|${row.note ?? ""}`;
           if (seen.has(key)) continue;
           seen.add(key);
           const label = `${manifest.title} — ${row.sourceReference}: ${row.targets.join(", ")}`;
-          const text = label.slice(0, remaining);
+          const text = takeText(label, manifest.kind);
           if (!text) continue;
           bundle.crossReferences.push({
             sourceId, sourceTitle: manifest.title, sourceAuthor: manifest.author,
             sourceUrl: manifest.sourceUrl, attribution: manifest.attribution,
             sourceReference: row.sourceReference, targets: row.targets, note: row.note,
           });
-          remaining -= text.length;
           if (remaining <= 0) break;
         }
         if (remaining <= 0) break;
       }
     } else {
+      const matches: Array<{ key: string; row: LexicalRow; score: number }> = [];
       for (const [key, row] of source.lexicon) {
         const matchesPassage = (row.references ?? []).some((candidate) =>
           requestedChapters.some((chapter) => parsePassageRef(candidate).some(
             (hit) => hit.book === chapter.book && hit.chapter === chapter.chapter,
           )),
         );
-        if (!matchesPassage && !normalizedTerms.has(row.term.toLowerCase()) &&
-            !normalizedTerms.has(key) && !normalizedTerms.has(row.strongsNumber?.toLowerCase() ?? "")) continue;
-        const text = `${row.term}: ${row.definition}`.slice(0, remaining);
+        let score = matchesPassage ? 3 : Number.POSITIVE_INFINITY;
+        for (const term of normalizedTerms) {
+          const identifiers = [key, row.strongsNumber ?? ""].map((field) => field.toLowerCase());
+          const identityFields = [row.term, row.originalWord, row.transliteration]
+            .map((field) => field.toLowerCase());
+          const definition = row.definition.toLowerCase();
+          if (identifiers.some((field) => field === term)) score = Math.min(score, 0);
+          else if (identityFields.some((field) => field.includes(term))) score = Math.min(score, 1);
+          else if (definition.includes(term)) score = Math.min(score, 2);
+        }
+        if (!Number.isFinite(score)) continue;
+        matches.push({ key, row, score });
+      }
+      matches.sort((a, b) => a.score - b.score || a.key.localeCompare(b.key));
+      for (const { key, row } of matches) {
+        const text = takeText(`${row.term}: ${row.definition}`, manifest.kind);
         if (!text) continue;
         bundle.lexicalEntries.push({
           sourceId, sourceTitle: manifest.title, sourceAuthor: manifest.author,
@@ -351,7 +393,6 @@ export function lookupReferenceBundle(
           originalWord: row.originalWord, transliteration: row.transliteration,
           language: row.language, definition: row.definition, references: row.references ?? [],
         });
-        remaining -= text.length;
         if (remaining <= 0) break;
       }
     }

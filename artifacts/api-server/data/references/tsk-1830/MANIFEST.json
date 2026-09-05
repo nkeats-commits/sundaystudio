@@ -4,9 +4,9 @@
   "author": "R. A. Torrey, editor",
   "year": "1830",
   "license": "Public Domain",
-  "sourceUrl": "https://archive.org/details/treasuryofscript0000drra",
-  "description": "A small, curated set of the Treasury's passage-to-passage relationships for sermon study.",
+  "sourceUrl": "https://github.com/neuu-org/bible-crossrefs-dataset/tree/8aa012820f5881a787e87d71005a22f52844c4fb/data/00_raw/souliberty",
+  "description": "30,412 TSK source passages with one or more cross-references; 690 of the 31,102 canonical verse keys have no relationship in the verified source and are documented in MANIFESTS.md.",
   "kind": "cross-reference",
   "lookupType": "cross-reference",
-  "attribution": "Treasury of Scripture Knowledge (1830), public domain; curated reference relationships."
+  "attribution": "Treasury of Scripture Knowledge (1830), public domain; normalized from the pinned SoulLiberty public-domain cross-reference snapshot."
 }

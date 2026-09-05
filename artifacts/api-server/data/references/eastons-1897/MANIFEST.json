@@ -4,9 +4,9 @@
   "author": "Matthew George Easton",
   "year": "1897",
   "license": "Public Domain",
-  "sourceUrl": "https://www.gutenberg.org/ebooks/64651",
-  "description": "Selected historical Bible-dictionary entries for passage-relevant background, kept distinct from lexical definitions.",
+  "sourceUrl": "https://github.com/garydavenport73/eastons-bible-dictionary-json/tree/aef63dff5364f28beea1deb9d288c1fd9dbfca33/eastons.jsonl",
+  "description": "Complete 3,961-entry Easton's Bible Dictionary corpus for historical and cultural background, kept distinct from lexical definitions.",
   "kind": "lexicon",
   "lookupType": "dictionary entry",
-  "attribution": "Easton's Bible Dictionary (1897), public domain; selected dictionary reference data."
+  "attribution": "Easton's Bible Dictionary (1897), public domain; normalized from the pinned 3,961-entry source snapshot."
 }
