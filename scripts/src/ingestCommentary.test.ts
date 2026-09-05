@@ -12,6 +12,7 @@ import {
   diffExactCoverage,
   extractBibleHubExcerpt,
   extractSermonIndexExcerpt,
+  KNOWN_EMPTY_UPSTREAM,
 } from "./ingestCommentary.js";
 import {
   COMMENTARY_VALIDATION_SPECS,
@@ -154,4 +155,45 @@ test("commentary validation contract preserves source-specific excerpt floors", 
       ?.minimumExcerptChars,
     80,
   );
+});
+
+test("Calvin uses exact coverage with its verified upstream gaps", () => {
+  const calvin = COMMENTARY_VALIDATION_SPECS.find(
+    (spec) => spec.sourceId === "calvin-commentaries",
+  );
+  assert.ok(calvin);
+  assert.equal(calvin.exactCoverage, true);
+  assert.equal(expectedChapterTotal(calvin), 817);
+  assert.deepEqual(KNOWN_EMPTY_UPSTREAM["calvin-commentaries"], [
+    "leviticus 12",
+    "jeremiah 52",
+    "ezekiel 21",
+    "ezekiel 22",
+    "ezekiel 23",
+    "ezekiel 24",
+    "ezekiel 25",
+    "ezekiel 26",
+    "ezekiel 27",
+    "ezekiel 28",
+    "ezekiel 29",
+    "ezekiel 30",
+    "ezekiel 31",
+    "ezekiel 32",
+    "ezekiel 33",
+    "ezekiel 34",
+    "ezekiel 35",
+    "ezekiel 36",
+    "ezekiel 37",
+    "ezekiel 38",
+    "ezekiel 39",
+    "ezekiel 40",
+    "ezekiel 41",
+    "ezekiel 42",
+    "ezekiel 43",
+    "ezekiel 44",
+    "ezekiel 45",
+    "ezekiel 46",
+    "ezekiel 47",
+    "ezekiel 48",
+  ]);
 });

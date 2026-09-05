@@ -11,7 +11,7 @@
  *   - adam-clarke              → /commentaries/clarke/<book>/<ch>.htm
  *   - john-gill                → /commentaries/gill/<book>/<ch>.htm
  *   - keil-delitzsch           → /commentaries/kad/<book>/<ch>.htm (OT only)
- *   - calvin-commentaries      → /commentaries/calvin/<book>/<ch>.htm (whole Bible except Revelation)
+ *   - calvin-commentaries      → /commentaries/calvin/<book>/<ch>.htm (Calvin's 48-book canon)
  *   - spurgeon-treasury        → /commentaries/tod/<book>/<ch>.htm (Psalms only)
  *   - matthew-poole            → /commentaries/poole/<book>/<ch>.htm
  *   - ellicott-english-readers → /commentaries/ellicott/<book>/<ch>.htm
@@ -156,6 +156,62 @@ export const BOOKS: BookSpec[] = [
       : (name as string).toLowerCase().replace(/\s+/g, "_"),
   chapters: chapters as number,
 }));
+
+/**
+ * Calvin's Commentaries covers 48 books. Keep this inventory shared with the
+ * offline validation contract so the ingest scope cannot drift from the
+ * checked-in corpus.
+ */
+export const CALVIN_BOOK_SLUGS = [
+  "1-corinthians",
+  "1-john",
+  "1-peter",
+  "1-thessalonians",
+  "1-timothy",
+  "2-corinthians",
+  "2-peter",
+  "2-thessalonians",
+  "2-timothy",
+  "acts",
+  "amos",
+  "colossians",
+  "daniel",
+  "deuteronomy",
+  "ephesians",
+  "exodus",
+  "ezekiel",
+  "galatians",
+  "genesis",
+  "habakkuk",
+  "haggai",
+  "hebrews",
+  "hosea",
+  "isaiah",
+  "james",
+  "jeremiah",
+  "joel",
+  "john",
+  "jonah",
+  "joshua",
+  "jude",
+  "lamentations",
+  "leviticus",
+  "luke",
+  "malachi",
+  "mark",
+  "matthew",
+  "micah",
+  "nahum",
+  "numbers",
+  "obadiah",
+  "philemon",
+  "philippians",
+  "psalms",
+  "romans",
+  "titus",
+  "zechariah",
+  "zephaniah",
+] as const;
 
 const SERMON_INDEX_CODES: Record<string, string> = {
   genesis: "GEN",
@@ -442,7 +498,14 @@ const OT_BOOKS = BOOKS.slice(0, 39);
 /** Psalms only — for Spurgeon's Treasury of David. */
 const PSALMS_BOOKS = BOOKS.filter((b) => b.canonical === "psalms");
 
-/** NT books minus Revelation — for Calvin (who wrote no Revelation commentary). */
+/** Calvin's documented 48-book scope. */
+const CALVIN_BOOKS = BOOKS.filter((book) =>
+  CALVIN_BOOK_SLUGS.includes(
+    book.canonical.replace(/\s+/g, "-") as (typeof CALVIN_BOOK_SLUGS)[number],
+  ),
+);
+
+/** NT books minus Revelation — for sources that cover the rest of the canon. */
 const BOOKS_EXCEPT_REVELATION = BOOKS.filter((b) => b.canonical !== "revelation");
 
 async function ingestBibleHub(
@@ -478,6 +541,8 @@ async function ingestBibleHub(
   psalmsOnly = false,
   /** When true, Revelation is excluded (for Calvin's Commentaries). */
   skipRevelation = false,
+  /** When true, restrict the fetch scope to Calvin's documented 48 books. */
+  calvinOnly = false,
   /**
    * Passed through to writeBooks — minimum book count the gate accepts.
    * Set when the commentary intentionally skips certain books.
@@ -499,6 +564,8 @@ async function ingestBibleHub(
     booksScope = PSALMS_BOOKS;
   } else if (otOnly) {
     booksScope = OT_BOOKS;
+  } else if (calvinOnly) {
+    booksScope = CALVIN_BOOKS;
   } else if (skipRevelation) {
     booksScope = BOOKS_EXCEPT_REVELATION;
   } else {
@@ -701,9 +768,7 @@ function writeBooks(
   }
   const totalChapters = got.size;
 
-  // Exact sources must match scope minus the hand-checked allowlist. The older
-  // Calvin adapter retains its explicit floor because its partial canon has
-  // not yet been inventoried chapter by chapter.
+  // Exact sources must match scope minus the hand-checked allowlist.
   const scopeChapters = booksScope.reduce((s, b) => s + b.chapters, 0);
   const expectedChapters =
     minChaptersOverride ??
@@ -828,10 +893,40 @@ export const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
     "1 chronicles 19",
     "1 chronicles 20",
   ],
-  // Calvin did not write on Revelation (scope excludes it via skipRevelation).
-  // A handful of chapters in lesser-covered OT books may be empty upstream;
-  // verified by spot-checking BibleHub — add to this list if the gate fires.
-  "calvin-commentaries": [],
+  // These BibleHub pages contain Scripture and the Calvin attribution footer,
+  // but no commentary body.
+  "calvin-commentaries": [
+    "leviticus 12",
+    "jeremiah 52",
+    "ezekiel 21",
+    "ezekiel 22",
+    "ezekiel 23",
+    "ezekiel 24",
+    "ezekiel 25",
+    "ezekiel 26",
+    "ezekiel 27",
+    "ezekiel 28",
+    "ezekiel 29",
+    "ezekiel 30",
+    "ezekiel 31",
+    "ezekiel 32",
+    "ezekiel 33",
+    "ezekiel 34",
+    "ezekiel 35",
+    "ezekiel 36",
+    "ezekiel 37",
+    "ezekiel 38",
+    "ezekiel 39",
+    "ezekiel 40",
+    "ezekiel 41",
+    "ezekiel 42",
+    "ezekiel 43",
+    "ezekiel 44",
+    "ezekiel 45",
+    "ezekiel 46",
+    "ezekiel 47",
+    "ezekiel 48",
+  ],
   // Spurgeon covers all 150 Psalms; no known upstream gaps.
   "spurgeon-treasury": [],
   "matthew-poole": [],
@@ -936,19 +1031,15 @@ async function main() {
       await ingestBibleHub("keil-delitzsch", "kad", true);
       break;
     case "calvin-commentaries":
-      // Calvin wrote formal commentaries on 48 of the 65 non-Revelation books.
-      // skipRevelation=true restricts the fetch scope; minBooksOverride=45 and
-      // minChaptersOverride=750 set a gate well below the known actual totals
-      // (48 books, 817 chapters) so the gate catches regressions without
-      // failing on Calvin's intentionally incomplete canon.
+      // Calvin wrote formal commentaries on 48 books. The exact gate excludes
+      // only the 30 verified upstream omissions in the gap inventory.
       await ingestBibleHub(
         "calvin-commentaries",
         "calvin",
         false,
         false,
         true,
-        45,
-        750,
+        true,
       );
       break;
     case "spurgeon-treasury":

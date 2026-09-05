@@ -118,7 +118,7 @@ Currently wired sources:
 - `adam-clarke`            → `https://biblehub.com/commentaries/clarke/`
 - `john-gill`              → `https://biblehub.com/commentaries/gill/`
 - `keil-delitzsch`         → `https://biblehub.com/commentaries/kad/` (OT only — pass `otOnly=true`)
-- `calvin-commentaries`    → `https://biblehub.com/commentaries/calvin/` (48 of 65 non-Revelation books — Calvin wrote no Revelation commentary and skipped Chronicles, Samuel, Kings, Ruth, Judges, Esther, Ezra, Nehemiah, Job, Proverbs, Ecclesiastes, Song of Songs, 2-3 John; the gate uses `minBooksOverride=45, minChaptersOverride=750`)
+- `calvin-commentaries`    → `https://biblehub.com/commentaries/calvin/` (48 books / 817 chapters — Calvin wrote no Revelation commentary and skipped Chronicles, Samuel, Kings, Ruth, Judges, Esther, Ezra, Nehemiah, Job, Proverbs, Ecclesiastes, Song of Songs, 2-3 John; 30 verified upstream gaps: Leviticus 12, Jeremiah 52, and Ezekiel 21–48)
 - `spurgeon-treasury`      → `https://biblehub.com/commentaries/tod/` (Psalms only — pass `psalmsOnly=true`)
 - `matthew-poole`          → `https://biblehub.com/commentaries/poole/` (whole Bible)
 - `ellicott-english-readers` → `https://biblehub.com/commentaries/ellicott/` (64 books / 1,158 chapters; known gaps above)
@@ -178,6 +178,13 @@ to `writeBooks()`.
   59 unavailable upstream. The manifest and derived coverage intentionally say
   “Psalms only” rather than implying whole-Bible coverage.
 
+- **Calvin's Commentaries** — Calvin's 48-book corpus contains 30 verified
+  upstream omissions: Leviticus 12, Jeremiah 52, and Ezekiel 21–48. Each
+  BibleHub page returns the chapter text and Calvin attribution footer but no
+  commentary body. They are recorded in `KNOWN_EMPTY_UPSTREAM`, so the exact
+  coverage gate expects 817 chapters rather than treating the omissions as
+  ingest failures.
+
 SermonIndex is the text host for Trapp and Scott, not the license evidence.
 The importer strips the scripture lead-in, verse headings, HTML, and citation
 footer from each chapter page before writing normalized JSON. The generated
@@ -206,7 +213,7 @@ attribution metadata, expected book and chapter totals, the verified
 minimum excerpt lengths, clean text without host/page artifacts, provenance
 URLs on refreshed book files, and one representative chapter hit per source.
 It exits non-zero and reports the source plus book/chapter when any check
-fails. Matthew Henry's original bundle and Calvin's previously partial
-inventory are retained as legacy exceptions for per-book provenance and exact
-gap inventory; their checked-in book/chapter totals and text cleanliness are
-still enforced.
+fails. Matthew Henry's original bundle remains a legacy exception for
+per-book provenance and exact gap inventory; Calvin now uses the exact
+verified-gap gate. All checked-in book/chapter totals and text cleanliness
+remain enforced.

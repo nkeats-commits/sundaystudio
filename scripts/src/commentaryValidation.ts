@@ -1,5 +1,6 @@
 import {
   BOOKS,
+  CALVIN_BOOK_SLUGS,
   diffExactCoverage,
   KNOWN_EMPTY_UPSTREAM,
   type BookSpec,
@@ -35,56 +36,7 @@ const ellicottBooks = fullBible.filter(
   (slug) => !["zephaniah", "zechariah"].includes(slug),
 );
 const trappBooks = fullBible.filter((slug) => slug !== "jude");
-const calvinBooks = [
-  "1-corinthians",
-  "1-john",
-  "1-peter",
-  "1-thessalonians",
-  "1-timothy",
-  "2-corinthians",
-  "2-peter",
-  "2-thessalonians",
-  "2-timothy",
-  "acts",
-  "amos",
-  "colossians",
-  "daniel",
-  "deuteronomy",
-  "ephesians",
-  "exodus",
-  "ezekiel",
-  "galatians",
-  "genesis",
-  "habakkuk",
-  "haggai",
-  "hebrews",
-  "hosea",
-  "isaiah",
-  "james",
-  "jeremiah",
-  "joel",
-  "john",
-  "jonah",
-  "joshua",
-  "jude",
-  "lamentations",
-  "leviticus",
-  "luke",
-  "malachi",
-  "mark",
-  "matthew",
-  "micah",
-  "nahum",
-  "numbers",
-  "obadiah",
-  "philemon",
-  "philippians",
-  "psalms",
-  "romans",
-  "titus",
-  "zechariah",
-  "zephaniah",
-];
+const calvinBooks = CALVIN_BOOK_SLUGS;
 
 const chapterTotal = (scope: readonly string[]) =>
   scope.reduce((total, slug) => {
@@ -172,11 +124,7 @@ export const COMMENTARY_VALIDATION_SPECS: readonly CommentaryValidationSpec[] = 
     sourceId: "calvin-commentaries",
     expectedBookSlugs: calvinBooks,
     expectedChapterCount: 817,
-    // Calvin's partial canon was previously guarded by a conservative
-    // chapter floor, but its individual upstream omissions were never
-    // inventoried. Keep the checked-in total and book list stable without
-    // presenting an unverified gap list as fact.
-    exactCoverage: false,
+    exactCoverage: true,
     minimumExcerptChars: 200,
     representative: { book: "romans", chapter: 8 },
     requiresBookSourceUrl: true,
