@@ -24,6 +24,7 @@ Object.defineProperty(globalThis, 'React', {
 
 let currentLocation = '/dashboard';
 let currentIsOwner = true;
+let currentIsOwnerLoading = false;
 
 mock.module('@clerk/react', {
   namedExports: {
@@ -58,7 +59,7 @@ mock.module('wouter', {
 
 mock.module('../../hooks/useIsOwner', {
   namedExports: {
-    useIsOwner: () => ({ isOwner: currentIsOwner, isLoading: false }),
+    useIsOwner: () => ({ isOwner: currentIsOwner, isLoading: currentIsOwnerLoading }),
   },
 });
 
@@ -126,6 +127,7 @@ function isActive(link: HTMLAnchorElement) {
 beforeEach(() => {
   currentLocation = '/dashboard';
   currentIsOwner = true;
+  currentIsOwnerLoading = false;
   document.body.innerHTML = '';
 });
 
@@ -164,7 +166,7 @@ test('keeps every navigation destination in both responsive render paths', () =>
   }
 });
 
-test('shows Admin only to owners in both responsive render paths', () => {
+test('shows Admin only after ownership confirms in both responsive render paths', () => {
   const ownerRender = renderSidebar();
 
   for (const sidebar of getResponsiveSidebars(ownerRender.container)) {
@@ -176,6 +178,19 @@ test('shows Admin only to owners in both responsive render paths', () => {
   }
 
   ownerRender.unmount();
+  currentIsOwnerLoading = true;
+  const loadingRender = renderSidebar();
+
+  for (const sidebar of getResponsiveSidebars(loadingRender.container)) {
+    assert.equal(
+      getLinks(sidebar).filter((link) => link.getAttribute('href') === '/admin').length,
+      0,
+      'expected Admin to be omitted from each sidebar while ownership is loading',
+    );
+  }
+
+  loadingRender.unmount();
+  currentIsOwnerLoading = false;
   currentIsOwner = false;
   const nonOwnerRender = renderSidebar();
 

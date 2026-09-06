@@ -54,7 +54,7 @@ function BackgroundGenerationIndicator() {
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [location] = useLocation();
   const { user } = useUser();
-  const { isOwner } = useIsOwner();
+  const { isOwner, isLoading: isOwnerLoading } = useIsOwner();
 
   const prevLocationRef = useRef(location);
   useEffect(() => {
@@ -92,7 +92,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     { icon: Plug, label: 'Integrations', href: '/settings/integrations' },
     { icon: CreditCard, label: 'Billing', href: '/billing' },
     { icon: Settings, label: 'Settings', href: '/settings' },
-    ...(isOwner
+    ...(isOwner && !isOwnerLoading
       ? [{ icon: Shield, label: 'Admin', href: '/admin' }]
       : []),
   ];
