@@ -1,5 +1,5 @@
 import { useIsOwner } from "../hooks/useIsOwner";
-import NotFound from "../pages/NotFound";
+import { NotFound } from "../pages/NotFound";
 
 /**
  * Mirrors the server-side `requireOwner` 404 behavior on the client:

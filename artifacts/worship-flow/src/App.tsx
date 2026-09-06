@@ -46,17 +46,11 @@ import ResourceLibrary from "./pages/ResourceLibrary";
 import Integrations from "./pages/Integrations";
 import Pricing from "./pages/Pricing";
 import Billing from "./pages/Billing";
-import AdminOverview from "./pages/AdminOverview";
-import AdminUsers from "./pages/AdminUsers";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
-import AdminUserDetail from "./pages/AdminUserDetail";
-import { AdminEmailEvents } from "./pages/AdminEmailEvents";
 import HelpCenter from "./pages/HelpCenter";
 import HelpArticle from "./pages/HelpArticle";
-import AdminHelpArticles from "./pages/AdminHelpArticles";
-import AdminHelpArticleEdit from "./pages/AdminHelpArticleEdit";
-import { AdminOnly } from "./components/AdminOnly";
+import { ADMIN_ROUTES, AdminRoute } from "./components/AdminRoutes";
 import NotFound from "./pages/NotFound";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { ClerkQueryClientCacheInvalidator } from "./components/ClerkQueryClientCacheInvalidator";
@@ -430,83 +424,14 @@ function ClerkProviderWithRoutes() {
           <Route path="/help/:slug" component={HelpArticle} />
           <Route path="/privacy" component={PrivacyPolicy} />
           <Route path="/terms" component={TermsOfService} />
-          <Route path="/admin">
-            {() => (
-              <Protected
-                component={() => (
-                  <AdminOnly>
-                    <AdminOverview />
-                  </AdminOnly>
-                )}
-              />
-            )}
-          </Route>
-          <Route path="/admin/users">
-            {() => (
-              <Protected
-                component={() => (
-                  <AdminOnly>
-                    <AdminUsers />
-                  </AdminOnly>
-                )}
-              />
-            )}
-          </Route>
-          <Route path="/admin/users/:id">
-            {() => (
-              <Protected
-                component={() => (
-                  <AdminOnly>
-                    <AdminUserDetail />
-                  </AdminOnly>
-                )}
-              />
-            )}
-          </Route>
-          <Route path="/admin/email-events">
-            {() => (
-              <Protected
-                component={() => (
-                  <AdminOnly>
-                    <AdminEmailEvents />
-                  </AdminOnly>
-                )}
-              />
-            )}
-          </Route>
-          <Route path="/admin/help-articles/new">
-            {() => (
-              <Protected
-                component={() => (
-                  <AdminOnly>
-                    <AdminHelpArticleEdit />
-                  </AdminOnly>
-                )}
-              />
-            )}
-          </Route>
-          <Route path="/admin/help-articles/:id">
-            {() => (
-              <Protected
-                component={() => (
-                  <AdminOnly>
-                    <AdminHelpArticleEdit />
-                  </AdminOnly>
-                )}
-              />
-            )}
-          </Route>
-          <Route path="/admin/help-articles">
-            {() => (
-              <Protected
-                component={() => (
-                  <AdminOnly>
-                    <AdminHelpArticles />
-                  </AdminOnly>
-                )}
-              />
-            )}
-          </Route>
+          {ADMIN_ROUTES.map(({ path, Component }) => (
+            <AdminRoute
+              key={path}
+              path={path}
+              Component={Component}
+              protect={(component) => <Protected component={component} />}
+            />
+          ))}
           <Route>{() => <Protected component={NotFound} />}</Route>
         </Switch>
         </GenerationJobStoreProvider>

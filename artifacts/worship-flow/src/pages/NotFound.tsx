@@ -2,7 +2,7 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { Home } from 'lucide-react';
 import { Link } from 'wouter';
 
-export default function NotFound() {
+export function NotFound() {
   return (
     <AppLayout title="Not Found">
       <div className="flex flex-col items-center justify-center py-32 text-center">
@@ -18,3 +18,5 @@ export default function NotFound() {
     </AppLayout>
   );
 }
+
+export default NotFound;
