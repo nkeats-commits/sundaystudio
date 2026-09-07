@@ -61,9 +61,9 @@ test("expanded reference data is available for both translations and study aids"
     4000,
   );
   assert.ok(lexicalEntries.lexicalEntries.some((hit) => hit.key === "g5485"));
-  assert.ok(lexicalEntries.lexicalEntries.some(
+  assert.equal(lexicalEntries.lexicalEntries.some(
     (hit) => hit.sourceId === "strongs-1890" && hit.definition.toLowerCase().includes("refuge"),
-  ));
+  ), false);
   const love = lookupReferenceBundle(["strongs-1890"], [], ["G26"], 4000).lexicalEntries
     .find((hit) => hit.key === "g26");
   assert.ok(love);
@@ -143,6 +143,70 @@ test("verse normalization preserves explicit verse ranges", () => {
     { book: "romans", chapter: 8, verse: 38 },
     { book: "romans", chapter: 8, verse: 39 },
   ]);
+});
+
+test("lexical lookups scope terms to exact verses, ranges, and chapters", () => {
+  const exactVerse = lookupReferenceBundle(
+    ["strongs-1890"],
+    ["John 3:16"],
+    ["G5620"],
+    4000,
+  );
+  assert.ok(exactVerse.lexicalEntries.some((hit) => hit.key === "g5620"));
+  assert.deepEqual(exactVerse.lexicalEntries.map((hit) => hit.key), ["g5620"]);
+
+  const differentVerse = lookupReferenceBundle(
+    ["strongs-1890"],
+    ["John 3:17"],
+    ["G5620"],
+    4000,
+  );
+  assert.equal(differentVerse.lexicalEntries.some((hit) => hit.key === "g5620"), false);
+
+  const verseRange = lookupReferenceBundle(
+    ["strongs-1890"],
+    ["John 3:16-17"],
+    ["G5620"],
+    4000,
+  );
+  assert.ok(verseRange.lexicalEntries.some((hit) => hit.key === "g5620"));
+  const outsideRange = lookupReferenceBundle(
+    ["strongs-1890"],
+    ["John 3:16-17"],
+    ["G2235"],
+    4000,
+  );
+  assert.equal(outsideRange.lexicalEntries.some((hit) => hit.key === "g2235"), false);
+
+  const wholeChapter = lookupReferenceBundle(
+    ["strongs-1890"],
+    ["John 3"],
+    ["G5620"],
+    4000,
+  );
+  assert.ok(wholeChapter.lexicalEntries.some((hit) => hit.key === "g5620"));
+
+  const passageOnly = lookupReferenceBundle(
+    ["strongs-1890"],
+    ["John 3:16"],
+    [],
+    4000,
+  );
+  assert.ok(passageOnly.lexicalEntries.length > 0);
+  assert.ok(passageOnly.lexicalEntries.some((hit) => hit.key === "g25"));
+  assert.equal(passageOnly.lexicalEntries.some((hit) => hit.key === "g26"), false);
+
+  const termOnly = lookupReferenceBundle(["strongs-1890"], [], ["G5620"], 4000);
+  assert.ok(termOnly.lexicalEntries.some((hit) => hit.key === "g5620"));
+
+  const scopedLove = lookupReferenceBundle(
+    ["strongs-1890"],
+    ["John 3:16"],
+    ["love"],
+    4000,
+  );
+  assert.ok(scopedLove.lexicalEntries.some((hit) => hit.key === "g25"));
+  assert.equal(scopedLove.lexicalEntries.some((hit) => hit.key === "g26"), false);
 });
 
 test("reference lookup returns visibly typed, source-labeled results", () => {

@@ -135,6 +135,7 @@ interface LexicalRow {
   language: "Greek" | "Hebrew" | "English";
   definition: string;
   references?: string[];
+  indexedReferences?: string[];
 }
 
 interface LoadedReference {
@@ -162,7 +163,9 @@ const CANONICAL_BOOK_ORDER_MAP = new Map<string, number>(
   CANONICAL_BOOK_ORDER.map((book, index) => [book, index]),
 );
 
-function normalizeLexicalReferences(references: readonly string[]): string[] {
+function normalizedLexicalReferenceValues(
+  references: readonly string[],
+): Array<{ book: string; chapter: number; verse: number }> {
   const normalized = new Map<string, { book: string; chapter: number; verse: number }>();
   for (const reference of references) {
     const parsed = parsePassageVerses(reference);
@@ -171,16 +174,24 @@ function normalizeLexicalReferences(references: readonly string[]): string[] {
       normalized.set(key, hit);
     }
   }
-  const ordered = Array.from(normalized.values()).sort((a, b) =>
+  return Array.from(normalized.values()).sort((a, b) =>
     (CANONICAL_BOOK_ORDER_MAP.get(a.book) ?? 999) - (CANONICAL_BOOK_ORDER_MAP.get(b.book) ?? 999) ||
     a.chapter - b.chapter ||
     a.verse - b.verse,
   );
+}
+
+function formatLexicalReference(reference: { book: string; chapter: number; verse: number }): string {
+  const title = reference.book.replace(/\b\w/g, (character) => character.toUpperCase());
+  return `${title} ${reference.chapter}:${reference.verse}`;
+}
+
+function normalizeLexicalReferences(references: readonly string[]): string[] {
+  const ordered = normalizedLexicalReferenceValues(references);
   const result: string[] = [];
   let chars = 0;
   for (const reference of ordered) {
-    const title = reference.book.replace(/\b\w/g, (character) => character.toUpperCase());
-    const formatted = `${title} ${reference.chapter}:${reference.verse}`;
+    const formatted = formatLexicalReference(reference);
     const nextChars = chars + (result.length ? 2 : 0) + formatted.length;
     if (result.length >= MAX_LEXICAL_REFERENCES || nextChars > MAX_LEXICAL_REFERENCE_CHARS) break;
     result.push(formatted);
@@ -290,6 +301,9 @@ function loadReference(id: string): LoadedReference | null {
         lexicon.set(key, {
           ...row,
           key,
+          indexedReferences: normalizedLexicalReferenceValues(
+            (row.references ?? []).filter((ref) => typeof ref === "string"),
+          ).map(formatLexicalReference),
           references: normalizeLexicalReferences(
             (row.references ?? []).filter((ref) => typeof ref === "string"),
           ),
@@ -358,14 +372,42 @@ export function getReferenceKind(id: string): ReferenceManifest["kind"] | null {
 const overlaps = (a: PassageVerseRef, b: PassageVerseRef) =>
   a.book === b.book && a.chapter === b.chapter && a.verse === b.verse;
 
+function lexicalReferencesOverlap(
+  references: readonly string[],
+  requestedVerses: readonly PassageVerseRef[],
+  requestedWholeChapters: readonly { book: string; chapter: number }[],
+): boolean {
+  const indexedVerses = references.flatMap(parsePassageVerses);
+  return indexedVerses.some((indexed) =>
+    requestedVerses.some((requested) => overlaps(indexed, requested)) ||
+    requestedWholeChapters.some(
+      (requested) => indexed.book === requested.book && indexed.chapter === requested.chapter,
+    ),
+  );
+}
+
 export function lookupReferenceBundle(
   enabledSourceIds: readonly string[],
   passageRefs: readonly string[],
   terms: readonly string[] = [],
   totalBudgetChars = 1800,
 ): ReferenceBundle {
-  const requestedVerses = passageRefs.flatMap(parsePassageVerses);
-  const requestedChapters = passageRefs.flatMap(parsePassageRef);
+  const requestedPassages = passageRefs
+    .filter((reference) => reference.trim())
+    .map((reference) => ({
+      verses: parsePassageVerses(reference),
+      chapters: parsePassageRef(reference),
+    }));
+  const requestedVerses = requestedPassages.flatMap(({ verses }) => verses);
+  const requestedChapters = requestedPassages.flatMap(({ chapters }) => chapters);
+  const requestedWholeChapters = requestedPassages.flatMap(({ verses, chapters }) =>
+    chapters.filter(
+      (chapter) => !verses.some(
+        (verse) => verse.book === chapter.book && verse.chapter === chapter.chapter,
+      ),
+    ),
+  );
+  const hasPassageConstraint = passageRefs.some((reference) => reference.trim());
   const normalizedTerms = new Set(terms.map((term) => term.trim().toLowerCase()).filter(Boolean));
   const bundle: ReferenceBundle = { translations: [], crossReferences: [], lexicalEntries: [] };
   let remaining = Math.max(0, Math.floor(totalBudgetChars));
@@ -446,12 +488,19 @@ export function lookupReferenceBundle(
       } else {
         const matches: Array<{ key: string; row: LexicalRow; score: number }> = [];
         for (const [key, row] of source.lexicon) {
-          const matchesPassage = (row.references ?? []).some((candidate) =>
-            requestedChapters.some((chapter) => parsePassageRef(candidate).some(
-              (hit) => hit.book === chapter.book && hit.chapter === chapter.chapter,
-            )),
-          );
-          let score = matchesPassage ? 3 : Number.POSITIVE_INFINITY;
+          if (
+            hasPassageConstraint &&
+            !lexicalReferencesOverlap(
+              row.indexedReferences ?? row.references ?? [],
+              requestedVerses,
+              requestedWholeChapters,
+            )
+          ) {
+            continue;
+          }
+          let score = normalizedTerms.size === 0 && hasPassageConstraint
+            ? 3
+            : Number.POSITIVE_INFINITY;
           for (const term of normalizedTerms) {
             const identifiers = [key, row.strongsNumber ?? ""].map((field) => field.toLowerCase());
             const identityFields = [row.term, row.originalWord, row.transliteration]
