@@ -49,7 +49,10 @@ router.post("/sources/lookup", requireAuth, async (req, res) => {
     return;
   }
   const enabled = await getEnabledSourceIds(req.userId!);
-  const passages = [parsed.data.passage, ...(parsed.data.secondaryPassages ?? [])];
+  const passages = [
+    ...(parsed.data.passage ? [parsed.data.passage] : []),
+    ...(parsed.data.secondaryPassages ?? []),
+  ];
   res.json(lookupReferenceBundle(enabled, passages, parsed.data.terms ?? []));
 });
 

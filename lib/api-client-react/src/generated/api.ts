@@ -7362,7 +7362,7 @@ export function useListScholarlySources<
 }
 
 /**
- * @summary Look up bounded, source-labeled public-domain Bible references for a passage
+ * @summary Look up bounded, source-labeled public-domain Bible references
  */
 export const getLookupBibleReferencesUrl = () => {
   return `/api/sources/lookup`;
@@ -7427,7 +7427,7 @@ export type LookupBibleReferencesMutationError = ErrorType<
 >;
 
 /**
- * @summary Look up bounded, source-labeled public-domain Bible references for a passage
+ * @summary Look up bounded, source-labeled public-domain Bible references
  */
 export const useLookupBibleReferences = <
   TError = ErrorType<ApiError | UnauthorizedResponse>,

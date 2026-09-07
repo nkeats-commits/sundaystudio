@@ -243,3 +243,62 @@ test("POST /api/sources/lookup returns bounded, source-labeled reference results
     await cleanup(uid);
   }
 });
+
+test("POST /api/sources/lookup supports term-only Strong's lookup and rejects empty requests", async () => {
+  const uid = userId();
+  await cleanup(uid);
+  const { base, close } = await startServer();
+  try {
+    const preferences = await fetch(`${base}/api/sources/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({ enabledSourceIds: ["strongs-1890"] }),
+    });
+    assert.equal(preferences.status, 200);
+
+    const termOnly = await fetch(`${base}/api/sources/lookup`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({ terms: ["G26"] }),
+    });
+    assert.equal(termOnly.status, 200);
+    const termBody = (await termOnly.json()) as {
+      translations: unknown[];
+      crossReferences: unknown[];
+      lexicalEntries: Array<{ strongsNumber?: string; attribution: string }>;
+    };
+    assert.equal(termBody.translations.length, 0);
+    assert.equal(termBody.crossReferences.length, 0);
+    assert.ok(termBody.lexicalEntries.some((hit) => hit.strongsNumber === "G26"));
+    assert.ok(termBody.lexicalEntries.every((hit) => hit.attribution));
+
+    const passageWithNoTerms = await fetch(`${base}/api/sources/lookup`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({ passage: "John 3:16", terms: [] }),
+    });
+    assert.equal(passageWithNoTerms.status, 200);
+
+    const empty = await fetch(`${base}/api/sources/lookup`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-test-user-id": uid,
+      },
+      body: JSON.stringify({}),
+    });
+    assert.equal(empty.status, 400);
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});

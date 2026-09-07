@@ -42,6 +42,7 @@ import SermonBuilder from "./pages/SermonBuilder";
 import SermonArchive from "./pages/SermonArchive";
 import SermonSeriesArchive from "./pages/SermonSeriesArchive";
 import SermonSeriesDetail from "./pages/SermonSeriesDetail";
+import BibleTools from "./pages/BibleTools";
 import ResourceLibrary from "./pages/ResourceLibrary";
 import Integrations from "./pages/Integrations";
 import Pricing from "./pages/Pricing";
@@ -414,6 +415,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/sermons/series/:id">{() => <Protected component={() => <Paywalled component={SermonSeriesDetail} />} />}</Route>
           <Route path="/sermons/new">{() => <Protected component={() => <Paywalled component={SermonBuilder} />} />}</Route>
           <Route path="/sermons/:id">{() => <Protected component={() => <Paywalled component={SermonBuilder} />} />}</Route>
+          <Route path="/bible-tools">{() => <Protected component={BibleTools} />}</Route>
           <Route path="/resources">{() => <Protected component={() => <Paywalled component={ResourceLibrary} />} />}</Route>
           <Route path="/church">{() => <Protected component={ChurchProfile} />}</Route>
           <Route path="/settings/integrations">{() => <Protected component={Integrations} />}</Route>

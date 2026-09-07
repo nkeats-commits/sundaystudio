@@ -2072,7 +2072,7 @@ paths:
   /sources/lookup:
     post:
       operationId: lookupBibleReferences
-      summary: Look up bounded, source-labeled public-domain Bible references for a passage
+      summary: Look up bounded, source-labeled public-domain Bible references
       tags: [sources]
       requestBody:
         required: true
@@ -2088,7 +2088,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ReferenceBundle"
         "400":
-          description: Invalid passage lookup request
+          description: Invalid Bible reference lookup request
           content:
             application/json:
               schema:
@@ -5307,7 +5307,9 @@ components:
 
     ReferenceLookupBody:
       type: object
-      required: [passage]
+      description: >
+        Supply a passage, one or more lexical terms/Strong's identifiers, or
+        both. A request containing neither is invalid.
       properties:
         passage:
           type: string
@@ -5321,3 +5323,18 @@ components:
           description: Optional terms, lexical keys, or Strong's numbers to prioritize.
           items:
             type: string
+      anyOf:
+        - type: object
+          required: [passage]
+          properties:
+            passage:
+              type: string
+              minLength: 1
+        - type: object
+          required: [terms]
+          properties:
+            terms:
+              type: array
+              minItems: 1
+              items:
+                type: string

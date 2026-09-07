@@ -1850,13 +1850,31 @@ export interface UpdateSourcePreferencesBody {
   enabledSourceIds: string[];
 }
 
-export interface ReferenceLookupBody {
-  /** @minLength 1 */
-  passage: string;
-  secondaryPassages?: string[];
-  /** Optional terms, lexical keys, or Strong's numbers to prioritize. */
-  terms?: string[];
-}
+/**
+ * Supply a passage, one or more lexical terms/Strong's identifiers, or both. A request containing neither is invalid.
+
+ */
+export type ReferenceLookupBody =
+  | ({
+      /** @minLength 1 */
+      passage: string;
+    } & {
+      /** @minLength 1 */
+      passage?: string;
+      secondaryPassages?: string[];
+      /** Optional terms, lexical keys, or Strong's numbers to prioritize. */
+      terms?: string[];
+    })
+  | ({
+      /** @minItems 1 */
+      terms: string[];
+    } & {
+      /** @minLength 1 */
+      passage?: string;
+      secondaryPassages?: string[];
+      /** Optional terms, lexical keys, or Strong's numbers to prioritize. */
+      terms?: string[];
+    });
 
 /**
  * Unauthorized

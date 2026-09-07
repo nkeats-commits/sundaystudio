@@ -83,6 +83,7 @@ const navigation = [
   { label: 'Sermon Builder', href: '/sermons/new' },
   { label: 'Sermon Archive', href: '/sermons' },
   { label: 'Sermon Series', href: '/sermons/series' },
+  { label: 'Bible Tools', href: '/bible-tools' },
   { label: 'Sermon Resources', href: '/resources' },
   { label: 'Service Builder', href: '/service-builder' },
   { label: 'Liturgy Generator', href: '/generators/liturgy' },

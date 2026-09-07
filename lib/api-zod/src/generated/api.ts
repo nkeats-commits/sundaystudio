@@ -5681,19 +5681,33 @@ export const ListScholarlySourcesResponse = zod.object({
 });
 
 /**
- * @summary Look up bounded, source-labeled public-domain Bible references for a passage
+ * @summary Look up bounded, source-labeled public-domain Bible references
  */
 
-export const LookupBibleReferencesBody = zod.object({
-  passage: zod.string().min(1),
-  secondaryPassages: zod.array(zod.string()).optional(),
-  terms: zod
-    .array(zod.string())
-    .optional()
-    .describe(
-      "Optional terms, lexical keys, or Strong's numbers to prioritize.",
-    ),
-});
+export const LookupBibleReferencesBody = zod
+  .union([
+    zod.object({
+      passage: zod.string().min(1),
+    }),
+    zod.object({
+      terms: zod.array(zod.string()).min(1),
+    }),
+  ])
+  .and(
+    zod.object({
+      passage: zod.string().min(1).optional(),
+      secondaryPassages: zod.array(zod.string()).optional(),
+      terms: zod
+        .array(zod.string())
+        .optional()
+        .describe(
+          "Optional terms, lexical keys, or Strong's numbers to prioritize.",
+        ),
+    }),
+  )
+  .describe(
+    "Supply a passage, one or more lexical terms\/Strong's identifiers, or both. A request containing neither is invalid.\n",
+  );
 
 export const LookupBibleReferencesResponse = zod
   .object({

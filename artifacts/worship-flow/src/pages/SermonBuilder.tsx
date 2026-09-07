@@ -1087,8 +1087,18 @@ export default function SermonBuilder() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">PRIMARY PASSAGE *</label>
-                <input value={form.passage} onChange={(e) => setForm({ ...form, passage: e.target.value })} placeholder="e.g. Romans 8:1-11" className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }} />
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label htmlFor="sermon-primary-passage" className="block text-xs font-semibold text-[var(--worship-slate)]">PRIMARY PASSAGE *</label>
+                  <Link
+                    href={form.passage.trim() ? `/bible-tools?passage=${encodeURIComponent(form.passage.trim())}` : '/bible-tools'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--worship-gold)] hover:underline"
+                  >
+                    <BookOpen className="h-3 w-3" /> Open Bible Tools
+                  </Link>
+                </div>
+                <input id="sermon-primary-passage" value={form.passage} onChange={(e) => setForm({ ...form, passage: e.target.value })} placeholder="e.g. Romans 8:1-11" className="w-full px-3 py-2 rounded-lg border text-sm bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }} />
               </div>
               <div>
                 <label className="block text-xs font-semibold mb-1 text-[var(--worship-slate)]">SECONDARY PASSAGES</label>
@@ -1396,8 +1406,8 @@ export default function SermonBuilder() {
                   undoing={undoingSection === 'study'}
                 >
                   {studyData && (editingSection === 'study'
-                    ? <StudyView data={editDraft as SermonStudyOutput} editing onChange={setEditDraft} />
-                    : <StudyView data={studyData} />)}
+                    ? <StudyView data={editDraft as SermonStudyOutput} passage={form.passage} editing onChange={setEditDraft} />
+                    : <StudyView data={studyData} passage={form.passage} />)}
                 </SectionPanel>
               )}
               </div>
@@ -2324,10 +2334,12 @@ function EditableTextBlock({
 
 function StudyView({
   data,
+  passage,
   editing = false,
   onChange,
 }: {
   data: SermonStudyOutput;
+  passage: string;
   editing?: boolean;
   onChange?: (next: SermonStudyOutput) => void;
 }) {
@@ -2475,7 +2487,17 @@ function StudyView({
               <div key={i} className="rounded-xl border border-[var(--worship-border)] bg-[var(--worship-cream)] p-3.5 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-semibold text-sm text-[var(--worship-navy)]">{ws.term}</span>
-                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--worship-navy)]/10 text-[var(--worship-navy)]">{ws.language}</span>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/bible-tools?${passage.trim() ? `passage=${encodeURIComponent(passage.trim())}&` : ''}term=${encodeURIComponent(ws.strongsNumber || ws.term)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--worship-gold)] hover:underline"
+                    >
+                      <BookOpen className="h-3 w-3" /> Explore
+                    </Link>
+                    <span className="shrink-0 rounded bg-[var(--worship-navy)]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--worship-navy)]">{ws.language}</span>
+                  </div>
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="font-serif text-lg text-[var(--worship-charcoal)]">{ws.originalWord}</span>

@@ -5,3 +5,4 @@
 - [Development schema drift](development-schema-drift.md) — Local database columns can lag the Drizzle schema; keep feature validation separate from schema-sync work.
 - [Public commentary corpus ingestion](commentary-corpus-ingest.md) — Exact coverage gates need verified gap allowlists and source-specific floors for authentic short notes.
 - [Bible reference lookup budgets](bible-reference-lookup-budgets.md) — Large cross-reference corpora must not starve translation and lexical results inside the shared context cap.
+- [Reference lookup contract](reference-lookup-contract.md) — Passage lookups may carry empty optional terms; term-only lookups require a non-empty term list.
