@@ -128,6 +128,7 @@ export default function ResourceLibrary() {
   const [referencePassage, setReferencePassage] = useState('');
   const [referenceTerms, setReferenceTerms] = useState('');
   const [referencePreview, setReferencePreview] = useState<ReferenceBundle | null>(null);
+  const [referencePreviewError, setReferencePreviewError] = useState<string | null>(null);
   const [savedLookupKeys, setSavedLookupKeys] = useState<Set<string>>(new Set());
 
   // Loading states for the two utility actions
@@ -236,8 +237,15 @@ export default function ResourceLibrary() {
         },
       },
       {
-        onSuccess: setReferencePreview,
-        onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not preview references.'),
+        onSuccess: (result) => {
+          setReferencePreviewError(null);
+          setReferencePreview(result);
+        },
+        onError: (err) => {
+          const message = err instanceof Error ? err.message : 'Could not preview references.';
+          setReferencePreviewError(message);
+          toast.error(message);
+        },
       },
     );
   };
@@ -544,11 +552,27 @@ export default function ResourceLibrary() {
                 <button
                   onClick={previewReferences}
                   disabled={lookupReferences.isPending}
+                  aria-busy={lookupReferences.isPending}
                   className="worship-btn-gold px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
                 >
-                  {lookupReferences.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Preview'}
+                  {lookupReferences.isPending ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Loading…</>
+                  ) : 'Preview'}
                 </button>
               </div>
+              {referencePreviewError && (
+                <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs text-[var(--worship-slate)]" style={{ borderColor: 'var(--worship-border)' }}>
+                  <span>{referencePreviewError}</span>
+                  <button
+                    type="button"
+                    onClick={previewReferences}
+                    disabled={lookupReferences.isPending}
+                    className="shrink-0 font-medium text-[var(--worship-gold)] underline disabled:opacity-60"
+                  >
+                    Retry preview
+                  </button>
+                </div>
+              )}
               {referencePreview && (
                 <div className="mt-4 space-y-3">
                   {referencePreview.translations.map((hit) => (

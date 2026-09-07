@@ -413,10 +413,13 @@ export default function SermonBuilder() {
     publicDomain: { sourceId: string; sourceTitle: string }[];
   }>({ library: [], publicDomain: [] });
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewRetry, setPreviewRetry] = useState(0);
   useEffect(() => {
     if (!form.passage.trim()) {
       setPreview(null);
       setPreviewExcluded({ library: [], publicDomain: [] });
+      setPreviewError(null);
       return;
     }
     // Monotonic token guards against out-of-order responses overwriting
@@ -427,6 +430,7 @@ export default function SermonBuilder() {
     const handle = setTimeout(async () => {
       const secondary = parseSecondary(form.secondaryPassagesText);
       setPreviewLoading(true);
+      setPreviewError(null);
       try {
         const baseBody = {
           passage: form.passage,
@@ -464,7 +468,9 @@ export default function SermonBuilder() {
           })),
         });
       } catch {
-        // Network glitch — keep last preview so the panel doesn't blink.
+        // Network glitch — keep last preview so the panel doesn't blink,
+        // but surface a retry action when the refresh could not complete.
+        if (!cancelled) setPreviewError('The Sermon Resources preview could not be loaded.');
       } finally {
         if (!cancelled) setPreviewLoading(false);
       }
@@ -479,6 +485,7 @@ export default function SermonBuilder() {
     form.excludedResourceIds,
     form.excludedSourceIds,
     form.attachedResourceIds,
+    previewRetry,
   ]);
 
   const ensureSermonId = async (): Promise<number | null> => {
@@ -1177,6 +1184,20 @@ export default function SermonBuilder() {
                     );
                   }
                   if (!preview) {
+                    if (previewError) {
+                      return (
+                        <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs text-[var(--worship-slate)]" style={{ borderColor: 'var(--worship-border)' }}>
+                          <span>{previewError}</span>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewRetry((count) => count + 1)}
+                            className="shrink-0 font-medium text-[var(--worship-gold)] underline"
+                          >
+                            Retry preview
+                          </button>
+                        </div>
+                      );
+                    }
                     return (
                       <p className="text-xs text-[var(--worship-muted-slate)] italic">
                         {previewLoading ? 'Checking what matches…' : 'Loading…'}
@@ -1185,6 +1206,18 @@ export default function SermonBuilder() {
                   }
                   return (
                     <div className="space-y-2">
+                      {previewError && (
+                        <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs text-[var(--worship-slate)]" style={{ borderColor: 'var(--worship-border)' }}>
+                          <span>{previewError}</span>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewRetry((count) => count + 1)}
+                            className="shrink-0 font-medium text-[var(--worship-gold)] underline"
+                          >
+                            Retry preview
+                          </button>
+                        </div>
+                      )}
                       {preview.legacyMode && (
                         <div className="rounded-lg border px-3 py-2 text-[11px] bg-[var(--worship-cream)]" style={{ borderColor: 'var(--worship-border)' }}>
                           <div className="font-semibold text-[var(--worship-navy)] mb-0.5">Legacy attached resources</div>
