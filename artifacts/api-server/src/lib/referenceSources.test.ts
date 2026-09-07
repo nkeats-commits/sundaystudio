@@ -5,6 +5,8 @@ import {
   describeReferenceLookupFailure,
   listRegisteredReferenceSources,
   lookupReferenceBundle,
+  MAX_LEXICAL_REFERENCES,
+  MAX_LEXICAL_REFERENCE_CHARS,
   REFERENCE_BUNDLE_BUDGET_CHARS,
   ReferenceSourceError,
 } from "./referenceSources";
@@ -62,6 +64,13 @@ test("expanded reference data is available for both translations and study aids"
   assert.ok(lexicalEntries.lexicalEntries.some(
     (hit) => hit.sourceId === "strongs-1890" && hit.definition.toLowerCase().includes("refuge"),
   ));
+  const love = lookupReferenceBundle(["strongs-1890"], [], ["G26"], 4000).lexicalEntries
+    .find((hit) => hit.key === "g26");
+  assert.ok(love);
+  assert.ok(love.references.length > 0);
+  assert.ok(love.references.length <= MAX_LEXICAL_REFERENCES);
+  assert.equal(new Set(love.references).size, love.references.length);
+  assert.ok(love.references.join(", ").length <= MAX_LEXICAL_REFERENCE_CHARS);
 });
 
 test("reference indexes match their verified corpus targets", () => {
@@ -231,4 +240,11 @@ test("reference lookup deduplicates repeated source ids and passage requests", (
     REFERENCE_BUNDLE_BUDGET_CHARS,
   );
   assert.equal(lexicalBundle.lexicalEntries.filter((hit) => hit.key === "g5485").length, 1);
+});
+
+test("lexical sources preserve an explicit unavailable occurrence state", () => {
+  const bundle = lookupReferenceBundle(["eastons-1897"], [], ["love"], REFERENCE_BUNDLE_BUDGET_CHARS);
+  const hit = bundle.lexicalEntries.find((entry) => entry.key === "love");
+  assert.ok(hit);
+  assert.deepEqual(hit.references, []);
 });

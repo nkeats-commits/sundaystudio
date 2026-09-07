@@ -207,12 +207,14 @@ function LexicalResult({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h4 className="font-semibold text-[var(--worship-navy)]">{hit.term}</h4>
-          <p className="mt-1 font-serif text-base text-[var(--worship-charcoal)]">
-            {hit.originalWord}{' '}
-            <span className="font-sans text-xs italic text-[var(--worship-slate)]">{hit.transliteration}</span>
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">
+            Original-language word
+          </p>
+          <p className="mt-0.5 break-words font-serif text-lg text-[var(--worship-charcoal)]">
+            {hit.originalWord || 'Original word unavailable'}
           </p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex max-w-full flex-wrap justify-end gap-1.5">
           <span className="rounded bg-[var(--worship-cream)] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--worship-navy)]">
             {hit.language}
           </span>
@@ -223,12 +225,32 @@ function LexicalResult({
           )}
         </div>
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--worship-charcoal)]">{hit.definition}</p>
-      {hit.references.length > 0 && (
-        <p className="mt-2 text-xs text-[var(--worship-slate)]">
-          Related references: {hit.references.join(', ')}
-        </p>
-      )}
+      <dl className="mt-3 grid gap-2 border-t pt-3 text-sm sm:grid-cols-2" style={{ borderColor: 'var(--worship-border)' }}>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Language</dt>
+          <dd className="mt-0.5 text-[var(--worship-charcoal)]">{hit.language}</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Transliteration</dt>
+          <dd className="mt-0.5 break-words italic text-[var(--worship-charcoal)]">
+            {hit.transliteration || 'Not provided by this source'}
+          </dd>
+        </div>
+      </dl>
+      <div className="mt-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Definition</p>
+        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-[var(--worship-charcoal)]">{hit.definition}</p>
+      </div>
+      <div className="mt-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Found in</p>
+        {hit.references.length > 0 ? (
+          <p className="mt-1 break-words text-xs leading-relaxed text-[var(--worship-charcoal)]">{hit.references.join(', ')}</p>
+        ) : (
+          <p className="mt-1 text-xs italic text-[var(--worship-slate)]">
+            Verified occurrences are unavailable for this entry.
+          </p>
+        )}
+      </div>
       <SourceMeta
         title={hit.sourceTitle}
         author={hit.sourceAuthor}

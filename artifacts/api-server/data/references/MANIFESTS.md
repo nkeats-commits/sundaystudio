@@ -12,7 +12,7 @@ metadata and bounded passage lookups; it never serves these files directly.
 | `kjv-1769` | King James Version, 1769; 31,102 verses across all 66 books | Pinned structured snapshot of `jsubroto/bible-api`; the underlying 1769 KJV is public domain |
 | `asv-1901` | American Standard Version, 1901; 31,086 indexed verses across all 66 books | Pinned high-fidelity USX snapshot of `openbibleinfo/American-Standard-Version-Bible`; public-domain mark |
 | `tsk-1830` | Treasury of Scripture Knowledge, 1830; 30,412 source passages with relationships | Pinned SoulLiberty source snapshot as distributed by `neuu-org/bible-crossrefs-dataset`; public-domain TSK text |
-| `strongs-1890` | Strong's Exhaustive Concordance, 1890; 14,197 lexical entries | Pinned Open Scriptures Hebrew/Greek dictionary data; source XML identifies the 1890 work as public domain |
+| `strongs-1890` | Strong's Exhaustive Concordance, 1890; 14,197 lexical entries plus verified occurrence references | Pinned Open Scriptures Hebrew/Greek dictionary data; source XML identifies the 1890 work as public domain. Verse occurrences are derived from the pinned STEPBible TAHOT/TAGNT tagged-word snapshot (CC BY 4.0, revision `c5407786ede9b26a8998366524076f7c739dccdd`) |
 | `eastons-1897` | Easton's Bible Dictionary, 1897; 3,961 dictionary entries | Pinned structured source from `garydavenport73/eastons-bible-dictionary-json`; 1897 edition is public domain |
 
 The KJV, Strong's, and Easton's corpora have no known source gaps in the
@@ -29,10 +29,20 @@ cross-reference relationship and therefore are not indexed as lookup rows.
 The API exposes only rows with at least one verified target. Raw files stay
 server-side; lookup responses remain bounded and attributed.
 
+Strong's occurrence references are not inferred from English translations,
+glosses, or definitions. The ingestion pipeline reads the tagged original
+language records from the pinned STEPBible snapshot, normalizes them to
+canonical book/chapter/verse references, removes duplicates, and records the
+occurrence source metadata in the Strong's manifest. Entries without a tagged
+occurrence keep an empty reference list, which the UI presents as unavailable
+rather than as evidence that the word has no uses.
+
 The ingestion command is `pnpm --filter @workspace/scripts run
-ingest-references` with pinned source roots. It normalizes duplicate TSK shard
-keys, rejects malformed rows at load time, and writes only the bounded lookup
-indexes used by the API. Ingestion writes each corpus's pinned `sourceRevision`,
+ingest-references` with pinned source roots, including
+`--strongs-occurrence-root` pointing at the checked-out STEPBible TAHOT/TAGNT
+files. It normalizes duplicate TSK shard keys and Strong's occurrence keys,
+rejects malformed rows at load time, and writes only the lookup indexes used
+by the API. Ingestion writes each corpus's pinned `sourceRevision`,
 generated file SHA-256, row count, and gap-allowlist SHA-256 into its
 `MANIFEST.json`. The command validates a complete staging directory against the
 trusted revision/count/checksum contract before replacing the live directory.

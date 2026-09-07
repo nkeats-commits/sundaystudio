@@ -297,6 +297,10 @@ test('completes a verse lookup with grouped, attributed results at desktop width
   assert.ok(screen.getByText('For God so loved the world.'));
   assert.ok(screen.getByText('Romans 5:8, 1 John 4:9'));
   assert.ok(screen.getByText('Affection and benevolence.'));
+  assert.ok(screen.getByText('Original-language word'));
+  assert.ok(screen.getByText('Transliteration'));
+  assert.ok(screen.getByText('Found in'));
+  assert.ok(screen.getAllByText('John 3:16').length >= 2);
   assert.ok(
     screen.getByText(
       'This is reference text from an enabled public-domain edition, not your selected translation.',
@@ -340,11 +344,43 @@ test('saves each Bible lookup type and disables the button after saving', async 
   assert.equal(savedResourcePayloads[2].publisher, "Strong's Greek Dictionary");
   assert.equal(savedResourcePayloads[2].relatedPassage, 'John 3:16');
   assert.equal(savedResourcePayloads[2].notes, "Strong's Greek Dictionary, public domain");
+  assert.match(String(savedResourcePayloads[2].excerpt), /Language: Greek/);
+  assert.match(String(savedResourcePayloads[2].excerpt), /Strong's identifier: G26/);
+  assert.match(String(savedResourcePayloads[2].excerpt), /Found in: John 3:16/);
 
   const savedButtons = screen.getAllByRole('button', { name: 'Saved to Sermon Resources' });
   assert.ok(savedButtons.every((button) => (button as HTMLButtonElement).disabled));
   fireEvent.click(savedButtons[0]);
   assert.equal(savedResourcePayloads.length, 3);
+});
+
+test('explains when a lexical source has no verified occurrences', async () => {
+  renderPage(390);
+  fireEvent.click(screen.getByRole('button', { name: 'Word Lookup' }));
+  fireEvent.change(screen.getByLabelText("WORD OR STRONG'S NUMBER"), { target: { value: 'love' } });
+  submitForm();
+  await completeLookup({
+    translations: [],
+    crossReferences: [],
+    lexicalEntries: [
+      {
+        sourceId: 'eastons-1897',
+        sourceTitle: "Easton's Bible Dictionary",
+        sourceAuthor: 'Matthew George Easton',
+        sourceUrl: 'https://example.test/eastons',
+        attribution: "Easton's Bible Dictionary, public domain",
+        key: 'love',
+        term: 'love',
+        originalWord: 'love',
+        transliteration: '',
+        language: 'English',
+        definition: 'A dictionary definition.',
+        references: [],
+      },
+    ],
+  });
+  assert.ok(screen.getByText('Verified occurrences are unavailable for this entry.'));
+  assert.equal(screen.queryByText('Related references:'), null);
 });
 
 test('recognizes previously saved translation, cross-reference, and lexicon results after refresh', async () => {

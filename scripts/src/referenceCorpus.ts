@@ -18,6 +18,13 @@ export type ReferenceCorpusSpec = {
   expectedCount: number;
   expectedSha256: string;
   expectedGapAllowlistSha256: string;
+  occurrenceSource?: {
+    title: string;
+    sourceUrl: string;
+    sourceRevision: string;
+    license: string;
+    attribution: string;
+  };
 };
 
 export type TranslationRow = {
@@ -111,8 +118,15 @@ export const REFERENCE_CORPUS_SPECS: readonly ReferenceCorpusSpec[] = [
     attribution: "Strong's Exhaustive Concordance (1890), public domain; Open Scriptures dictionary data pinned to 0acd2f2.",
     dataFile: "entries.json",
     expectedCount: 14197,
-    expectedSha256: "131ae9207b5982a898c1f62e9b779829625df0844ce9459198b92a65795e141d",
+    expectedSha256: "b3e2c2a823102ab92f9becb1f0c567e77299a8e0902e0e21adaf542065000614",
     expectedGapAllowlistSha256: EMPTY_GAP_ALLOWLIST_SHA256,
+    occurrenceSource: {
+      title: "STEP Bible Translators Amalgamated Hebrew/Greek",
+      sourceUrl: "https://github.com/STEPBible/STEPBible-Data/tree/c5407786ede9b26a8998366524076f7c739dccdd/Translators%20Amalgamated%20OT%2BNT",
+      sourceRevision: "c5407786ede9b26a8998366524076f7c739dccdd",
+      license: "CC BY 4.0",
+      attribution: "STEP Bible data, CC BY 4.0; Strong's occurrence references normalized from the pinned TAHOT/TAGNT snapshot.",
+    },
   },
   {
     id: "eastons-1897",

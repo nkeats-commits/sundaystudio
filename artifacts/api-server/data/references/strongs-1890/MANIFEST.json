@@ -12,12 +12,19 @@
   "attribution": "Strong's Exhaustive Concordance (1890), public domain; Open Scriptures dictionary data pinned to 0acd2f2.",
   "integrity": {
     "file": "entries.json",
-    "sha256": "131ae9207b5982a898c1f62e9b779829625df0844ce9459198b92a65795e141d",
+    "sha256": "b3e2c2a823102ab92f9becb1f0c567e77299a8e0902e0e21adaf542065000614",
     "rowCount": 14197
   },
   "gapAllowlist": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
-  "gapAllowlistSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  "gapAllowlistSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "occurrenceSource": {
+    "title": "STEP Bible Translators Amalgamated Hebrew/Greek",
+    "sourceUrl": "https://github.com/STEPBible/STEPBible-Data/tree/c5407786ede9b26a8998366524076f7c739dccdd/Translators%20Amalgamated%20OT%2BNT",
+    "sourceRevision": "c5407786ede9b26a8998366524076f7c739dccdd",
+    "license": "CC BY 4.0",
+    "attribution": "STEP Bible data, CC BY 4.0; Strong's occurrence references normalized from the pinned TAHOT/TAGNT snapshot."
+  }
 }

@@ -116,6 +116,17 @@ export function crossReferenceLookupResource(
 export function lexicalLookupResource(
   hit: LexicalReferenceHit,
 ): CreateSermonResourceBody {
+  const originalLanguage = [
+    `Original-language word: ${hit.originalWord || 'Unavailable'}`,
+    `Language: ${hit.language}`,
+    `Transliteration: ${hit.transliteration || 'Not provided by this source'}`,
+    hit.strongsNumber ? `Strong's identifier: ${hit.strongsNumber}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const occurrences = hit.references.length > 0
+    ? `Found in: ${hit.references.join(', ')}`
+    : 'Found in: Verified occurrences are unavailable for this entry.';
   return {
     resourceType: 'lexicon',
     title: `${hit.term} word study`,
@@ -123,11 +134,9 @@ export function lexicalLookupResource(
     publisher: hit.sourceTitle,
     url: hit.sourceUrl,
     excerpt: [
-      `${hit.originalWord}${hit.transliteration ? ` (${hit.transliteration})` : ''}`,
+      originalLanguage,
       hit.definition,
-      hit.references.length > 0
-        ? `Related references: ${hit.references.join(', ')}`
-        : '',
+      occurrences,
     ]
       .filter(Boolean)
       .join('\n\n'),

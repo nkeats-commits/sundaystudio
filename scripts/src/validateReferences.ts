@@ -33,6 +33,13 @@ type ReferenceManifest = Record<string, unknown> & {
     sha256?: unknown;
   };
   gapAllowlistSha256?: unknown;
+  occurrenceSource?: {
+    title?: unknown;
+    sourceUrl?: unknown;
+    sourceRevision?: unknown;
+    license?: unknown;
+    attribution?: unknown;
+  };
 };
 
 const DEFAULT_DATA_ROOT = resolve(
@@ -114,6 +121,19 @@ function validateManifest(
   if (manifestGapHash !== spec.expectedGapAllowlistSha256) {
     fail(spec.id, "MANIFEST.json", "gapAllowlist checksum is not the trusted allowlist for this revision");
   }
+  if (spec.occurrenceSource) {
+    const source = manifest.occurrenceSource;
+    if (
+      !source ||
+      source.title !== spec.occurrenceSource.title ||
+      source.sourceUrl !== spec.occurrenceSource.sourceUrl ||
+      source.sourceRevision !== spec.occurrenceSource.sourceRevision ||
+      source.license !== spec.occurrenceSource.license ||
+      source.attribution !== spec.occurrenceSource.attribution
+    ) {
+      fail(spec.id, "MANIFEST.json", "occurrence source metadata does not match the pinned source contract");
+    }
+  }
 }
 
 function isCanonicalPassageReference(value: string): boolean {
@@ -123,6 +143,17 @@ function isCanonicalPassageReference(value: string): boolean {
   return CANONICAL_BOOKS.some((candidate) => canonicalBook(candidate) === book) &&
     Number(chapter) >= 1 &&
     Number(verse) >= 1;
+}
+
+const CANONICAL_BOOK_ORDER = new Map(
+  CANONICAL_BOOKS.map((book, index) => [canonicalBook(book), index]),
+);
+
+function referenceSortKey(value: string): string {
+  const key = crossReferenceKey(value);
+  if (!key) return "";
+  const [book, chapter, verse] = key.split("|");
+  return `${String(CANONICAL_BOOK_ORDER.get(book) ?? 999).padStart(3, "0")}|${chapter.padStart(4, "0")}|${verse.padStart(4, "0")}`;
 }
 
 function validateTranslationRows(sourceId: string, rows: unknown[]): TranslationRow[] {
@@ -209,6 +240,17 @@ function validateLexicalRows(sourceId: string, rows: unknown[]): LexicalRow[] {
     }
     const key = row.key.trim().toLowerCase();
     if (keys.has(key)) fail(sourceId, `row ${index}`, `duplicate key ${key}`);
+    const references = row.references as string[];
+    const uniqueReferences = new Set(references);
+    if (uniqueReferences.size !== references.length) {
+      fail(sourceId, `row ${index}`, "references must be unique");
+    }
+    if (references.some((reference, referenceIndex) =>
+      referenceIndex > 0 &&
+      referenceSortKey(reference) < referenceSortKey(references[referenceIndex - 1]),
+    )) {
+      fail(sourceId, `row ${index}`, "references must be sorted");
+    }
     keys.add(key);
     valid.push(row as LexicalRow);
   }

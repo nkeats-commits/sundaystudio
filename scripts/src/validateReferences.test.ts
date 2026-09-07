@@ -78,6 +78,18 @@ test("reference validation rejects malformed rows", () => {
   );
 });
 
+test("reference validation rejects duplicate lexical occurrence references", () => {
+  assert.throws(
+    () => withFixture((root) => {
+      const rows = readRows(root, "strongs-1890", "entries.json") as Array<Record<string, unknown>>;
+      const references = rows[0].references as string[];
+      rows[0].references = [...references, references[0]];
+      writeRows(root, "strongs-1890", "entries.json", rows);
+    }),
+    /references must be unique/,
+  );
+});
+
 test("reference validation rejects changed gap allowlists", () => {
   assert.throws(
     () => withFixture((root) => {

@@ -271,12 +271,21 @@ test("POST /api/sources/lookup supports term-only Strong's lookup and rejects em
     const termBody = (await termOnly.json()) as {
       translations: unknown[];
       crossReferences: unknown[];
-      lexicalEntries: Array<{ strongsNumber?: string; attribution: string }>;
+      lexicalEntries: Array<{
+        strongsNumber?: string;
+        attribution: string;
+        references: string[];
+      }>;
     };
     assert.equal(termBody.translations.length, 0);
     assert.equal(termBody.crossReferences.length, 0);
     assert.ok(termBody.lexicalEntries.some((hit) => hit.strongsNumber === "G26"));
     assert.ok(termBody.lexicalEntries.every((hit) => hit.attribution));
+    const love = termBody.lexicalEntries.find((hit) => hit.strongsNumber === "G26");
+    assert.ok(love);
+    assert.ok(love.references.length > 0);
+    assert.equal(new Set(love.references).size, love.references.length);
+    assert.ok(love.references.every((reference) => /^[1-3]? ?[A-Za-z]+(?: [A-Za-z]+)? \d+:\d+$/.test(reference)));
 
     const passageWithNoTerms = await fetch(`${base}/api/sources/lookup`, {
       method: "POST",

@@ -111,10 +111,29 @@ test('cross-reference and lexical lookups become independently saveable resource
       author: 'James Strong',
       publisher: "Strong's Greek Dictionary",
       url: 'https://example.test/strongs',
-      excerpt: 'ἀγάπη (agapē)\n\nAffection and benevolence.\n\nRelated references: John 3:16',
+       excerpt:
+         "Original-language word: ἀγάπη\nLanguage: Greek\nTransliteration: agapē\nStrong's identifier: G26\n\nAffection and benevolence.\n\nFound in: John 3:16",
       notes: "Strong's Greek Dictionary, public domain",
       relatedPassage: 'John 3:16',
       tags: ['Bible Tools', 'Lexicon'],
     },
+  );
+
+  assert.match(
+    lexicalLookupResource({
+      sourceId: 'eastons',
+      sourceTitle: "Easton's Bible Dictionary",
+      sourceAuthor: 'Matthew George Easton',
+      sourceUrl: 'https://example.test/eastons',
+      attribution: "Easton's Bible Dictionary, public domain",
+      key: 'love',
+      term: 'love',
+      originalWord: 'love',
+      transliteration: '',
+      language: 'English',
+      definition: 'A dictionary definition.',
+      references: [],
+    }).excerpt ?? '',
+    /Found in: Verified occurrences are unavailable for this entry\./,
   );
 });

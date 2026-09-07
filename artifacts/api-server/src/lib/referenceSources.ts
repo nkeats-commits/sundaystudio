@@ -73,6 +73,9 @@ export interface LexicalHit {
   references: string[];
 }
 
+export const MAX_LEXICAL_REFERENCES = 24;
+export const MAX_LEXICAL_REFERENCE_CHARS = 512;
+
 export interface ReferenceBundle {
   translations: TranslationHit[];
   crossReferences: CrossReferenceHit[];
@@ -139,6 +142,51 @@ interface LoadedReference {
   translations: Map<string, TranslationRow>;
   crossReferences: Map<string, CrossReferenceRow[]>;
   lexicon: Map<string, LexicalRow>;
+}
+
+const CANONICAL_BOOK_ORDER = [
+  "genesis", "exodus", "leviticus", "numbers", "deuteronomy", "joshua",
+  "judges", "ruth", "1 samuel", "2 samuel", "1 kings", "2 kings",
+  "1 chronicles", "2 chronicles", "ezra", "nehemiah", "esther", "job",
+  "psalms", "proverbs", "ecclesiastes", "song of songs", "isaiah",
+  "jeremiah", "lamentations", "ezekiel", "daniel", "hosea", "joel",
+  "amos", "obadiah", "jonah", "micah", "nahum", "habakkuk", "zephaniah",
+  "haggai", "zechariah", "malachi", "matthew", "mark", "luke", "john",
+  "acts", "romans", "1 corinthians", "2 corinthians", "galatians",
+  "ephesians", "philippians", "colossians", "1 thessalonians",
+  "2 thessalonians", "1 timothy", "2 timothy", "titus", "philemon",
+  "hebrews", "james", "1 peter", "2 peter", "1 john", "2 john", "3 john",
+  "jude", "revelation",
+] as const;
+const CANONICAL_BOOK_ORDER_MAP = new Map<string, number>(
+  CANONICAL_BOOK_ORDER.map((book, index) => [book, index]),
+);
+
+function normalizeLexicalReferences(references: readonly string[]): string[] {
+  const normalized = new Map<string, { book: string; chapter: number; verse: number }>();
+  for (const reference of references) {
+    const parsed = parsePassageVerses(reference);
+    for (const hit of parsed) {
+      const key = `${hit.book}|${hit.chapter}|${hit.verse}`;
+      normalized.set(key, hit);
+    }
+  }
+  const ordered = Array.from(normalized.values()).sort((a, b) =>
+    (CANONICAL_BOOK_ORDER_MAP.get(a.book) ?? 999) - (CANONICAL_BOOK_ORDER_MAP.get(b.book) ?? 999) ||
+    a.chapter - b.chapter ||
+    a.verse - b.verse,
+  );
+  const result: string[] = [];
+  let chars = 0;
+  for (const reference of ordered) {
+    const title = reference.book.replace(/\b\w/g, (character) => character.toUpperCase());
+    const formatted = `${title} ${reference.chapter}:${reference.verse}`;
+    const nextChars = chars + (result.length ? 2 : 0) + formatted.length;
+    if (result.length >= MAX_LEXICAL_REFERENCES || nextChars > MAX_LEXICAL_REFERENCE_CHARS) break;
+    result.push(formatted);
+    chars = nextChars;
+  }
+  return result;
 }
 
 function normalizeBook(book: string): string {
@@ -242,7 +290,9 @@ function loadReference(id: string): LoadedReference | null {
         lexicon.set(key, {
           ...row,
           key,
-          references: (row.references ?? []).filter((ref) => typeof ref === "string" && parsePassageRef(ref).length),
+          references: normalizeLexicalReferences(
+            (row.references ?? []).filter((ref) => typeof ref === "string"),
+          ),
         });
       }
     }
@@ -423,7 +473,9 @@ export function lookupReferenceBundle(
             sourceUrl: manifest.sourceUrl, attribution: manifest.attribution,
             key, term: row.term, strongsNumber: row.strongsNumber,
             originalWord: row.originalWord, transliteration: row.transliteration,
-            language: row.language, definition: row.definition, references: row.references ?? [],
+            language: row.language,
+            definition: row.definition,
+            references: normalizeLexicalReferences(row.references ?? []),
           });
           if (remaining <= 0) break;
         }

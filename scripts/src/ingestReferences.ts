@@ -39,6 +39,12 @@ type LexicalRow = {
   references: string[];
 };
 
+type OccurrenceReference = {
+  book: string;
+  chapter: number;
+  verse: number;
+};
+
 const CANONICAL_BOOKS = [
   "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua",
   "Judges", "Ruth", "1 Samuel", "2 Samuel", "1 Kings", "2 Kings",
@@ -243,6 +249,51 @@ function readStrongs(strongsRoot: string): LexicalRow[] {
   return rows.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
 }
 
+function readStepBibleOccurrences(occurrenceRoot: string): Map<string, string[]> {
+  const references = new Map<string, Map<string, OccurrenceReference>>();
+  const files = readdirSync(occurrenceRoot)
+    .filter((name) => name.endsWith(".txt"))
+    .sort()
+    .map((name) => join(occurrenceRoot, name));
+  if (files.length === 0) throw new Error(`No STEPBible occurrence files found in ${occurrenceRoot}`);
+
+  for (const path of files) {
+    for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+      const match = /^([A-Za-z0-9]+)\.(\d+)\.(\d+)#\d+=/.exec(line);
+      if (!match) continue;
+      const book = SOURCE_BOOKS[match[1].toUpperCase()];
+      if (!book) continue;
+      const chapter = Number(match[2]);
+      const verse = Number(match[3]);
+      if (!Number.isInteger(chapter) || !Number.isInteger(verse) || chapter < 1 || verse < 1) continue;
+
+      // The first Strong's token is the tagged word on this record. Any
+      // trailing Strong's tokens belong to related-word or variant metadata.
+      const strongs = /([GH]\d{4})/.exec(line)?.[1];
+      if (!strongs) continue;
+      const key = strongs.toLowerCase().replace(/^([gh])0+/, "$1");
+      const referenceKey = `${book}|${chapter}|${verse}`;
+      const entry = references.get(key) ?? new Map<string, OccurrenceReference>();
+      entry.set(referenceKey, { book, chapter, verse });
+      references.set(key, entry);
+    }
+  }
+
+  const order = new Map<string, number>(CANONICAL_BOOKS.map((book, index) => [book, index]));
+  return new Map(
+    Array.from(references, ([key, values]) => [
+      key,
+      Array.from(values.values())
+        .sort((a, b) =>
+          (order.get(a.book) ?? 999) - (order.get(b.book) ?? 999) ||
+          a.chapter - b.chapter ||
+          a.verse - b.verse,
+        )
+        .map((reference) => `${reference.book} ${reference.chapter}:${reference.verse}`),
+    ]),
+  );
+}
+
 function readEaston(eastonFile: string): LexicalRow[] {
   const grouped = new Map<string, { term: string; definitions: string[] }>();
   for (const line of readFileSync(eastonFile, "utf8").split(/\r?\n/)) {
@@ -280,11 +331,16 @@ const asvUsxRoot = requiredPath(parsed["asv-usx-root"], "ASV USX source root");
 const strongsRoot = requiredPath(parsed["strongs-root"], "Strong's source root");
 const eastonFile = requiredPath(parsed["easton-file"], "Easton's JSONL file");
 const crossrefsRoot = requiredPath(parsed["crossrefs-root"], "TSK source root");
+const occurrenceRoot = requiredPath(parsed["strongs-occurrence-root"], "Strong's occurrence source root");
 
 const kjv = readBible(bibleRoot, "kjv");
 const asv = readAsvUsx(asvUsxRoot);
 const tsk = readTsk(crossrefsRoot);
-const strongs = readStrongs(strongsRoot);
+const occurrences = readStepBibleOccurrences(occurrenceRoot);
+const strongs = readStrongs(strongsRoot).map((row) => ({
+  ...row,
+  references: occurrences.get(row.key) ?? [],
+}));
 const easton = readEaston(eastonFile);
 
 const generated = new Map<string, TranslationRow[] | CrossReferenceRow[] | LexicalRow[]>([
@@ -324,6 +380,7 @@ try {
         sha256: sha256(dataContent),
         rowCount: rows.length,
       },
+      ...(spec.occurrenceSource ? { occurrenceSource: spec.occurrenceSource } : {}),
       gapAllowlist: {
         count: gaps.length,
         sha256: gapAllowlistHash(gaps),
