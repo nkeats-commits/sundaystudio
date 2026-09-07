@@ -6,6 +6,7 @@ import {
   BookmarkPlus,
   BookOpen,
   Check,
+  Copy,
   ExternalLink,
   Library,
   Loader2,
@@ -43,6 +44,23 @@ function splitTerms(value: string): string[] {
   return value.split(/[,;\n]/).map((term) => term.trim()).filter(Boolean);
 }
 
+async function copyToClipboard(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand('copy');
+  textarea.remove();
+  if (!copied) throw new Error('Clipboard access is unavailable.');
+}
+
 function likelyPassage(value: string): boolean {
   return /\d+\s*(?::\s*\d+(?:\s*[-–]\s*\d+)?)?/.test(value);
 }
@@ -55,6 +73,8 @@ function SourceMeta({
   onSave,
   saved,
   saving,
+  onCopy,
+  copied,
 }: {
   title: string;
   author: string;
@@ -63,6 +83,8 @@ function SourceMeta({
   onSave?: () => void;
   saved?: boolean;
   saving?: boolean;
+  onCopy?: () => void;
+  copied?: boolean;
 }) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--worship-slate)]">
@@ -80,6 +102,17 @@ function SourceMeta({
         >
           Provenance <ExternalLink className="h-3 w-3" />
         </a>
+        {onCopy && (
+          <button
+            type="button"
+            onClick={onCopy}
+            className="inline-flex items-center gap-1 font-medium text-[var(--worship-navy)]"
+            aria-label={copied ? 'Copied excerpt' : 'Copy excerpt'}
+          >
+            <Copy className="h-3 w-3" />
+            {copied ? 'Copied' : 'Copy excerpt'}
+          </button>
+        )}
         {onSave && (
           <button
             type="button"
@@ -129,11 +162,15 @@ function TranslationResult({
   onSave,
   saved,
   saving,
+  onCopy,
+  copied,
 }: {
   hit: TranslationReferenceHit;
   onSave: () => void;
   saved: boolean;
   saving: boolean;
+  onCopy: () => void;
+  copied: boolean;
 }) {
   return (
     <article className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
@@ -155,6 +192,8 @@ function TranslationResult({
         onSave={onSave}
         saved={saved}
         saving={saving}
+        onCopy={onCopy}
+        copied={copied}
       />
     </article>
   );
@@ -165,18 +204,39 @@ function CrossReferenceResult({
   onSave,
   saved,
   saving,
+  onCopy,
+  copied,
+  onLookupPassage,
 }: {
   hit: CrossReferenceHit;
   onSave: () => void;
   saved: boolean;
   saving: boolean;
+  onCopy: () => void;
+  copied: boolean;
+  onLookupPassage: (passage: string) => void;
 }) {
   return (
     <article className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
       <h4 className="font-semibold text-[var(--worship-navy)]">{hit.sourceReference}</h4>
-      <p className="mt-1 text-sm leading-relaxed text-[var(--worship-charcoal)]">
-        {hit.targets.join(', ')}
+      <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">
+        Related passages
       </p>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {hit.targets.map((target) => (
+          <button
+            key={target}
+            type="button"
+            onClick={() => onLookupPassage(target)}
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-[var(--worship-navy)] hover:bg-[var(--worship-cream)]"
+            style={{ borderColor: 'var(--worship-border)' }}
+            aria-label={`Look up ${target}`}
+          >
+            {target}
+            <ArrowRight className="h-3 w-3" />
+          </button>
+        ))}
+      </div>
       {hit.note && <p className="mt-2 text-xs italic text-[var(--worship-slate)]">{hit.note}</p>}
       <SourceMeta
         title={hit.sourceTitle}
@@ -186,6 +246,8 @@ function CrossReferenceResult({
         onSave={onSave}
         saved={saved}
         saving={saving}
+        onCopy={onCopy}
+        copied={copied}
       />
     </article>
   );
@@ -196,11 +258,17 @@ function LexicalResult({
   onSave,
   saved,
   saving,
+  onCopy,
+  copied,
+  onFocusWord,
 }: {
   hit: LexicalReferenceHit;
   onSave: () => void;
   saved: boolean;
   saving: boolean;
+  onCopy: () => void;
+  copied: boolean;
+  onFocusWord: (term: string) => void;
 }) {
   return (
     <article className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
@@ -251,6 +319,13 @@ function LexicalResult({
           </p>
         )}
       </div>
+      <button
+        type="button"
+        onClick={() => onFocusWord(hit.term)}
+        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--worship-gold)] hover:underline"
+      >
+        Study this word <ArrowRight className="h-3.5 w-3.5" />
+      </button>
       <SourceMeta
         title={hit.sourceTitle}
         author={hit.sourceAuthor}
@@ -259,6 +334,8 @@ function LexicalResult({
         onSave={onSave}
         saved={saved}
         saving={saving}
+        onCopy={onCopy}
+        copied={copied}
       />
     </article>
   );
@@ -266,13 +343,25 @@ function LexicalResult({
 
 function Results({
   results,
+  studyLabel,
+  passage,
   savedKeys,
   onSave,
+  onCopy,
+  copiedKey,
+  onLookupPassage,
+  onFocusWord,
   saving,
 }: {
   results: ReferenceBundle;
+  studyLabel: string;
+  passage: string;
   savedKeys: Set<string>;
   onSave: (key: string, payload: CreateSermonResourceBody) => void;
+  onCopy: (key: string, value: string) => void;
+  copiedKey: string | null;
+  onLookupPassage: (passage: string) => void;
+  onFocusWord: (term: string) => void;
   saving: boolean;
 }) {
   const total = results.translations.length + results.crossReferences.length + results.lexicalEntries.length;
@@ -291,9 +380,39 @@ function Results({
     );
   }
 
+  const sourceTitles = Array.from(
+    new Set([
+      ...results.translations.map((hit) => hit.sourceTitle),
+      ...results.crossReferences.map((hit) => hit.sourceTitle),
+      ...results.lexicalEntries.map((hit) => hit.sourceTitle),
+    ]),
+  );
+
   return (
     <div className="space-y-7">
-      <ResultGroup title="Bible text" count={results.translations.length}>
+      <section className="rounded-xl border bg-[var(--worship-cream)]/60 p-4" style={{ borderColor: 'var(--worship-border)' }}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--worship-gold)]">Study focus</p>
+            <h3 className="mt-1 font-serif text-xl text-[var(--worship-navy)]">{studyLabel}</h3>
+            <p className="mt-1 text-xs text-[var(--worship-slate)]">
+              Start with the passage text, then follow related passages or explore a word in context.
+            </p>
+          </div>
+          {passage && (
+            <Link
+              href={`/sermons/new?passage=${encodeURIComponent(passage)}`}
+              className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[var(--worship-gold)] hover:underline"
+            >
+              Open in Sermon Builder <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+        </div>
+        <p className="mt-3 text-[11px] text-[var(--worship-slate)]">
+          Sources contributing to this lookup: <span className="font-medium text-[var(--worship-navy)]">{sourceTitles.join(' · ')}</span>
+        </p>
+      </section>
+      <ResultGroup title="Passage text" count={results.translations.length}>
         {results.translations.map((hit) => {
           const payload = translationLookupResource(hit);
           const key = bibleLookupResourceKey(payload);
@@ -304,6 +423,8 @@ function Results({
               onSave={() => onSave(key, payload)}
               saved={savedKeys.has(key)}
               saving={saving}
+              onCopy={() => onCopy(key, `${hit.reference}\n${hit.text}`)}
+              copied={copiedKey === key}
             />
           );
         })}
@@ -319,13 +440,21 @@ function Results({
               onSave={() => onSave(key, payload)}
               saved={savedKeys.has(key)}
               saving={saving}
+              onCopy={() =>
+                onCopy(
+                  key,
+                  `${hit.sourceReference}: ${hit.targets.join(', ')}${hit.note ? `\n${hit.note}` : ''}`,
+                )
+              }
+              copied={copiedKey === key}
+              onLookupPassage={onLookupPassage}
             />
           );
         })}
       </ResultGroup>
       <ResultGroup title="Dictionary / lexicon" count={results.lexicalEntries.length}>
         {results.lexicalEntries.map((hit) => {
-          const payload = lexicalLookupResource(hit);
+          const payload = lexicalLookupResource(hit, passage);
           const key = bibleLookupResourceKey(payload);
           return (
             <LexicalResult
@@ -334,6 +463,18 @@ function Results({
               onSave={() => onSave(key, payload)}
               saved={savedKeys.has(key)}
               saving={saving}
+              onCopy={() =>
+                onCopy(
+                  key,
+                  `${hit.term}${hit.strongsNumber ? ` (${hit.strongsNumber})` : ''}\n${hit.definition}\n${
+                    hit.references.length > 0
+                      ? `Found in: ${hit.references.join(', ')}`
+                      : 'Verified occurrences are unavailable for this entry.'
+                  }`,
+                )
+              }
+              copied={copiedKey === key}
+              onFocusWord={onFocusWord}
             />
           );
         })}
@@ -356,6 +497,7 @@ export default function BibleTools() {
   const [validationError, setValidationError] = useState('');
   const [requestError, setRequestError] = useState('');
   const [locallySavedKeys, setLocallySavedKeys] = useState<Set<string>>(new Set());
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const lookup = useLookupBibleReferences();
   const createResource = useCreateSermonResource();
   const resources = useListSermonResources();
@@ -428,11 +570,64 @@ export default function BibleTools() {
     );
   };
 
+  const lookupPassage = (nextPassage: string) => {
+    const value = nextPassage.trim();
+    if (!value) return;
+    setMode('verse');
+    setPassage(value);
+    setTerms('');
+    setTerm('');
+    setValidationError('');
+    setRequestError('');
+    setResults(null);
+    setCopiedKey(null);
+    lookup.mutate(
+      { data: { passage: value, terms: [] } },
+      {
+        onSuccess: setResults,
+        onError: () => setRequestError('The lookup could not be completed. Please try again.'),
+      },
+    );
+  };
+
+  const focusWord = (value: string) => {
+    const nextTerm = value.trim();
+    if (!nextTerm) return;
+    const contextPassage = passage.trim();
+    setMode('word');
+    setTerm(nextTerm);
+    setValidationError('');
+    setRequestError('');
+    setResults(null);
+    setCopiedKey(null);
+    lookup.mutate(
+      {
+        data: contextPassage
+          ? { passage: contextPassage, terms: [nextTerm] }
+          : { terms: [nextTerm] },
+      },
+      {
+        onSuccess: setResults,
+        onError: () => setRequestError('The lookup could not be completed. Please try again.'),
+      },
+    );
+  };
+
+  const copyResult = (key: string, value: string) => {
+    void copyToClipboard(value)
+      .then(() => {
+        setCopiedKey(key);
+        toast.success('Copied to clipboard');
+      })
+      .catch(() => toast.error('Could not copy this result. Please try again.'));
+  };
+
   const switchMode = (next: LookupMode) => {
     setMode(next);
     setResults(null);
     setValidationError('');
     setRequestError('');
+    setCopiedKey(null);
   };
 
   const reset = () => {
@@ -442,6 +637,7 @@ export default function BibleTools() {
     setResults(null);
     setValidationError('');
     setRequestError('');
+    setCopiedKey(null);
   };
 
   const saveLookup = (key: string, payload: CreateSermonResourceBody) => {
@@ -635,8 +831,18 @@ export default function BibleTools() {
                 </div>
                 <Results
                   results={results}
+                  studyLabel={
+                    mode === 'verse'
+                      ? passage.trim()
+                      : `${term.trim()}${passage.trim() ? ` in ${passage.trim()}` : ''}`
+                  }
+                  passage={passage.trim()}
                   savedKeys={savedKeys}
                   onSave={saveLookup}
+                  onCopy={copyResult}
+                  copiedKey={copiedKey}
+                  onLookupPassage={lookupPassage}
+                  onFocusWord={focusWord}
                   saving={createResource.isPending}
                 />
               </div>

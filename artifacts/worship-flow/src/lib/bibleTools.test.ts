@@ -137,3 +137,27 @@ test('cross-reference and lexical lookups become independently saveable resource
     /Found in: Verified occurrences are unavailable for this entry\./,
   );
 });
+
+test('lexical saves prefer the current study passage as context', () => {
+  assert.equal(
+    lexicalLookupResource(
+      {
+        sourceId: 'strongs',
+        sourceTitle: "Strong's Greek Dictionary",
+        sourceAuthor: 'James Strong',
+        sourceUrl: 'https://example.test/strongs',
+        attribution: "Strong's Greek Dictionary, public domain",
+        key: 'G26',
+        term: 'love',
+        strongsNumber: 'G26',
+        originalWord: 'ἀγάπη',
+        transliteration: 'agapē',
+        language: 'Greek',
+        definition: 'Affection and benevolence.',
+        references: ['John 3:16'],
+      },
+      'Romans 8:1-11',
+    ).relatedPassage,
+    'Romans 8:1-11',
+  );
+});

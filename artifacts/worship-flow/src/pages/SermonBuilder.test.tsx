@@ -267,6 +267,16 @@ test('opens Bible Tools with the primary passage, or without a query when blank'
   assert.equal(bibleToolsLink().getAttribute('href'), '/bible-tools?passage=John%203%3A16');
 });
 
+test('prefills a new sermon from a Bible Tools passage handoff', () => {
+  window.history.replaceState({}, '', '/sermons/new?passage=John%203%3A16');
+  renderBuilder();
+
+  assert.equal(
+    (screen.getByLabelText('PRIMARY PASSAGE *') as HTMLInputElement).value,
+    'John 3:16',
+  );
+});
+
 test("updates Bible Tools links when editing a saved sermon's passage", () => {
   renderBuilder(true);
 

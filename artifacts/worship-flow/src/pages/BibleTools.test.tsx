@@ -161,6 +161,7 @@ mock.module('lucide-react', {
     BookmarkPlus: Icon,
     BookOpen: Icon,
     Check: Icon,
+    Copy: Icon,
     ExternalLink: Icon,
     Library: Icon,
     Loader2: Icon,
@@ -291,11 +292,13 @@ test('completes a verse lookup with grouped, attributed results at desktop width
 
   await completeLookup(sampleResults);
 
-  assert.equal(screen.getByRole('heading', { name: 'Bible text' }).textContent, 'Bible text');
+  assert.equal(screen.getByRole('heading', { name: 'Passage text' }).textContent, 'Passage text');
   assert.equal(screen.getByRole('heading', { name: 'Cross-references' }).textContent, 'Cross-references');
   assert.equal(screen.getByRole('heading', { name: 'Dictionary / lexicon' }).textContent, 'Dictionary / lexicon');
   assert.ok(screen.getByText('For God so loved the world.'));
-  assert.ok(screen.getByText('Romans 5:8, 1 John 4:9'));
+  assert.ok(screen.getByText('Related passages'));
+  assert.ok(screen.getByRole('button', { name: 'Look up Romans 5:8' }));
+  assert.ok(screen.getByRole('button', { name: 'Look up 1 John 4:9' }));
   assert.ok(screen.getByText('Affection and benevolence.'));
   assert.ok(screen.getByText('Original-language word'));
   assert.ok(screen.getByText('Transliteration'));
@@ -308,7 +311,57 @@ test('completes a verse lookup with grouped, attributed results at desktop width
   );
   assert.ok(screen.getByText('King James Version, public domain'));
   assert.equal(screen.getAllByRole('link', { name: /Provenance/ }).length, 3);
+  assert.ok(screen.getByText('Study focus'));
+  assert.ok(screen.getByRole('link', { name: /Open in Sermon Builder/ }));
+  assert.ok(screen.getByRole('button', { name: 'Study this word' }));
   assert.equal(screen.getByRole('button', { name: 'Reset' }).textContent?.trim(), 'Reset');
+});
+
+test('follows a word-study handoff without retyping the term', async () => {
+  renderPage(390);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup(sampleResults);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Study this word' }));
+
+  assert.deepEqual(lastLookup?.variables, {
+    data: { passage: 'John 3:16', terms: ['love'] },
+  });
+  assert.equal((screen.getByLabelText("WORD OR STRONG'S NUMBER") as HTMLInputElement).value, 'love');
+});
+
+test('follows a cross-reference target into a new passage lookup', async () => {
+  renderPage(390);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup(sampleResults);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Look up Romans 5:8' }));
+
+  assert.deepEqual(lastLookup?.variables, {
+    data: { passage: 'Romans 5:8', terms: [] },
+  });
+  assert.equal((screen.getByLabelText('PASSAGE') as HTMLInputElement).value, 'Romans 5:8');
+});
+
+test('copies a result excerpt and confirms the action', async () => {
+  const copiedValues: string[] = [];
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: async (value: string) => copiedValues.push(value) },
+  });
+
+  renderPage(390);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup(sampleResults);
+
+  fireEvent.click(screen.getAllByRole('button', { name: 'Copy excerpt' })[0]);
+  await waitFor(() => assert.ok(screen.getAllByRole('button', { name: 'Copied excerpt' }).length >= 1));
+
+  assert.deepEqual(copiedValues, ['John 3:16\nFor God so loved the world.']);
+  Reflect.deleteProperty(navigator, 'clipboard');
 });
 
 test('saves each Bible lookup type and disables the button after saving', async () => {

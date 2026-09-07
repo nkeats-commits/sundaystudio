@@ -115,6 +115,7 @@ export function crossReferenceLookupResource(
 
 export function lexicalLookupResource(
   hit: LexicalReferenceHit,
+  contextPassage = '',
 ): CreateSermonResourceBody {
   const originalLanguage = [
     `Original-language word: ${hit.originalWord || 'Unavailable'}`,
@@ -141,7 +142,7 @@ export function lexicalLookupResource(
       .filter(Boolean)
       .join('\n\n'),
     notes: hit.attribution,
-    relatedPassage: hit.references.join(', '),
+    relatedPassage: contextPassage.trim() || hit.references.join(', '),
     tags: ['Bible Tools', 'Lexicon'],
   };
 }

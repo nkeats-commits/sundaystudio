@@ -359,19 +359,19 @@ test('finds each saved Bible lookup type by publisher, attribution, or provenanc
   const searchInput = screen.getByPlaceholderText('Search by title, author, passage, source, tags…');
 
   fireEvent.change(searchInput, { target: { value: 'King James Version' } });
-  assert.equal(screen.getAllByRole('heading', { name: 'John 3:16', exact: true }).length, 1);
-  assert.equal(screen.queryAllByRole('heading', { name: 'John 3:16 cross-references', exact: true }).length, 0);
-  assert.equal(screen.queryAllByRole('heading', { name: 'love word study', exact: true }).length, 0);
+  assert.equal(screen.getAllByRole('heading', { name: /^John 3:16$/ }).length, 1);
+  assert.equal(screen.queryAllByRole('heading', { name: /^John 3:16 cross-references$/ }).length, 0);
+  assert.equal(screen.queryAllByRole('heading', { name: /^love word study$/ }).length, 0);
 
   fireEvent.change(searchInput, { target: { value: 'public domain' } });
-  assert.equal(screen.getAllByRole('heading', { name: 'John 3:16', exact: true }).length, 1);
-  assert.equal(screen.getAllByRole('heading', { name: 'John 3:16 cross-references', exact: true }).length, 1);
-  assert.equal(screen.getAllByRole('heading', { name: 'love word study', exact: true }).length, 1);
+  assert.equal(screen.getAllByRole('heading', { name: /^John 3:16$/ }).length, 1);
+  assert.equal(screen.getAllByRole('heading', { name: /^John 3:16 cross-references$/ }).length, 1);
+  assert.equal(screen.getAllByRole('heading', { name: /^love word study$/ }).length, 1);
 
   fireEvent.change(searchInput, { target: { value: 'example.test/strongs' } });
-  assert.equal(screen.queryAllByRole('heading', { name: 'John 3:16', exact: true }).length, 0);
-  assert.equal(screen.queryAllByRole('heading', { name: 'John 3:16 cross-references', exact: true }).length, 0);
-  assert.equal(screen.getAllByRole('heading', { name: 'love word study', exact: true }).length, 1);
+  assert.equal(screen.queryAllByRole('heading', { name: /^John 3:16$/ }).length, 0);
+  assert.equal(screen.queryAllByRole('heading', { name: /^John 3:16 cross-references$/ }).length, 0);
+  assert.equal(screen.getAllByRole('heading', { name: /^love word study$/ }).length, 1);
 });
 
 test('explains when a search has no saved resource matches and lets the user clear it', () => {

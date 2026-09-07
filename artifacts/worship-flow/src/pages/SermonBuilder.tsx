@@ -204,6 +204,12 @@ function parseSecondary(text: string): string[] {
   return text.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
 }
 
+function initialSermonForm(): FormState {
+  if (typeof window === 'undefined') return blankForm();
+  const passage = new URLSearchParams(window.location.search).get('passage')?.trim() ?? '';
+  return { ...blankForm(), passage };
+}
+
 type TabKey = 'study' | 'bigIdea' | 'outline' | 'manuscript' | 'applications' | 'illustrations' | 'worship' | 'smallGroupQuestions';
 
 interface StepDef {
@@ -305,7 +311,7 @@ export default function SermonBuilder() {
   const createSeries = useCreateSermonSeries();
   const buildService = useBuildServiceFromSermon();
 
-  const [form, setForm] = useState<FormState>(blankForm());
+  const [form, setForm] = useState<FormState>(initialSermonForm);
   const [tab, setTab] = useState<TabKey>('study');
   // Mobile-only panel switcher: 'context' shows the sermon form, 'content' shows the AI workspace.
   const [mobilePanelTab, setMobilePanelTab] = useState<'context' | 'content'>('content');
