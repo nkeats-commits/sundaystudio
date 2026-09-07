@@ -4773,24 +4773,28 @@ components:
           type: string
         resourceType:
           type: string
+          description: Resource kind. Bible Tools saves use bible-text, cross-reference, or lexicon.
         title:
           type: string
         author:
           type: string
         publisher:
           type: string
+          description: Publisher or edition/source title. Bible Tools saves retain the public-domain edition here.
         year:
           type: string
         pageOrLocation:
           type: string
         url:
           type: string
+          description: Source URL. Bible Tools saves retain the lookup result's provenance link here.
         excerpt:
           type: string
         summary:
           type: string
         notes:
           type: string
+          description: Personal notes. Bible Tools saves retain the source attribution here.
         relatedPassage:
           type: string
         tags:
@@ -4826,6 +4830,7 @@ components:
       properties:
         resourceType:
           type: string
+          description: Resource kind. Bible Tools saves use bible-text, cross-reference, or lexicon.
         title:
           type: string
           minLength: 1
@@ -4833,18 +4838,21 @@ components:
           type: string
         publisher:
           type: string
+          description: Publisher or edition/source title. Bible Tools saves retain the public-domain edition here.
         year:
           type: string
         pageOrLocation:
           type: string
         url:
           type: string
+          description: Source URL. Bible Tools saves retain the lookup result's provenance link here.
         excerpt:
           type: string
         summary:
           type: string
         notes:
           type: string
+          description: Personal notes. Bible Tools saves retain the source attribution here.
         relatedPassage:
           type: string
         tags:

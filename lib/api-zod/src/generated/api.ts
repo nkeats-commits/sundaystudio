@@ -3272,16 +3272,32 @@ export const ExportSermonResponse = zod.object({
 export const ListSermonResourcesResponseItem = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  resourceType: zod.string(),
+  resourceType: zod
+    .string()
+    .describe(
+      "Resource kind. Bible Tools saves use bible-text, cross-reference, or lexicon.",
+    ),
   title: zod.string(),
   author: zod.string(),
-  publisher: zod.string(),
+  publisher: zod
+    .string()
+    .describe(
+      "Publisher or edition\/source title. Bible Tools saves retain the public-domain edition here.",
+    ),
   year: zod.string(),
   pageOrLocation: zod.string(),
-  url: zod.string(),
+  url: zod
+    .string()
+    .describe(
+      "Source URL. Bible Tools saves retain the lookup result's provenance link here.",
+    ),
   excerpt: zod.string(),
   summary: zod.string(),
-  notes: zod.string(),
+  notes: zod
+    .string()
+    .describe(
+      "Personal notes. Bible Tools saves retain the source attribution here.",
+    ),
   relatedPassage: zod.string(),
   tags: zod.array(zod.string()),
   createdAt: zod.coerce.date(),
@@ -3296,16 +3312,36 @@ export const ListSermonResourcesResponse = zod.array(
  */
 
 export const CreateSermonResourceBody = zod.object({
-  resourceType: zod.string().optional(),
+  resourceType: zod
+    .string()
+    .optional()
+    .describe(
+      "Resource kind. Bible Tools saves use bible-text, cross-reference, or lexicon.",
+    ),
   title: zod.string().min(1),
   author: zod.string().optional(),
-  publisher: zod.string().optional(),
+  publisher: zod
+    .string()
+    .optional()
+    .describe(
+      "Publisher or edition\/source title. Bible Tools saves retain the public-domain edition here.",
+    ),
   year: zod.string().optional(),
   pageOrLocation: zod.string().optional(),
-  url: zod.string().optional(),
+  url: zod
+    .string()
+    .optional()
+    .describe(
+      "Source URL. Bible Tools saves retain the lookup result's provenance link here.",
+    ),
   excerpt: zod.string().optional(),
   summary: zod.string().optional(),
-  notes: zod.string().optional(),
+  notes: zod
+    .string()
+    .optional()
+    .describe(
+      "Personal notes. Bible Tools saves retain the source attribution here.",
+    ),
   relatedPassage: zod.string().optional(),
   tags: zod.array(zod.string()).optional(),
 });
@@ -3335,16 +3371,32 @@ export const UpdateSermonResourceBody = zod.object({
 export const UpdateSermonResourceResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  resourceType: zod.string(),
+  resourceType: zod
+    .string()
+    .describe(
+      "Resource kind. Bible Tools saves use bible-text, cross-reference, or lexicon.",
+    ),
   title: zod.string(),
   author: zod.string(),
-  publisher: zod.string(),
+  publisher: zod
+    .string()
+    .describe(
+      "Publisher or edition\/source title. Bible Tools saves retain the public-domain edition here.",
+    ),
   year: zod.string(),
   pageOrLocation: zod.string(),
-  url: zod.string(),
+  url: zod
+    .string()
+    .describe(
+      "Source URL. Bible Tools saves retain the lookup result's provenance link here.",
+    ),
   excerpt: zod.string(),
   summary: zod.string(),
-  notes: zod.string(),
+  notes: zod
+    .string()
+    .describe(
+      "Personal notes. Bible Tools saves retain the source attribution here.",
+    ),
   relatedPassage: zod.string(),
   tags: zod.array(zod.string()),
   createdAt: zod.coerce.date(),

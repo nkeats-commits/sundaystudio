@@ -1,3 +1,10 @@
+import type {
+  CreateSermonResourceBody,
+  CrossReferenceHit,
+  LexicalReferenceHit,
+  TranslationReferenceHit,
+} from '@workspace/api-client-react';
+
 export type BibleToolsLookupMode = 'verse' | 'word';
 
 export interface BibleToolsQuery {
@@ -22,4 +29,77 @@ export function readBibleToolsQuery(search: string): BibleToolsQuery {
   } catch {
     return { mode: 'verse', passage: '', term: '' };
   }
+}
+
+/**
+ * Map a bounded Bible lookup result into the existing Sermon Resource shape.
+ *
+ * These saves are intentionally just library rows: they do not set any
+ * sermon attachment fields or affect the translation used by generation.
+ * The existing fields preserve the source metadata without requiring a
+ * schema migration:
+ *   - resourceType: lookup type
+ *   - publisher: public-domain edition/source title
+ *   - notes: source attribution
+ *   - url: provenance link
+ */
+export function translationLookupResource(
+  hit: TranslationReferenceHit,
+): CreateSermonResourceBody {
+  return {
+    resourceType: 'bible-text',
+    title: hit.reference,
+    author: hit.sourceAuthor,
+    publisher: hit.sourceTitle,
+    url: hit.sourceUrl,
+    excerpt: hit.text,
+    notes: hit.attribution,
+    relatedPassage: hit.reference,
+    tags: ['Bible Tools', 'Bible text'],
+  };
+}
+
+export function crossReferenceLookupResource(
+  hit: CrossReferenceHit,
+): CreateSermonResourceBody {
+  return {
+    resourceType: 'cross-reference',
+    title: `${hit.sourceReference} cross-references`,
+    author: hit.sourceAuthor,
+    publisher: hit.sourceTitle,
+    url: hit.sourceUrl,
+    excerpt: [
+      `Related passages: ${hit.targets.join(', ')}`,
+      hit.note ? `Note: ${hit.note}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    notes: hit.attribution,
+    relatedPassage: hit.sourceReference,
+    tags: ['Bible Tools', 'Cross-reference'],
+  };
+}
+
+export function lexicalLookupResource(
+  hit: LexicalReferenceHit,
+): CreateSermonResourceBody {
+  return {
+    resourceType: 'lexicon',
+    title: `${hit.term} word study`,
+    author: hit.sourceAuthor,
+    publisher: hit.sourceTitle,
+    url: hit.sourceUrl,
+    excerpt: [
+      `${hit.originalWord}${hit.transliteration ? ` (${hit.transliteration})` : ''}`,
+      hit.definition,
+      hit.references.length > 0
+        ? `Related references: ${hit.references.join(', ')}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
+    notes: hit.attribution,
+    relatedPassage: hit.references.join(', '),
+    tags: ['Bible Tools', 'Lexicon'],
+  };
 }

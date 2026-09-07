@@ -1568,15 +1568,19 @@ export interface PreviewSermonResourcesResponse {
 export interface SermonResource {
   id: number;
   userId: string;
+  /** Resource kind. Bible Tools saves use bible-text, cross-reference, or lexicon. */
   resourceType: string;
   title: string;
   author: string;
+  /** Publisher or edition/source title. Bible Tools saves retain the public-domain edition here. */
   publisher: string;
   year: string;
   pageOrLocation: string;
+  /** Source URL. Bible Tools saves retain the lookup result's provenance link here. */
   url: string;
   excerpt: string;
   summary: string;
+  /** Personal notes. Bible Tools saves retain the source attribution here. */
   notes: string;
   relatedPassage: string;
   tags: string[];
@@ -1585,16 +1589,20 @@ export interface SermonResource {
 }
 
 export interface CreateSermonResourceBody {
+  /** Resource kind. Bible Tools saves use bible-text, cross-reference, or lexicon. */
   resourceType?: string;
   /** @minLength 1 */
   title: string;
   author?: string;
+  /** Publisher or edition/source title. Bible Tools saves retain the public-domain edition here. */
   publisher?: string;
   year?: string;
   pageOrLocation?: string;
+  /** Source URL. Bible Tools saves retain the lookup result's provenance link here. */
   url?: string;
   excerpt?: string;
   summary?: string;
+  /** Personal notes. Bible Tools saves retain the source attribution here. */
   notes?: string;
   relatedPassage?: string;
   tags?: string[];

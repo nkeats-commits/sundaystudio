@@ -14,6 +14,7 @@ import {
   getListSermonResourcesQueryKey,
   getListScholarlySourcesQueryKey,
   type SermonResource,
+  type CreateSermonResourceBody,
   type ScholarlySourceManifest,
   type SourcesResponse,
   type ReferenceBundle,
@@ -35,8 +36,15 @@ import {
 } from 'lucide-react';
 import { AddCommentaryModal } from '../components/AddCommentaryModal';
 import { CoverageBadge } from '../components/CoverageBadge';
+import {
+  crossReferenceLookupResource,
+  lexicalLookupResource,
+  translationLookupResource,
+} from '../lib/bibleTools';
 
 const RESOURCE_TYPES = [
+  { value: 'bible-text', label: 'Bible text' },
+  { value: 'cross-reference', label: 'Cross-reference' },
   { value: 'commentary', label: 'Commentary' },
   { value: 'journal', label: 'Journal article' },
   { value: 'book', label: 'Book' },
@@ -120,6 +128,7 @@ export default function ResourceLibrary() {
   const [referencePassage, setReferencePassage] = useState('');
   const [referenceTerms, setReferenceTerms] = useState('');
   const [referencePreview, setReferencePreview] = useState<ReferenceBundle | null>(null);
+  const [savedLookupKeys, setSavedLookupKeys] = useState<Set<string>>(new Set());
 
   // Loading states for the two utility actions
   const [extracting, setExtracting] = useState(false);
@@ -229,6 +238,21 @@ export default function ResourceLibrary() {
       {
         onSuccess: setReferencePreview,
         onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not preview references.'),
+      },
+    );
+  };
+
+  const saveLookup = (key: string, payload: CreateSermonResourceBody) => {
+    if (savedLookupKeys.has(key)) return;
+    createResource.mutate(
+      { data: payload },
+      {
+        onSuccess: () => {
+          setSavedLookupKeys((current) => new Set(current).add(key));
+          void qc.invalidateQueries({ queryKey: getListSermonResourcesQueryKey() });
+          toast.success('Saved to Sermon Resources');
+        },
+        onError: () => toast.error('Could not save this lookup result. Please try again.'),
       },
     );
   };
@@ -532,7 +556,18 @@ export default function ResourceLibrary() {
                       <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)]">Bible text · {hit.sourceTitle}</div>
                       <div className="font-semibold text-[var(--worship-navy)] mt-1">{hit.reference}</div>
                       <p className="text-[var(--worship-charcoal)] mt-1">{hit.text}</p>
-                      <div className="text-[10px] text-[var(--worship-slate)] mt-1">{hit.attribution} · <a className="underline" href={hit.sourceUrl} target="_blank" rel="noreferrer noopener">source</a></div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--worship-slate)]">
+                        <span>{hit.attribution}</span>
+                        <a className="underline" href={hit.sourceUrl} target="_blank" rel="noreferrer noopener">provenance</a>
+                        <button
+                          type="button"
+                          onClick={() => saveLookup(`translation:${hit.sourceId}:${hit.reference}`, translationLookupResource(hit))}
+                          disabled={createResource.isPending || savedLookupKeys.has(`translation:${hit.sourceId}:${hit.reference}`)}
+                          className="font-medium text-[var(--worship-navy)] disabled:opacity-70"
+                        >
+                          {savedLookupKeys.has(`translation:${hit.sourceId}:${hit.reference}`) ? 'Saved' : 'Save to Sermon Resources'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {referencePreview.crossReferences.map((hit, i) => (
@@ -540,6 +575,18 @@ export default function ResourceLibrary() {
                       <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)]">Cross-reference · {hit.sourceTitle}</div>
                       <div className="text-[var(--worship-navy)] mt-1">{hit.sourceReference} → {hit.targets.join(', ')}</div>
                       {hit.note && <p className="text-xs text-[var(--worship-slate)] mt-1">{hit.note}</p>}
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--worship-slate)]">
+                        <span>{hit.attribution}</span>
+                        <a className="underline" href={hit.sourceUrl} target="_blank" rel="noreferrer noopener">provenance</a>
+                        <button
+                          type="button"
+                          onClick={() => saveLookup(`cross-reference:${hit.sourceId}:${hit.sourceReference}:${i}`, crossReferenceLookupResource(hit))}
+                          disabled={createResource.isPending || savedLookupKeys.has(`cross-reference:${hit.sourceId}:${hit.sourceReference}:${i}`)}
+                          className="font-medium text-[var(--worship-navy)] disabled:opacity-70"
+                        >
+                          {savedLookupKeys.has(`cross-reference:${hit.sourceId}:${hit.sourceReference}:${i}`) ? 'Saved' : 'Save to Sermon Resources'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {referencePreview.lexicalEntries.map((hit) => (
@@ -547,7 +594,18 @@ export default function ResourceLibrary() {
                       <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--worship-gold)]">Dictionary / lexicon · {hit.sourceTitle}</div>
                       <div className="font-semibold text-[var(--worship-navy)] mt-1">{hit.term} · {hit.originalWord}</div>
                       <p className="text-[var(--worship-charcoal)] mt-1">{hit.definition}</p>
-                      <div className="text-[10px] text-[var(--worship-slate)] mt-1">{hit.attribution} · <a className="underline" href={hit.sourceUrl} target="_blank" rel="noreferrer noopener">source</a></div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--worship-slate)]">
+                        <span>{hit.attribution}</span>
+                        <a className="underline" href={hit.sourceUrl} target="_blank" rel="noreferrer noopener">provenance</a>
+                        <button
+                          type="button"
+                          onClick={() => saveLookup(`lexicon:${hit.sourceId}:${hit.key}`, lexicalLookupResource(hit))}
+                          disabled={createResource.isPending || savedLookupKeys.has(`lexicon:${hit.sourceId}:${hit.key}`)}
+                          className="font-medium text-[var(--worship-navy)] disabled:opacity-70"
+                        >
+                          {savedLookupKeys.has(`lexicon:${hit.sourceId}:${hit.key}`) ? 'Saved' : 'Save to Sermon Resources'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {referencePreview.translations.length === 0 && referencePreview.crossReferences.length === 0 && referencePreview.lexicalEntries.length === 0 && (
@@ -656,7 +714,15 @@ export default function ResourceLibrary() {
                     <h3 className="font-serif text-lg text-[var(--worship-navy)] leading-tight truncate">{r.title}</h3>
                     {(r.author || r.publisher || r.year) && (
                       <p className="text-xs text-[var(--worship-slate)] mt-0.5 truncate">
-                        {[r.author, r.publisher, r.year].filter(Boolean).join(' · ')}
+                        {['bible-text', 'cross-reference', 'lexicon'].includes(r.resourceType)
+                          ? [
+                              r.author ? `Author: ${r.author}` : '',
+                              r.publisher ? `Edition: ${r.publisher}` : '',
+                              r.year,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')
+                          : [r.author, r.publisher, r.year].filter(Boolean).join(' · ')}
                       </p>
                     )}
                   </div>
@@ -677,6 +743,11 @@ export default function ResourceLibrary() {
                     "{r.excerpt}"
                   </p>
                 )}
+                {['bible-text', 'cross-reference', 'lexicon'].includes(r.resourceType) && r.notes && (
+                  <p className="text-[11px] text-[var(--worship-slate)]">
+                    <span className="font-semibold text-[var(--worship-navy)]">Attribution:</span> {r.notes}
+                  </p>
+                )}
                 {r.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {r.tags.map((t) => (
@@ -686,7 +757,7 @@ export default function ResourceLibrary() {
                 )}
                 {r.url && (
                   <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--worship-gold)] hover:underline flex items-center gap-1">
-                    <LinkIcon className="w-3 h-3" /> Open source
+                    <LinkIcon className="w-3 h-3" /> Provenance
                   </a>
                 )}
               </div>

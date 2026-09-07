@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readBibleToolsQuery } from './bibleTools';
+import {
+  crossReferenceLookupResource,
+  lexicalLookupResource,
+  readBibleToolsQuery,
+  translationLookupResource,
+} from './bibleTools';
 
 test('prefills a verse lookup from a passage query', () => {
   assert.deepEqual(readBibleToolsQuery('?passage=John%203%3A16'), {
@@ -29,4 +34,87 @@ test('malformed or absent query values safely produce an empty verse state', () 
     passage: '',
     term: '',
   });
+});
+
+test('translation lookup saves preserve the public-domain source metadata', () => {
+  assert.deepEqual(
+    translationLookupResource({
+      sourceId: 'kjv',
+      sourceTitle: 'King James Version',
+      sourceAuthor: 'Public Domain Committee',
+      sourceUrl: 'https://example.test/kjv',
+      attribution: 'King James Version, public domain',
+      reference: 'John 3:16',
+      book: 'John',
+      chapter: 3,
+      verse: 16,
+      text: 'For God so loved the world…',
+    }),
+    {
+      resourceType: 'bible-text',
+      title: 'John 3:16',
+      author: 'Public Domain Committee',
+      publisher: 'King James Version',
+      url: 'https://example.test/kjv',
+      excerpt: 'For God so loved the world…',
+      notes: 'King James Version, public domain',
+      relatedPassage: 'John 3:16',
+      tags: ['Bible Tools', 'Bible text'],
+    },
+  );
+});
+
+test('cross-reference and lexical lookups become independently saveable resources', () => {
+  assert.deepEqual(
+    crossReferenceLookupResource({
+      sourceId: 'treasury',
+      sourceTitle: 'Treasury of Scripture Knowledge',
+      sourceAuthor: 'R. A. Torrey',
+      sourceUrl: 'https://example.test/treasury',
+      attribution: 'Treasury of Scripture Knowledge, public domain',
+      sourceReference: 'John 3:16',
+      targets: ['Romans 5:8', '1 John 4:9'],
+      note: 'Related theme',
+    }),
+    {
+      resourceType: 'cross-reference',
+      title: 'John 3:16 cross-references',
+      author: 'R. A. Torrey',
+      publisher: 'Treasury of Scripture Knowledge',
+      url: 'https://example.test/treasury',
+      excerpt: 'Related passages: Romans 5:8, 1 John 4:9\nNote: Related theme',
+      notes: 'Treasury of Scripture Knowledge, public domain',
+      relatedPassage: 'John 3:16',
+      tags: ['Bible Tools', 'Cross-reference'],
+    },
+  );
+
+  assert.deepEqual(
+    lexicalLookupResource({
+      sourceId: 'strongs',
+      sourceTitle: "Strong's Greek Dictionary",
+      sourceAuthor: 'James Strong',
+      sourceUrl: 'https://example.test/strongs',
+      attribution: "Strong's Greek Dictionary, public domain",
+      key: 'G26',
+      term: 'love',
+      strongsNumber: 'G26',
+      originalWord: 'ἀγάπη',
+      transliteration: 'agapē',
+      language: 'Greek',
+      definition: 'Affection and benevolence.',
+      references: ['John 3:16'],
+    }),
+    {
+      resourceType: 'lexicon',
+      title: 'love word study',
+      author: 'James Strong',
+      publisher: "Strong's Greek Dictionary",
+      url: 'https://example.test/strongs',
+      excerpt: 'ἀγάπη (agapē)\n\nAffection and benevolence.\n\nRelated references: John 3:16',
+      notes: "Strong's Greek Dictionary, public domain",
+      relatedPassage: 'John 3:16',
+      tags: ['Bible Tools', 'Lexicon'],
+    },
+  );
 });

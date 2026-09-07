@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
+  BookmarkPlus,
   BookOpen,
+  Check,
   ExternalLink,
   Library,
   Loader2,
@@ -12,15 +15,25 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
+  getListSermonResourcesQueryKey,
+  useCreateSermonResource,
   useListScholarlySources,
   useLookupBibleReferences,
+  type CreateSermonResourceBody,
   type ReferenceBundle,
   type LexicalReferenceHit,
   type TranslationReferenceHit,
   type CrossReferenceHit,
 } from '@workspace/api-client-react';
 import { AppLayout } from '../components/layout/AppLayout';
-import { readBibleToolsQuery, type BibleToolsLookupMode } from '../lib/bibleTools';
+import {
+  crossReferenceLookupResource,
+  lexicalLookupResource,
+  readBibleToolsQuery,
+  translationLookupResource,
+  type BibleToolsLookupMode,
+} from '../lib/bibleTools';
+import { toast } from 'sonner';
 
 type LookupMode = BibleToolsLookupMode;
 
@@ -37,11 +50,17 @@ function SourceMeta({
   author,
   attribution,
   sourceUrl,
+  onSave,
+  saved,
+  saving,
 }: {
   title: string;
   author: string;
   attribution: string;
   sourceUrl: string;
+  onSave?: () => void;
+  saved?: boolean;
+  saving?: boolean;
 }) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--worship-slate)]">
@@ -50,14 +69,27 @@ function SourceMeta({
       <span>{author}</span>
       <span aria-hidden="true">·</span>
       <span>{attribution}</span>
-      <a
-        href={sourceUrl}
-        target="_blank"
-        rel="noreferrer noopener"
-        className="inline-flex items-center gap-1 text-[var(--worship-gold)] underline"
-      >
-        Provenance <ExternalLink className="h-3 w-3" />
-      </a>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="inline-flex items-center gap-1 text-[var(--worship-gold)] underline"
+        >
+          Provenance <ExternalLink className="h-3 w-3" />
+        </a>
+        {onSave && (
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saved || saving}
+            className="inline-flex items-center gap-1 font-medium text-[var(--worship-navy)] disabled:cursor-default disabled:opacity-70"
+          >
+            {saved ? <Check className="h-3 w-3" /> : <BookmarkPlus className="h-3 w-3" />}
+            {saved ? 'Saved to Sermon Resources' : saving ? 'Saving…' : 'Save to Sermon Resources'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -90,7 +122,17 @@ function ResultGroup({
   );
 }
 
-function TranslationResult({ hit }: { hit: TranslationReferenceHit }) {
+function TranslationResult({
+  hit,
+  onSave,
+  saved,
+  saving,
+}: {
+  hit: TranslationReferenceHit;
+  onSave: () => void;
+  saved: boolean;
+  saving: boolean;
+}) {
   return (
     <article className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -108,12 +150,25 @@ function TranslationResult({ hit }: { hit: TranslationReferenceHit }) {
         author={hit.sourceAuthor}
         attribution={hit.attribution}
         sourceUrl={hit.sourceUrl}
+        onSave={onSave}
+        saved={saved}
+        saving={saving}
       />
     </article>
   );
 }
 
-function CrossReferenceResult({ hit }: { hit: CrossReferenceHit }) {
+function CrossReferenceResult({
+  hit,
+  onSave,
+  saved,
+  saving,
+}: {
+  hit: CrossReferenceHit;
+  onSave: () => void;
+  saved: boolean;
+  saving: boolean;
+}) {
   return (
     <article className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
       <h4 className="font-semibold text-[var(--worship-navy)]">{hit.sourceReference}</h4>
@@ -126,12 +181,25 @@ function CrossReferenceResult({ hit }: { hit: CrossReferenceHit }) {
         author={hit.sourceAuthor}
         attribution={hit.attribution}
         sourceUrl={hit.sourceUrl}
+        onSave={onSave}
+        saved={saved}
+        saving={saving}
       />
     </article>
   );
 }
 
-function LexicalResult({ hit }: { hit: LexicalReferenceHit }) {
+function LexicalResult({
+  hit,
+  onSave,
+  saved,
+  saving,
+}: {
+  hit: LexicalReferenceHit;
+  onSave: () => void;
+  saved: boolean;
+  saving: boolean;
+}) {
   return (
     <article className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -164,12 +232,25 @@ function LexicalResult({ hit }: { hit: LexicalReferenceHit }) {
         author={hit.sourceAuthor}
         attribution={hit.attribution}
         sourceUrl={hit.sourceUrl}
+        onSave={onSave}
+        saved={saved}
+        saving={saving}
       />
     </article>
   );
 }
 
-function Results({ results }: { results: ReferenceBundle }) {
+function Results({
+  results,
+  savedKeys,
+  onSave,
+  saving,
+}: {
+  results: ReferenceBundle;
+  savedKeys: Set<string>;
+  onSave: (key: string, payload: CreateSermonResourceBody) => void;
+  saving: boolean;
+}) {
   const total = results.translations.length + results.crossReferences.length + results.lexicalEntries.length;
   if (total === 0) {
     return (
@@ -190,17 +271,47 @@ function Results({ results }: { results: ReferenceBundle }) {
     <div className="space-y-7">
       <ResultGroup title="Bible text" count={results.translations.length}>
         {results.translations.map((hit) => (
-          <TranslationResult key={`${hit.sourceId}-${hit.reference}`} hit={hit} />
+          <TranslationResult
+            key={`${hit.sourceId}-${hit.reference}`}
+            hit={hit}
+            onSave={() =>
+              onSave(
+                `translation:${hit.sourceId}:${hit.reference}`,
+                translationLookupResource(hit),
+              )
+            }
+            saved={savedKeys.has(`translation:${hit.sourceId}:${hit.reference}`)}
+            saving={saving}
+          />
         ))}
       </ResultGroup>
       <ResultGroup title="Cross-references" count={results.crossReferences.length}>
         {results.crossReferences.map((hit, index) => (
-          <CrossReferenceResult key={`${hit.sourceId}-${hit.sourceReference}-${index}`} hit={hit} />
+          <CrossReferenceResult
+            key={`${hit.sourceId}-${hit.sourceReference}-${index}`}
+            hit={hit}
+            onSave={() =>
+              onSave(
+                `cross-reference:${hit.sourceId}:${hit.sourceReference}:${index}`,
+                crossReferenceLookupResource(hit),
+              )
+            }
+            saved={savedKeys.has(`cross-reference:${hit.sourceId}:${hit.sourceReference}:${index}`)}
+            saving={saving}
+          />
         ))}
       </ResultGroup>
       <ResultGroup title="Dictionary / lexicon" count={results.lexicalEntries.length}>
         {results.lexicalEntries.map((hit) => (
-          <LexicalResult key={`${hit.sourceId}-${hit.key}`} hit={hit} />
+          <LexicalResult
+            key={`${hit.sourceId}-${hit.key}`}
+            hit={hit}
+            onSave={() =>
+              onSave(`lexicon:${hit.sourceId}:${hit.key}`, lexicalLookupResource(hit))
+            }
+            saved={savedKeys.has(`lexicon:${hit.sourceId}:${hit.key}`)}
+            saving={saving}
+          />
         ))}
       </ResultGroup>
     </div>
@@ -220,7 +331,10 @@ export default function BibleTools() {
   const [results, setResults] = useState<ReferenceBundle | null>(null);
   const [validationError, setValidationError] = useState('');
   const [requestError, setRequestError] = useState('');
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
   const lookup = useLookupBibleReferences();
+  const createResource = useCreateSermonResource();
+  const qc = useQueryClient();
   const sources = useListScholarlySources();
 
   useEffect(() => {
@@ -292,6 +406,21 @@ export default function BibleTools() {
     setResults(null);
     setValidationError('');
     setRequestError('');
+  };
+
+  const saveLookup = (key: string, payload: CreateSermonResourceBody) => {
+    if (savedKeys.has(key)) return;
+    createResource.mutate(
+      { data: payload },
+      {
+        onSuccess: () => {
+          setSavedKeys((current) => new Set(current).add(key));
+          void qc.invalidateQueries({ queryKey: getListSermonResourcesQueryKey() });
+          toast.success('Saved to Sermon Resources');
+        },
+        onError: () => toast.error('Could not save this lookup result. Please try again.'),
+      },
+    );
   };
 
   const hasSources = enabledReferenceCount !== undefined && enabledReferenceCount > 0;
@@ -468,7 +597,12 @@ export default function BibleTools() {
                     <RotateCcw className="h-3.5 w-3.5" /> Reset
                   </button>
                 </div>
-                <Results results={results} />
+                <Results
+                  results={results}
+                  savedKeys={savedKeys}
+                  onSave={saveLookup}
+                  saving={createResource.isPending}
+                />
               </div>
             )}
             {lookup.isError && !requestError && (
