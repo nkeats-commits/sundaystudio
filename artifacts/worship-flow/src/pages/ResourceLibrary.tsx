@@ -258,6 +258,7 @@ export default function ResourceLibrary() {
   }, [addedReferences, search]);
 
   const totalRows = filteredSaved.length + filteredCommentaries.length + filteredReferences.length;
+  const hasSearch = search.trim().length > 0;
 
   const previewReferences = () => {
     const passage = referencePassage.trim();
@@ -702,6 +703,21 @@ export default function ResourceLibrary() {
 
         {list.isLoading || sources.isLoading ? (
           <div className="worship-card text-sm text-[var(--worship-slate)]">Loading resources…</div>
+        ) : totalRows === 0 && hasSearch ? (
+          <div className="worship-card text-center py-16">
+            <Search className="w-12 h-12 mx-auto mb-3 text-[var(--worship-muted-slate)] opacity-60" />
+            <h3 className="font-serif text-xl text-[var(--worship-navy)]">No saved resources matched your search</h3>
+            <p className="text-sm text-[var(--worship-slate)] mt-1 mb-5 max-w-md mx-auto">
+              Try a different title, author, passage, source, or tag.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="worship-btn-primary px-4 py-2 rounded-lg text-sm"
+            >
+              Clear search
+            </button>
+          </div>
         ) : totalRows === 0 ? (
           <div className="worship-card text-center py-16">
             <BookOpen className="w-12 h-12 mx-auto mb-3 text-[var(--worship-muted-slate)] opacity-60" />

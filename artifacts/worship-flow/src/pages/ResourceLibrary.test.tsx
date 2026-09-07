@@ -374,6 +374,56 @@ test('finds each saved Bible lookup type by publisher, attribution, or provenanc
   assert.equal(screen.getAllByRole('heading', { name: 'love word study', exact: true }).length, 1);
 });
 
+test('explains when a search has no saved resource matches and lets the user clear it', () => {
+  listState.data = [
+    {
+      id: 1,
+      userId: 'test-user',
+      resourceType: 'commentary',
+      title: 'A saved commentary',
+      author: 'A trusted author',
+      publisher: '',
+      year: '',
+      pageOrLocation: '',
+      url: '',
+      excerpt: '',
+      summary: '',
+      notes: '',
+      relatedPassage: '',
+      tags: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  renderPage();
+  const searchInput = screen.getByPlaceholderText('Search by title, author, passage, source, tags…');
+
+  fireEvent.change(searchInput, { target: { value: 'not in my library' } });
+
+  assert.ok(screen.getByRole('heading', { name: 'No saved resources matched your search' }));
+  assert.ok(screen.getByText('Try a different title, author, passage, source, or tag.'));
+  assert.ok(screen.queryByRole('heading', { name: 'Your library is empty' }) === null);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+
+  assert.equal((searchInput as HTMLInputElement).value, '');
+  assert.ok(screen.getByRole('heading', { name: 'A saved commentary' }));
+  assert.equal(screen.queryByRole('heading', { name: 'No saved resources matched your search' }), null);
+});
+
+test('keeps the empty-library guidance when no search is active', () => {
+  listState.data = [];
+  sourcesState.data = { enabledSourceIds: [], sources: [] };
+
+  renderPage();
+
+  assert.ok(screen.getByRole('heading', { name: 'Your library is empty' }));
+  assert.ok(screen.getByText('Add a bundled public-domain commentary above, or paste an excerpt from a commentary or article you trust to start building your reference set.'));
+  assert.ok(screen.getByRole('button', { name: 'Add your first resource' }));
+  assert.equal(screen.queryByRole('button', { name: 'Clear search' }), null);
+});
+
 test('shows a retry action when the Bible reference preview fails', async () => {
   renderPage();
   beginLookup();
