@@ -225,7 +225,17 @@ export default function ResourceLibrary() {
     const items = list.data ?? [];
     if (!q) return items;
     return items.filter((r) => {
-      const hay = [r.title, r.author, r.relatedPassage, r.excerpt, r.summary, ...r.tags].join(' ').toLowerCase();
+      const hay = [
+        r.title,
+        r.author,
+        r.publisher,
+        r.notes,
+        r.url,
+        r.relatedPassage,
+        r.excerpt,
+        r.summary,
+        ...r.tags,
+      ].join(' ').toLowerCase();
       return hay.includes(q);
     });
   }, [list.data, search]);
@@ -685,7 +695,7 @@ export default function ResourceLibrary() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by title, author, passage, tags…"
+            placeholder="Search by title, author, passage, source, tags…"
             className="flex-1 bg-transparent outline-none text-sm py-1.5"
           />
         </div>
