@@ -69,6 +69,7 @@ let lookupState: {
   isError: boolean;
   mutate: (variables: { data: Record<string, unknown> }, callbacks: LookupCallbacks) => void;
 };
+let savedResourcePayloads: Record<string, unknown>[] = [];
 let lastLookup:
   | {
       variables: { data: Record<string, unknown> };
@@ -175,7 +176,16 @@ mock.module('@tanstack/react-query', {
 mock.module('@workspace/api-client-react', {
   namedExports: {
     getListSermonResourcesQueryKey: () => ['sermon-resources'],
-    useCreateSermonResource: () => ({ isPending: false, mutate: () => undefined }),
+    useCreateSermonResource: () => ({
+      isPending: false,
+      mutate: (
+        variables: { data: Record<string, unknown> },
+        callbacks: { onSuccess?: () => void },
+      ) => {
+        savedResourcePayloads.push(variables.data);
+        callbacks.onSuccess?.();
+      },
+    }),
     useListScholarlySources: () => enabledSources,
     useLookupBibleReferences: () => lookupState,
   },
@@ -241,6 +251,7 @@ beforeEach(() => {
       lastLookup = { variables, callbacks };
     },
   };
+  savedResourcePayloads = [];
   lastLookup = undefined;
   activeRerender = undefined;
 });
@@ -288,6 +299,46 @@ test('completes a verse lookup with grouped, attributed results at desktop width
   assert.ok(screen.getByText('King James Version, public domain'));
   assert.equal(screen.getAllByRole('link', { name: /Provenance/ }).length, 3);
   assert.equal(screen.getByRole('button', { name: 'Reset' }).textContent?.trim(), 'Reset');
+});
+
+test('saves each Bible lookup type and disables the button after saving', async () => {
+  renderPage(390);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup(sampleResults);
+
+  const saveButtons = screen.getAllByRole('button', { name: 'Save to Sermon Resources' });
+  assert.equal(saveButtons.length, 3);
+  for (const button of saveButtons) fireEvent.click(button);
+
+  await waitFor(() => {
+    assert.equal(savedResourcePayloads.length, 3);
+    assert.equal(
+      screen.getAllByRole('button', { name: 'Saved to Sermon Resources' }).length,
+      3,
+    );
+  });
+  assert.deepEqual(
+    savedResourcePayloads.map((payload) => payload.resourceType),
+    ['bible-text', 'cross-reference', 'lexicon'],
+  );
+  assert.equal(savedResourcePayloads[0].publisher, 'King James Version');
+  assert.equal(savedResourcePayloads[0].relatedPassage, 'John 3:16');
+  assert.equal(savedResourcePayloads[0].notes, 'King James Version, public domain');
+  assert.equal(savedResourcePayloads[1].publisher, 'Treasury of Scripture Knowledge');
+  assert.equal(savedResourcePayloads[1].relatedPassage, 'John 3:16');
+  assert.equal(
+    savedResourcePayloads[1].notes,
+    'Treasury of Scripture Knowledge, public domain',
+  );
+  assert.equal(savedResourcePayloads[2].publisher, "Strong's Greek Dictionary");
+  assert.equal(savedResourcePayloads[2].relatedPassage, 'John 3:16');
+  assert.equal(savedResourcePayloads[2].notes, "Strong's Greek Dictionary, public domain");
+
+  const savedButtons = screen.getAllByRole('button', { name: 'Saved to Sermon Resources' });
+  assert.ok(savedButtons.every((button) => (button as HTMLButtonElement).disabled));
+  fireEvent.click(savedButtons[0]);
+  assert.equal(savedResourcePayloads.length, 3);
 });
 
 test('sends a term-only word lookup and shows the empty state at mobile width', async () => {

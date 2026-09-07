@@ -19,9 +19,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import type { AddressInfo } from "node:net";
-import { db, libraryItemsTable, usersTable } from "@workspace/db";
+import {
+  db,
+  libraryItemsTable,
+  sermonResourcesTable,
+  usersTable,
+} from "@workspace/db";
 import { eq } from "drizzle-orm";
 import libraryRouter from "./library";
+import sermonResourcesRouter from "./sermonResources";
 
 /**
  * Seed a fresh users-table row so `requireActiveAccess` can compute
@@ -37,6 +43,7 @@ function makeApp() {
   const app = express();
   app.use(express.json({ limit: "10mb" }));
   app.use("/api", libraryRouter);
+  app.use("/api", sermonResourcesRouter);
   return app;
 }
 
@@ -57,6 +64,7 @@ function userId() {
 
 async function cleanup(uid: string) {
   await db.delete(libraryItemsTable).where(eq(libraryItemsTable.userId, uid));
+  await db.delete(sermonResourcesTable).where(eq(sermonResourcesTable.userId, uid));
   await db.delete(usersTable).where(eq(usersTable.id, uid));
 }
 
@@ -144,6 +152,87 @@ test("POST /api/library/repertoire/bulk-import round-trips all CSV-import fields
     assert.equal(gc.notes, undefined);
     assert.equal(gc.arrangementNotes, undefined);
     assert.equal(gc.lastScheduledDate, undefined);
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});
+
+test("Bible lookup resources retain provenance and related passages in Sermon Resources", async () => {
+  const uid = userId();
+  await cleanup(uid);
+  await seedTrialUser(uid);
+  const { base, close } = await startServer();
+  const headers = {
+    "content-type": "application/json",
+    "x-test-user-id": uid,
+  };
+  const resources = [
+    {
+      resourceType: "bible-text",
+      title: "John 3:16",
+      author: "Public Domain Committee",
+      publisher: "King James Version",
+      url: "https://example.test/kjv",
+      excerpt: "For God so loved the world.",
+      notes: "King James Version, public domain",
+      relatedPassage: "John 3:16",
+      tags: ["Bible Tools", "Bible text"],
+    },
+    {
+      resourceType: "cross-reference",
+      title: "John 3:16 cross-references",
+      author: "R. A. Torrey",
+      publisher: "Treasury of Scripture Knowledge",
+      url: "https://example.test/tsk",
+      excerpt: "Related passages: Romans 5:8, 1 John 4:9",
+      notes: "Treasury of Scripture Knowledge, public domain",
+      relatedPassage: "John 3:16",
+      tags: ["Bible Tools", "Cross-reference"],
+    },
+    {
+      resourceType: "lexicon",
+      title: "love word study",
+      author: "James Strong",
+      publisher: "Strong's Greek Dictionary",
+      url: "https://example.test/strongs",
+      excerpt: "ἀγάπη (agapē)\n\nAffection and benevolence.",
+      notes: "Strong's Greek Dictionary, public domain",
+      relatedPassage: "John 3:16",
+      tags: ["Bible Tools", "Lexicon"],
+    },
+  ];
+
+  try {
+    for (const resource of resources) {
+      const res = await fetch(`${base}/api/sermon-resources`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(resource),
+      });
+      const text = await res.text();
+      assert.equal(res.status, 201, text);
+      const saved = JSON.parse(text) as Record<string, unknown>;
+      assert.equal(saved.resourceType, resource.resourceType);
+      assert.equal(saved.publisher, resource.publisher);
+      assert.equal(saved.notes, resource.notes);
+      assert.equal(saved.relatedPassage, resource.relatedPassage);
+    }
+
+    const list = await fetch(`${base}/api/sermon-resources`, {
+      headers: { "x-test-user-id": uid },
+    });
+    assert.equal(list.status, 200);
+    const savedResources = (await list.json()) as Array<Record<string, unknown>>;
+    assert.equal(savedResources.length, resources.length);
+    for (const resource of resources) {
+      const saved = savedResources.find((row) => row.resourceType === resource.resourceType);
+      assert.ok(saved, `missing ${resource.resourceType} resource`);
+      assert.equal(saved!.publisher, resource.publisher);
+      assert.equal(saved!.url, resource.url);
+      assert.equal(saved!.notes, resource.notes);
+      assert.equal(saved!.relatedPassage, resource.relatedPassage);
+    }
   } finally {
     await close();
     await cleanup(uid);

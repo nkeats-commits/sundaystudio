@@ -32,7 +32,7 @@ const sourcesState = {
   isLoading: false,
 };
 const listState = {
-  data: [],
+  data: [] as Array<Record<string, unknown>>,
   isLoading: false,
 };
 let lookupState: {
@@ -218,6 +218,83 @@ test('shows successful Bible reference preview results with their provenance act
   assert.ok(screen.getByText('For God so loved the world.'));
   assert.ok(screen.getByRole('link', { name: 'provenance' }));
   assert.ok(screen.getByRole('button', { name: 'Save to Sermon Resources' }));
+});
+
+test('lists saved Bible lookups with source attribution and related passages', () => {
+  listState.data = [
+    {
+      id: 1,
+      userId: 'test-user',
+      resourceType: 'bible-text',
+      title: 'John 3:16',
+      author: 'Public Domain Committee',
+      publisher: 'King James Version',
+      year: '',
+      pageOrLocation: '',
+      url: 'https://example.test/kjv',
+      excerpt: 'For God so loved the world.',
+      summary: '',
+      notes: 'King James Version, public domain',
+      relatedPassage: 'John 3:16',
+      tags: ['Bible Tools', 'Bible text'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: 2,
+      userId: 'test-user',
+      resourceType: 'cross-reference',
+      title: 'John 3:16 cross-references',
+      author: 'R. A. Torrey',
+      publisher: 'Treasury of Scripture Knowledge',
+      year: '',
+      pageOrLocation: '',
+      url: 'https://example.test/tsk',
+      excerpt: 'Related passages: Romans 5:8, 1 John 4:9',
+      summary: '',
+      notes: 'Treasury of Scripture Knowledge, public domain',
+      relatedPassage: 'John 3:16',
+      tags: ['Bible Tools', 'Cross-reference'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: 3,
+      userId: 'test-user',
+      resourceType: 'lexicon',
+      title: 'love word study',
+      author: 'James Strong',
+      publisher: "Strong's Greek Dictionary",
+      year: '',
+      pageOrLocation: '',
+      url: 'https://example.test/strongs',
+      excerpt: 'ἀγάπη (agapē)\n\nAffection and benevolence.',
+      summary: '',
+      notes: "Strong's Greek Dictionary, public domain",
+      relatedPassage: 'John 3:16',
+      tags: ['Bible Tools', 'Lexicon'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  renderPage();
+
+  assert.ok(screen.getByText('John 3:16 cross-references'));
+  assert.ok(screen.getByText('love word study'));
+  assert.ok(screen.getByText(/Edition: King James Version/));
+  assert.ok(screen.getByText(/Edition: Treasury of Scripture Knowledge/));
+  assert.ok(screen.getByText(/Edition: Strong's Greek Dictionary/));
+  assert.match(document.body.textContent ?? '', /Attribution:\s*King James Version, public domain/);
+  assert.match(
+    document.body.textContent ?? '',
+    /Attribution:\s*Treasury of Scripture Knowledge, public domain/,
+  );
+  assert.match(
+    document.body.textContent ?? '',
+    /Attribution:\s*Strong's Greek Dictionary, public domain/,
+  );
+  assert.equal(screen.getAllByText('John 3:16').length, 4);
 });
 
 test('shows a retry action when the Bible reference preview fails', async () => {
