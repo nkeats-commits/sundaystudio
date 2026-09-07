@@ -3346,6 +3346,41 @@ export const CreateSermonResourceBody = zod.object({
   tags: zod.array(zod.string()).optional(),
 });
 
+export const CreateSermonResourceResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  resourceType: zod
+    .string()
+    .describe(
+      "Resource kind. Bible Tools saves use bible-text, cross-reference, or lexicon.",
+    ),
+  title: zod.string(),
+  author: zod.string(),
+  publisher: zod
+    .string()
+    .describe(
+      "Publisher or edition\/source title. Bible Tools saves retain the public-domain edition here.",
+    ),
+  year: zod.string(),
+  pageOrLocation: zod.string(),
+  url: zod
+    .string()
+    .describe(
+      "Source URL. Bible Tools saves retain the lookup result's provenance link here.",
+    ),
+  excerpt: zod.string(),
+  summary: zod.string(),
+  notes: zod
+    .string()
+    .describe(
+      "Personal notes. Bible Tools saves retain the source attribution here.",
+    ),
+  relatedPassage: zod.string(),
+  tags: zod.array(zod.string()),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
 /**
  * @summary Update a sermon resource
  */

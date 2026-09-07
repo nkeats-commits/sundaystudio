@@ -7,6 +7,39 @@ import type {
 
 export type BibleToolsLookupMode = 'verse' | 'word';
 
+type BibleLookupResource = Pick<
+  CreateSermonResourceBody,
+  | 'resourceType'
+  | 'title'
+  | 'author'
+  | 'publisher'
+  | 'url'
+  | 'excerpt'
+  | 'notes'
+  | 'relatedPassage'
+>;
+
+/**
+ * Return a stable identity for a Bible Tools resource.
+ *
+ * Tags are intentionally excluded because they are editable library metadata,
+ * not part of the lookup result itself. The remaining fields preserve the
+ * source, provenance, and displayed result content needed to distinguish
+ * translation, cross-reference, and lexicon entries.
+ */
+export function bibleLookupResourceKey(resource: BibleLookupResource): string {
+  return JSON.stringify([
+    resource.resourceType ?? '',
+    resource.title,
+    resource.author ?? '',
+    resource.publisher ?? '',
+    resource.url ?? '',
+    resource.excerpt ?? '',
+    resource.notes ?? '',
+    resource.relatedPassage ?? '',
+  ]);
+}
+
 export interface BibleToolsQuery {
   mode: BibleToolsLookupMode;
   passage: string;

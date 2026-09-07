@@ -219,6 +219,18 @@ test("Bible lookup resources retain provenance and related passages in Sermon Re
       assert.equal(saved.relatedPassage, resource.relatedPassage);
     }
 
+    for (const resource of resources) {
+      const duplicate = await fetch(`${base}/api/sermon-resources`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(resource),
+      });
+      const text = await duplicate.text();
+      assert.equal(duplicate.status, 200, text);
+      const saved = JSON.parse(text) as Record<string, unknown>;
+      assert.equal(saved.resourceType, resource.resourceType);
+    }
+
     const list = await fetch(`${base}/api/sermon-resources`, {
       headers: { "x-test-user-id": uid },
     });

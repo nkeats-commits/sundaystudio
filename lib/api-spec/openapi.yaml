@@ -1250,6 +1250,12 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateSermonResourceBody"
       responses:
+        "200":
+          description: Existing resource returned when the Bible lookup was already saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SermonResource"
         "201":
           description: Created resource
           content:

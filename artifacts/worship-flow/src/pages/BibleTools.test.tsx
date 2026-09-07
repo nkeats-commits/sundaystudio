@@ -70,6 +70,10 @@ let lookupState: {
   mutate: (variables: { data: Record<string, unknown> }, callbacks: LookupCallbacks) => void;
 };
 let savedResourcePayloads: Record<string, unknown>[] = [];
+const savedResourcesState = {
+  data: [] as Array<Record<string, unknown>>,
+  isLoading: false,
+};
 let lastLookup:
   | {
       variables: { data: Record<string, unknown> };
@@ -186,6 +190,7 @@ mock.module('@workspace/api-client-react', {
         callbacks.onSuccess?.();
       },
     }),
+    useListSermonResources: () => savedResourcesState,
     useListScholarlySources: () => enabledSources,
     useLookupBibleReferences: () => lookupState,
   },
@@ -252,6 +257,7 @@ beforeEach(() => {
     },
   };
   savedResourcePayloads = [];
+  savedResourcesState.data = [];
   lastLookup = undefined;
   activeRerender = undefined;
 });
@@ -339,6 +345,47 @@ test('saves each Bible lookup type and disables the button after saving', async 
   assert.ok(savedButtons.every((button) => (button as HTMLButtonElement).disabled));
   fireEvent.click(savedButtons[0]);
   assert.equal(savedResourcePayloads.length, 3);
+});
+
+test('recognizes previously saved translation, cross-reference, and lexicon results after refresh', async () => {
+  renderPage(390);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup(sampleResults);
+
+  const saveButtons = screen.getAllByRole('button', { name: 'Save to Sermon Resources' });
+  assert.equal(saveButtons.length, 3);
+  for (const button of saveButtons) fireEvent.click(button);
+  await waitFor(() => assert.equal(savedResourcePayloads.length, 3));
+
+  savedResourcesState.data = savedResourcePayloads.map((payload, index) => ({
+    id: index + 1,
+    ...payload,
+    author: payload.author ?? '',
+    publisher: payload.publisher ?? '',
+    year: '',
+    pageOrLocation: '',
+    url: payload.url ?? '',
+    excerpt: payload.excerpt ?? '',
+    summary: '',
+    notes: payload.notes ?? '',
+    relatedPassage: payload.relatedPassage ?? '',
+    tags: payload.tags ?? [],
+  }));
+
+  // A refresh unmounts the page and opens it again with the server list
+  // already hydrated, rather than carrying over local button state.
+  cleanup();
+  document.body.innerHTML = '';
+  renderPage(390);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup(sampleResults);
+
+  await waitFor(() => {
+    assert.equal(screen.getAllByRole('button', { name: 'Saved to Sermon Resources' }).length, 3);
+  });
+  assert.equal(screen.queryAllByRole('button', { name: 'Save to Sermon Resources' }).length, 0);
 });
 
 test('sends a term-only word lookup and shows the empty state at mobile width', async () => {

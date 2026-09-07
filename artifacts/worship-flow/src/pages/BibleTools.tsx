@@ -17,6 +17,7 @@ import {
 import {
   getListSermonResourcesQueryKey,
   useCreateSermonResource,
+  useListSermonResources,
   useListScholarlySources,
   useLookupBibleReferences,
   type CreateSermonResourceBody,
@@ -28,6 +29,7 @@ import {
 import { AppLayout } from '../components/layout/AppLayout';
 import {
   crossReferenceLookupResource,
+  bibleLookupResourceKey,
   lexicalLookupResource,
   readBibleToolsQuery,
   translationLookupResource,
@@ -270,49 +272,49 @@ function Results({
   return (
     <div className="space-y-7">
       <ResultGroup title="Bible text" count={results.translations.length}>
-        {results.translations.map((hit) => (
-          <TranslationResult
-            key={`${hit.sourceId}-${hit.reference}`}
-            hit={hit}
-            onSave={() =>
-              onSave(
-                `translation:${hit.sourceId}:${hit.reference}`,
-                translationLookupResource(hit),
-              )
-            }
-            saved={savedKeys.has(`translation:${hit.sourceId}:${hit.reference}`)}
-            saving={saving}
-          />
-        ))}
+        {results.translations.map((hit) => {
+          const payload = translationLookupResource(hit);
+          const key = bibleLookupResourceKey(payload);
+          return (
+            <TranslationResult
+              key={`${hit.sourceId}-${hit.reference}`}
+              hit={hit}
+              onSave={() => onSave(key, payload)}
+              saved={savedKeys.has(key)}
+              saving={saving}
+            />
+          );
+        })}
       </ResultGroup>
       <ResultGroup title="Cross-references" count={results.crossReferences.length}>
-        {results.crossReferences.map((hit, index) => (
-          <CrossReferenceResult
-            key={`${hit.sourceId}-${hit.sourceReference}-${index}`}
-            hit={hit}
-            onSave={() =>
-              onSave(
-                `cross-reference:${hit.sourceId}:${hit.sourceReference}:${index}`,
-                crossReferenceLookupResource(hit),
-              )
-            }
-            saved={savedKeys.has(`cross-reference:${hit.sourceId}:${hit.sourceReference}:${index}`)}
-            saving={saving}
-          />
-        ))}
+        {results.crossReferences.map((hit, index) => {
+          const payload = crossReferenceLookupResource(hit);
+          const key = bibleLookupResourceKey(payload);
+          return (
+            <CrossReferenceResult
+              key={`${hit.sourceId}-${hit.sourceReference}-${index}`}
+              hit={hit}
+              onSave={() => onSave(key, payload)}
+              saved={savedKeys.has(key)}
+              saving={saving}
+            />
+          );
+        })}
       </ResultGroup>
       <ResultGroup title="Dictionary / lexicon" count={results.lexicalEntries.length}>
-        {results.lexicalEntries.map((hit) => (
-          <LexicalResult
-            key={`${hit.sourceId}-${hit.key}`}
-            hit={hit}
-            onSave={() =>
-              onSave(`lexicon:${hit.sourceId}:${hit.key}`, lexicalLookupResource(hit))
-            }
-            saved={savedKeys.has(`lexicon:${hit.sourceId}:${hit.key}`)}
-            saving={saving}
-          />
-        ))}
+        {results.lexicalEntries.map((hit) => {
+          const payload = lexicalLookupResource(hit);
+          const key = bibleLookupResourceKey(payload);
+          return (
+            <LexicalResult
+              key={`${hit.sourceId}-${hit.key}`}
+              hit={hit}
+              onSave={() => onSave(key, payload)}
+              saved={savedKeys.has(key)}
+              saving={saving}
+            />
+          );
+        })}
       </ResultGroup>
     </div>
   );
@@ -331,11 +333,23 @@ export default function BibleTools() {
   const [results, setResults] = useState<ReferenceBundle | null>(null);
   const [validationError, setValidationError] = useState('');
   const [requestError, setRequestError] = useState('');
-  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [locallySavedKeys, setLocallySavedKeys] = useState<Set<string>>(new Set());
   const lookup = useLookupBibleReferences();
   const createResource = useCreateSermonResource();
+  const resources = useListSermonResources();
   const qc = useQueryClient();
   const sources = useListScholarlySources();
+
+  const savedKeys = useMemo(() => {
+    const keys = new Set(locallySavedKeys);
+    for (const resource of resources.data ?? []) {
+      if (!['bible-text', 'cross-reference', 'lexicon'].includes(resource.resourceType)) {
+        continue;
+      }
+      keys.add(bibleLookupResourceKey(resource));
+    }
+    return keys;
+  }, [locallySavedKeys, resources.data]);
 
   useEffect(() => {
     // Query parameters are intentionally read only on first render. This keeps
@@ -414,7 +428,7 @@ export default function BibleTools() {
       { data: payload },
       {
         onSuccess: () => {
-          setSavedKeys((current) => new Set(current).add(key));
+          setLocallySavedKeys((current) => new Set(current).add(key));
           void qc.invalidateQueries({ queryKey: getListSermonResourcesQueryKey() });
           toast.success('Saved to Sermon Resources');
         },

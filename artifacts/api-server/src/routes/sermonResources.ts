@@ -80,23 +80,54 @@ router.post("/sermon-resources", requireAuth, requireActiveAccess, async (req, r
     return;
   }
   const d = parsed.data;
+  const resourceType = d.resourceType ?? "note";
+  const resourceValues = {
+    userId: req.userId!,
+    resourceType,
+    title: d.title,
+    author: d.author ?? "",
+    publisher: d.publisher ?? "",
+    year: d.year ?? "",
+    pageOrLocation: d.pageOrLocation ?? "",
+    url: d.url ?? "",
+    excerpt: d.excerpt ?? "",
+    summary: d.summary ?? "",
+    notes: d.notes ?? "",
+    relatedPassage: d.relatedPassage ?? "",
+    tags: d.tags ?? [],
+  };
+
+  // Bible Tools results can be submitted again after a refresh or from
+  // multiple tabs. These scalar fields form the result's stable identity;
+  // tags are intentionally excluded because they are editable library
+  // metadata rather than part of the lookup result.
+  if (["bible-text", "cross-reference", "lexicon"].includes(resourceType)) {
+    const [existing] = await db
+      .select()
+      .from(sermonResourcesTable)
+      .where(
+        and(
+          eq(sermonResourcesTable.userId, req.userId!),
+          eq(sermonResourcesTable.resourceType, resourceType),
+          eq(sermonResourcesTable.title, resourceValues.title),
+          eq(sermonResourcesTable.author, resourceValues.author),
+          eq(sermonResourcesTable.publisher, resourceValues.publisher),
+          eq(sermonResourcesTable.url, resourceValues.url),
+          eq(sermonResourcesTable.excerpt, resourceValues.excerpt),
+          eq(sermonResourcesTable.notes, resourceValues.notes),
+          eq(sermonResourcesTable.relatedPassage, resourceValues.relatedPassage),
+        ),
+      )
+      .limit(1);
+    if (existing) {
+      res.status(200).json(existing);
+      return;
+    }
+  }
+
   const [row] = await db
     .insert(sermonResourcesTable)
-    .values({
-      userId: req.userId!,
-      resourceType: d.resourceType ?? "note",
-      title: d.title,
-      author: d.author ?? "",
-      publisher: d.publisher ?? "",
-      year: d.year ?? "",
-      pageOrLocation: d.pageOrLocation ?? "",
-      url: d.url ?? "",
-      excerpt: d.excerpt ?? "",
-      summary: d.summary ?? "",
-      notes: d.notes ?? "",
-      relatedPassage: d.relatedPassage ?? "",
-      tags: d.tags ?? [],
-    })
+    .values(resourceValues)
     .returning();
   res.status(201).json(row);
 });
