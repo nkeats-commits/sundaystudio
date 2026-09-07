@@ -2,9 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  describeReferenceLookupFailure,
   listRegisteredReferenceSources,
   lookupReferenceBundle,
   REFERENCE_BUNDLE_BUDGET_CHARS,
+  ReferenceSourceError,
 } from "./referenceSources";
 import { parsePassageVerses } from "./scholarlySources";
 
@@ -155,6 +157,21 @@ test("reference lookup returns visibly typed, source-labeled results", () => {
     assert.ok(hit.attribution);
     assert.ok(hit.sourceUrl);
   }
+});
+
+test("reference lookup failures preserve the source kind without exposing internals", () => {
+  assert.deepEqual(
+    describeReferenceLookupFailure(
+      new ReferenceSourceError("cross-reference", new Error("internal detail")),
+    ),
+    {
+      error: "Cross-reference lookup failed. Please try again.",
+      source: "cross-reference",
+    },
+  );
+  assert.deepEqual(describeReferenceLookupFailure(new Error("unknown failure")), {
+    error: "Could not preview references.",
+  });
 });
 
 test("disabled and unrelated reference sources contribute nothing", () => {

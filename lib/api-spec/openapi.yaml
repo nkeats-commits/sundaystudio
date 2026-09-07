@@ -1075,6 +1075,12 @@ paths:
                 $ref: "#/components/schemas/PreviewSermonResourcesResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: A reference source failed while building the preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferenceLookupError"
 
   /sermons/{id}:
     get:
@@ -2095,6 +2101,12 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: A reference source failed while building the lookup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferenceLookupError"
 
   /sources/preferences:
     put:
@@ -4681,6 +4693,18 @@ components:
           items:
             $ref: "#/components/schemas/LexicalReferenceHit"
       required: [translations, crossReferences, lexicalEntries]
+
+    ReferenceLookupError:
+      type: object
+      description: Safe error details for a failed Bible reference source lookup.
+      properties:
+        error:
+          type: string
+        source:
+          type: string
+          enum: [translation, cross-reference, lexicon]
+          description: The reference source kind that failed, when the server can identify it.
+      required: [error]
 
     TranslationReferenceHit:
       type: object

@@ -22,6 +22,7 @@ import {
   listRegisteredSources,
 } from "../lib/scholarlySources";
 import {
+  describeReferenceLookupFailure,
   isRegisteredReferenceSource,
   lookupReferenceBundle,
   listRegisteredReferenceSources,
@@ -53,7 +54,12 @@ router.post("/sources/lookup", requireAuth, async (req, res) => {
     ...(parsed.data.passage ? [parsed.data.passage] : []),
     ...(parsed.data.secondaryPassages ?? []),
   ];
-  res.json(lookupReferenceBundle(enabled, passages, parsed.data.terms ?? []));
+  try {
+    res.json(lookupReferenceBundle(enabled, passages, parsed.data.terms ?? []));
+  } catch (error) {
+    req.log.error({ err: error }, "Bible reference lookup failed");
+    res.status(500).json(describeReferenceLookupFailure(error));
+  }
 });
 
 router.put("/sources/preferences", requireAuth, async (req, res) => {

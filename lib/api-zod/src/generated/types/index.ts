@@ -154,6 +154,8 @@ export * from "./previewSermonResourcesResponse";
 export * from "./recommendedScripture";
 export * from "./referenceBundle";
 export * from "./referenceLookupBody";
+export * from "./referenceLookupError";
+export * from "./referenceLookupErrorSource";
 export * from "./repertoireImportSong";
 export * from "./scholarlySourceManifest";
 export * from "./scholarlySourceManifestKind";

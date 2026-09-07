@@ -44,7 +44,7 @@ let activeRerender: ((ui: React.ReactElement) => void) | undefined;
 
 type LookupCallbacks = {
   onSuccess?: (data: ReferenceBundle) => void;
-  onError?: (error: Error) => void;
+  onError?: (error: unknown) => void;
 };
 
 type ReferenceBundle = {
@@ -311,4 +311,43 @@ test('shows a retry action when the Bible reference preview fails', async () => 
   fireEvent.click(screen.getByRole('button', { name: 'Retry preview' }));
   assert.equal(lookupState.isPending, true);
   assert.ok(lastLookup);
+});
+
+test('explains which Bible reference source failed when the API provides it', async () => {
+  renderPage();
+  beginLookup();
+
+  await act(async () => {
+    lookupState.isPending = false;
+    lastLookup?.callbacks.onError?.({
+      data: {
+        error: 'Bible translation lookup failed. Please try again.',
+        source: 'translation',
+      },
+    });
+    activeRerender?.(<ResourceLibrary />);
+  });
+
+  assert.match(
+    screen.getByRole('alert').textContent ?? '',
+    /Bible translation lookup failed/,
+  );
+  assert.ok(screen.getByRole('button', { name: 'Retry preview' }));
+});
+
+test('uses the generic fallback when a preview failure has no usable details', async () => {
+  renderPage();
+  beginLookup();
+
+  await act(async () => {
+    lookupState.isPending = false;
+    lastLookup?.callbacks.onError?.({});
+    activeRerender?.(<ResourceLibrary />);
+  });
+
+  assert.match(
+    screen.getByRole('alert').textContent ?? '',
+    /Could not preview references\./,
+  );
+  assert.ok(screen.getByRole('button', { name: 'Retry preview' }));
 });

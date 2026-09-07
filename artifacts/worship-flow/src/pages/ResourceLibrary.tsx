@@ -108,6 +108,32 @@ function tagsFromText(s: string): string[] {
   return s.split(',').map((t) => t.trim()).filter(Boolean);
 }
 
+const REFERENCE_SOURCE_LABELS = {
+  translation: 'Bible translation',
+  'cross-reference': 'cross-reference',
+  lexicon: 'lexicon',
+} as const;
+
+function referencePreviewErrorMessage(error: unknown): string {
+  const data =
+    error && typeof error === 'object' && 'data' in error
+      ? (error as { data?: unknown }).data
+      : undefined;
+  if (data && typeof data === 'object') {
+    const source = (data as { source?: unknown }).source;
+    if (typeof source === 'string' && source in REFERENCE_SOURCE_LABELS) {
+      const apiMessage = (data as { error?: unknown }).error;
+      if (typeof apiMessage === 'string' && apiMessage.trim()) return apiMessage;
+      return `${REFERENCE_SOURCE_LABELS[source as keyof typeof REFERENCE_SOURCE_LABELS]} lookup failed. Please try again.`;
+    }
+    const apiMessage = (data as { error?: unknown }).error;
+    if (typeof apiMessage === 'string' && apiMessage.trim()) return apiMessage;
+  }
+  return error instanceof Error && error.message
+    ? error.message
+    : 'Could not preview references.';
+}
+
 export default function ResourceLibrary() {
   const list = useListSermonResources();
   const createResource = useCreateSermonResource();
@@ -242,7 +268,7 @@ export default function ResourceLibrary() {
           setReferencePreview(result);
         },
         onError: (err) => {
-          const message = err instanceof Error ? err.message : 'Could not preview references.';
+          const message = referencePreviewErrorMessage(err);
           setReferencePreviewError(message);
           toast.error(message);
         },

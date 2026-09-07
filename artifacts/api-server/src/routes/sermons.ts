@@ -30,7 +30,10 @@ import {
 } from "../lib/sermonExport";
 import { previewSermonResources } from "../lib/scholarlyMerge";
 import { isRegisteredSource } from "../lib/scholarlySources";
-import { isRegisteredReferenceSource } from "../lib/referenceSources";
+import {
+  describeReferenceLookupFailure,
+  isRegisteredReferenceSource,
+} from "../lib/referenceSources";
 
 /**
  * Compose a fresh service plan around a sermon. We pull what we can from
@@ -365,8 +368,13 @@ router.post("/sermons/preview-resources", requireAuth, async (req, res) => {
     res.status(400).json({ error: excludedSrcErr });
     return;
   }
-  const result = await previewSermonResources(userId, parsed.data);
-  res.json(result);
+  try {
+    const result = await previewSermonResources(userId, parsed.data);
+    res.json(result);
+  } catch (error) {
+    req.log.error({ err: error }, "Sermon resource preview failed");
+    res.status(500).json(describeReferenceLookupFailure(error));
+  }
 });
 
 router.get("/sermons/:id", requireAuth, async (req, res) => {

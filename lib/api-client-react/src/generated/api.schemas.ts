@@ -1565,6 +1565,27 @@ export interface PreviewSermonResourcesResponse {
   referenceContext: ReferenceBundle;
 }
 
+/**
+ * The reference source kind that failed, when the server can identify it.
+ */
+export type ReferenceLookupErrorSource =
+  (typeof ReferenceLookupErrorSource)[keyof typeof ReferenceLookupErrorSource];
+
+export const ReferenceLookupErrorSource = {
+  translation: "translation",
+  "cross-reference": "cross-reference",
+  lexicon: "lexicon",
+} as const;
+
+/**
+ * Safe error details for a failed Bible reference source lookup.
+ */
+export interface ReferenceLookupError {
+  error: string;
+  /** The reference source kind that failed, when the server can identify it. */
+  source?: ReferenceLookupErrorSource;
+}
+
 export interface SermonResource {
   id: number;
   userId: string;

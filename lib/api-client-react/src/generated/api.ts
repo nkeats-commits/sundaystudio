@@ -113,6 +113,7 @@ import type {
   PreviewSermonResourcesResponse,
   ReferenceBundle,
   ReferenceLookupBody,
+  ReferenceLookupError,
   Sermon,
   SermonApplicationsOutput,
   SermonBigIdeaOutput,
@@ -3769,7 +3770,7 @@ export const previewSermonResources = async (
 };
 
 export const getPreviewSermonResourcesMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<UnauthorizedResponse | ReferenceLookupError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -3811,8 +3812,9 @@ export type PreviewSermonResourcesMutationResult = NonNullable<
 >;
 export type PreviewSermonResourcesMutationBody =
   BodyType<PreviewSermonResourcesBody>;
-export type PreviewSermonResourcesMutationError =
-  ErrorType<UnauthorizedResponse>;
+export type PreviewSermonResourcesMutationError = ErrorType<
+  UnauthorizedResponse | ReferenceLookupError
+>;
 
 /**
  * @summary Preview the deterministic resource merge the server will use for a
@@ -3822,7 +3824,7 @@ what the AI will see — eliminates client/server matcher drift.
 
  */
 export const usePreviewSermonResources = <
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<UnauthorizedResponse | ReferenceLookupError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7381,7 +7383,7 @@ export const lookupBibleReferences = async (
 };
 
 export const getLookupBibleReferencesMutationOptions = <
-  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TError = ErrorType<ApiError | UnauthorizedResponse | ReferenceLookupError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7423,14 +7425,14 @@ export type LookupBibleReferencesMutationResult = NonNullable<
 >;
 export type LookupBibleReferencesMutationBody = BodyType<ReferenceLookupBody>;
 export type LookupBibleReferencesMutationError = ErrorType<
-  ApiError | UnauthorizedResponse
+  ApiError | UnauthorizedResponse | ReferenceLookupError
 >;
 
 /**
  * @summary Look up bounded, source-labeled public-domain Bible references
  */
 export const useLookupBibleReferences = <
-  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TError = ErrorType<ApiError | UnauthorizedResponse | ReferenceLookupError>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
