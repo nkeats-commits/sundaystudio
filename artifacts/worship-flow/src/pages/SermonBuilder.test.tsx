@@ -267,12 +267,27 @@ test('opens Bible Tools with the primary passage, or without a query when blank'
   assert.equal(bibleToolsLink().getAttribute('href'), '/bible-tools?passage=John%203%3A16');
 });
 
-test("keeps passage context and uses a Strong's number or term for word-study Explore links", () => {
+test("updates Bible Tools links when editing a saved sermon's passage", () => {
   renderBuilder(true);
 
-  const exploreLinks = screen.getAllByRole('link', { name: 'Explore' });
-  assert.equal(exploreLinks[0].getAttribute('href'), '/bible-tools?passage=John%203%3A16&term=G26');
-  assert.equal(exploreLinks[1].getAttribute('href'), '/bible-tools?passage=John%203%3A16&term=grace');
+  const bibleToolsLink = () => screen.getByRole('link', { name: /Open Bible Tools/i });
+  const exploreLinks = () => screen.getAllByRole('link', { name: 'Explore' });
+
+  assert.equal(bibleToolsLink().getAttribute('href'), '/bible-tools?passage=John%203%3A16');
+  assert.equal(exploreLinks()[0].getAttribute('href'), '/bible-tools?passage=John%203%3A16&term=G26');
+  assert.equal(exploreLinks()[1].getAttribute('href'), '/bible-tools?passage=John%203%3A16&term=grace');
+
+  fireEvent.change(screen.getByLabelText('PRIMARY PASSAGE *'), { target: { value: 'Romans 8:1-11' } });
+
+  assert.equal(bibleToolsLink().getAttribute('href'), '/bible-tools?passage=Romans%208%3A1-11');
+  assert.equal(exploreLinks()[0].getAttribute('href'), '/bible-tools?passage=Romans%208%3A1-11&term=G26');
+  assert.equal(exploreLinks()[1].getAttribute('href'), '/bible-tools?passage=Romans%208%3A1-11&term=grace');
+
+  fireEvent.change(screen.getByLabelText('PRIMARY PASSAGE *'), { target: { value: '' } });
+
+  assert.equal(bibleToolsLink().getAttribute('href'), '/bible-tools');
+  assert.equal(exploreLinks()[0].getAttribute('href'), '/bible-tools?term=G26');
+  assert.equal(exploreLinks()[1].getAttribute('href'), '/bible-tools?term=grace');
 });
 
 test('keeps the Sermon Resources preview loading state visible while the request is pending', async () => {
