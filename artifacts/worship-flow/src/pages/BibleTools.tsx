@@ -378,12 +378,12 @@ export default function BibleTools() {
       setValidationError("Enter a word, phrase, or Strong's number to look up.");
       return;
     }
+    const contextPassage = passage.trim();
     lookup.mutate(
       {
-        data: {
-          ...(passage.trim() ? { passage: passage.trim() } : {}),
-          terms: [value],
-        },
+        data: contextPassage
+          ? { passage: contextPassage, terms: [value] }
+          : { terms: [value] },
       },
       {
         onSuccess: setResults,
