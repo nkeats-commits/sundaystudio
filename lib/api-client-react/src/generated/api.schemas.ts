@@ -1196,6 +1196,8 @@ export interface WordStudyEntry {
   definition: string;
   /** 1–2 sentences on why this word's original meaning matters for this sermon. */
   significance: string;
+  /** Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation. */
+  references: string[];
 }
 
 /**

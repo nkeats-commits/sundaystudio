@@ -1567,6 +1567,11 @@ export const GetSermonSeriesResponse = zod
                       .describe(
                         "1–2 sentences on why this word's original meaning matters for this sermon.",
                       ),
+                    references: zod
+                      .array(zod.string())
+                      .describe(
+                        "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
+                      ),
                   }),
                 )
                 .nullish()
@@ -1914,6 +1919,11 @@ export const ListSermonsResponseItem = zod.object({
               .string()
               .describe(
                 "1–2 sentences on why this word's original meaning matters for this sermon.",
+              ),
+            references: zod
+              .array(zod.string())
+              .describe(
+                "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
               ),
           }),
         )
@@ -2365,6 +2375,11 @@ export const GetSermonResponse = zod.object({
               .describe(
                 "1–2 sentences on why this word's original meaning matters for this sermon.",
               ),
+            references: zod
+              .array(zod.string())
+              .describe(
+                "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
+              ),
           }),
         )
         .nullish()
@@ -2672,6 +2687,11 @@ export const UpdateSermonBody = zod.object({
               .describe(
                 "1–2 sentences on why this word's original meaning matters for this sermon.",
               ),
+            references: zod
+              .array(zod.string())
+              .describe(
+                "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
+              ),
           }),
         )
         .nullish()
@@ -2958,6 +2978,11 @@ export const UpdateSermonResponse = zod.object({
               .string()
               .describe(
                 "1–2 sentences on why this word's original meaning matters for this sermon.",
+              ),
+            references: zod
+              .array(zod.string())
+              .describe(
+                "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
               ),
           }),
         )
@@ -3568,6 +3593,11 @@ export const GenerateSermonStudyBody = zod
                   .describe(
                     "1–2 sentences on why this word's original meaning matters for this sermon.",
                   ),
+                references: zod
+                  .array(zod.string())
+                  .describe(
+                    "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
+                  ),
               }),
             )
             .nullish()
@@ -3700,6 +3730,11 @@ export const GenerateSermonStudyResponse = zod.object({
           .string()
           .describe(
             "1–2 sentences on why this word's original meaning matters for this sermon.",
+          ),
+        references: zod
+          .array(zod.string())
+          .describe(
+            "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
           ),
       }),
     )
@@ -3911,6 +3946,11 @@ export const GenerateSermonBigIdeaBody = zod
                   .string()
                   .describe(
                     "1–2 sentences on why this word's original meaning matters for this sermon.",
+                  ),
+                references: zod
+                  .array(zod.string())
+                  .describe(
+                    "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
                   ),
               }),
             )
@@ -4136,6 +4176,11 @@ export const GenerateSermonOutlineBody = zod
                   .string()
                   .describe(
                     "1–2 sentences on why this word's original meaning matters for this sermon.",
+                  ),
+                references: zod
+                  .array(zod.string())
+                  .describe(
+                    "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
                   ),
               }),
             )
@@ -4388,6 +4433,11 @@ export const GenerateSermonManuscriptBody = zod
                   .describe(
                     "1–2 sentences on why this word's original meaning matters for this sermon.",
                   ),
+                references: zod
+                  .array(zod.string())
+                  .describe(
+                    "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
+                  ),
               }),
             )
             .nullish()
@@ -4631,6 +4681,11 @@ export const GenerateSermonApplicationsBody = zod
                   .string()
                   .describe(
                     "1–2 sentences on why this word's original meaning matters for this sermon.",
+                  ),
+                references: zod
+                  .array(zod.string())
+                  .describe(
+                    "Exact verse citations in the supplied primary or secondary sermon passage(s) where this term occurs. These are occurrence verses, not cross-references, commentary citations, or other study references. Use verse-level notation for ranges where possible; return an empty array only when the occurrence cannot be established without inventing a citation.",
                   ),
               }),
             )

@@ -99,6 +99,7 @@ Hard rules for sermon content:
 - Treat "[Public-Domain Source]" excerpts the same way you would a pastor-supplied resource: lean on them for interpretation, surface where they agree or disagree, and attribute by their stated title and author.
 - Public-domain Bible text in the reference context is only a labeled comparison aid. Never silently substitute it for the pastor's chosen translation, and never reproduce it as an unattributed Bible quotation.
 - Cross-reference and dictionary/lexicon entries are study aids, not Bible text; keep their source kind and attribution when referring to them.
+- For every word study, the references field must contain only exact verse citations from the supplied primary or secondary sermon passage(s) where that word actually occurs. Do not use cross-references, commentary citations, dictionary/lexicon references, or merely related verses as occurrence references. Use verse-level notation for ranges where possible. If the occurrence cannot be established from the supplied passages, return an empty references array rather than inventing a citation.
 - Separate observation, interpretation, application, and any resource-derived insights so the pastor can see your reasoning.
 - Surface "interpretiveCautions" where a passage is genuinely contested or easy to misuse.
 - Be concise. Finish within the requested length budget. No padding.
@@ -256,8 +257,37 @@ function refineBlurb(refineInstruction?: string, existingContent?: unknown): str
   return parts.join("\n\n");
 }
 
+/**
+ * Studies saved before occurrence references were added can still be refined.
+ * Normalize only omitted legacy fields at the request boundary so the
+ * generated response schema remains strict for every newly returned study.
+ */
+function normalizeLegacyStudyReferences(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const request = body as Record<string, unknown>;
+  const existingContent = request.existingContent;
+  if (!existingContent || typeof existingContent !== "object" || Array.isArray(existingContent)) {
+    return body;
+  }
+  const content = existingContent as Record<string, unknown>;
+  if (!Array.isArray(content.wordStudies)) return body;
+
+  const wordStudies = content.wordStudies.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
+    const wordStudy = entry as Record<string, unknown>;
+    return wordStudy.references === undefined
+      ? { ...wordStudy, references: [] }
+      : entry;
+  });
+
+  return {
+    ...request,
+    existingContent: { ...content, wordStudies },
+  };
+}
+
 router.post("/generate/sermon-study", requireAuth, requireActiveAccess, async (req, res) => {
-  const parsed = GenerateSermonStudyBody.safeParse(req.body);
+  const parsed = GenerateSermonStudyBody.safeParse(normalizeLegacyStudyReferences(req.body));
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -302,9 +332,10 @@ Return JSON exactly in this shape:
       "language": "Greek" | "Hebrew",
       "strongsNumber": "string | null — e.g. G5485 or H2617; use null if you are not certain",
       "definition": "string — 2-3 sentences covering the word's semantic range and use in biblical literature",
-      "significance": "string — 1-2 sentences on why THIS word's original meaning matters for this particular sermon"
+      "significance": "string — 1-2 sentences on why THIS word's original meaning matters for this particular sermon",
+      "references": ["string", ...] — exact verse citations from the supplied primary or secondary sermon passage(s) where this term occurs; use [] only when the occurrence cannot be established without inventing a citation
     }
-    // 3–7 entries total. Choose ONLY terms whose original-language meaning meaningfully shapes the sermon's interpretation or application — theological weight, not frequency or word length. Use Greek for NT passages, Hebrew for OT; include both for passages that quote across testaments. Do NOT include every word.
+    // 3–7 entries total. Choose ONLY terms whose original-language meaning meaningfully shapes the sermon's interpretation or application — theological weight, not frequency or word length. Use Greek for NT passages, Hebrew for OT; include both for passages that quote across testaments. Do NOT include every word. Ground each references array in the supplied primary and secondary passages, never in cross-references or study sources. This rule also applies when refining existing study content: preserve or correct occurrence references and never carry forward a citation that is not verifiable in the supplied passages.
   ]
 }`;
   // Attach the deterministic, server-side list of public-domain commentaries

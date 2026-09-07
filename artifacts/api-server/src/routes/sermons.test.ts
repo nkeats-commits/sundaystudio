@@ -35,6 +35,7 @@ import { eq } from "drizzle-orm";
 import sermonsRouter from "./sermons";
 import generateSermonRouter from "./generateSermon";
 import { jobManager } from "../lib/jobManager";
+import { GenerateSermonStudyResponse } from "@workspace/api-zod";
 
 async function seedTrialUser(uid: string) {
   await db.insert(usersTable).values({ id: uid }).onConflictDoNothing();
@@ -319,6 +320,20 @@ test("POST /api/generate/sermon-study succeeds with no client resources[]; serve
         depth: "",
         outputFormat: "manuscript",
         pastorNotes: "",
+        refineInstruction: "Keep the word study grounded in the passage.",
+        existingContent: {
+          wordStudies: [
+            {
+              term: "grace",
+              originalWord: "χάρις",
+              transliteration: "charis",
+              language: "Greek",
+              strongsNumber: "G5485",
+              definition: "Grace.",
+              significance: "It matters.",
+            },
+          ],
+        },
       }),
     });
     const text = await res.text();
@@ -333,6 +348,42 @@ test("POST /api/generate/sermon-study succeeds with no client resources[]; serve
       capturedPrompt.includes("Stott on Romans 8"),
       "expected library row title to appear in the merged prompt",
     );
+    assert.match(capturedPrompt, /"references": \["string", \.\.\.\]/);
+    assert.match(capturedPrompt, /exact verse citations from the supplied primary or secondary sermon passage/);
+    assert.match(capturedPrompt, /Do not use cross-references, commentary citations, dictionary\/lexicon references/);
+    assert.match(capturedPrompt, /"references": \[\]/);
+    assert.match(capturedPrompt, /This rule also applies when refining existing study content/);
+
+    const missingReferences = GenerateSermonStudyResponse.safeParse({
+      wordStudies: [
+        {
+          term: "grace",
+          originalWord: "χάρις",
+          transliteration: "charis",
+          language: "Greek",
+          strongsNumber: "G5485",
+          definition: "Grace.",
+          significance: "It matters.",
+        },
+      ],
+    });
+    assert.equal(missingReferences.success, false);
+
+    const groundedStudy = GenerateSermonStudyResponse.safeParse({
+      wordStudies: [
+        {
+          term: "grace",
+          originalWord: "χάρις",
+          transliteration: "charis",
+          language: "Greek",
+          strongsNumber: "G5485",
+          definition: "Grace.",
+          significance: "It matters.",
+          references: ["Romans 8:1"],
+        },
+      ],
+    });
+    assert.equal(groundedStudy.success, true);
   } finally {
     stub.mock.restore();
     await close();

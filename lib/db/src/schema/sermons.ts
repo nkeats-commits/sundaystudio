@@ -28,6 +28,17 @@ export type SermonStudyOutput = {
   crossReferences?: string[] | null;
   interpretiveCautions?: string[] | null;
   resourceInsights?: string | null;
+  wordStudies?: Array<{
+    term: string;
+    originalWord: string;
+    transliteration: string;
+    language: "Greek" | "Hebrew";
+    strongsNumber?: string | null;
+    definition: string;
+    significance: string;
+    /** Exact occurrence verses from the supplied sermon passage(s); legacy rows may omit this. */
+    references?: string[];
+  }> | null;
 };
 
 export type SermonBigIdeaOption = {

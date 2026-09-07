@@ -2545,6 +2545,16 @@ function StudyView({
                     <span className="text-[10px] text-[var(--worship-slate)] ml-auto">{ws.strongsNumber}</span>
                   )}
                 </div>
+                {Array.isArray(ws.references) && ws.references.length > 0 && (
+                  <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[11px] leading-relaxed text-[var(--worship-slate)]">
+                    <span className="font-semibold uppercase tracking-wider text-[10px] text-[var(--worship-navy)]">Found in</span>
+                    {ws.references.map((reference, referenceIndex) => (
+                      <span key={`${reference}-${referenceIndex}`} className="whitespace-nowrap rounded bg-[var(--worship-navy)]/5 px-1.5 py-0.5">
+                        {reference}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-[var(--worship-charcoal)] leading-relaxed">{ws.definition}</p>
                 <p className="text-xs text-[var(--worship-slate)] italic leading-relaxed border-t border-[var(--worship-border)] pt-2">{ws.significance}</p>
               </div>

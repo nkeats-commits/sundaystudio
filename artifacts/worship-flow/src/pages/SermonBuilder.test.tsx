@@ -180,7 +180,7 @@ mock.module('sonner', {
 const { cleanup, fireEvent, render, screen, waitFor } = await import('@testing-library/react');
 const { default: SermonBuilder } = await import('./SermonBuilder');
 
-function sermonWithStudy(passage: string) {
+function sermonWithStudy(passage: string, legacy = false) {
   return {
     id: 42,
     title: 'Grace',
@@ -223,6 +223,7 @@ function sermonWithStudy(passage: string) {
           strongsNumber: 'G26',
           definition: 'Love.',
           significance: 'A study of love.',
+          references: ['John 3:16'],
         },
         {
           term: 'grace',
@@ -231,16 +232,17 @@ function sermonWithStudy(passage: string) {
           language: 'Greek',
           definition: 'Grace.',
           significance: 'A study of grace.',
+          ...(legacy ? {} : { references: ['John 3:16', '1 John 4:8'] }),
         },
       ],
     },
   };
 }
 
-function renderBuilder(existing = false) {
+function renderBuilder(existing = false, legacy = false) {
   routeState = existing ? [true, { id: '42' }] : [false, undefined];
   sermonState = {
-    data: existing ? sermonWithStudy('John 3:16') : null,
+    data: existing ? sermonWithStudy('John 3:16', legacy) : null,
     isLoading: false,
   };
   return render(<SermonBuilder />);
@@ -298,6 +300,23 @@ test("updates Bible Tools links when editing a saved sermon's passage", () => {
   assert.equal(bibleToolsLink().getAttribute('href'), '/bible-tools');
   assert.equal(exploreLinks()[0].getAttribute('href'), '/bible-tools?term=G26');
   assert.equal(exploreLinks()[1].getAttribute('href'), '/bible-tools?term=grace');
+});
+
+test('shows grounded word-study occurrence references and omits the line for legacy entries', () => {
+  renderBuilder(true);
+
+  assert.equal(screen.getAllByText('Found in').length, 2);
+  assert.ok(screen.getByText('1 John 4:8'));
+
+  const cards = screen.getAllByText(/A study of (love|grace)\./).map((node) => node.parentElement);
+  assert.equal(cards.length, 2);
+  assert.ok(cards[0]?.textContent?.includes('Found in'));
+  assert.ok(cards[1]?.textContent?.includes('Found in'));
+
+  cleanup();
+  renderBuilder(true, true);
+  assert.equal(screen.getAllByText('Found in').length, 1);
+  assert.equal(screen.queryByText('1 John 4:8'), null);
 });
 
 test('keeps the Sermon Resources preview loading state visible while the request is pending', async () => {
