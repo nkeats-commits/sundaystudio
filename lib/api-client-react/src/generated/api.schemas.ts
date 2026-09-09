@@ -940,8 +940,8 @@ export interface GeneratedLiturgy {
 
 /**
  * How to use the user's saved repertoire when suggesting songs.
-- `off`: ignore the repertoire entirely.
-- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.
+- `off`: exclude songs whose titles are already in the user's repertoire.
+- `prefer` (default): deliberately mix familiar repertoire songs with strong new suggestions when both are available.
 - `strict`: only suggest songs from the user's repertoire; never invent new titles.
 
  */
@@ -961,8 +961,8 @@ export interface GenerateSongsBody {
   style?: string;
   count?: number;
   /** How to use the user's saved repertoire when suggesting songs.
-- `off`: ignore the repertoire entirely.
-- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.
+- `off`: exclude songs whose titles are already in the user's repertoire.
+- `prefer` (default): deliberately mix familiar repertoire songs with strong new suggestions when both are available.
 - `strict`: only suggest songs from the user's repertoire; never invent new titles.
  */
   repertoireMode?: GenerateSongsBodyRepertoireMode;
@@ -999,7 +999,7 @@ export interface SongSuggestion {
   keyFromLibrary?: boolean;
   themes?: string[];
   whyItFits: string;
-  /** Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match). */
+  /** Server-set flag — true when the suggested title matches one of the user's repertoire songs using a case-insensitive, trimmed exact-title match. */
   inRepertoire?: boolean;
 }
 

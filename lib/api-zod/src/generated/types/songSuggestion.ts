@@ -18,6 +18,6 @@ export interface SongSuggestion {
   keyFromLibrary?: boolean;
   themes?: string[];
   whyItFits: string;
-  /** Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match). */
+  /** Server-set flag — true when the suggested title matches one of the user's repertoire songs using a case-insensitive, trimmed exact-title match. */
   inRepertoire?: boolean;
 }

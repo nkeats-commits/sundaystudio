@@ -8,8 +8,8 @@
 
 /**
  * How to use the user's saved repertoire when suggesting songs.
-- `off`: ignore the repertoire entirely.
-- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.
+- `off`: exclude songs whose titles are already in the user's repertoire.
+- `prefer` (default): deliberately mix familiar repertoire songs with strong new suggestions when both are available.
 - `strict`: only suggest songs from the user's repertoire; never invent new titles.
 
  */

@@ -4,6 +4,52 @@ import { coerceBpm as sharedCoerceBpm } from "@workspace/song-field-parsers";
 
 export type RepertoireMode = "off" | "prefer" | "strict";
 
+/**
+ * Shape model candidates according to the selected repertoire mode.
+ *
+ * Prefer deliberately alternates familiar and new candidates when both groups
+ * are available. Off removes familiar titles entirely, while Strict keeps its
+ * existing allow-list behavior and does not impose a new result-count cap.
+ */
+export function shapeRepertoireCandidates<T extends { inRepertoire: boolean }>(
+  candidates: T[],
+  mode: RepertoireMode,
+  requestedCount: number,
+): T[] {
+  if (mode === "strict") {
+    return candidates.filter((candidate) => candidate.inRepertoire);
+  }
+
+  if (mode === "off") {
+    return candidates
+      .filter((candidate) => !candidate.inRepertoire)
+      .slice(0, requestedCount);
+  }
+
+  const repertoire = candidates.filter((candidate) => candidate.inRepertoire);
+  const newSongs = candidates.filter((candidate) => !candidate.inRepertoire);
+  if (repertoire.length === 0 || newSongs.length === 0) {
+    return candidates.slice(0, requestedCount);
+  }
+
+  const shaped: T[] = [];
+  let repertoireIndex = 0;
+  let newSongIndex = 0;
+  while (
+    shaped.length < requestedCount &&
+    (repertoireIndex < repertoire.length || newSongIndex < newSongs.length)
+  ) {
+    if (repertoireIndex < repertoire.length) {
+      shaped.push(repertoire[repertoireIndex++]!);
+    }
+    if (shaped.length >= requestedCount) break;
+    if (newSongIndex < newSongs.length) {
+      shaped.push(newSongs[newSongIndex++]!);
+    }
+  }
+  return shaped;
+}
+
 export type RepertoireSong = {
   title: string;
   artist: string | null;
@@ -232,7 +278,13 @@ export function repertoirePromptBlock(
   mode: RepertoireMode,
   range: BpmRange | null = null,
 ): string {
-  if (mode === "off") return "";
+  if (mode === "off") {
+    if (songs.length === 0) return "";
+    return `REPERTOIRE EXCLUSION LIST — the user selected Off mode:
+${songs.map((s) => `- ${s.title}`).join("\n")}
+
+Hard rule: do not suggest any song whose title matches a title in this list, ignoring case and surrounding whitespace. Choose songs outside the user's repertoire.`;
+  }
   const filteredSongs =
     mode === "strict" && range
       ? songs.filter((s) => bpmInRange(s.bpm, range))

@@ -75,7 +75,7 @@ const REPERTOIRE_OPTIONS: {
   {
     value: 'prefer',
     label: 'Prefer',
-    description: 'Lean on your repertoire, fill gaps with other songs.',
+    description: 'Mix familiar repertoire songs with strong new discoveries.',
   },
   {
     value: 'strict',
@@ -85,7 +85,7 @@ const REPERTOIRE_OPTIONS: {
   {
     value: 'off',
     label: 'Off',
-    description: "Ignore the repertoire — pick from anywhere.",
+    description: 'Suggest songs outside your repertoire.',
   },
 ];
 

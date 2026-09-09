@@ -544,11 +544,11 @@ Navigate to **Generators → Songs** in the sidebar. You'll see a form where you
 
 The Song Assistant has a three-state control for how it uses your Song Repertoire:
 
-**Prefer (default).** The AI biases toward songs in your repertoire, but will also suggest songs outside it if they're a strong fit. This is the best setting when you want mostly familiar songs with occasional new ones.
+**Prefer (default).** The AI deliberately mixes familiar repertoire songs with strong new discoveries when both are available. This is the best setting when you want a balanced blend of songs your team knows and songs worth exploring.
 
 **Strict.** The AI only suggests songs from your repertoire. Use this when your team needs to work exclusively from songs they already know — smaller teams, last-minute planning, or seasons when learning new material isn't practical. Strict mode is only available when you have at least one song in your repertoire.
 
-**Off.** The AI suggests the best songs for the theme regardless of your repertoire. Use this when you're intentionally exploring new material or planning a special service.
+**Off.** The AI excludes songs already in your repertoire and suggests songs outside that list. Use this when you're intentionally exploring new material or planning a special service.
 
 ## Reading the results
 
@@ -588,7 +588,7 @@ Any song in your Library — whether it came from the Song Assistant, the Servic
 
 ## How the Repertoire affects generation
 
-When you use the Song Assistant with **Prefer** or **Strict** mode, the AI receives your repertoire list before generating suggestions. In **Prefer** mode, it biases toward these songs. In **Strict** mode, it only returns songs that appear in your repertoire.
+When you use the Song Assistant with **Prefer**, **Off**, or **Strict** mode, the AI receives the relevant repertoire context before generating suggestions. **Prefer** mixes familiar and new songs when both are viable. **Off** excludes exact title matches from your repertoire. **Strict** only returns songs that appear in your repertoire.
 
 The Service Builder and the Sermon Builder's Worship Integration tab always use Prefer mode automatically — they'll favour your repertoire songs without requiring any extra setup.
 

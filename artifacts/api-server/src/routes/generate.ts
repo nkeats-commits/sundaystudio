@@ -26,6 +26,7 @@ import {
   repertoireBpmByTitle,
   repertoireKeyByTitle,
   repertoirePromptBlock,
+  shapeRepertoireCandidates,
   repertoireTitleSet,
   type RepertoireMode,
 } from "../lib/repertoire";
@@ -351,19 +352,11 @@ router.post("/generate/songs", requireAuth, requireActiveAccess, async (req, res
   const ctx = await getChurchContext(req.userId!);
   const requestedCount = Math.max(3, Math.min(data.count ?? 6, 10));
   const requestedMode = (data.repertoireMode ?? "prefer") as RepertoireMode;
-  // Skip the repertoire load entirely when the caller opted out.
-  const repertoire =
-    requestedMode === "off" ? [] : await loadRepertoireSongs(req.userId!);
-  // Strict must stay strict even when the repertoire is empty — the
-  // post-validation transform will filter to zero songs and emit the
-  // "no matches in your repertoire" notice, which is the contract a direct
-  // API caller expects. Prefer with an empty repertoire degrades to "off"
-  // so we don't confuse the model with an empty Prefer block; the transform
-  // still emits an informative notice.
-  const effectiveMode: RepertoireMode =
-    requestedMode === "prefer" && repertoire.length === 0
-      ? "off"
-      : requestedMode;
+  // Load repertoire for every mode. Off needs the titles to remove familiar
+  // songs from the model's response, even though it does not use them as
+  // positive suggestions.
+  const repertoire = await loadRepertoireSongs(req.userId!);
+  const effectiveMode = requestedMode;
   const titleSet = repertoireTitleSet(repertoire);
   const bpmByTitle = repertoireBpmByTitle(repertoire);
   const keyByTitle = repertoireKeyByTitle(repertoire);
@@ -372,6 +365,12 @@ router.post("/generate/songs", requireAuth, requireActiveAccess, async (req, res
     ? (data.preferredKeys as unknown[]).filter((k): k is string => typeof k === "string" && k.trim().length > 0).map((k) => k.trim())
     : [];
   const repBlock = repertoirePromptBlock(repertoire, effectiveMode, bpmRange);
+  const modeGuidance =
+    effectiveMode === "prefer"
+      ? "Repertoire mode: Prefer. When both familiar and new candidates are viable, return a deliberate mix of both groups rather than filling the list entirely with repertoire songs. Aim for a roughly balanced mix while keeping every choice thematically strong."
+      : effectiveMode === "off"
+        ? "Repertoire mode: Off. Return songs outside the user's repertoire. The supplied exclusion list is authoritative; do not repeat any of those titles."
+        : "Repertoire mode: Strict. Return only songs from the user's repertoire list.";
   const tempoConstraintLine = bpmRange
     ? `Tempo constraint: only suggest songs whose tempo falls within ${describeBpmRange(bpmRange)}. If you don't know a song's BPM with confidence, prefer one whose well-known recording fits this range.\n`
     : "";
@@ -405,6 +404,7 @@ Style preference: ${data.style ?? "mixed (modern worship and hymns)"}
 
 Church context:
 ${churchContextBlurb(ctx)}
+${modeGuidance}
 ${repBlock ? `\n${repBlock}\n` : ""}${alignmentBlock}${tempoConstraintLine}${preferredKeysLine}
 Return JSON exactly in this shape:
 {
@@ -471,9 +471,6 @@ Keep "whyItFits" to 1-2 short sentences.
         }
         const normalizedTitle = normalizeTitle(s.title);
         const inRepertoire = titleSet.has(normalizedTitle);
-        // Strict mode is the contract: never let an AI-invented title leak
-        // through, no matter what the prompt says.
-        if (effectiveMode === "strict" && !inRepertoire) return [];
         return [{ s, normalizedTitle, inRepertoire }];
       });
 
@@ -507,7 +504,6 @@ Keep "whyItFits" to 1-2 short sentences.
           droppedOutOfRange += 1;
           return [];
         }
-        if (bpm === null) unknownBpmCount += 1;
         return [
           {
             title: s.title as string,
@@ -527,6 +523,16 @@ Keep "whyItFits" to 1-2 short sentences.
           },
         ];
       });
+      const excludedRepertoireCount =
+        effectiveMode === "off"
+          ? cleaned.filter((song) => song.inRepertoire).length
+          : 0;
+      const shaped = shapeRepertoireCandidates(
+        cleaned,
+        effectiveMode,
+        requestedCount,
+      );
+      unknownBpmCount = shaped.filter((song) => song.bpm === null).length;
 
       const result: {
         theme: string;
@@ -537,31 +543,37 @@ Keep "whyItFits" to 1-2 short sentences.
           typeof raw?.theme === "string" && raw.theme.trim().length > 0
             ? raw.theme
             : data.theme,
-        songs: cleaned,
+        songs: shaped,
       };
 
       if (effectiveMode === "strict") {
-        if (cleaned.length === 0) {
+        if (shaped.length === 0) {
           result.notice = bpmRange
             ? `No songs in your repertoire matched this theme within ${describeBpmRange(bpmRange)}. Try widening or clearing the tempo range, or switch to Prefer for broader suggestions.`
             : "No songs in your repertoire matched this theme. Add more songs to your repertoire, or switch to Prefer or Off for broader suggestions.";
-        } else if (cleaned.length < requestedCount) {
+        } else if (shaped.length < requestedCount) {
           result.notice = bpmRange
-            ? `Only ${cleaned.length} repertoire song${cleaned.length === 1 ? "" : "s"} fit this theme within ${describeBpmRange(bpmRange)}. Widen the tempo range or add more songs for richer Strict-mode results.`
-            : `Only ${cleaned.length} song${cleaned.length === 1 ? "" : "s"} from your repertoire fit this theme. Add more to your repertoire for richer Strict-mode results.`;
+            ? `Only ${shaped.length} repertoire song${shaped.length === 1 ? "" : "s"} fit this theme within ${describeBpmRange(bpmRange)}. Widen the tempo range or add more songs for richer Strict-mode results.`
+            : `Only ${shaped.length} song${shaped.length === 1 ? "" : "s"} from your repertoire fit this theme. Add more to your repertoire for richer Strict-mode results.`;
         }
       } else if (requestedMode !== "off" && repertoire.length === 0) {
         result.notice =
           "Your repertoire is empty, so suggestions come from general worship knowledge. Add songs in Library → Our Repertoire to make future picks feel familiar.";
       } else if (
+        effectiveMode === "off" &&
+        excludedRepertoireCount > 0 &&
+        shaped.length < requestedCount
+      ) {
+        result.notice = `Removed ${excludedRepertoireCount} song${excludedRepertoireCount === 1 ? "" : "s"} already in your repertoire. Only ${shaped.length} new suggestion${shaped.length === 1 ? "" : "s"} remained; try a broader theme for more options.`;
+      } else if (
         bpmRange &&
         droppedOutOfRange > 0 &&
-        cleaned.length < requestedCount
+        shaped.length < requestedCount
       ) {
         // Non-strict path: the model gave us some out-of-range picks. Tell
         // the user we filtered them so a short result list isn't mysterious.
         result.notice = `${droppedOutOfRange} suggestion${droppedOutOfRange === 1 ? " was" : "s were"} dropped for falling outside ${describeBpmRange(bpmRange)}.`;
-      } else if (unknownBpmCount > 0 && cleaned.length > 0) {
+      } else if (unknownBpmCount > 0 && shaped.length > 0) {
         // Surface honest "unknown tempo" status so worship leaders know
         // they need to fill in a BPM before planning. Better than the AI
         // silently inventing a wrong one.

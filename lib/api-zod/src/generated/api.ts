@@ -1111,7 +1111,7 @@ export const GenerateSongSuggestionsBody = zod.object({
     .enum(["off", "prefer", "strict"])
     .optional()
     .describe(
-      "How to use the user's saved repertoire when suggesting songs.\n- `off`: ignore the repertoire entirely.\n- `prefer` (default): prioritize repertoire songs and fill the rest with new suggestions.\n- `strict`: only suggest songs from the user's repertoire; never invent new titles.\n",
+      "How to use the user's saved repertoire when suggesting songs.\n- `off`: exclude songs whose titles are already in the user's repertoire.\n- `prefer` (default): deliberately mix familiar repertoire songs with strong new suggestions when both are available.\n- `strict`: only suggest songs from the user's repertoire; never invent new titles.\n",
     ),
   alignmentNotes: zod
     .string()
@@ -1175,7 +1175,7 @@ export const GenerateSongSuggestionsResponse = zod.object({
         .boolean()
         .optional()
         .describe(
-          "Server-set flag — true when the suggested title matches one of the user's repertoire songs (case-insensitive title match).",
+          "Server-set flag — true when the suggested title matches one of the user's repertoire songs using a case-insensitive, trimmed exact-title match.",
         ),
     }),
   ),
