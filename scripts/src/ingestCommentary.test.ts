@@ -10,7 +10,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   diffExactCoverage,
+  extractCcelBookContent,
   extractBibleHubExcerpt,
+  extractNewAdventExcerpt,
   extractSermonIndexExcerpt,
   KNOWN_EMPTY_UPSTREAM,
 } from "./ingestCommentary.js";
@@ -116,6 +118,33 @@ test("extractSermonIndexExcerpt keeps commentary and strips verse/page noise", (
   );
 });
 
+test("extractNewAdventExcerpt removes the support banner and publication footer", () => {
+  const excerpt = extractNewAdventExcerpt(
+    readFileSync(
+      new URL("./fixtures/newadvent-psalm.html", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    excerpt,
+    "1. The Lord is my Shepherd, and I shall lack nothing. The Lord Jesus Christ is my Shepherd, and I shall lack nothing. 2. He leads me beside the waters of refreshment, where faith receives the gift of grace.",
+  );
+  assert.doesNotMatch(excerpt, /New Advent|About this page|Source\./);
+});
+
+test("extractCcelBookContent keeps nested chapter prose and excludes page navigation", () => {
+  const excerpt = extractCcelBookContent(
+    readFileSync(
+      new URL("./fixtures/ccel-luther-galatians.html", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.match(excerpt, /Stand fast therefore/);
+  assert.match(excerpt, /faith receives righteousness freely/);
+  assert.match(excerpt, /nested page element/);
+  assert.doesNotMatch(excerpt, /Galatians 5/);
+});
+
 test("diffExactCoverage rejects both unlisted gaps and stale allowlist entries", () => {
   const result = diffExactCoverage(
     new Set(["genesis 1", "genesis 3"]),
@@ -195,5 +224,30 @@ test("Calvin uses exact coverage with its verified upstream gaps", () => {
     "ezekiel 46",
     "ezekiel 47",
     "ezekiel 48",
+  ]);
+});
+
+test("partial source contracts document their selected edition coverage exactly", () => {
+  const augustine = COMMENTARY_VALIDATION_SPECS.find(
+    (spec) => spec.sourceId === "augustine-expositions",
+  );
+  const luther = COMMENTARY_VALIDATION_SPECS.find(
+    (spec) => spec.sourceId === "luther-galatians",
+  );
+  assert.ok(augustine);
+  assert.ok(luther);
+  assert.equal(expectedChapterTotal(augustine), 150);
+  assert.equal(expectedChapterTotal(luther), 6);
+  assert.deepEqual(augustine.expectedChapterKeys?.slice(0, 2), [
+    "psalms 1",
+    "psalms 2",
+  ]);
+  assert.deepEqual(luther.expectedChapterKeys, [
+    "galatians 1",
+    "galatians 2",
+    "galatians 3",
+    "galatians 4",
+    "galatians 5",
+    "galatians 6",
   ]);
 });

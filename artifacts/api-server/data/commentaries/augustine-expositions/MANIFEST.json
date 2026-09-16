@@ -1,0 +1,13 @@
+{
+  "id": "augustine-expositions",
+  "title": "Augustine's Expositions on the Psalms",
+  "author": "Augustine of Hippo",
+  "year": "1888 English translation",
+  "license": "Public domain (Nicene and Post-Nicene Fathers, First Series, Vol. 8, 1888)",
+  "sourceUrl": "https://www.newadvent.org/fathers/1801.htm",
+  "originalSourceUrl": "https://archive.org/details/npnf108",
+  "description": "Church-father exposition of the Psalms, represented by the anonymous English translation edited by Philip Schaff in Nicene and Post-Nicene Fathers, First Series, volume 8. The bundled edition covers all 150 Psalms; it is intentionally a Psalms-only source, not a whole-Bible commentary.",
+  "kind": "commentary",
+  "lookupType": "chapter commentary",
+  "attribution": "Augustine of Hippo, Expositions on the Psalms — anonymous English translation in Nicene and Post-Nicene Fathers, First Series, Vol. 8 (1888), public-domain edition"
+}

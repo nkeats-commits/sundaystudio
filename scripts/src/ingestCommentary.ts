@@ -19,6 +19,8 @@
  *   - joseph-benson            → /commentaries/benson/<book>/<ch>.htm
  *   - john-trapp               → SermonIndex /commentary/trapp/<book>/<ch>
  *   - thomas-scott             → SermonIndex /commentary/tscott/PSA/<ch>
+ *   - augustine-expositions    → New Advent /fathers/1801<psalm>.htm (Psalms)
+ *   - luther-galatians        → CCEL /ccel/luther/galatians/galatians.<ch>.html
  *
  * Why BibleHub and not CCEL? CCEL serves a per-work plain-text dump only for
  * a few commentaries (Henry, JFB) and the JFB dump's per-book headers vary
@@ -65,6 +67,11 @@ const MIN_EXCERPT_CHARS = 200; // skip "no commentary available" stubs
 // SermonIndex preserves authentic cross-reference notes that can be shorter
 // than BibleHub's normal floor (for example, Trapp's Isaiah 36 note).
 const SERMON_INDEX_MIN_EXCERPT_CHARS = 80;
+// New Advent and CCEL preserve some authentic short chapter notes. Their
+// source-specific floors are deliberately lower than the BibleHub floor, while
+// still rejecting page shells and empty bodies.
+const NEW_ADVENT_MIN_EXCERPT_CHARS = 100;
+const CCEL_MIN_EXCERPT_CHARS = 100;
 
 export interface BookSpec {
   /** Display name for `book` field, e.g. "1 Corinthians". */
@@ -734,6 +741,112 @@ async function ingestSermonIndex(
   writeBooks(sourceId, books, booksScope);
 }
 
+/**
+ * Extract the article body from New Advent's Church Fathers pages. The
+ * article is already passage-keyed (one page per Psalm), but the page also
+ * includes breadcrumbs, ads, cross-reference link labels, and an attribution
+ * footer. Keep the prose inside the article heading and stop before the
+ * publication block.
+ */
+export function extractNewAdventExcerpt(html: string): string {
+  const heading = /<h1[^>]*>[\s\S]*?<\/h1>/i.exec(html);
+  if (!heading) return "";
+  const bodyStart = heading.index + heading[0].length;
+  const body = html
+    .slice(bodyStart)
+    .split(/<div\b[^>]*class=["']pub["'][^>]*>/i)[0]
+    // New Advent places a donation banner before the first exposition
+    // paragraph. It is host boilerplate, not Augustine's text.
+    .replace(
+      /<p>\s*<em>\s*<a\b[^>]*>[\s\S]*?<\/a>[\s\S]*?<\/em>\s*<\/p>/i,
+      " ",
+    );
+  return finalizeExcerpt(stripHtml(body));
+}
+
+/**
+ * Extract the chapter body from CCEL's XHTML reader. A balanced div scan is
+ * used instead of a greedy regex because the chapter contains nested spans,
+ * tables, and footnote markup.
+ */
+export function extractCcelBookContent(html: string): string {
+  const marker = /<div\b[^>]*class="book-content"[^>]*>/i.exec(html);
+  if (!marker) return "";
+  const start = marker.index + marker[0].length;
+  const tags = /<\/?div\b[^>]*>/gi;
+  tags.lastIndex = start;
+  let depth = 1;
+  let match: RegExpExecArray | null;
+  while ((match = tags.exec(html))) {
+    if (match[0].startsWith("</")) depth--;
+    else depth++;
+    if (depth === 0) {
+      return finalizeExcerpt(stripHtml(html.slice(start, match.index)));
+    }
+  }
+  return finalizeExcerpt(stripHtml(html.slice(start)));
+}
+
+async function ingestAugustineExpositions(): Promise<void> {
+  const psalms = BOOKS.find((book) => book.canonical === "psalms");
+  if (!psalms) throw new Error("Psalms inventory is unavailable");
+  const books = new Map<string, BookOut>();
+  let kept = 0;
+  for (let chapter = 1; chapter <= 150; chapter++) {
+    const padded = String(chapter).padStart(3, "0");
+    const url = `https://www.newadvent.org/fathers/1801${padded}.htm`;
+    const html = await fetchWithRetry(url);
+    const excerpt = extractNewAdventExcerpt(html);
+    if (excerpt.length < NEW_ADVENT_MIN_EXCERPT_CHARS) {
+      throw new Error(
+        `[augustine-expositions] FATAL: ${psalms.canonical} ${chapter} ` +
+          `produced only ${excerpt.length} cleaned characters`,
+      );
+    }
+    let book = books.get(psalms.canonical);
+    if (!book) {
+      book = {
+        book: psalms.name,
+        chapters: {},
+        _sourceUrl: "https://www.newadvent.org/fathers/1801.htm",
+      };
+      books.set(psalms.canonical, book);
+    }
+    book.chapters[String(chapter)] = { text: excerpt };
+    kept++;
+  }
+  console.log(`[augustine-expositions] fetched and kept ${kept} Psalm chapters`);
+  writeBooks("augustine-expositions", books, [psalms]);
+}
+
+async function ingestLutherGalatians(): Promise<void> {
+  const galatians = BOOKS.find((book) => book.canonical === "galatians");
+  if (!galatians) throw new Error("Galatians inventory is unavailable");
+  const books = new Map<string, BookOut>();
+  const chapterPages = ["iv", "v", "vi", "vii", "viii", "ix"];
+  const book = {
+    book: galatians.name,
+    chapters: {} as Record<string, { text: string }>,
+    _sourceUrl: "https://ccel.org/ccel/luther/galatians/galatians.iv.html",
+  };
+  for (const [index, page] of chapterPages.entries()) {
+    const chapter = index + 1;
+    const url = `https://ccel.org/ccel/luther/galatians/galatians.${page}.html`;
+    const html = await fetchWithRetry(url);
+    const excerpt = extractCcelBookContent(html);
+    if (excerpt.length < CCEL_MIN_EXCERPT_CHARS) {
+      throw new Error(
+        `[luther-galatians] FATAL: ${galatians.canonical} ${chapter} ` +
+          `produced only ${excerpt.length} cleaned characters`,
+      );
+    }
+    book.chapters[String(chapter)] = { text: excerpt };
+  }
+  books.set(galatians.canonical, book);
+  console.log(`[luther-galatians] fetched and kept ${chapterPages.length} Galatians chapters`);
+  writeBooks("luther-galatians", books, [galatians]);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Output writer                                                              */
 /* -------------------------------------------------------------------------- */
@@ -942,6 +1055,10 @@ export const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
   "john-trapp": ["exodus 37", "isaiah 39", "jude 1"],
   // SermonIndex has no Scott body for Psalm 59; the page is an upstream 404.
   "thomas-scott": ["psalms 59"],
+  // New Advent exposes Augustine's complete Psalter, one page per Psalm.
+  "augustine-expositions": [],
+  // CCEL exposes all six chapters of the selected Galatians edition.
+  "luther-galatians": [],
   // These pages contain only BibleHub's "used by permission" footer and no
   // Ellicott commentary. Zephaniah and Zechariah are wholly absent.
   "ellicott-english-readers": [
@@ -1005,7 +1122,7 @@ async function main() {
   const sourceId = process.argv[2];
   if (!sourceId) {
     console.error(
-      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury|matthew-poole|ellicott-english-readers|wesley-explanatory-notes|joseph-benson|john-trapp|thomas-scott>",
+       "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury|matthew-poole|ellicott-english-readers|wesley-explanatory-notes|joseph-benson|john-trapp|thomas-scott|augustine-expositions|luther-galatians>",
     );
     process.exit(1);
   }
@@ -1073,6 +1190,12 @@ async function main() {
       break;
     case "thomas-scott":
       await ingestSermonIndex("thomas-scott", "tscott", PSALMS_BOOKS);
+      break;
+    case "augustine-expositions":
+      await ingestAugustineExpositions();
+      break;
+    case "luther-galatians":
+      await ingestLutherGalatians();
       break;
     default:
       console.error(`Unknown source id: ${sourceId}`);

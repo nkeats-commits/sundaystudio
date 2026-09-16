@@ -121,6 +121,8 @@ test("registry: only sources with populated book corpora are registered", () => 
     "joseph-benson",
     "john-trapp",
     "thomas-scott",
+    "augustine-expositions",
+    "luther-galatians",
   ]) {
     assert.ok(
       sources.some((s) => s.id === required),
@@ -174,6 +176,8 @@ test("registry: bundled commentaries cover ~all 66 books × 1189 chapters", () =
     "joseph-benson": { books: 66, chapters: 1186 },
     "john-trapp": { books: 65, chapters: 1186 },
     "thomas-scott": { books: 1, chapters: 149 },
+    "augustine-expositions": { books: 1, chapters: 150 },
+    "luther-galatians": { books: 1, chapters: 6 },
   };
   const CANONICAL_BOOKS: ReadonlyArray<readonly [string, number]> = [
     ["Genesis", 50], ["Exodus", 40], ["Leviticus", 27], ["Numbers", 36],
@@ -291,6 +295,31 @@ test("lookupCommentary: each new public-domain source returns clean attributed t
   }
 });
 
+test("lookupCommentary: Augustine and Luther expose their verified partial coverage", () => {
+  const augustine = lookupCommentary(["augustine-expositions"], ["Psalms 23:1"]);
+  assert.equal(augustine.length, 1);
+  assert.equal(augustine[0].sourceAuthor, "Augustine of Hippo");
+  assert.match(augustine[0].sourceTitle, /Expositions on the Psalms/);
+  assert.ok(augustine[0].text.length >= 100);
+
+  const luther = lookupCommentary(["luther-galatians"], ["Galatians 5:1"]);
+  assert.equal(luther.length, 1);
+  assert.equal(luther[0].sourceAuthor, "Martin Luther");
+  assert.match(luther[0].sourceTitle, /Commentary on Galatians/);
+  assert.ok(luther[0].text.length >= 100);
+
+  assert.deepEqual(
+    lookupCommentary(["augustine-expositions"], ["Romans 8:28"]),
+    [],
+    "Augustine must not imply whole-Bible coverage",
+  );
+  assert.deepEqual(
+    lookupCommentary(["luther-galatians"], ["Romans 8:28"]),
+    [],
+    "Luther must not imply whole-Bible coverage",
+  );
+});
+
 test("lookupCommentary: Scott returns clean Psalms-only text with attribution", () => {
   const hits = lookupCommentary(["thomas-scott"], ["Psalms 23:1"]);
   assert.equal(hits.length, 1);
@@ -320,6 +349,8 @@ test("lookupCommentary: every bundled corpus has a representative hit", () => {
     "joseph-benson": { passage: "Romans 8:28", minimum: 200 },
     "john-trapp": { passage: "Romans 8:28", minimum: 80 },
     "thomas-scott": { passage: "Psalms 23:1", minimum: 80 },
+    "augustine-expositions": { passage: "Psalms 23:1", minimum: 100 },
+    "luther-galatians": { passage: "Galatians 5:1", minimum: 100 },
   };
   for (const [sourceId, representative] of Object.entries(representatives)) {
     const hits = lookupCommentary([sourceId], [representative.passage]);
@@ -343,6 +374,8 @@ test("new commentary corpora contain no upstream placeholders, HTML, or footers"
     "joseph-benson",
     "john-trapp",
     "thomas-scott",
+    "augustine-expositions",
+    "luther-galatians",
   ]) {
     for (const file of readdirSync(join(root, sourceId))) {
       if (file === "MANIFEST.json" || !file.endsWith(".json")) continue;
@@ -355,7 +388,7 @@ test("new commentary corpora contain no upstream placeholders, HTML, or footers"
         .join("\n");
       assert.doesNotMatch(
         commentaryText,
-        /<[^>]+>|No text from Poole|Used by Permission|Matthew Poole's Commentary|Ellicott's Commentary for English Readers|SermonIndex\.net|Thomas Scott's Explanatory Notes on the Bible/,
+        /<[^>]+>|No text from Poole|Used by Permission|Matthew Poole's Commentary|Ellicott's Commentary for English Readers|SermonIndex\.net|Thomas Scott's Explanatory Notes on the Bible|New Advent|About this page|Copyright|book-content|book_navbar/i,
         `${sourceId}/${file} contains upstream page artifacts`,
       );
     }
@@ -372,6 +405,8 @@ test("lookupCommentary: disabled new sources contribute no context", () => {
           "matthew-poole",
           "wesley-explanatory-notes",
           "ellicott-english-readers",
+          "augustine-expositions",
+          "luther-galatians",
         ].includes(hit.sourceId),
     ),
   );
@@ -436,4 +471,17 @@ test("lookupCommentary: multiple sources share the budget, total stays bounded",
   );
   // At least one source should have contributed.
   assert.ok(hits.length >= 1, "expected at least one hit");
+});
+
+test("lookupCommentary: Augustine and Luther share the existing fixed budget", () => {
+  const budget = 500;
+  const hits = lookupCommentary(
+    ["augustine-expositions", "luther-galatians"],
+    ["Psalms 23", "Galatians 5"],
+    budget,
+  );
+  assert.ok(hits.length >= 1);
+  assert.ok(
+    hits.reduce((sum, hit) => sum + hit.text.length, 0) <= budget,
+  );
 });

@@ -126,6 +126,8 @@ Currently wired sources:
 - `joseph-benson`          → `https://biblehub.com/commentaries/benson/` (66 books / 1,186 chapters; three verified upstream gaps)
 - `john-trapp`             → `https://www.sermonindex.net/commentary/trapp/` (65 books / 1,186 chapters; three verified upstream gaps)
 - `thomas-scott`           → `https://www.sermonindex.net/commentary/tscott/` (Psalms 1–150 except Psalm 59; 149 chapters)
+- `augustine-expositions`  → `https://www.newadvent.org/fathers/1801.htm` (Augustine's Expositions on the Psalms; 150 chapters)
+- `luther-galatians`       → `https://ccel.org/ccel/luther/galatians.html` (Luther's Commentary on Galatians; 6 chapters)
 
 Why BibleHub: CCEL only publishes plain-text dumps for a few works, and the
 JFB dump's per-book headers vary across the canon (`THE FIRST BOOK OF MOSES,
@@ -157,7 +159,9 @@ To add another source backed by BibleHub, add a `case` in the script's
 `main()` switch with the BibleHub path segment, then run the script. To add
 a source from a different upstream, write a dedicated extractor and ingest
 function that populates the same `Map<canonical, BookOut>` shape and pass it
-to `writeBooks()`.
+to `writeBooks()`. The Augustine and Luther ingesters are examples for
+passage-keyed New Advent and CCEL readers; their source-specific exact
+inventories are kept in `commentaryValidation.ts`.
 
 ### Provenance note (bundle: Benson, Trapp, Scott)
 
@@ -178,6 +182,21 @@ to `writeBooks()`.
   59 unavailable upstream. The manifest and derived coverage intentionally say
   “Psalms only” rather than implying whole-Bible coverage.
 
+- **Augustine's Expositions on the Psalms** — Augustine's exposition is
+  represented by the anonymous English translation in *Nicene and Post-Nicene
+  Fathers, First Series*, volume 8 (1888), edited by Philip Schaff. New Advent
+  exposes the verified edition as one page for each of Psalms 1–150. New
+  Advent is the transport host, not the license evidence; the 1888 volume is
+  public domain. The manifest and derived coverage intentionally say “Psalms
+  only” rather than implying whole-Bible coverage.
+- **Luther's Commentary on Galatians** — Martin Luther's commentary is
+  represented by Theodore Graebner's abridged English translation, published
+  by Concordia Publishing House in 1918 and hosted by CCEL. The edition has
+  six passage-keyed chapter pages, Galatians 1–6. CCEL is the transport host,
+  not the license evidence; the 1918 edition is public domain. This is a
+  later-Reformation source and its manifest intentionally does not imply
+  coverage outside Galatians.
+
 - **Calvin's Commentaries** — Calvin's 48-book corpus contains 30 verified
   upstream omissions: Leviticus 12, Jeremiah 52, and Ezekiel 21–48. Each
   BibleHub page returns the chapter text and Calvin attribution footer but no
@@ -189,6 +208,10 @@ SermonIndex is the text host for Trapp and Scott, not the license evidence.
 The importer strips the scripture lead-in, verse headings, HTML, and citation
 footer from each chapter page before writing normalized JSON. The generated
 files are checked in and the runtime loader never fetches SermonIndex.
+New Advent's support banner/publication block and CCEL's XHTML reader
+navigation are parser failures, not source gaps. They must be removed during
+ingest; empty pages, page chrome, and attribution/license text must never be
+accepted as commentary.
 
 ### Failure checklist
 

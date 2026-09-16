@@ -23,6 +23,12 @@ export interface CommentaryValidationSpec {
   };
   requiresBookSourceUrl: boolean;
   requiresAttribution: boolean;
+  /**
+   * Optional exact inventory for sources whose selected edition is only a
+   * passage subset of a book. Keys use the same "<book> <chapter>" format as
+   * KNOWN_EMPTY_UPSTREAM.
+   */
+  expectedChapterKeys?: readonly string[];
 }
 
 const bookSlug = (canonical: string) => canonical.replace(/\s+/g, "-");
@@ -37,6 +43,14 @@ const ellicottBooks = fullBible.filter(
 );
 const trappBooks = fullBible.filter((slug) => slug !== "jude");
 const calvinBooks = CALVIN_BOOK_SLUGS;
+const augustinePsalmKeys = Array.from(
+  { length: 150 },
+  (_, index) => `psalms ${index + 1}`,
+);
+const lutherGalatiansKeys = Array.from(
+  { length: 6 },
+  (_, index) => `galatians ${index + 1}`,
+);
 
 const chapterTotal = (scope: readonly string[]) =>
   scope.reduce((total, slug) => {
@@ -200,6 +214,28 @@ export const COMMENTARY_VALIDATION_SPECS: readonly CommentaryValidationSpec[] = 
     requiresBookSourceUrl: true,
     requiresAttribution: true,
   },
+  {
+    sourceId: "augustine-expositions",
+    expectedBookSlugs: psalmsOnly,
+    expectedChapterCount: 150,
+    exactCoverage: true,
+    minimumExcerptChars: 100,
+    representative: { book: "psalms", chapter: 23 },
+    requiresBookSourceUrl: true,
+    requiresAttribution: true,
+    expectedChapterKeys: augustinePsalmKeys,
+  },
+  {
+    sourceId: "luther-galatians",
+    expectedBookSlugs: ["galatians"],
+    expectedChapterCount: 6,
+    exactCoverage: true,
+    minimumExcerptChars: 100,
+    representative: { book: "galatians", chapter: 5 },
+    requiresBookSourceUrl: true,
+    requiresAttribution: true,
+    expectedChapterKeys: lutherGalatiansKeys,
+  },
 ];
 
 const exactScopeFor = (spec: CommentaryValidationSpec): BookSpec[] =>
@@ -224,9 +260,17 @@ export function validateCoverage(
 
   const scope = exactScopeFor(spec);
   const knownEmpty = KNOWN_EMPTY_UPSTREAM[spec.sourceId] ?? [];
-  const { missing, unexpected } = spec.exactCoverage
-    ? diffExactCoverage(got, scope, knownEmpty)
-    : { missing: [], unexpected: [] };
+  let missing: string[] = [];
+  let unexpected: string[] = [];
+  if (spec.exactCoverage) {
+    if (spec.expectedChapterKeys) {
+      const expected = new Set(spec.expectedChapterKeys);
+      missing = [...expected].filter((key) => !got.has(key));
+      unexpected = [...got].filter((key) => !expected.has(key));
+    } else {
+      ({ missing, unexpected } = diffExactCoverage(got, scope, knownEmpty));
+    }
+  }
 
   return {
     totalChapters: got.size,
@@ -239,6 +283,7 @@ export function expectedChapterTotal(
   spec: CommentaryValidationSpec,
 ): number {
   if (!spec.exactCoverage) return spec.expectedChapterCount;
+  if (spec.expectedChapterKeys) return spec.expectedChapterKeys.length;
   const scopeTotal = chapterTotal(spec.expectedBookSlugs);
   const gaps = (KNOWN_EMPTY_UPSTREAM[spec.sourceId] ?? []).filter((key) => {
     const bookSlug = key.replace(/\s+\d+$/, "").replace(/\s+/g, "-");
@@ -248,4 +293,4 @@ export function expectedChapterTotal(
 }
 
 export const CLEAN_TEXT_ARTIFACTS =
-  /<[^>]+>|javascript:|related resources|no text from poole|used by permission|sermonindex\.net|Matthew Poole's Commentary|Ellicott's Commentary for English Readers|Thomas Scott's Explanatory Notes on the Bible/i;
+  /<[^>]+>|javascript:|related resources|no text from poole|used by permission|sermonindex\.net|new advent|about this page|Matthew Poole's Commentary|Ellicott's Commentary for English Readers|Thomas Scott's Explanatory Notes on the Bible/i;

@@ -1,0 +1,13 @@
+{
+  "id": "luther-galatians",
+  "title": "Luther's Commentary on Galatians",
+  "author": "Martin Luther",
+  "year": "1918 abridged English translation",
+  "license": "Public domain (Theodore Graebner translation, Concordia Publishing House, 1918)",
+  "sourceUrl": "https://ccel.org/ccel/luther/galatians.html",
+  "originalSourceUrl": "https://archive.org/details/commentaryongala00luth",
+  "description": "Later-Reformation exposition of Paul's Epistle to the Galatians, represented by Theodore Graebner's abridged English translation of Luther's commentary. The checked-in corpus covers Galatians chapters 1–6 only and makes no claim of whole-Bible coverage.",
+  "kind": "commentary",
+  "lookupType": "chapter commentary",
+  "attribution": "Martin Luther, Commentary on St. Paul's Epistle to the Galatians — Theodore Graebner's abridged English translation (1918), public-domain edition"
+}
