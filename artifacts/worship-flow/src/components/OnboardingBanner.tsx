@@ -51,8 +51,21 @@ export function OnboardingBanner({
       <section
         data-testid="loading-onboarding"
         aria-label="Loading onboarding progress"
-        className="h-32 animate-pulse rounded-2xl bg-[var(--worship-sand)] opacity-40"
-      />
+        className="rounded-2xl border px-4 py-3"
+        style={{
+          backgroundColor: 'var(--worship-white)',
+          borderColor: 'var(--worship-border)',
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-[var(--worship-sand)] opacity-50" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-3 w-40 max-w-full animate-pulse rounded bg-[var(--worship-sand)] opacity-50" />
+            <div className="h-2 w-64 max-w-full animate-pulse rounded bg-[var(--worship-sand)] opacity-40" />
+          </div>
+          <span className="sr-only">Loading onboarding progress</span>
+        </div>
+      </section>
     );
   }
   if (dashboardError || !dashboard) return null;

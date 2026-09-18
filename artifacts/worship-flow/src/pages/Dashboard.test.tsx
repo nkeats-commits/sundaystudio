@@ -77,13 +77,35 @@ mock.module("../components/layout/AppLayout", {
   },
 });
 mock.module("../components/OnboardingBanner", {
-  namedExports: { OnboardingBanner: () => null },
+  namedExports: {
+    OnboardingBanner: ({
+      dashboard,
+      dashboardLoading,
+      dashboardError,
+      meLoading,
+    }: {
+      dashboard?: DashboardState["data"];
+      dashboardLoading: boolean;
+      dashboardError: boolean;
+      meLoading: boolean;
+    }) =>
+      dashboardLoading || meLoading
+        ? React.createElement("section", { "data-testid": "loading-onboarding" })
+        : dashboardError || !dashboard
+          ? null
+          : React.createElement("section", { "data-testid": "banner-onboarding" }, "Onboarding"),
+  },
 });
 mock.module("../components/UpgradeBanner", {
-  namedExports: { UpgradeBanner: () => null },
+  namedExports: {
+    UpgradeBanner: () => React.createElement("section", { "data-testid": "banner-upgrade" }, "Upgrade"),
+  },
 });
 mock.module("../components/PersonalizationCard", {
-  namedExports: { PersonalizationCard: () => null },
+  namedExports: {
+    PersonalizationCard: () =>
+      React.createElement("section", { "data-testid": "card-personalization" }, "Personalization"),
+  },
 });
 
 type DashboardState = {
@@ -182,10 +204,38 @@ afterEach(() => {
 test("renders welcome and quick actions while the summary request is pending", () => {
   render(<Dashboard />);
 
-  assert.ok(screen.getByTestId("text-dashboard-welcome"));
-  assert.ok(screen.getByTestId("link-quick-action-0"));
+  const welcome = screen.getByTestId("text-dashboard-welcome");
+  const quickAction = screen.getByTestId("link-quick-action-0");
+
+  assert.ok(welcome);
+  assert.ok(quickAction);
+  assert.ok(screen.getByTestId("loading-onboarding"));
+  assert.ok(screen.getByTestId("loading-trial-details"));
   assert.ok(screen.getByTestId("loading-recent-service-0"));
   assert.ok(screen.getByTestId("loading-verse"));
+  assert.ok(welcome.compareDocumentPosition(quickAction) & Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.ok(
+    quickAction.compareDocumentPosition(screen.getByTestId("loading-onboarding")) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  assert.ok(
+    quickAction.compareDocumentPosition(screen.getByTestId("loading-trial-details")) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+});
+
+test("renders the resolved dashboard sections after the actionable shell", () => {
+  dashboardState = successState;
+  render(<Dashboard />);
+
+  assert.ok(screen.getByTestId("text-dashboard-welcome"));
+  assert.ok(screen.getByTestId("link-quick-action-0"));
+  assert.ok(screen.getByTestId("banner-onboarding"));
+  assert.ok(screen.getByTestId("banner-upgrade"));
+  assert.ok(screen.getByTestId("card-personalization"));
+  assert.ok(screen.getByTestId("card-recent-service-42"));
+  assert.ok(screen.getByTestId("text-verse-of-day"));
+  assert.match(screen.getByText(/1 plans created this month/).textContent ?? "", /1 plans created this month/);
 });
 
 test("keeps quick actions visible and recovers after a summary error", async () => {

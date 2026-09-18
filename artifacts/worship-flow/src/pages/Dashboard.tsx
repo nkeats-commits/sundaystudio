@@ -187,16 +187,38 @@ function TrialValueSurface({ trial }: { trial: TrialSummary }) {
 function SectionSkeleton({
   className = "h-24",
   label,
+  description,
 }: {
   className?: string;
   label: string;
+  description?: string;
 }) {
   return (
-    <div
-      data-testid={`loading-${label}`}
+    <section
+      data-testid={`loading-section-${label}`}
       aria-label={`Loading ${label}`}
-      className={`${className} animate-pulse rounded-2xl bg-[var(--worship-sand)] opacity-40`}
-    />
+      className="rounded-2xl border px-4 py-3"
+      style={{
+        backgroundColor: "var(--worship-white)",
+        borderColor: "var(--worship-border)",
+      }}
+    >
+      <div className="flex items-center gap-3">
+        {description && (
+          <span
+            className="shrink-0 text-xs font-medium"
+            style={{ color: "var(--worship-muted-slate)" }}
+          >
+            {description}
+          </span>
+        )}
+        <div
+          data-testid={`loading-${label}`}
+          className={`${className} w-full animate-pulse rounded-lg bg-[var(--worship-sand)] opacity-40`}
+        />
+        {!description && <span className="sr-only">Loading {label}</span>}
+      </div>
+    </section>
   );
 }
 
@@ -248,21 +270,6 @@ export default function Dashboard() {
     <AppLayout title="Dashboard">
       <div className="max-w-6xl mx-auto space-y-8 md:space-y-10">
 
-        {isError && <DashboardSummaryError onRetry={() => void refetch()} />}
-        <OnboardingBanner
-          dashboard={dashboard}
-          dashboardLoading={isLoading}
-          dashboardError={isError}
-          me={me}
-          meLoading={meQuery.isLoading}
-        />
-        <UpgradeBanner />
-        {dashboard?.trial ? (
-          <TrialValueSurface trial={dashboard.trial} />
-        ) : isLoading ? (
-          <SectionSkeleton className="h-48" label="trial-details" />
-        ) : null}
-
         {/* Welcome Section */}
         <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 pb-6 border-b" style={{ borderColor: 'var(--worship-border)' }}>
           <div>
@@ -286,9 +293,6 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Personalization completeness */}
-        <PersonalizationCard />
-
         {/* Quick Actions */}
         <section>
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--worship-muted-slate)' }}>Quick Actions</h2>
@@ -309,6 +313,29 @@ export default function Dashboard() {
             ))}
           </div>
         </section>
+
+        {/* Secondary account and summary sections intentionally follow the actionable shell. */}
+        {isError && <DashboardSummaryError onRetry={() => void refetch()} />}
+        <OnboardingBanner
+          dashboard={dashboard}
+          dashboardLoading={isLoading}
+          dashboardError={isError}
+          me={me}
+          meLoading={meQuery.isLoading}
+        />
+        <UpgradeBanner />
+        {dashboard?.trial ? (
+          <TrialValueSurface trial={dashboard.trial} />
+        ) : isLoading ? (
+          <SectionSkeleton
+            className="h-8 max-w-sm"
+            label="trial-details"
+            description="Loading trial details"
+          />
+        ) : null}
+
+        {/* Personalization completeness */}
+        <PersonalizationCard />
 
         {/* Recent Services */}
         <section>

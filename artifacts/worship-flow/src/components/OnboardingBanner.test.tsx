@@ -105,4 +105,5 @@ test("waits for the dashboard summary before deciding onboarding visibility", ()
   );
 
   assert.ok(screen.getByTestId("loading-onboarding"));
+  assert.doesNotMatch(screen.getByTestId("loading-onboarding").className, /h-32/);
 });
