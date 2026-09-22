@@ -358,14 +358,39 @@ test('distinguishes selectable and passage-only editions', async () => {
       },
       {
         ...sampleResults.translations[0],
+        sourceId: 'kjv-1769-aligned',
+        sourceTitle: 'King James Version (aligned)',
         wordAlignmentAvailable: true,
+      },
+      {
+        ...sampleResults.translations[0],
+        sourceId: 'web-1901-aligned',
+        sourceTitle: 'World English Bible (aligned)',
+        wordAlignmentAvailable: true,
+      },
+      {
+        ...sampleResults.translations[0],
+        sourceId: 'ylt-1898',
+        sourceTitle: "Young's Literal Translation",
       },
     ],
   });
 
-  assert.ok(screen.getByText('Word study available'));
-  assert.ok(screen.getByText('Passage text only'));
-  assert.ok(screen.getByText(/Word selection is not available for this edition/));
+  assert.equal(screen.getAllByText('Word study available').length, 2);
+  assert.equal(screen.getAllByText('Passage text only').length, 2);
+  assert.equal(screen.getAllByText(/Word selection is not available for this edition/).length, 2);
+  assert.deepEqual(
+    Array.from(document.querySelectorAll('section[aria-labelledby="bible-tools-passage-text"] article')).map(
+      (article) => article.querySelector('span.font-medium')?.textContent,
+    ),
+    [
+      'King James Version (aligned)',
+      'World English Bible (aligned)',
+      'American Standard Version',
+      "Young's Literal Translation",
+    ],
+  );
+  assert.equal(screen.getAllByRole('button', { name: 'Study word loved in John 3:16' }).length, 2);
 });
 
 test('selects a translated token and shows a verified mobile-friendly word study', async () => {

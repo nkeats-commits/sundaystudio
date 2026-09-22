@@ -596,6 +596,10 @@ function Results({
       ...results.lexicalEntries.map((hit) => hit.sourceTitle),
     ]),
   );
+  const prioritizedTranslations = [
+    ...results.translations.filter((hit) => hit.wordAlignmentAvailable),
+    ...results.translations.filter((hit) => !hit.wordAlignmentAvailable),
+  ];
 
   return (
     <div className="space-y-7">
@@ -634,7 +638,7 @@ function Results({
         />
       )}
       <ResultGroup title="Passage text" count={results.translations.length}>
-        {results.translations.map((hit) => {
+        {prioritizedTranslations.map((hit) => {
           const payload = translationLookupResource(hit);
           const key = bibleLookupResourceKey(payload);
           return (
