@@ -7,6 +7,7 @@
  */
 import type { CrossReferenceHit } from "./crossReferenceHit";
 import type { LexicalReferenceHit } from "./lexicalReferenceHit";
+import type { SelectedWordStudy } from "./selectedWordStudy";
 import type { TranslationReferenceHit } from "./translationReferenceHit";
 
 /**
@@ -16,4 +17,5 @@ export interface ReferenceBundle {
   translations: TranslationReferenceHit[];
   crossReferences: CrossReferenceHit[];
   lexicalEntries: LexicalReferenceHit[];
+  selectedWordStudy?: SelectedWordStudy;
 }

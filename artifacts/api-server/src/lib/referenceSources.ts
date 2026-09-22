@@ -31,6 +31,16 @@ const DATA_ROOT = (() => {
 
 export interface ReferenceManifest extends ScholarlySourceManifest {
   kind: Exclude<ScholarlySourceKind, "commentary">;
+  alignment?: {
+    dataFile: string;
+    sourceTitle: string;
+    sourceUrl: string;
+    sourceRevision: string;
+    license: string;
+    attribution: string;
+    integrity: { file: string; sha256: string; rowCount: number };
+    gapAllowlist: { count: number; sha256: string };
+  };
 }
 
 export interface TranslationHit {
@@ -44,6 +54,7 @@ export interface TranslationHit {
   chapter: number;
   verse: number;
   text: string;
+  wordAlignmentAvailable: boolean;
 }
 
 export interface CrossReferenceHit {
@@ -73,13 +84,39 @@ export interface LexicalHit {
   references: string[];
 }
 
+export interface SelectedWordRequest {
+  translationSourceId: string;
+  reference: string;
+  tokenIndex: number;
+  tokenText: string;
+  passageContext?: string;
+}
+
+export interface SelectedWordCandidate extends LexicalHit {
+  selectedVerse: string;
+  alsoFoundIn: string[];
+}
+
+export interface SelectedWordStudy {
+  translationSourceId: string;
+  reference: string;
+  tokenIndex: number;
+  tokenText: string;
+  status: "verified" | "unavailable";
+  message?: string;
+  candidates: SelectedWordCandidate[];
+}
+
 export const MAX_LEXICAL_REFERENCES = 24;
 export const MAX_LEXICAL_REFERENCE_CHARS = 512;
+export const MAX_SELECTED_WORD_CANDIDATES = 8;
+export const MAX_SELECTED_WORD_OCCURRENCES = 12;
 
 export interface ReferenceBundle {
   translations: TranslationHit[];
   crossReferences: CrossReferenceHit[];
   lexicalEntries: LexicalHit[];
+  selectedWordStudy?: SelectedWordStudy;
 }
 
 export type ReferenceSourceKind = ReferenceManifest["kind"];
@@ -120,6 +157,15 @@ interface TranslationRow {
   text: string;
 }
 
+interface TokenAlignmentRow {
+  book: string;
+  chapter: number;
+  verse: number;
+  tokenIndex: number;
+  tokenText: string;
+  strongs: string[];
+}
+
 interface CrossReferenceRow {
   sourceReference: string;
   targets: string[];
@@ -143,6 +189,7 @@ interface LoadedReference {
   translations: Map<string, TranslationRow>;
   crossReferences: Map<string, CrossReferenceRow[]>;
   lexicon: Map<string, LexicalRow>;
+  alignments: Map<string, TokenAlignmentRow[]>;
 }
 
 const CANONICAL_BOOK_ORDER = [
@@ -223,6 +270,10 @@ function sourceManifest(raw: unknown): ReferenceManifest | null {
   if (required.some((key) => typeof m[key as keyof ReferenceManifest] !== "string")) return null;
   if (!["translation", "cross-reference", "lexicon"].includes(m.kind ?? "")) return null;
   if (m.license !== "Public Domain") return null;
+  const alignmentRaw = m.alignment;
+  const alignment = alignmentRaw && typeof alignmentRaw === "object"
+    ? alignmentRaw as ReferenceManifest["alignment"]
+    : undefined;
   return {
     id: m.id!,
     title: m.title!,
@@ -237,6 +288,7 @@ function sourceManifest(raw: unknown): ReferenceManifest | null {
     bookCount: 0,
     scope: "No indexed entries",
     coveredBooks: [],
+    ...(alignment ? { alignment } : {}),
   };
 }
 
@@ -248,6 +300,7 @@ function loadReference(id: string): LoadedReference | null {
     const translations = new Map<string, TranslationRow>();
     const crossReferences = new Map<string, CrossReferenceRow[]>();
     const lexicon = new Map<string, LexicalRow>();
+    const alignments = new Map<string, TokenAlignmentRow[]>();
     const file = (name: string) => JSON.parse(readFileSync(join(dir, name), "utf8")) as unknown;
 
     if (manifest.kind === "translation") {
@@ -263,6 +316,38 @@ function loadReference(id: string): LoadedReference | null {
           return null;
         }
         translations.set(key, { ...row, book: normalizeBook(row.book) });
+      }
+      if (manifest.alignment) {
+        const rows = file(manifest.alignment.dataFile);
+        if (!Array.isArray(rows)) return null;
+        for (const row of rows as TokenAlignmentRow[]) {
+          if (
+            !row ||
+            typeof row.book !== "string" ||
+            !Number.isInteger(row.chapter) ||
+            !Number.isInteger(row.verse) ||
+            !Number.isInteger(row.tokenIndex) ||
+            row.tokenIndex < 0 ||
+            typeof row.tokenText !== "string" ||
+            !row.tokenText.trim() ||
+            !Array.isArray(row.strongs) ||
+            row.strongs.length === 0 ||
+            row.strongs.some((value) => typeof value !== "string" || !/^[GH]\d{1,4}$/i.test(value))
+          ) continue;
+          const key = verseKey(row.book, row.chapter, row.verse);
+          if (!translations.has(key)) continue;
+          const existing = alignments.get(key) ?? [];
+          existing.push({
+            ...row,
+            book: normalizeBook(row.book),
+            tokenText: row.tokenText.trim(),
+            strongs: Array.from(new Set(row.strongs.map((value) => value.toUpperCase()))),
+          });
+          alignments.set(key, existing);
+        }
+        for (const rows of alignments.values()) {
+          rows.sort((a, b) => a.tokenIndex - b.tokenIndex);
+        }
       }
     } else if (manifest.kind === "cross-reference") {
       const rows = file("cross-references.json");
@@ -310,7 +395,7 @@ function loadReference(id: string): LoadedReference | null {
         });
       }
     }
-    return { manifest, translations, crossReferences, lexicon };
+    return { manifest, translations, crossReferences, lexicon, alignments };
   } catch (err) {
     logger.warn({ err, sourceId: id }, "referenceSources: failed to load source");
     return null;
@@ -391,6 +476,7 @@ export function lookupReferenceBundle(
   passageRefs: readonly string[],
   terms: readonly string[] = [],
   totalBudgetChars = 1800,
+  selectedWord?: SelectedWordRequest,
 ): ReferenceBundle {
   const requestedPassages = passageRefs
     .filter((reference) => reference.trim())
@@ -459,6 +545,7 @@ export function lookupReferenceBundle(
             sourceUrl: manifest.sourceUrl, attribution: manifest.attribution,
             reference: `${row.book.replace(/\b\w/g, (c) => c.toUpperCase())} ${row.chapter}:${row.verse}`,
             book: row.book, chapter: row.chapter, verse: row.verse, text,
+            wordAlignmentAvailable: source.alignments.has(key),
           });
           if (remaining <= 0) break;
         }
@@ -533,7 +620,92 @@ export function lookupReferenceBundle(
       throw new ReferenceSourceError(manifest.kind, error);
     }
   }
+  if (selectedWord) {
+    bundle.selectedWordStudy = lookupSelectedWord(
+      sourceIds,
+      selectedWord,
+    );
+  }
   return bundle;
+}
+
+function lookupSelectedWord(
+  enabledSourceIds: readonly string[],
+  request: SelectedWordRequest,
+): SelectedWordStudy {
+  const unavailable = (message: string): SelectedWordStudy => ({
+    translationSourceId: request.translationSourceId,
+    reference: request.reference,
+    tokenIndex: request.tokenIndex,
+    tokenText: request.tokenText,
+    status: "unavailable",
+    message,
+    candidates: [],
+  });
+  const source = REGISTRY.get(request.translationSourceId);
+  if (!source || source.manifest.kind !== "translation" || !enabledSourceIds.includes(request.translationSourceId)) {
+    return unavailable("This translation source is not enabled for word study.");
+  }
+  const parsed = parsePassageVerses(request.reference);
+  const reference = parsed[0];
+  if (!reference || parsed.length !== 1) {
+    return unavailable("Select a word from one displayed verse.");
+  }
+  const key = verseKey(reference.book, reference.chapter, reference.verse);
+  const translation = source.translations.get(key);
+  const alignment = source.alignments.get(key)?.find((row) => row.tokenIndex === request.tokenIndex);
+  if (
+    !translation ||
+    !alignment ||
+    alignment.tokenText.toLocaleLowerCase() !== request.tokenText.trim().toLocaleLowerCase()
+  ) {
+    return unavailable("Verified word alignment is not available for this displayed word.");
+  }
+
+  const candidates: SelectedWordCandidate[] = [];
+  const normalizedKeys = new Set(alignment.strongs.map((value) => value.toLowerCase().replace(/^([gh])0+/, "$1")));
+  for (const sourceId of enabledSourceIds) {
+    const lexicalSource = REGISTRY.get(sourceId);
+    if (!lexicalSource || lexicalSource.manifest.kind !== "lexicon") continue;
+    for (const normalizedKey of normalizedKeys) {
+      const row = lexicalSource.lexicon.get(normalizedKey);
+      if (!row) continue;
+      const selectedReference = `${reference.book.replace(/\b\w/g, (c) => c.toUpperCase())} ${reference.chapter}:${reference.verse}`;
+      const alsoFoundIn = normalizeLexicalReferences(row.references ?? [])
+        .filter((value) => value !== selectedReference)
+        .slice(0, MAX_SELECTED_WORD_OCCURRENCES);
+      candidates.push({
+        sourceId,
+        sourceTitle: lexicalSource.manifest.title,
+        sourceAuthor: lexicalSource.manifest.author,
+        sourceUrl: lexicalSource.manifest.sourceUrl,
+        attribution: lexicalSource.manifest.attribution,
+        key: row.key,
+        term: row.term,
+        strongsNumber: row.strongsNumber,
+        originalWord: row.originalWord,
+        transliteration: row.transliteration,
+        language: row.language,
+        definition: row.definition.slice(0, MAX_LEXICAL_REFERENCE_CHARS),
+        references: normalizeLexicalReferences(row.references ?? []),
+        selectedVerse: selectedReference,
+        alsoFoundIn,
+      });
+      if (candidates.length >= MAX_SELECTED_WORD_CANDIDATES) break;
+    }
+    if (candidates.length >= MAX_SELECTED_WORD_CANDIDATES) break;
+  }
+  return {
+    translationSourceId: request.translationSourceId,
+    reference: `${reference.book.replace(/\b\w/g, (c) => c.toUpperCase())} ${reference.chapter}:${reference.verse}`,
+    tokenIndex: request.tokenIndex,
+    tokenText: alignment.tokenText,
+    status: "verified",
+    message: candidates.length
+      ? undefined
+      : "The token alignment is verified, but no enabled lexical source contains its original-language entry.",
+    candidates,
+  };
 }
 
 export const REFERENCE_BUNDLE_BUDGET_CHARS = 1800;

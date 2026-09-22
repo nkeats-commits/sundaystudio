@@ -31,6 +31,7 @@ type ReferenceBundle = {
     attribution: string;
     reference: string;
     text: string;
+      wordAlignmentAvailable?: boolean;
   }>;
   crossReferences: Array<{
     sourceId: string;
@@ -57,6 +58,31 @@ type ReferenceBundle = {
     definition: string;
     references: string[];
   }>;
+  selectedWordStudy?: {
+    translationSourceId: string;
+    reference: string;
+    tokenIndex: number;
+    tokenText: string;
+    status: 'verified' | 'unavailable';
+    message?: string;
+    candidates: Array<{
+      sourceId: string;
+      sourceTitle: string;
+      sourceAuthor: string;
+      sourceUrl: string;
+      attribution: string;
+      key: string;
+      term: string;
+      strongsNumber?: string;
+      originalWord: string;
+      transliteration: string;
+      language: 'Greek' | 'Hebrew' | 'English';
+      definition: string;
+      references: string[];
+      selectedVerse: string;
+      alsoFoundIn: string[];
+    }>;
+  };
 };
 
 type LookupCallbacks = {
@@ -210,7 +236,7 @@ mock.module('../components/layout/AppLayout', {
   },
 });
 
-const { act, cleanup, fireEvent, render, screen, waitFor } = await import('@testing-library/react');
+const { act, cleanup, fireEvent, render, screen, waitFor, within } = await import('@testing-library/react');
 const { default: BibleTools } = await import('./BibleTools');
 
 function setViewport(width: number) {
@@ -315,6 +341,111 @@ test('completes a verse lookup with grouped, attributed results at desktop width
   assert.ok(screen.getByRole('link', { name: /Open in Sermon Builder/ }));
   assert.ok(screen.getByRole('button', { name: 'Study this word' }));
   assert.equal(screen.getByRole('button', { name: 'Reset' }).textContent?.trim(), 'Reset');
+});
+
+test('selects a translated token and shows a verified mobile-friendly word study', async () => {
+  renderPage(390);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup({
+    ...sampleResults,
+    translations: [{ ...sampleResults.translations[0], wordAlignmentAvailable: true }],
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Study word loved in John 3:16' }));
+  assert.deepEqual(lastLookup?.variables, {
+    data: {
+      passage: 'John 3:16',
+      terms: [],
+      selectedWord: {
+        translationSourceId: 'kjv-1769',
+        reference: 'John 3:16',
+        tokenIndex: 3,
+        tokenText: 'loved',
+        passageContext: 'John 3:16',
+      },
+    },
+  });
+
+  await completeLookup({
+    ...sampleResults,
+    translations: [{ ...sampleResults.translations[0], wordAlignmentAvailable: true }],
+    selectedWordStudy: {
+      translationSourceId: 'kjv-1769',
+      reference: 'John 3:16',
+      tokenIndex: 3,
+      tokenText: 'loved',
+      status: 'verified',
+      candidates: [
+        {
+          ...sampleResults.lexicalEntries[0],
+          language: 'Greek' as const,
+          selectedVerse: 'John 3:16',
+          alsoFoundIn: ['1 John 4:9'],
+        },
+      ],
+    },
+  });
+  assert.ok(screen.getByRole('heading', { name: /loved.*John 3:16/ }));
+  assert.ok(screen.getAllByText('ἀγάπη').length >= 1);
+  assert.ok(screen.getAllByText('John 3:16').length >= 1);
+  assert.ok(screen.getAllByRole('button', { name: /1 John 4:9/ }).length >= 1);
+  assert.ok(screen.getByText('Verified alignment'));
+
+  const studyCard = screen.getByRole('heading', { name: /loved.*John 3:16/ }).closest('section');
+  assert.ok(studyCard);
+  const copiedValues: string[] = [];
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: { writeText: async (value: string) => copiedValues.push(value) },
+  });
+  fireEvent.click(within(studyCard).getByRole('button', { name: 'Copy excerpt' }));
+  await waitFor(() => assert.equal(copiedValues.length, 1));
+  assert.match(copiedValues[0], /Selected word: loved/);
+  fireEvent.click(within(studyCard).getByRole('button', { name: 'Save to Sermon Resources' }));
+  await waitFor(() => assert.equal(savedResourcePayloads.length, 1));
+  assert.match(String(savedResourcePayloads[0].excerpt), /Token position: 4/);
+  assert.match(String(savedResourcePayloads[0].notes), /Selected-word provenance/);
+
+  fireEvent.click(within(studyCard).getByRole('button', { name: /1 John 4:9/ }));
+  assert.deepEqual(lastLookup?.variables, {
+    data: { passage: '1 John 4:9', terms: [] },
+  });
+  await completeLookup({
+    ...sampleResults,
+    translations: [{ ...sampleResults.translations[0], wordAlignmentAvailable: true }],
+  });
+  assert.ok(screen.getByRole('heading', { name: /loved.*John 3:16/ }));
+  Reflect.deleteProperty(navigator, 'clipboard');
+});
+
+test('offers manual Word Lookup when a selected token has no verified alignment', async () => {
+  renderPage(390);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup({
+    ...sampleResults,
+    translations: [{ ...sampleResults.translations[0], wordAlignmentAvailable: true }],
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Study word loved in John 3:16' }));
+  await completeLookup({
+    ...sampleResults,
+    translations: [{ ...sampleResults.translations[0], wordAlignmentAvailable: true }],
+    selectedWordStudy: {
+      translationSourceId: 'kjv-1769',
+      reference: 'John 3:16',
+      tokenIndex: 3,
+      tokenText: 'loved',
+      status: 'unavailable',
+      message: 'This translation does not have a verified alignment for the selected token.',
+      candidates: [],
+    },
+  });
+  assert.ok(screen.getByText('This translation does not have a verified alignment for the selected token.'));
+  fireEvent.click(screen.getByRole('button', { name: 'Use manual Word Lookup' }));
+  assert.deepEqual(lastLookup?.variables, {
+    data: { passage: 'John 3:16', terms: ['loved'] },
+  });
 });
 
 test('follows a word-study handoff without retyping the term', async () => {

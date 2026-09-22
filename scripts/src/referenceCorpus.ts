@@ -25,6 +25,16 @@ export type ReferenceCorpusSpec = {
     license: string;
     attribution: string;
   };
+  alignment?: {
+    dataFile: string;
+    sourceTitle: string;
+    sourceUrl: string;
+    sourceRevision: string;
+    license: string;
+    attribution: string;
+    expectedCount: number;
+    expectedSha256: string;
+  };
 };
 
 export type TranslationRow = {
@@ -50,6 +60,15 @@ export type LexicalRow = {
   references: string[];
 };
 
+export type TokenAlignmentRow = {
+  book: string;
+  chapter: number;
+  verse: number;
+  tokenIndex: number;
+  tokenText: string;
+  strongs: string[];
+};
+
 const EMPTY_GAP_ALLOWLIST_SHA256 = "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945";
 
 export const REFERENCE_CORPUS_SPECS: readonly ReferenceCorpusSpec[] = [
@@ -69,6 +88,16 @@ export const REFERENCE_CORPUS_SPECS: readonly ReferenceCorpusSpec[] = [
     expectedCount: 31102,
     expectedSha256: "fc40f076430996c202b5c0ff95ef46f73ff7d51a7d4eee258299196d4649f0ce",
     expectedGapAllowlistSha256: EMPTY_GAP_ALLOWLIST_SHA256,
+    alignment: {
+      dataFile: "alignments.json",
+      sourceTitle: "STEPBible Translators Amalgamated Hebrew/Greek",
+      sourceUrl: "https://github.com/STEPBible/STEPBible-Data/tree/c5407786ede9b26a8998366524076f7c739dccdd/Translators%20Amalgamated%20OT%2BNT",
+      sourceRevision: "c5407786ede9b26a8998366524076f7c739dccdd",
+      license: "CC BY 4.0",
+      attribution: "STEP Bible data, CC BY 4.0; token alignments normalized from the pinned TAHOT/TAGNT snapshot.",
+      expectedCount: 25,
+      expectedSha256: "844231cd901eb9f725c69b5f9835946e7ec97987c15665779fc0116b0ecc6856",
+    },
   },
   {
     id: "asv-1901",
@@ -86,6 +115,16 @@ export const REFERENCE_CORPUS_SPECS: readonly ReferenceCorpusSpec[] = [
     expectedCount: 31086,
     expectedSha256: "0d06ddfa90f8f8872d0e24f60caf78763a26c3fb08c1ee3cd493429745caf128",
     expectedGapAllowlistSha256: "67253d8496e443a89b8292f629499ab95d70ca91f965afd6e6847410e6e49880",
+    alignment: {
+      dataFile: "alignments.json",
+      sourceTitle: "STEPBible Translators Amalgamated Hebrew/Greek",
+      sourceUrl: "https://github.com/STEPBible/STEPBible-Data/tree/c5407786ede9b26a8998366524076f7c739dccdd/Translators%20Amalgamated%20OT%2BNT",
+      sourceRevision: "c5407786ede9b26a8998366524076f7c739dccdd",
+      license: "CC BY 4.0",
+      attribution: "STEP Bible data, CC BY 4.0; token alignments normalized from the pinned TAHOT/TAGNT snapshot.",
+      expectedCount: 0,
+      expectedSha256: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    },
   },
   {
     id: "tsk-1830",
@@ -203,4 +242,12 @@ export function getGapAllowlist(
       ),
   );
   return kjvRows.map(translationKey).filter((key) => !indexed.has(key)).sort();
+}
+
+export function getAlignmentGapAllowlist(
+  alignmentRows: readonly TokenAlignmentRow[],
+  translationRows: readonly TranslationRow[],
+): string[] {
+  const covered = new Set(alignmentRows.map(translationKey));
+  return translationRows.map(translationKey).filter((key) => !covered.has(key)).sort();
 }

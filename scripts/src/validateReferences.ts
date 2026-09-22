@@ -17,6 +17,7 @@ import {
   type CrossReferenceRow,
   type LexicalRow,
   type ReferenceCorpusSpec,
+  type TokenAlignmentRow,
   type TranslationRow,
 } from "./referenceCorpus.js";
 
@@ -40,6 +41,22 @@ type ReferenceManifest = Record<string, unknown> & {
     license?: unknown;
     attribution?: unknown;
   };
+  alignment?: {
+    dataFile?: unknown;
+    sourceTitle?: unknown;
+    sourceUrl?: unknown;
+    sourceRevision?: unknown;
+    license?: unknown;
+    attribution?: unknown;
+    integrity?: {
+      rowCount?: unknown;
+      sha256?: unknown;
+    };
+    gapAllowlist?: {
+      count?: unknown;
+      sha256?: unknown;
+    };
+  };
 };
 
 const DEFAULT_DATA_ROOT = resolve(
@@ -61,6 +78,116 @@ function parseJson<T>(sourceId: string, location: string, path: string): T {
     return JSON.parse(readFileSync(path, "utf8")) as T;
   } catch (error) {
     fail(sourceId, location, `invalid JSON (${error instanceof Error ? error.message : String(error)})`);
+  }
+}
+
+function bibleWords(text: string): string[] {
+  return text.match(/[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*/gu) ?? [];
+}
+
+function alignmentGapAllowlist(
+  rows: readonly TokenAlignmentRow[],
+  translationRows: readonly TranslationRow[],
+): string[] {
+  const covered = new Set(rows.map((row) => translationKey(row)));
+  return translationRows
+    .map(translationKey)
+    .filter((key) => !covered.has(key))
+    .sort();
+}
+
+function validateAlignmentRows(
+  sourceId: string,
+  rows: unknown[],
+  translationRows: readonly TranslationRow[],
+): TokenAlignmentRow[] {
+  const translationByKey = new Map(translationRows.map((row) => [translationKey(row), row]));
+  const seen = new Set<string>();
+  const valid: TokenAlignmentRow[] = [];
+  for (const [index, value] of rows.entries()) {
+    const row = value as Partial<TokenAlignmentRow> | null;
+    if (
+      !row ||
+      typeof row.book !== "string" ||
+      !Number.isInteger(row.chapter) ||
+      !Number.isInteger(row.verse) ||
+      typeof row.tokenIndex !== "number" ||
+      !Number.isInteger(row.tokenIndex) ||
+      row.tokenIndex < 0 ||
+      typeof row.tokenText !== "string" ||
+      !row.tokenText.trim() ||
+      !Array.isArray(row.strongs) ||
+      row.strongs.length === 0 ||
+      row.strongs.some((strongs) => typeof strongs !== "string" || !/^[GH]\d{1,4}$/i.test(strongs))
+    ) {
+      fail(sourceId, `alignment row ${index}`, "malformed token alignment row");
+    }
+    const normalized: TokenAlignmentRow = {
+      book: canonicalBook(row.book),
+      chapter: row.chapter as number,
+      verse: row.verse as number,
+      tokenIndex: row.tokenIndex as number,
+      tokenText: row.tokenText.trim(),
+      strongs: Array.from(new Set(row.strongs.map((strongs) => strongs.toUpperCase()))),
+    };
+    const verse = translationByKey.get(translationKey(normalized));
+    if (!verse) fail(sourceId, `alignment row ${index}`, "alignment points to an unavailable translation verse");
+    const words = bibleWords(verse.text);
+    if (words[normalized.tokenIndex]?.toLowerCase() !== normalized.tokenText.toLowerCase()) {
+      fail(
+        sourceId,
+        `alignment row ${index}`,
+        `token ${normalized.tokenIndex} does not match the displayed translation word`,
+      );
+    }
+    const key = `${translationKey(normalized)}|${normalized.tokenIndex}`;
+    if (seen.has(key)) fail(sourceId, `alignment row ${index}`, `duplicate token position ${key}`);
+    seen.add(key);
+    valid.push(normalized);
+  }
+  return valid.sort(
+    (a, b) =>
+      translationKey(a).localeCompare(translationKey(b)) ||
+      a.tokenIndex - b.tokenIndex,
+  );
+}
+
+function validateAlignmentManifest(
+  spec: ReferenceCorpusSpec,
+  manifest: ReferenceManifest,
+  rows: TokenAlignmentRow[],
+  dataContent: string,
+  translationRows: readonly TranslationRow[],
+): void {
+  const alignment = spec.alignment;
+  if (!alignment) return;
+  const metadata = manifest.alignment;
+  if (!metadata || metadata.dataFile !== alignment.dataFile) {
+    fail(spec.id, "MANIFEST.json", `alignment.dataFile must be ${alignment.dataFile}`);
+  }
+  if (
+    metadata.sourceTitle !== alignment.sourceTitle ||
+    metadata.sourceUrl !== alignment.sourceUrl ||
+    metadata.sourceRevision !== alignment.sourceRevision ||
+    metadata.license !== alignment.license ||
+    metadata.attribution !== alignment.attribution
+  ) {
+    fail(spec.id, "MANIFEST.json", "alignment provenance does not match the pinned source contract");
+  }
+  if (
+    metadata.integrity?.rowCount !== rows.length ||
+    rows.length !== alignment.expectedCount ||
+    metadata.integrity?.sha256 !== sha256(dataContent) ||
+    metadata.integrity?.sha256 !== alignment.expectedSha256
+  ) {
+    fail(spec.id, "MANIFEST.json", "alignment integrity does not match the trusted generated data");
+  }
+  const gaps = alignmentGapAllowlist(rows, translationRows);
+  if (
+    metadata.gapAllowlist?.count !== gaps.length ||
+    metadata.gapAllowlist?.sha256 !== gapAllowlistHash(gaps)
+  ) {
+    fail(spec.id, "MANIFEST.json", "alignment gapAllowlist does not match the indexed coverage");
   }
 }
 
@@ -286,6 +413,29 @@ export function validateReferenceCorpus(dataRoot = DEFAULT_DATA_ROOT): void {
         : validateLexicalRows(spec.id, rows);
     if (spec.id === "kjv-1769") kjvRows = validatedRows as TranslationRow[];
     validateManifest(spec, manifest, rows, dataContent, kjvRows);
+    if (spec.kind === "translation" && spec.alignment) {
+      const alignmentPath = join(sourceDir, spec.alignment.dataFile);
+      if (!existsSync(alignmentPath)) {
+        fail(spec.id, spec.alignment.dataFile, "missing");
+      }
+      const alignmentContent = readFileSync(alignmentPath, "utf8");
+      const alignmentRows = parseJson<unknown[]>(spec.id, spec.alignment.dataFile, alignmentPath);
+      if (!Array.isArray(alignmentRows)) {
+        fail(spec.id, spec.alignment.dataFile, "must contain a JSON array");
+      }
+      const validatedAlignment = validateAlignmentRows(
+        spec.id,
+        alignmentRows,
+        validatedRows as TranslationRow[],
+      );
+      validateAlignmentManifest(
+        spec,
+        manifest,
+        validatedAlignment,
+        alignmentContent,
+        validatedRows as TranslationRow[],
+      );
+    }
   }
 }
 

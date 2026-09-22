@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   crossReferenceLookupResource,
   lexicalLookupResource,
+  selectedWordLookupResource,
   readBibleToolsQuery,
   translationLookupResource,
 } from './bibleTools';
@@ -160,4 +161,40 @@ test('lexical saves prefer the current study passage as context', () => {
     ).relatedPassage,
     'Romans 8:1-11',
   );
+});
+
+test('selected-word saves preserve token context, provenance, and other occurrences', () => {
+  const payload = selectedWordLookupResource(
+    {
+      translationSourceId: 'kjv-1769',
+      reference: 'John 3:16',
+      tokenIndex: 3,
+      tokenText: 'loved',
+      status: 'verified',
+      candidates: [],
+    },
+    {
+      sourceId: 'strongs',
+      sourceTitle: "Strong's Greek Dictionary",
+      sourceAuthor: 'James Strong',
+      sourceUrl: 'https://example.test/strongs',
+      attribution: "Strong's Greek Dictionary, public domain",
+      key: 'g25',
+      term: 'love',
+      strongsNumber: 'G25',
+      originalWord: 'ἀγαπάω',
+      transliteration: 'agapaō',
+      language: 'Greek',
+      definition: 'To love.',
+      references: ['John 3:16', '1 John 4:9'],
+      selectedVerse: 'John 3:16',
+      alsoFoundIn: ['1 John 4:9'],
+    },
+  );
+  assert.equal(payload.relatedPassage, 'John 3:16');
+  assert.match(String(payload.excerpt), /Selected word: loved/);
+  assert.match(String(payload.excerpt), /Token position: 4/);
+  assert.match(String(payload.excerpt), /Exact occurrence: John 3:16/);
+  assert.match(String(payload.excerpt), /Also found in: 1 John 4:9/);
+  assert.match(String(payload.notes), /Selected-word provenance/);
 });

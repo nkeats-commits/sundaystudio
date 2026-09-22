@@ -12,7 +12,9 @@ import {
   REFERENCE_CORPUS_SPECS,
   gapAllowlistHash,
   getGapAllowlist,
+  getAlignmentGapAllowlist,
   sha256,
+  type TokenAlignmentRow,
 } from "./referenceCorpus.js";
 import { validateReferenceCorpus } from "./validateReferences.js";
 
@@ -294,6 +296,13 @@ function readStepBibleOccurrences(occurrenceRoot: string): Map<string, string[]>
   );
 }
 
+function readTokenAlignments(alignmentRoot: string, sourceId: string, fileName: string): TokenAlignmentRow[] {
+  const path = join(alignmentRoot, sourceId, fileName);
+  const rows = JSON.parse(readFileSync(path, "utf8")) as TokenAlignmentRow[];
+  if (!Array.isArray(rows)) throw new Error(`Token alignment source is not an array: ${path}`);
+  return rows;
+}
+
 function readEaston(eastonFile: string): LexicalRow[] {
   const grouped = new Map<string, { term: string; definitions: string[] }>();
   for (const line of readFileSync(eastonFile, "utf8").split(/\r?\n/)) {
@@ -332,6 +341,7 @@ const strongsRoot = requiredPath(parsed["strongs-root"], "Strong's source root")
 const eastonFile = requiredPath(parsed["easton-file"], "Easton's JSONL file");
 const crossrefsRoot = requiredPath(parsed["crossrefs-root"], "TSK source root");
 const occurrenceRoot = requiredPath(parsed["strongs-occurrence-root"], "Strong's occurrence source root");
+const alignmentRoot = requiredPath(parsed["alignment-root"], "token alignment source root");
 
 const kjv = readBible(bibleRoot, "kjv");
 const asv = readAsvUsx(asvUsxRoot);
@@ -350,6 +360,11 @@ const generated = new Map<string, TranslationRow[] | CrossReferenceRow[] | Lexic
   ["strongs-1890", strongs],
   ["eastons-1897", easton],
 ]);
+const generatedAlignments = new Map<string, TokenAlignmentRow[]>(
+  REFERENCE_CORPUS_SPECS
+    .filter((spec) => spec.alignment)
+    .map((spec) => [spec.id, readTokenAlignments(alignmentRoot, spec.id, spec.alignment!.dataFile)]),
+);
 const kjvRows = kjv;
 const stageRoot = `${outputRoot}.ingest-${process.pid}`;
 const backupRoot = `${outputRoot}.backup-${process.pid}`;
@@ -363,7 +378,7 @@ try {
     if (!rows) throw new Error(`No generated rows for ${spec.id}`);
     const dataContent = `${JSON.stringify(rows)}\n`;
     const gaps = getGapAllowlist(spec, rows, kjvRows);
-    const manifest = {
+    const manifest: Record<string, unknown> = {
       id: spec.id,
       title: spec.title,
       author: spec.author,
@@ -390,6 +405,32 @@ try {
     const sourceDir = join(stageRoot, spec.id);
     mkdirSync(sourceDir, { recursive: true });
     writeFileSync(join(sourceDir, spec.dataFile), dataContent);
+    if (spec.alignment) {
+      const alignmentRows = generatedAlignments.get(spec.id) ?? [];
+      const alignmentContent = `${JSON.stringify(alignmentRows)}\n`;
+      const alignmentGaps = getAlignmentGapAllowlist(
+        alignmentRows,
+        rows as TranslationRow[],
+      );
+      manifest.alignment = {
+        dataFile: spec.alignment.dataFile,
+        sourceTitle: spec.alignment.sourceTitle,
+        sourceUrl: spec.alignment.sourceUrl,
+        sourceRevision: spec.alignment.sourceRevision,
+        license: spec.alignment.license,
+        attribution: spec.alignment.attribution,
+        integrity: {
+          file: spec.alignment.dataFile,
+          sha256: sha256(alignmentContent),
+          rowCount: alignmentRows.length,
+        },
+        gapAllowlist: {
+          count: alignmentGaps.length,
+          sha256: gapAllowlistHash(alignmentGaps),
+        },
+      };
+      writeFileSync(join(sourceDir, spec.alignment.dataFile), alignmentContent);
+    }
     writeFileSync(join(sourceDir, "MANIFEST.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   }
 

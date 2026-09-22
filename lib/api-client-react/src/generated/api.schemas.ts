@@ -1234,6 +1234,8 @@ export interface TranslationReferenceHit {
   chapter: number;
   verse: number;
   text: string;
+  /** True when this exact translation source has verified token alignment coverage. */
+  wordAlignmentAvailable: boolean;
 }
 
 export interface CrossReferenceHit {
@@ -1272,6 +1274,29 @@ export interface LexicalReferenceHit {
   references: string[];
 }
 
+export type SelectedWordStudyStatus =
+  (typeof SelectedWordStudyStatus)[keyof typeof SelectedWordStudyStatus];
+
+export const SelectedWordStudyStatus = {
+  verified: "verified",
+  unavailable: "unavailable",
+} as const;
+
+export type SelectedWordCandidate = LexicalReferenceHit & {
+  selectedVerse: string;
+  alsoFoundIn: string[];
+};
+
+export interface SelectedWordStudy {
+  translationSourceId: string;
+  reference: string;
+  tokenIndex: number;
+  tokenText: string;
+  status: SelectedWordStudyStatus;
+  message?: string | null;
+  candidates: SelectedWordCandidate[];
+}
+
 /**
  * Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.
  */
@@ -1279,6 +1304,7 @@ export interface ReferenceBundle {
   translations: TranslationReferenceHit[];
   crossReferences: CrossReferenceHit[];
   lexicalEntries: LexicalReferenceHit[];
+  selectedWordStudy?: SelectedWordStudy;
 }
 
 export interface SermonStudyOutput {
@@ -1882,6 +1908,20 @@ export interface UpdateSourcePreferencesBody {
 }
 
 /**
+ * Exact token context from a displayed public-domain translation.
+ */
+export interface SelectedWordRequest {
+  translationSourceId: string;
+  /** @minLength 1 */
+  reference: string;
+  /** @minimum 0 */
+  tokenIndex: number;
+  /** @minLength 1 */
+  tokenText: string;
+  passageContext?: string;
+}
+
+/**
  * Supply a passage, one or more lexical terms/Strong's identifiers, or both. A request containing neither is invalid.
 
  */
@@ -1895,6 +1935,7 @@ export type ReferenceLookupBody =
       secondaryPassages?: string[];
       /** Optional terms, lexical keys, or Strong's numbers to prioritize. */
       terms?: string[];
+      selectedWord?: SelectedWordRequest;
     })
   | ({
       /** @minItems 1 */
@@ -1905,6 +1946,7 @@ export type ReferenceLookupBody =
       secondaryPassages?: string[];
       /** Optional terms, lexical keys, or Strong's numbers to prioritize. */
       terms?: string[];
+      selectedWord?: SelectedWordRequest;
     });
 
 /**

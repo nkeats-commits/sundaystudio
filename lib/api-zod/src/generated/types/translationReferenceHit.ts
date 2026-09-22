@@ -17,4 +17,6 @@ export interface TranslationReferenceHit {
   chapter: number;
   verse: number;
   text: string;
+  /** True when this exact translation source has verified token alignment coverage. */
+  wordAlignmentAvailable: boolean;
 }

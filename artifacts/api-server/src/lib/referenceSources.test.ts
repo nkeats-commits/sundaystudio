@@ -312,3 +312,46 @@ test("lexical sources preserve an explicit unavailable occurrence state", () => 
   assert.ok(hit);
   assert.deepEqual(hit.references, []);
 });
+
+test("exact token selection returns verified candidates and bounded other occurrences", () => {
+  const bundle = lookupReferenceBundle(
+    ["kjv-1769", "strongs-1890"],
+    ["John 3:16"],
+    [],
+    4000,
+    {
+      translationSourceId: "kjv-1769",
+      reference: "John 3:16",
+      tokenIndex: 3,
+      tokenText: "loved",
+      passageContext: "John 3:16",
+    },
+  );
+  const study = bundle.selectedWordStudy;
+  assert.ok(study);
+  assert.equal(study.status, "verified");
+  assert.equal(study.tokenText, "loved");
+  assert.ok(study.candidates.some((candidate) => candidate.strongsNumber === "G25"));
+  const love = study.candidates.find((candidate) => candidate.strongsNumber === "G25");
+  assert.ok(love);
+  assert.equal(love.selectedVerse, "John 3:16");
+  assert.ok(love.alsoFoundIn.length <= 12);
+  assert.ok(love.alsoFoundIn.every((reference) => reference !== "John 3:16"));
+});
+
+test("unverified translation coverage is explicit and never inferred", () => {
+  const bundle = lookupReferenceBundle(
+    ["asv-1901", "strongs-1890"],
+    ["John 3:16"],
+    [],
+    4000,
+    {
+      translationSourceId: "asv-1901",
+      reference: "John 3:16",
+      tokenIndex: 3,
+      tokenText: "loved",
+    },
+  );
+  assert.equal(bundle.selectedWordStudy?.status, "unavailable");
+  assert.deepEqual(bundle.selectedWordStudy?.candidates, []);
+});

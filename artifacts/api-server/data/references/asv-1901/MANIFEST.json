@@ -19,5 +19,22 @@
     "count": 16,
     "sha256": "67253d8496e443a89b8292f629499ab95d70ca91f965afd6e6847410e6e49880"
   },
-  "gapAllowlistSha256": "67253d8496e443a89b8292f629499ab95d70ca91f965afd6e6847410e6e49880"
+  "gapAllowlistSha256": "67253d8496e443a89b8292f629499ab95d70ca91f965afd6e6847410e6e49880",
+  "alignment": {
+    "dataFile": "alignments.json",
+    "sourceTitle": "STEPBible Translators Amalgamated Hebrew/Greek",
+    "sourceUrl": "https://github.com/STEPBible/STEPBible-Data/tree/c5407786ede9b26a8998366524076f7c739dccdd/Translators%20Amalgamated%20OT%2BNT",
+    "sourceRevision": "c5407786ede9b26a8998366524076f7c739dccdd",
+    "license": "CC BY 4.0",
+    "attribution": "STEP Bible data, CC BY 4.0; token alignments normalized from the pinned TAHOT/TAGNT snapshot.",
+    "integrity": {
+      "file": "alignments.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "rowCount": 0
+    },
+    "gapAllowlist": {
+      "count": 31086,
+      "sha256": "cef5a4903f205cc01789fee2787a1033496488af2e1ad6ff4b3992ada16a1881"
+    }
+  }
 }

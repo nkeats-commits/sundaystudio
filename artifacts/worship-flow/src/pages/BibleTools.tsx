@@ -24,6 +24,7 @@ import {
   type CreateSermonResourceBody,
   type ReferenceBundle,
   type LexicalReferenceHit,
+  type SelectedWordStudy,
   type TranslationReferenceHit,
   type CrossReferenceHit,
 } from '@workspace/api-client-react';
@@ -32,6 +33,7 @@ import {
   crossReferenceLookupResource,
   bibleLookupResourceKey,
   lexicalLookupResource,
+  selectedWordLookupResource,
   readBibleToolsQuery,
   translationLookupResource,
   type BibleToolsLookupMode,
@@ -63,6 +65,38 @@ async function copyToClipboard(value: string): Promise<void> {
 
 function likelyPassage(value: string): boolean {
   return /\d+\s*(?::\s*\d+(?:\s*[-–]\s*\d+)?)?/.test(value);
+}
+
+function selectableVerseText(
+  hit: TranslationReferenceHit,
+  onSelectWord?: (tokenIndex: number, tokenText: string) => void,
+): React.ReactNode {
+  if (!hit.wordAlignmentAvailable || !onSelectWord) return hit.text;
+  const wordPattern = /[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*/gu;
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  let tokenIndex = 0;
+  for (const match of hit.text.matchAll(wordPattern)) {
+    const start = match.index ?? 0;
+    if (start > cursor) parts.push(hit.text.slice(cursor, start));
+    const tokenText = match[0];
+    const currentTokenIndex = tokenIndex;
+    parts.push(
+      <button
+        key={`${hit.reference}-${currentTokenIndex}-${start}`}
+        type="button"
+        onClick={() => onSelectWord(currentTokenIndex, tokenText)}
+        className="rounded-sm px-0.5 underline decoration-transparent underline-offset-4 transition-colors hover:bg-[var(--worship-gold)]/15 hover:decoration-[var(--worship-gold)] focus:bg-[var(--worship-gold)]/15 focus:decoration-[var(--worship-gold)] focus:outline-none"
+        aria-label={`Study word ${tokenText} in ${hit.reference}`}
+      >
+        {tokenText}
+      </button>,
+    );
+    cursor = start + tokenText.length;
+    tokenIndex += 1;
+  }
+  if (cursor < hit.text.length) parts.push(hit.text.slice(cursor));
+  return parts;
 }
 
 function SourceMeta({
@@ -164,6 +198,7 @@ function TranslationResult({
   saving,
   onCopy,
   copied,
+  onSelectWord,
 }: {
   hit: TranslationReferenceHit;
   onSave: () => void;
@@ -171,6 +206,7 @@ function TranslationResult({
   saving: boolean;
   onCopy: () => void;
   copied: boolean;
+  onSelectWord?: (tokenIndex: number, tokenText: string) => void;
 }) {
   return (
     <article className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
@@ -180,7 +216,14 @@ function TranslationResult({
           public-domain reference text
         </span>
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--worship-charcoal)]">{hit.text}</p>
+      <p className="mt-2 text-sm leading-relaxed text-[var(--worship-charcoal)]">
+        {selectableVerseText(hit, onSelectWord)}
+      </p>
+      {hit.wordAlignmentAvailable && (
+        <p className="mt-2 text-[11px] text-[var(--worship-slate)]">
+          Select a word to study its verified original-language alignment.
+        </p>
+      )}
       <p className="mt-2 text-[11px] italic text-[var(--worship-slate)]">
         This is reference text from an enabled public-domain edition, not your selected translation.
       </p>
@@ -196,6 +239,148 @@ function TranslationResult({
         copied={copied}
       />
     </article>
+  );
+}
+
+function SelectedWordStudyCard({
+  study,
+  onSave,
+  savedKeys,
+  onCopy,
+  copiedKey,
+  onLookupOccurrence,
+  onManualLookup,
+  saving,
+}: {
+  study: SelectedWordStudy;
+  onSave: (key: string, payload: CreateSermonResourceBody) => void;
+  savedKeys: Set<string>;
+  onCopy: (key: string, value: string) => void;
+  copiedKey: string | null;
+  onLookupOccurrence: (reference: string) => void;
+  onManualLookup: (term: string) => void;
+  saving: boolean;
+}) {
+  return (
+    <section
+      aria-labelledby="selected-word-study"
+      className="rounded-xl border bg-[var(--worship-cream)]/60 p-4 md:p-5"
+      style={{ borderColor: 'var(--worship-gold)' }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--worship-gold)]">Selected word study</p>
+          <h3 id="selected-word-study" className="mt-1 font-serif text-xl text-[var(--worship-navy)]">
+            “{study.tokenText}” in {study.reference}
+          </h3>
+          <p className="mt-1 text-xs text-[var(--worship-slate)]">
+            Exact displayed token · position {study.tokenIndex + 1}
+          </p>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+          study.status === 'verified'
+            ? 'bg-emerald-100 text-emerald-800'
+            : 'bg-amber-100 text-amber-900'
+        }`}>
+          {study.status === 'verified' ? 'Verified alignment' : 'Alignment unavailable'}
+        </span>
+      </div>
+
+      {study.status === 'unavailable' || study.candidates.length === 0 ? (
+        <div className="mt-4 rounded-lg border bg-white p-3 text-sm text-[var(--worship-charcoal)]" style={{ borderColor: 'var(--worship-border)' }}>
+          <p>{study.message ?? 'No verified original-language entry is available for this word.'}</p>
+          <button
+            type="button"
+            onClick={() => onManualLookup(study.tokenText)}
+            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--worship-gold)] hover:underline"
+          >
+            Use manual Word Lookup <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {study.candidates.length > 1 && (
+            <p className="text-xs text-[var(--worship-slate)]">
+              This translated word has multiple verified candidates in the selected verse. Review each entry instead of assuming a one-to-one match.
+            </p>
+          )}
+          {study.candidates.map((candidate) => {
+            const payload = selectedWordLookupResource(study, candidate);
+            const key = bibleLookupResourceKey(payload);
+            const copyValue = [
+              `Selected word: ${study.tokenText} (${study.reference})`,
+              `Original-language word: ${candidate.originalWord || 'Unavailable'}`,
+              `Language: ${candidate.language}`,
+              candidate.transliteration ? `Transliteration: ${candidate.transliteration}` : '',
+              candidate.strongsNumber ? `Strong's identifier: ${candidate.strongsNumber}` : '',
+              `Definition: ${candidate.definition}`,
+              `Exact occurrence: ${candidate.selectedVerse}`,
+              candidate.alsoFoundIn.length > 0
+                ? `Also found in: ${candidate.alsoFoundIn.join(', ')}`
+                : 'Also found in: No other bounded verified occurrences.',
+            ].filter(Boolean).join('\n');
+            return (
+              <article key={`${candidate.sourceId}-${candidate.key}`} className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Original-language candidate</p>
+                    <h4 className="mt-1 font-serif text-xl text-[var(--worship-navy)]">{candidate.originalWord || 'Original word unavailable'}</h4>
+                    <p className="mt-0.5 text-sm text-[var(--worship-charcoal)]">{candidate.term}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="rounded bg-[var(--worship-cream)] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--worship-navy)]">{candidate.language}</span>
+                    {candidate.strongsNumber && (
+                      <span className="rounded bg-[var(--worship-navy)]/10 px-2 py-1 text-[10px] font-bold text-[var(--worship-navy)]">{candidate.strongsNumber}</span>
+                    )}
+                  </div>
+                </div>
+                <dl className="mt-3 grid gap-2 border-t pt-3 text-sm sm:grid-cols-2" style={{ borderColor: 'var(--worship-border)' }}>
+                  <div>
+                    <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Transliteration</dt>
+                    <dd className="mt-0.5 italic text-[var(--worship-charcoal)]">{candidate.transliteration || 'Not provided by this source'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Selected verse</dt>
+                    <dd className="mt-0.5 font-medium text-[var(--worship-charcoal)]">{candidate.selectedVerse}</dd>
+                  </div>
+                </dl>
+                <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Definition</p>
+                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-[var(--worship-charcoal)]">{candidate.definition}</p>
+                <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-[var(--worship-slate)]">Also found in</p>
+                {candidate.alsoFoundIn.length > 0 ? (
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {candidate.alsoFoundIn.map((reference) => (
+                      <button
+                        key={reference}
+                        type="button"
+                        onClick={() => onLookupOccurrence(reference)}
+                        className="rounded-full border px-2.5 py-1 text-xs font-medium text-[var(--worship-navy)] hover:bg-[var(--worship-cream)]"
+                        style={{ borderColor: 'var(--worship-border)' }}
+                      >
+                        {reference} <ArrowRight className="inline h-3 w-3" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs italic text-[var(--worship-slate)]">No other bounded verified occurrences.</p>
+                )}
+                <SourceMeta
+                  title={candidate.sourceTitle}
+                  author={candidate.sourceAuthor}
+                  attribution={candidate.attribution}
+                  sourceUrl={candidate.sourceUrl}
+                  onSave={() => onSave(key, payload)}
+                  saved={savedKeys.has(key)}
+                  saving={saving}
+                  onCopy={() => onCopy(key, copyValue)}
+                  copied={copiedKey === key}
+                />
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -343,6 +528,7 @@ function LexicalResult({
 
 function Results({
   results,
+  selectedStudy,
   studyLabel,
   passage,
   savedKeys,
@@ -351,9 +537,12 @@ function Results({
   copiedKey,
   onLookupPassage,
   onFocusWord,
+  onSelectWord,
+  onLookupOccurrence,
   saving,
 }: {
   results: ReferenceBundle;
+  selectedStudy: SelectedWordStudy | null;
   studyLabel: string;
   passage: string;
   savedKeys: Set<string>;
@@ -362,6 +551,8 @@ function Results({
   copiedKey: string | null;
   onLookupPassage: (passage: string) => void;
   onFocusWord: (term: string) => void;
+  onSelectWord: (hit: TranslationReferenceHit, tokenIndex: number, tokenText: string) => void;
+  onLookupOccurrence: (reference: string) => void;
   saving: boolean;
 }) {
   const total = results.translations.length + results.crossReferences.length + results.lexicalEntries.length;
@@ -412,6 +603,18 @@ function Results({
           Sources contributing to this lookup: <span className="font-medium text-[var(--worship-navy)]">{sourceTitles.join(' · ')}</span>
         </p>
       </section>
+      {(results.selectedWordStudy ?? selectedStudy) && (
+        <SelectedWordStudyCard
+          study={results.selectedWordStudy ?? selectedStudy!}
+          onSave={onSave}
+          savedKeys={savedKeys}
+          onCopy={onCopy}
+          copiedKey={copiedKey}
+          onLookupOccurrence={onLookupOccurrence}
+          onManualLookup={onFocusWord}
+          saving={saving}
+        />
+      )}
       <ResultGroup title="Passage text" count={results.translations.length}>
         {results.translations.map((hit) => {
           const payload = translationLookupResource(hit);
@@ -425,6 +628,7 @@ function Results({
               saving={saving}
               onCopy={() => onCopy(key, `${hit.reference}\n${hit.text}`)}
               copied={copiedKey === key}
+              onSelectWord={(tokenIndex, tokenText) => onSelectWord(hit, tokenIndex, tokenText)}
             />
           );
         })}
@@ -494,6 +698,7 @@ export default function BibleTools() {
   const [terms, setTerms] = useState('');
   const [term, setTerm] = useState(initial.term);
   const [results, setResults] = useState<ReferenceBundle | null>(null);
+  const [selectedStudy, setSelectedStudy] = useState<SelectedWordStudy | null>(null);
   const [validationError, setValidationError] = useState('');
   const [requestError, setRequestError] = useState('');
   const [locallySavedKeys, setLocallySavedKeys] = useState<Set<string>>(new Set());
@@ -530,6 +735,7 @@ export default function BibleTools() {
     setValidationError('');
     setRequestError('');
     setResults(null);
+    setSelectedStudy(null);
 
     if (mode === 'verse') {
       const value = passage.trim();
@@ -570,7 +776,7 @@ export default function BibleTools() {
     );
   };
 
-  const lookupPassage = (nextPassage: string) => {
+  const lookupPassage = (nextPassage: string, preserveStudy = false) => {
     const value = nextPassage.trim();
     if (!value) return;
     setMode('verse');
@@ -580,6 +786,7 @@ export default function BibleTools() {
     setValidationError('');
     setRequestError('');
     setResults(null);
+    if (!preserveStudy) setSelectedStudy(null);
     setCopiedKey(null);
     lookup.mutate(
       { data: { passage: value, terms: [] } },
@@ -599,6 +806,7 @@ export default function BibleTools() {
     setValidationError('');
     setRequestError('');
     setResults(null);
+    setSelectedStudy(null);
     setCopiedKey(null);
     lookup.mutate(
       {
@@ -609,6 +817,40 @@ export default function BibleTools() {
       {
         onSuccess: setResults,
         onError: () => setRequestError('The lookup could not be completed. Please try again.'),
+      },
+    );
+  };
+
+  const selectWord = (hit: TranslationReferenceHit, tokenIndex: number, tokenText: string) => {
+    const contextPassage = passage.trim() || hit.reference;
+    setMode('verse');
+    setPassage(contextPassage);
+    setTerm('');
+    setValidationError('');
+    setRequestError('');
+    setResults(null);
+    setSelectedStudy(null);
+    setCopiedKey(null);
+    lookup.mutate(
+      {
+        data: {
+          passage: contextPassage,
+          terms: splitTerms(terms),
+          selectedWord: {
+            translationSourceId: hit.sourceId,
+            reference: hit.reference,
+            tokenIndex,
+            tokenText,
+            passageContext: contextPassage,
+          },
+        },
+      },
+      {
+        onSuccess: (data) => {
+          setResults(data);
+          setSelectedStudy(data.selectedWordStudy ?? null);
+        },
+        onError: () => setRequestError('The selected word study could not be completed. Please try again.'),
       },
     );
   };
@@ -628,6 +870,7 @@ export default function BibleTools() {
     setValidationError('');
     setRequestError('');
     setCopiedKey(null);
+    setSelectedStudy(null);
   };
 
   const reset = () => {
@@ -635,6 +878,7 @@ export default function BibleTools() {
     setTerms('');
     setTerm('');
     setResults(null);
+    setSelectedStudy(null);
     setValidationError('');
     setRequestError('');
     setCopiedKey(null);
@@ -831,6 +1075,7 @@ export default function BibleTools() {
                 </div>
                 <Results
                   results={results}
+                  selectedStudy={selectedStudy}
                   studyLabel={
                     mode === 'verse'
                       ? passage.trim()
@@ -843,6 +1088,8 @@ export default function BibleTools() {
                   copiedKey={copiedKey}
                   onLookupPassage={lookupPassage}
                   onFocusWord={focusWord}
+                  onSelectWord={selectWord}
+                  onLookupOccurrence={(reference) => lookupPassage(reference, true)}
                   saving={createResource.isPending}
                 />
               </div>

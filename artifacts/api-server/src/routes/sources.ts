@@ -55,7 +55,15 @@ router.post("/sources/lookup", requireAuth, async (req, res) => {
     ...(parsed.data.secondaryPassages ?? []),
   ];
   try {
-    res.json(lookupReferenceBundle(enabled, passages, parsed.data.terms ?? []));
+     res.json(
+       lookupReferenceBundle(
+         enabled,
+         passages,
+         parsed.data.terms ?? [],
+         undefined,
+         parsed.data.selectedWord,
+       ),
+     );
   } catch (error) {
     req.log.error({ err: error }, "Bible reference lookup failed");
     res.status(500).json(describeReferenceLookupFailure(error));

@@ -313,3 +313,45 @@ test("POST /api/sources/lookup supports term-only Strong's lookup and rejects em
     await cleanup(uid);
   }
 });
+
+test("POST /api/sources/lookup accepts exact selected-word context", async () => {
+  const uid = userId();
+  await cleanup(uid);
+  const { base, close } = await startServer();
+  try {
+    const preferences = await fetch(`${base}/api/sources/preferences`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "x-test-user-id": uid },
+      body: JSON.stringify({ enabledSourceIds: ["kjv-1769", "strongs-1890"] }),
+    });
+    assert.equal(preferences.status, 200);
+    const res = await fetch(`${base}/api/sources/lookup`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-test-user-id": uid },
+      body: JSON.stringify({
+        passage: "John 3:16",
+        selectedWord: {
+          translationSourceId: "kjv-1769",
+          reference: "John 3:16",
+          tokenIndex: 3,
+          tokenText: "loved",
+          passageContext: "John 3:16",
+        },
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      selectedWordStudy?: {
+        status: string;
+        tokenText: string;
+        candidates: Array<{ strongsNumber?: string }>;
+      };
+    };
+    assert.equal(body.selectedWordStudy?.status, "verified");
+    assert.equal(body.selectedWordStudy?.tokenText, "loved");
+    assert.ok(body.selectedWordStudy?.candidates.some((candidate) => candidate.strongsNumber === "G25"));
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});

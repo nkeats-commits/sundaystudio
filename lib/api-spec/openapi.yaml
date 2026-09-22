@@ -4703,6 +4703,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LexicalReferenceHit"
+        selectedWordStudy:
+          $ref: "#/components/schemas/SelectedWordStudy"
       required: [translations, crossReferences, lexicalEntries]
 
     ReferenceLookupError:
@@ -4730,7 +4732,10 @@ components:
         chapter: { type: integer }
         verse: { type: integer }
         text: { type: string }
-      required: [sourceId, sourceTitle, sourceAuthor, sourceUrl, attribution, reference, book, chapter, verse, text]
+        wordAlignmentAvailable:
+          type: boolean
+          description: True when this exact translation source has verified token alignment coverage.
+      required: [sourceId, sourceTitle, sourceAuthor, sourceUrl, attribution, reference, book, chapter, verse, text, wordAlignmentAvailable]
 
     CrossReferenceHit:
       type: object
@@ -4772,6 +4777,36 @@ components:
           type: array
           items: { type: string }
       required: [sourceId, sourceTitle, sourceAuthor, sourceUrl, attribution, key, term, originalWord, transliteration, language, definition, references]
+
+    SelectedWordCandidate:
+      allOf:
+        - $ref: "#/components/schemas/LexicalReferenceHit"
+        - type: object
+          properties:
+            selectedVerse: { type: string }
+            alsoFoundIn:
+              type: array
+              items: { type: string }
+          required: [selectedVerse, alsoFoundIn]
+
+    SelectedWordStudy:
+      type: object
+      properties:
+        translationSourceId: { type: string }
+        reference: { type: string }
+        tokenIndex: { type: integer }
+        tokenText: { type: string }
+        status:
+          type: string
+          enum: [verified, unavailable]
+        message:
+          type: string
+          nullable: true
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/SelectedWordCandidate"
+      required: [translationSourceId, reference, tokenIndex, tokenText, status, candidates]
 
     SermonSectionHashes:
       type: object
@@ -5366,6 +5401,8 @@ components:
           description: Optional terms, lexical keys, or Strong's numbers to prioritize.
           items:
             type: string
+        selectedWord:
+          $ref: "#/components/schemas/SelectedWordRequest"
       anyOf:
         - type: object
           required: [passage]
@@ -5381,3 +5418,14 @@ components:
               minItems: 1
               items:
                 type: string
+
+    SelectedWordRequest:
+      type: object
+      description: Exact token context from a displayed public-domain translation.
+      properties:
+        translationSourceId: { type: string }
+        reference: { type: string, minLength: 1 }
+        tokenIndex: { type: integer, minimum: 0 }
+        tokenText: { type: string, minLength: 1 }
+        passageContext: { type: string }
+      required: [translationSourceId, reference, tokenIndex, tokenText]

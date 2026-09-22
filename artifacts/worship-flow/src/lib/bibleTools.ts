@@ -2,6 +2,7 @@ import type {
   CreateSermonResourceBody,
   CrossReferenceHit,
   LexicalReferenceHit,
+  SelectedWordStudy,
   TranslationReferenceHit,
 } from '@workspace/api-client-react';
 
@@ -144,5 +145,41 @@ export function lexicalLookupResource(
     notes: hit.attribution,
     relatedPassage: contextPassage.trim() || hit.references.join(', '),
     tags: ['Bible Tools', 'Lexicon'],
+  };
+}
+
+export function selectedWordLookupResource(
+  study: SelectedWordStudy,
+  candidate: SelectedWordStudy['candidates'][number],
+): CreateSermonResourceBody {
+  const selectedContext = [
+    `Selected word: ${study.tokenText}`,
+    `Passage: ${study.reference}`,
+    `Token position: ${study.tokenIndex + 1}`,
+    `Exact occurrence: ${candidate.selectedVerse}`,
+  ].join('\n');
+  const originalLanguage = [
+    `Original-language word: ${candidate.originalWord || 'Unavailable'}`,
+    `Language: ${candidate.language}`,
+    `Transliteration: ${candidate.transliteration || 'Not provided by this source'}`,
+    candidate.strongsNumber ? `Strong's identifier: ${candidate.strongsNumber}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const occurrences = candidate.alsoFoundIn.length > 0
+    ? `Also found in: ${candidate.alsoFoundIn.join(', ')}`
+    : 'Also found in: No other bounded verified occurrences.';
+  return {
+    resourceType: 'lexicon',
+    title: `${study.tokenText} in ${study.reference}`,
+    author: candidate.sourceAuthor,
+    publisher: candidate.sourceTitle,
+    url: candidate.sourceUrl,
+    excerpt: [selectedContext, originalLanguage, candidate.definition, occurrences]
+      .filter(Boolean)
+      .join('\n\n'),
+    notes: `${candidate.attribution}\nSelected-word provenance: ${study.translationSourceId} token alignment`,
+    relatedPassage: study.reference,
+    tags: ['Bible Tools', 'Lexicon', 'Selected word'],
   };
 }

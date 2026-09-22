@@ -5,6 +5,7 @@
  * Sunday Studio API
  * OpenAPI spec version: 0.1.0
  */
+import type { SelectedWordRequest } from "./selectedWordRequest";
 
 /**
  * Supply a passage, one or more lexical terms/Strong's identifiers, or both. A request containing neither is invalid.
@@ -20,6 +21,7 @@ export type ReferenceLookupBody =
       secondaryPassages?: string[];
       /** Optional terms, lexical keys, or Strong's numbers to prioritize. */
       terms?: string[];
+      selectedWord?: SelectedWordRequest;
     })
   | ({
       /** @minItems 1 */
@@ -30,4 +32,5 @@ export type ReferenceLookupBody =
       secondaryPassages?: string[];
       /** Optional terms, lexical keys, or Strong's numbers to prioritize. */
       terms?: string[];
+      selectedWord?: SelectedWordRequest;
     });

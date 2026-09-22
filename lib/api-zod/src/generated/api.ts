@@ -1620,6 +1620,11 @@ export const GetSermonSeriesResponse = zod
                       chapter: zod.number(),
                       verse: zod.number(),
                       text: zod.string(),
+                      wordAlignmentAvailable: zod
+                        .boolean()
+                        .describe(
+                          "True when this exact translation source has verified token alignment coverage.",
+                        ),
                     }),
                   ),
                   crossReferences: zod.array(
@@ -1651,6 +1656,40 @@ export const GetSermonSeriesResponse = zod
                       references: zod.array(zod.string()),
                     }),
                   ),
+                  selectedWordStudy: zod
+                    .object({
+                      translationSourceId: zod.string(),
+                      reference: zod.string(),
+                      tokenIndex: zod.number(),
+                      tokenText: zod.string(),
+                      status: zod.enum(["verified", "unavailable"]),
+                      message: zod.string().nullish(),
+                      candidates: zod.array(
+                        zod
+                          .object({
+                            sourceId: zod.string(),
+                            sourceTitle: zod.string(),
+                            sourceAuthor: zod.string(),
+                            sourceUrl: zod.string(),
+                            attribution: zod.string(),
+                            key: zod.string(),
+                            term: zod.string(),
+                            strongsNumber: zod.string().nullish(),
+                            originalWord: zod.string(),
+                            transliteration: zod.string(),
+                            language: zod.enum(["Greek", "Hebrew", "English"]),
+                            definition: zod.string(),
+                            references: zod.array(zod.string()),
+                          })
+                          .and(
+                            zod.object({
+                              selectedVerse: zod.string(),
+                              alsoFoundIn: zod.array(zod.string()),
+                            }),
+                          ),
+                      ),
+                    })
+                    .optional(),
                 })
                 .describe(
                   "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -1973,6 +2012,11 @@ export const ListSermonsResponseItem = zod.object({
               chapter: zod.number(),
               verse: zod.number(),
               text: zod.string(),
+              wordAlignmentAvailable: zod
+                .boolean()
+                .describe(
+                  "True when this exact translation source has verified token alignment coverage.",
+                ),
             }),
           ),
           crossReferences: zod.array(
@@ -2004,6 +2048,40 @@ export const ListSermonsResponseItem = zod.object({
               references: zod.array(zod.string()),
             }),
           ),
+          selectedWordStudy: zod
+            .object({
+              translationSourceId: zod.string(),
+              reference: zod.string(),
+              tokenIndex: zod.number(),
+              tokenText: zod.string(),
+              status: zod.enum(["verified", "unavailable"]),
+              message: zod.string().nullish(),
+              candidates: zod.array(
+                zod
+                  .object({
+                    sourceId: zod.string(),
+                    sourceTitle: zod.string(),
+                    sourceAuthor: zod.string(),
+                    sourceUrl: zod.string(),
+                    attribution: zod.string(),
+                    key: zod.string(),
+                    term: zod.string(),
+                    strongsNumber: zod.string().nullish(),
+                    originalWord: zod.string(),
+                    transliteration: zod.string(),
+                    language: zod.enum(["Greek", "Hebrew", "English"]),
+                    definition: zod.string(),
+                    references: zod.array(zod.string()),
+                  })
+                  .and(
+                    zod.object({
+                      selectedVerse: zod.string(),
+                      alsoFoundIn: zod.array(zod.string()),
+                    }),
+                  ),
+              ),
+            })
+            .optional(),
         })
         .describe(
           "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -2268,6 +2346,11 @@ export const PreviewSermonResourcesResponse = zod.object({
           chapter: zod.number(),
           verse: zod.number(),
           text: zod.string(),
+          wordAlignmentAvailable: zod
+            .boolean()
+            .describe(
+              "True when this exact translation source has verified token alignment coverage.",
+            ),
         }),
       ),
       crossReferences: zod.array(
@@ -2299,6 +2382,40 @@ export const PreviewSermonResourcesResponse = zod.object({
           references: zod.array(zod.string()),
         }),
       ),
+      selectedWordStudy: zod
+        .object({
+          translationSourceId: zod.string(),
+          reference: zod.string(),
+          tokenIndex: zod.number(),
+          tokenText: zod.string(),
+          status: zod.enum(["verified", "unavailable"]),
+          message: zod.string().nullish(),
+          candidates: zod.array(
+            zod
+              .object({
+                sourceId: zod.string(),
+                sourceTitle: zod.string(),
+                sourceAuthor: zod.string(),
+                sourceUrl: zod.string(),
+                attribution: zod.string(),
+                key: zod.string(),
+                term: zod.string(),
+                strongsNumber: zod.string().nullish(),
+                originalWord: zod.string(),
+                transliteration: zod.string(),
+                language: zod.enum(["Greek", "Hebrew", "English"]),
+                definition: zod.string(),
+                references: zod.array(zod.string()),
+              })
+              .and(
+                zod.object({
+                  selectedVerse: zod.string(),
+                  alsoFoundIn: zod.array(zod.string()),
+                }),
+              ),
+          ),
+        })
+        .optional(),
     })
     .describe(
       "Bounded, source-labeled Bible text, cross-references, and lexical entries available for this passage.",
@@ -2428,6 +2545,11 @@ export const GetSermonResponse = zod.object({
               chapter: zod.number(),
               verse: zod.number(),
               text: zod.string(),
+              wordAlignmentAvailable: zod
+                .boolean()
+                .describe(
+                  "True when this exact translation source has verified token alignment coverage.",
+                ),
             }),
           ),
           crossReferences: zod.array(
@@ -2459,6 +2581,40 @@ export const GetSermonResponse = zod.object({
               references: zod.array(zod.string()),
             }),
           ),
+          selectedWordStudy: zod
+            .object({
+              translationSourceId: zod.string(),
+              reference: zod.string(),
+              tokenIndex: zod.number(),
+              tokenText: zod.string(),
+              status: zod.enum(["verified", "unavailable"]),
+              message: zod.string().nullish(),
+              candidates: zod.array(
+                zod
+                  .object({
+                    sourceId: zod.string(),
+                    sourceTitle: zod.string(),
+                    sourceAuthor: zod.string(),
+                    sourceUrl: zod.string(),
+                    attribution: zod.string(),
+                    key: zod.string(),
+                    term: zod.string(),
+                    strongsNumber: zod.string().nullish(),
+                    originalWord: zod.string(),
+                    transliteration: zod.string(),
+                    language: zod.enum(["Greek", "Hebrew", "English"]),
+                    definition: zod.string(),
+                    references: zod.array(zod.string()),
+                  })
+                  .and(
+                    zod.object({
+                      selectedVerse: zod.string(),
+                      alsoFoundIn: zod.array(zod.string()),
+                    }),
+                  ),
+              ),
+            })
+            .optional(),
         })
         .describe(
           "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -2740,6 +2896,11 @@ export const UpdateSermonBody = zod.object({
               chapter: zod.number(),
               verse: zod.number(),
               text: zod.string(),
+              wordAlignmentAvailable: zod
+                .boolean()
+                .describe(
+                  "True when this exact translation source has verified token alignment coverage.",
+                ),
             }),
           ),
           crossReferences: zod.array(
@@ -2771,6 +2932,40 @@ export const UpdateSermonBody = zod.object({
               references: zod.array(zod.string()),
             }),
           ),
+          selectedWordStudy: zod
+            .object({
+              translationSourceId: zod.string(),
+              reference: zod.string(),
+              tokenIndex: zod.number(),
+              tokenText: zod.string(),
+              status: zod.enum(["verified", "unavailable"]),
+              message: zod.string().nullish(),
+              candidates: zod.array(
+                zod
+                  .object({
+                    sourceId: zod.string(),
+                    sourceTitle: zod.string(),
+                    sourceAuthor: zod.string(),
+                    sourceUrl: zod.string(),
+                    attribution: zod.string(),
+                    key: zod.string(),
+                    term: zod.string(),
+                    strongsNumber: zod.string().nullish(),
+                    originalWord: zod.string(),
+                    transliteration: zod.string(),
+                    language: zod.enum(["Greek", "Hebrew", "English"]),
+                    definition: zod.string(),
+                    references: zod.array(zod.string()),
+                  })
+                  .and(
+                    zod.object({
+                      selectedVerse: zod.string(),
+                      alsoFoundIn: zod.array(zod.string()),
+                    }),
+                  ),
+              ),
+            })
+            .optional(),
         })
         .describe(
           "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -3032,6 +3227,11 @@ export const UpdateSermonResponse = zod.object({
               chapter: zod.number(),
               verse: zod.number(),
               text: zod.string(),
+              wordAlignmentAvailable: zod
+                .boolean()
+                .describe(
+                  "True when this exact translation source has verified token alignment coverage.",
+                ),
             }),
           ),
           crossReferences: zod.array(
@@ -3063,6 +3263,40 @@ export const UpdateSermonResponse = zod.object({
               references: zod.array(zod.string()),
             }),
           ),
+          selectedWordStudy: zod
+            .object({
+              translationSourceId: zod.string(),
+              reference: zod.string(),
+              tokenIndex: zod.number(),
+              tokenText: zod.string(),
+              status: zod.enum(["verified", "unavailable"]),
+              message: zod.string().nullish(),
+              candidates: zod.array(
+                zod
+                  .object({
+                    sourceId: zod.string(),
+                    sourceTitle: zod.string(),
+                    sourceAuthor: zod.string(),
+                    sourceUrl: zod.string(),
+                    attribution: zod.string(),
+                    key: zod.string(),
+                    term: zod.string(),
+                    strongsNumber: zod.string().nullish(),
+                    originalWord: zod.string(),
+                    transliteration: zod.string(),
+                    language: zod.enum(["Greek", "Hebrew", "English"]),
+                    definition: zod.string(),
+                    references: zod.array(zod.string()),
+                  })
+                  .and(
+                    zod.object({
+                      selectedVerse: zod.string(),
+                      alsoFoundIn: zod.array(zod.string()),
+                    }),
+                  ),
+              ),
+            })
+            .optional(),
         })
         .describe(
           "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -3646,6 +3880,11 @@ export const GenerateSermonStudyBody = zod
                   chapter: zod.number(),
                   verse: zod.number(),
                   text: zod.string(),
+                  wordAlignmentAvailable: zod
+                    .boolean()
+                    .describe(
+                      "True when this exact translation source has verified token alignment coverage.",
+                    ),
                 }),
               ),
               crossReferences: zod.array(
@@ -3677,6 +3916,40 @@ export const GenerateSermonStudyBody = zod
                   references: zod.array(zod.string()),
                 }),
               ),
+              selectedWordStudy: zod
+                .object({
+                  translationSourceId: zod.string(),
+                  reference: zod.string(),
+                  tokenIndex: zod.number(),
+                  tokenText: zod.string(),
+                  status: zod.enum(["verified", "unavailable"]),
+                  message: zod.string().nullish(),
+                  candidates: zod.array(
+                    zod
+                      .object({
+                        sourceId: zod.string(),
+                        sourceTitle: zod.string(),
+                        sourceAuthor: zod.string(),
+                        sourceUrl: zod.string(),
+                        attribution: zod.string(),
+                        key: zod.string(),
+                        term: zod.string(),
+                        strongsNumber: zod.string().nullish(),
+                        originalWord: zod.string(),
+                        transliteration: zod.string(),
+                        language: zod.enum(["Greek", "Hebrew", "English"]),
+                        definition: zod.string(),
+                        references: zod.array(zod.string()),
+                      })
+                      .and(
+                        zod.object({
+                          selectedVerse: zod.string(),
+                          alsoFoundIn: zod.array(zod.string()),
+                        }),
+                      ),
+                  ),
+                })
+                .optional(),
             })
             .describe(
               "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -3784,6 +4057,11 @@ export const GenerateSermonStudyResponse = zod.object({
           chapter: zod.number(),
           verse: zod.number(),
           text: zod.string(),
+          wordAlignmentAvailable: zod
+            .boolean()
+            .describe(
+              "True when this exact translation source has verified token alignment coverage.",
+            ),
         }),
       ),
       crossReferences: zod.array(
@@ -3815,6 +4093,40 @@ export const GenerateSermonStudyResponse = zod.object({
           references: zod.array(zod.string()),
         }),
       ),
+      selectedWordStudy: zod
+        .object({
+          translationSourceId: zod.string(),
+          reference: zod.string(),
+          tokenIndex: zod.number(),
+          tokenText: zod.string(),
+          status: zod.enum(["verified", "unavailable"]),
+          message: zod.string().nullish(),
+          candidates: zod.array(
+            zod
+              .object({
+                sourceId: zod.string(),
+                sourceTitle: zod.string(),
+                sourceAuthor: zod.string(),
+                sourceUrl: zod.string(),
+                attribution: zod.string(),
+                key: zod.string(),
+                term: zod.string(),
+                strongsNumber: zod.string().nullish(),
+                originalWord: zod.string(),
+                transliteration: zod.string(),
+                language: zod.enum(["Greek", "Hebrew", "English"]),
+                definition: zod.string(),
+                references: zod.array(zod.string()),
+              })
+              .and(
+                zod.object({
+                  selectedVerse: zod.string(),
+                  alsoFoundIn: zod.array(zod.string()),
+                }),
+              ),
+          ),
+        })
+        .optional(),
     })
     .describe(
       "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -4000,6 +4312,11 @@ export const GenerateSermonBigIdeaBody = zod
                   chapter: zod.number(),
                   verse: zod.number(),
                   text: zod.string(),
+                  wordAlignmentAvailable: zod
+                    .boolean()
+                    .describe(
+                      "True when this exact translation source has verified token alignment coverage.",
+                    ),
                 }),
               ),
               crossReferences: zod.array(
@@ -4031,6 +4348,40 @@ export const GenerateSermonBigIdeaBody = zod
                   references: zod.array(zod.string()),
                 }),
               ),
+              selectedWordStudy: zod
+                .object({
+                  translationSourceId: zod.string(),
+                  reference: zod.string(),
+                  tokenIndex: zod.number(),
+                  tokenText: zod.string(),
+                  status: zod.enum(["verified", "unavailable"]),
+                  message: zod.string().nullish(),
+                  candidates: zod.array(
+                    zod
+                      .object({
+                        sourceId: zod.string(),
+                        sourceTitle: zod.string(),
+                        sourceAuthor: zod.string(),
+                        sourceUrl: zod.string(),
+                        attribution: zod.string(),
+                        key: zod.string(),
+                        term: zod.string(),
+                        strongsNumber: zod.string().nullish(),
+                        originalWord: zod.string(),
+                        transliteration: zod.string(),
+                        language: zod.enum(["Greek", "Hebrew", "English"]),
+                        definition: zod.string(),
+                        references: zod.array(zod.string()),
+                      })
+                      .and(
+                        zod.object({
+                          selectedVerse: zod.string(),
+                          alsoFoundIn: zod.array(zod.string()),
+                        }),
+                      ),
+                  ),
+                })
+                .optional(),
             })
             .describe(
               "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -4230,6 +4581,11 @@ export const GenerateSermonOutlineBody = zod
                   chapter: zod.number(),
                   verse: zod.number(),
                   text: zod.string(),
+                  wordAlignmentAvailable: zod
+                    .boolean()
+                    .describe(
+                      "True when this exact translation source has verified token alignment coverage.",
+                    ),
                 }),
               ),
               crossReferences: zod.array(
@@ -4261,6 +4617,40 @@ export const GenerateSermonOutlineBody = zod
                   references: zod.array(zod.string()),
                 }),
               ),
+              selectedWordStudy: zod
+                .object({
+                  translationSourceId: zod.string(),
+                  reference: zod.string(),
+                  tokenIndex: zod.number(),
+                  tokenText: zod.string(),
+                  status: zod.enum(["verified", "unavailable"]),
+                  message: zod.string().nullish(),
+                  candidates: zod.array(
+                    zod
+                      .object({
+                        sourceId: zod.string(),
+                        sourceTitle: zod.string(),
+                        sourceAuthor: zod.string(),
+                        sourceUrl: zod.string(),
+                        attribution: zod.string(),
+                        key: zod.string(),
+                        term: zod.string(),
+                        strongsNumber: zod.string().nullish(),
+                        originalWord: zod.string(),
+                        transliteration: zod.string(),
+                        language: zod.enum(["Greek", "Hebrew", "English"]),
+                        definition: zod.string(),
+                        references: zod.array(zod.string()),
+                      })
+                      .and(
+                        zod.object({
+                          selectedVerse: zod.string(),
+                          alsoFoundIn: zod.array(zod.string()),
+                        }),
+                      ),
+                  ),
+                })
+                .optional(),
             })
             .describe(
               "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -4486,6 +4876,11 @@ export const GenerateSermonManuscriptBody = zod
                   chapter: zod.number(),
                   verse: zod.number(),
                   text: zod.string(),
+                  wordAlignmentAvailable: zod
+                    .boolean()
+                    .describe(
+                      "True when this exact translation source has verified token alignment coverage.",
+                    ),
                 }),
               ),
               crossReferences: zod.array(
@@ -4517,6 +4912,40 @@ export const GenerateSermonManuscriptBody = zod
                   references: zod.array(zod.string()),
                 }),
               ),
+              selectedWordStudy: zod
+                .object({
+                  translationSourceId: zod.string(),
+                  reference: zod.string(),
+                  tokenIndex: zod.number(),
+                  tokenText: zod.string(),
+                  status: zod.enum(["verified", "unavailable"]),
+                  message: zod.string().nullish(),
+                  candidates: zod.array(
+                    zod
+                      .object({
+                        sourceId: zod.string(),
+                        sourceTitle: zod.string(),
+                        sourceAuthor: zod.string(),
+                        sourceUrl: zod.string(),
+                        attribution: zod.string(),
+                        key: zod.string(),
+                        term: zod.string(),
+                        strongsNumber: zod.string().nullish(),
+                        originalWord: zod.string(),
+                        transliteration: zod.string(),
+                        language: zod.enum(["Greek", "Hebrew", "English"]),
+                        definition: zod.string(),
+                        references: zod.array(zod.string()),
+                      })
+                      .and(
+                        zod.object({
+                          selectedVerse: zod.string(),
+                          alsoFoundIn: zod.array(zod.string()),
+                        }),
+                      ),
+                  ),
+                })
+                .optional(),
             })
             .describe(
               "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -4735,6 +5164,11 @@ export const GenerateSermonApplicationsBody = zod
                   chapter: zod.number(),
                   verse: zod.number(),
                   text: zod.string(),
+                  wordAlignmentAvailable: zod
+                    .boolean()
+                    .describe(
+                      "True when this exact translation source has verified token alignment coverage.",
+                    ),
                 }),
               ),
               crossReferences: zod.array(
@@ -4766,6 +5200,40 @@ export const GenerateSermonApplicationsBody = zod
                   references: zod.array(zod.string()),
                 }),
               ),
+              selectedWordStudy: zod
+                .object({
+                  translationSourceId: zod.string(),
+                  reference: zod.string(),
+                  tokenIndex: zod.number(),
+                  tokenText: zod.string(),
+                  status: zod.enum(["verified", "unavailable"]),
+                  message: zod.string().nullish(),
+                  candidates: zod.array(
+                    zod
+                      .object({
+                        sourceId: zod.string(),
+                        sourceTitle: zod.string(),
+                        sourceAuthor: zod.string(),
+                        sourceUrl: zod.string(),
+                        attribution: zod.string(),
+                        key: zod.string(),
+                        term: zod.string(),
+                        strongsNumber: zod.string().nullish(),
+                        originalWord: zod.string(),
+                        transliteration: zod.string(),
+                        language: zod.enum(["Greek", "Hebrew", "English"]),
+                        definition: zod.string(),
+                        references: zod.array(zod.string()),
+                      })
+                      .and(
+                        zod.object({
+                          selectedVerse: zod.string(),
+                          alsoFoundIn: zod.array(zod.string()),
+                        }),
+                      ),
+                  ),
+                })
+                .optional(),
             })
             .describe(
               "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
@@ -5826,6 +6294,8 @@ export const ListScholarlySourcesResponse = zod.object({
  * @summary Look up bounded, source-labeled public-domain Bible references
  */
 
+export const lookupBibleReferencesBodyThreeSelectedWordTokenIndexMin = 0;
+
 export const LookupBibleReferencesBody = zod
   .union([
     zod.object({
@@ -5844,6 +6314,20 @@ export const LookupBibleReferencesBody = zod
         .optional()
         .describe(
           "Optional terms, lexical keys, or Strong's numbers to prioritize.",
+        ),
+      selectedWord: zod
+        .object({
+          translationSourceId: zod.string(),
+          reference: zod.string().min(1),
+          tokenIndex: zod
+            .number()
+            .min(lookupBibleReferencesBodyThreeSelectedWordTokenIndexMin),
+          tokenText: zod.string().min(1),
+          passageContext: zod.string().optional(),
+        })
+        .optional()
+        .describe(
+          "Exact token context from a displayed public-domain translation.",
         ),
     }),
   )
@@ -5865,6 +6349,11 @@ export const LookupBibleReferencesResponse = zod
         chapter: zod.number(),
         verse: zod.number(),
         text: zod.string(),
+        wordAlignmentAvailable: zod
+          .boolean()
+          .describe(
+            "True when this exact translation source has verified token alignment coverage.",
+          ),
       }),
     ),
     crossReferences: zod.array(
@@ -5896,6 +6385,40 @@ export const LookupBibleReferencesResponse = zod
         references: zod.array(zod.string()),
       }),
     ),
+    selectedWordStudy: zod
+      .object({
+        translationSourceId: zod.string(),
+        reference: zod.string(),
+        tokenIndex: zod.number(),
+        tokenText: zod.string(),
+        status: zod.enum(["verified", "unavailable"]),
+        message: zod.string().nullish(),
+        candidates: zod.array(
+          zod
+            .object({
+              sourceId: zod.string(),
+              sourceTitle: zod.string(),
+              sourceAuthor: zod.string(),
+              sourceUrl: zod.string(),
+              attribution: zod.string(),
+              key: zod.string(),
+              term: zod.string(),
+              strongsNumber: zod.string().nullish(),
+              originalWord: zod.string(),
+              transliteration: zod.string(),
+              language: zod.enum(["Greek", "Hebrew", "English"]),
+              definition: zod.string(),
+              references: zod.array(zod.string()),
+            })
+            .and(
+              zod.object({
+                selectedVerse: zod.string(),
+                alsoFoundIn: zod.array(zod.string()),
+              }),
+            ),
+        ),
+      })
+      .optional(),
   })
   .describe(
     "Bounded server-side Bible reference lookup results. Every item retains source and attribution metadata.",
