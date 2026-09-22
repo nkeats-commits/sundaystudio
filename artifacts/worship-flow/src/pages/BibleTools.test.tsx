@@ -343,6 +343,31 @@ test('completes a verse lookup with grouped, attributed results at desktop width
   assert.equal(screen.getByRole('button', { name: 'Reset' }).textContent?.trim(), 'Reset');
 });
 
+test('distinguishes selectable and passage-only editions', async () => {
+  renderPage(1024);
+  fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });
+  submitForm();
+  await completeLookup({
+    ...sampleResults,
+    translations: [
+      {
+        ...sampleResults.translations[0],
+        sourceId: 'asv-1901',
+        sourceTitle: 'American Standard Version',
+        wordAlignmentAvailable: false,
+      },
+      {
+        ...sampleResults.translations[0],
+        wordAlignmentAvailable: true,
+      },
+    ],
+  });
+
+  assert.ok(screen.getByText('Word study available'));
+  assert.ok(screen.getByText('Passage text only'));
+  assert.ok(screen.getByText(/Word selection is not available for this edition/));
+});
+
 test('selects a translated token and shows a verified mobile-friendly word study', async () => {
   renderPage(390);
   fireEvent.change(screen.getByLabelText('PASSAGE'), { target: { value: 'John 3:16' } });

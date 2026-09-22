@@ -213,9 +213,20 @@ function TranslationResult({
     <article className="rounded-lg border bg-white p-4" style={{ borderColor: 'var(--worship-border)' }}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h4 className="font-semibold text-[var(--worship-navy)]">{hit.reference}</h4>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-gold)]">
-          public-domain reference text
-        </span>
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--worship-gold)]">
+            public-domain reference text
+          </span>
+          <span
+            className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+              hit.wordAlignmentAvailable
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-[var(--worship-cream)] text-[var(--worship-slate)]'
+            }`}
+          >
+            {hit.wordAlignmentAvailable ? 'Word study available' : 'Passage text only'}
+          </span>
+        </div>
       </div>
       <p className="mt-2 text-sm leading-relaxed text-[var(--worship-charcoal)]">
         {selectableVerseText(hit, onSelectWord)}
@@ -224,6 +235,11 @@ function TranslationResult({
         <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--worship-cream)] px-2.5 py-1 text-[11px] font-medium text-[var(--worship-slate)]">
           <Sparkles className="h-3 w-3 text-[var(--worship-gold)]" />
           Words with a dotted underline can be selected for verified original-language study.
+        </p>
+      )}
+      {!hit.wordAlignmentAvailable && (
+        <p className="mt-2 inline-flex rounded-full bg-[var(--worship-cream)] px-2.5 py-1 text-[11px] text-[var(--worship-slate)]">
+          Word selection is not available for this edition. Use the Word Lookup tab to study a term manually.
         </p>
       )}
       <p className="mt-2 text-[11px] italic text-[var(--worship-slate)]">
