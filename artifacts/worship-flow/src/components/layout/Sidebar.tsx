@@ -68,7 +68,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     { icon: ScrollText, label: 'Sermon Builder', href: '/sermons/new' },
     { icon: Archive, label: 'Sermon Archive', href: '/sermons' },
     { icon: Layers, label: 'Sermon Series', href: '/sermons/series' },
-    { icon: BookOpen, label: 'Bible Tools', href: '/bible-tools' },
+    { icon: BookOpen, label: 'Bible Tools', href: '/bible-tools', beta: true },
     { icon: LibraryIcon, label: 'Sermon Resources', href: '/resources' },
   ];
 
@@ -147,7 +147,17 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               }`}
             >
               <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
-              {item.label}
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="truncate">{item.label}</span>
+                {item.beta ? (
+                  <span
+                    data-testid="bible-tools-beta-badge"
+                    className="shrink-0 rounded bg-[var(--worship-gold)] px-1.5 py-0.5 text-[9px] font-bold leading-none tracking-wider text-[var(--worship-navy)]"
+                  >
+                    BETA
+                  </span>
+                ) : null}
+              </span>
             </Link>
           );
         })}

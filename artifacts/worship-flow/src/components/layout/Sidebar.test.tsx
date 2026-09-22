@@ -140,15 +140,34 @@ test('keeps the Dashboard, SERMON PREP, and OTHER TOOLS sections in order', () =
   const { container } = renderSidebar();
 
   for (const sidebar of getResponsiveSidebars(container)) {
-    const links = getLinks(sidebar).map((link) => link.textContent?.trim());
+    const links = getLinks(sidebar).map((link) => link.getAttribute('href'));
     assert.deepEqual(
       links,
-      navigation.map((item) => item.label),
+      navigation.map((item) => item.href),
     );
 
     const sidebarText = sidebar.textContent ?? '';
     assert.ok(sidebarText.indexOf('Dashboard') < sidebarText.indexOf('SERMON PREP'));
     assert.ok(sidebarText.indexOf('SERMON PREP') < sidebarText.indexOf('OTHER TOOLS'));
+  }
+});
+
+test('renders the Bible Tools BETA badge inside its link in both responsive sidebars', () => {
+  const { container } = renderSidebar();
+
+  for (const sidebar of getResponsiveSidebars(container)) {
+    const bibleToolsLink = getLinks(sidebar).find((link) => link.getAttribute('href') === '/bible-tools');
+    assert.ok(bibleToolsLink, 'expected Bible Tools link in each responsive sidebar');
+
+    const badge = bibleToolsLink.querySelector('[data-testid="bible-tools-beta-badge"]');
+    assert.ok(badge, 'expected BETA badge inside the Bible Tools link');
+    assert.equal(badge.textContent, 'BETA');
+    assert.equal(bibleToolsLink.querySelectorAll('a').length, 0, 'expected the badge not to contain a nested link');
+    assert.equal(
+      sidebar.querySelectorAll('[data-testid="bible-tools-beta-badge"]').length,
+      1,
+      'expected one Bible Tools BETA badge per sidebar',
+    );
   }
 });
 
@@ -208,6 +227,7 @@ test('highlights the matching nested sermon and saved-service routes', () => {
   const routeExpectations = [
     { location: '/sermons/123', activeHref: '/sermons' },
     { location: '/sermons/series/456', activeHref: '/sermons/series' },
+    { location: '/bible-tools', activeHref: '/bible-tools' },
     { location: '/services/789', activeHref: '/services' },
     { location: '/services/789/print', activeHref: '/services' },
   ];
