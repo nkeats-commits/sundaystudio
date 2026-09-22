@@ -86,7 +86,8 @@ function selectableVerseText(
         key={`${hit.reference}-${currentTokenIndex}-${start}`}
         type="button"
         onClick={() => onSelectWord(currentTokenIndex, tokenText)}
-        className="rounded-sm px-0.5 underline decoration-transparent underline-offset-4 transition-colors hover:bg-[var(--worship-gold)]/15 hover:decoration-[var(--worship-gold)] focus:bg-[var(--worship-gold)]/15 focus:decoration-[var(--worship-gold)] focus:outline-none"
+        className="cursor-pointer rounded-sm border-b border-dotted border-[var(--worship-gold)]/60 px-0.5 underline decoration-transparent underline-offset-4 transition-colors hover:bg-[var(--worship-gold)]/15 hover:decoration-[var(--worship-gold)] focus:bg-[var(--worship-gold)]/15 focus:decoration-[var(--worship-gold)] focus:outline-none"
+        title={`Study “${tokenText}”`}
         aria-label={`Study word ${tokenText} in ${hit.reference}`}
       >
         {tokenText}
@@ -220,8 +221,9 @@ function TranslationResult({
         {selectableVerseText(hit, onSelectWord)}
       </p>
       {hit.wordAlignmentAvailable && (
-        <p className="mt-2 text-[11px] text-[var(--worship-slate)]">
-          Select a word to study its verified original-language alignment.
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--worship-cream)] px-2.5 py-1 text-[11px] font-medium text-[var(--worship-slate)]">
+          <Sparkles className="h-3 w-3 text-[var(--worship-gold)]" />
+          Words with a dotted underline can be selected for verified original-language study.
         </p>
       )}
       <p className="mt-2 text-[11px] italic text-[var(--worship-slate)]">
@@ -911,7 +913,7 @@ export default function BibleTools() {
           </div>
           <h1 className="mt-2 font-serif text-3xl text-[var(--worship-navy)]">Bible Tools</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--worship-slate)]">
-            Look up passage text, cross-references, and word-study entries from the enabled public-domain reference catalog.
+            Look up passage text, cross-references, and word-study entries from the enabled public-domain reference catalog. In supported passages, select a word with a dotted underline to study its verified original-language alignment.
           </p>
         </div>
 
