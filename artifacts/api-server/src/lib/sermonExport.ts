@@ -12,6 +12,26 @@ function joinList(items: string[] | null | undefined, sep = ", "): string {
   return items.join(sep);
 }
 
+function renderWordStudies(s: Sermon): string[] {
+  if (!s.study?.wordStudies?.length) return [];
+  const lines = ["## Word Studies", ""];
+  for (const ws of s.study.wordStudies) {
+    lines.push(`### ${ws.term}`);
+    const strongs = ws.strongsNumber ? ` — ${ws.strongsNumber}` : "";
+    lines.push(`${ws.originalWord} (${ws.transliteration}) — ${ws.language}${strongs}`);
+    lines.push("");
+    if (ws.references?.length) {
+      lines.push("**Source verses:** " + joinList(ws.references));
+      lines.push("");
+    }
+    lines.push("**Definition:** " + ws.definition);
+    lines.push("");
+    lines.push("**Significance:** " + ws.significance);
+    lines.push("");
+  }
+  return lines;
+}
+
 export function renderSermonAsMarkdown(s: Sermon): string {
   const lines: string[] = [];
   lines.push(`# ${s.title}`);
@@ -63,6 +83,7 @@ export function renderSermonAsMarkdown(s: Sermon): string {
       for (const c of s.study.interpretiveCautions) lines.push("- " + c);
       lines.push("");
     }
+    lines.push(...renderWordStudies(s));
   }
 
   const outline = s.outline?.options?.[s.outline?.selectedIndex ?? 0];
@@ -249,7 +270,7 @@ export function renderSermonAsText(s: Sermon): string {
 /**
  * Pull the small-group questions section out of a sermon as its own
  * stand-alone leader handout. Includes only what a lay leader running
- * a mid-week group needs: passage, big idea, and the grouped questions.
+ * a mid-week group needs: passage, big idea, word studies, and the grouped questions.
  *
  * Falls back to the lighter `applications.smallGroupQuestions` list when
  * the dedicated Small Group Questions add-on hasn't been generated yet.
@@ -275,6 +296,8 @@ export function renderSmallGroupHandoutMarkdown(s: Sermon): string {
     lines.push(s.bigIdea.selected);
     lines.push("");
   }
+
+  lines.push(...renderWordStudies(s));
 
   const sg = s.smallGroupQuestions;
   const hasDedicated =

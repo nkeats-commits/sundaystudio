@@ -27,6 +27,8 @@ import express from "express";
 import type { AddressInfo } from "node:net";
 import {
   db,
+  type Sermon,
+  sermonExportsTable,
   sermonResourcesTable,
   sermonsTable,
   usersTable,
@@ -36,6 +38,80 @@ import sermonsRouter from "./sermons";
 import generateSermonRouter from "./generateSermon";
 import { jobManager } from "../lib/jobManager";
 import { GenerateSermonStudyResponse } from "@workspace/api-zod";
+import {
+  renderSermonAsMarkdown,
+  renderSermonAsText,
+  renderSmallGroupHandoutMarkdown,
+  renderSmallGroupHandoutText,
+  renderSmallGroupHandoutEmail,
+} from "../lib/sermonExport";
+
+const exportReferenceCases = [
+  { name: "single", references: ["Romans 8:1"] },
+  { name: "multiple", references: ["Romans 8:1", "Romans 8:2", "John 3:16"] },
+  { name: "empty", references: [] },
+  { name: "legacy omitted", references: undefined },
+];
+
+function exportStudy(references?: string[]): NonNullable<Sermon["study"]> {
+  return {
+    context: "Passage context.",
+    crossReferences: ["Psalm 23:1"],
+    wordStudies: [{
+      term: "grace",
+      originalWord: "χάρις",
+      transliteration: "charis",
+      language: "Greek",
+      strongsNumber: "G5485",
+      definition: "God's gracious gift.",
+      significance: "Grace grounds the message.",
+      ...(references === undefined ? {} : { references }),
+    }],
+  };
+}
+
+for (const [format, render] of [
+  ["markdown", renderSermonAsMarkdown],
+  ["text", renderSermonAsText],
+  ["small-group-handout", renderSmallGroupHandoutMarkdown],
+  ["small-group-text", renderSmallGroupHandoutText],
+  ["small-group-email", renderSmallGroupHandoutEmail],
+] as const) {
+  for (const { name, references } of exportReferenceCases) {
+    test(`sermon export ${format} preserves ${name} word-study references`, () => {
+      const sermon = {
+        title: "Grace",
+        passage: "Romans 8:1-2",
+        study: exportStudy(references),
+      } as Sermon;
+      const content = render(sermon);
+      assert.match(content, /Word Studies/);
+      assert.match(content, /grace\n/);
+      assert.match(content, /χάρις \(charis\) — Greek — G5485/);
+      assert.ok(content.includes("God's gracious gift."));
+      assert.ok(content.includes("Grace grounds the message."));
+      if (references?.length) {
+        const label = format === "markdown" || format === "small-group-handout"
+          ? "**Source verses:** "
+          : "Source verses: ";
+        assert.ok(content.includes(label + references.join(", ")));
+        assert.equal(content.match(/Source verses:/g)?.length, 1);
+        assert.doesNotMatch(content, /Source verses:[^\n]*Psalm 23:1/);
+      } else {
+        assert.doesNotMatch(content, /Source verses:/);
+      }
+      assert.doesNotMatch(content, /undefined|null/);
+    });
+  }
+
+  test(`sermon export ${format} handles a study without word studies`, () => {
+    const content = render({
+      title: "Legacy sermon",
+      study: { context: "Passage context." },
+    } as Sermon);
+    assert.doesNotMatch(content, /Word Studies|Source verses:/);
+  });
+}
 
 async function seedTrialUser(uid: string) {
   await db.insert(usersTable).values({ id: uid }).onConflictDoNothing();
@@ -65,12 +141,51 @@ function userId() {
 }
 
 async function cleanup(uid: string) {
+  await db.delete(sermonExportsTable).where(eq(sermonExportsTable.userId, uid));
   await db.delete(sermonsTable).where(eq(sermonsTable.userId, uid));
   await db
     .delete(sermonResourcesTable)
     .where(eq(sermonResourcesTable.userId, uid));
   await db.delete(usersTable).where(eq(usersTable.id, uid));
 }
+
+test("POST /api/sermons/:id/export saves word-study source verses in every format", async () => {
+  const uid = userId();
+  await seedTrialUser(uid);
+  const { base, close } = await startServer();
+  try {
+    for (const { references } of exportReferenceCases) {
+      const [sermon] = await db.insert(sermonsTable).values({
+        userId: uid,
+        title: "Grace",
+        passage: "Romans 8:1-2",
+        study: exportStudy(references),
+      }).returning();
+      for (const format of ["markdown", "text", "small-group-handout", "small-group-email"]) {
+        const res = await fetch(`${base}/api/sermons/${sermon.id}/export`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-test-user-id": uid },
+          body: JSON.stringify({ format }),
+        });
+        const text = await res.text();
+        assert.equal(res.status, 200, text);
+        const body = JSON.parse(text) as { format: string; content: string; sermonId: number };
+        assert.equal(body.format, format);
+        assert.equal(body.sermonId, sermon.id);
+        assert.ok(body.content.includes("God's gracious gift."));
+        if (references?.length) {
+          assert.ok(body.content.includes(references.join(", ")));
+          assert.match(body.content, /Source verses:/);
+        } else {
+          assert.doesNotMatch(body.content, /Source verses:/);
+        }
+      }
+    }
+  } finally {
+    await close();
+    await cleanup(uid);
+  }
+});
 
 /* -------------------------------------------------------------------------- */
 /* /sermons/preview-resources                                                 */
