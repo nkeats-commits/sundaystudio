@@ -89,6 +89,7 @@ test("GET /api/sources returns registry + defaults for a fresh user", async () =
       "john-trapp",
       "thomas-scott",
       "augustine-expositions",
+      "augustine-john-tractates",
       "luther-galatians",
     ]) {
       assert.ok(

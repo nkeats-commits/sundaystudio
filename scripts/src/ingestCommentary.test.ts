@@ -12,6 +12,7 @@ import {
   diffExactCoverage,
   extractCcelBookContent,
   extractBibleHubExcerpt,
+  extractNewAdventHeading,
   extractNewAdventExcerpt,
   extractSermonIndexExcerpt,
   KNOWN_EMPTY_UPSTREAM,
@@ -132,6 +133,21 @@ test("extractNewAdventExcerpt removes the support banner and publication footer"
   assert.doesNotMatch(excerpt, /New Advent|About this page|Source\./);
 });
 
+test("New Advent tractate extraction keeps its passage heading and strips host boilerplate", () => {
+  const html = `
+    <html><body>
+      <h1>Tractate 1 (John 1:1-5)</h1>
+      <p><em><a href="/support">Please help support the mission of New Advent</a>
+      and get the full contents as an instant download.</em></p>
+      <p>Augustine explains the opening words of the Gospel and their teaching about the Word.</p>
+      <div class="pub">Source. Translated by John Gibb. New Advent.</div>
+    </body></html>`;
+  assert.equal(extractNewAdventHeading(html), "Tractate 1 (John 1:1-5)");
+  const excerpt = extractNewAdventExcerpt(html);
+  assert.match(excerpt, /Augustine explains the opening words/);
+  assert.doesNotMatch(excerpt, /New Advent|instant download|Source\./);
+});
+
 test("extractCcelBookContent keeps nested chapter prose and excludes page navigation", () => {
   const excerpt = extractCcelBookContent(
     readFileSync(
@@ -231,12 +247,18 @@ test("partial source contracts document their selected edition coverage exactly"
   const augustine = COMMENTARY_VALIDATION_SPECS.find(
     (spec) => spec.sourceId === "augustine-expositions",
   );
+  const augustineJohn = COMMENTARY_VALIDATION_SPECS.find(
+    (spec) => spec.sourceId === "augustine-john-tractates",
+  );
   const luther = COMMENTARY_VALIDATION_SPECS.find(
     (spec) => spec.sourceId === "luther-galatians",
   );
   assert.ok(augustine);
+  assert.ok(augustineJohn);
   assert.ok(luther);
   assert.equal(expectedChapterTotal(augustine), 150);
+  assert.equal(expectedChapterTotal(augustineJohn), 21);
+  assert.equal(augustineJohn.requiresChapterSourceUrl, true);
   assert.equal(expectedChapterTotal(luther), 6);
   assert.deepEqual(augustine.expectedChapterKeys?.slice(0, 2), [
     "psalms 1",
@@ -249,5 +271,28 @@ test("partial source contracts document their selected edition coverage exactly"
     "galatians 4",
     "galatians 5",
     "galatians 6",
+  ]);
+  assert.deepEqual(augustineJohn.expectedChapterKeys, [
+    "john 1",
+    "john 2",
+    "john 3",
+    "john 4",
+    "john 5",
+    "john 6",
+    "john 7",
+    "john 8",
+    "john 9",
+    "john 10",
+    "john 11",
+    "john 12",
+    "john 13",
+    "john 14",
+    "john 15",
+    "john 16",
+    "john 17",
+    "john 18",
+    "john 19",
+    "john 20",
+    "john 21",
   ]);
 });

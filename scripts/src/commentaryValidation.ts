@@ -22,6 +22,7 @@ export interface CommentaryValidationSpec {
     chapter: number;
   };
   requiresBookSourceUrl: boolean;
+  requiresChapterSourceUrl?: boolean;
   requiresAttribution: boolean;
   /**
    * Optional exact inventory for sources whose selected edition is only a
@@ -50,6 +51,10 @@ const augustinePsalmKeys = Array.from(
 const lutherGalatiansKeys = Array.from(
   { length: 6 },
   (_, index) => `galatians ${index + 1}`,
+);
+const augustineJohnKeys = Array.from(
+  { length: 21 },
+  (_, index) => `john ${index + 1}`,
 );
 
 const chapterTotal = (scope: readonly string[]) =>
@@ -235,6 +240,18 @@ export const COMMENTARY_VALIDATION_SPECS: readonly CommentaryValidationSpec[] = 
     requiresBookSourceUrl: true,
     requiresAttribution: true,
     expectedChapterKeys: lutherGalatiansKeys,
+  },
+  {
+    sourceId: "augustine-john-tractates",
+    expectedBookSlugs: ["john"],
+    expectedChapterCount: 21,
+    exactCoverage: true,
+    minimumExcerptChars: 100,
+    representative: { book: "john", chapter: 3 },
+    requiresBookSourceUrl: true,
+    requiresChapterSourceUrl: true,
+    requiresAttribution: true,
+    expectedChapterKeys: augustineJohnKeys,
   },
 ];
 

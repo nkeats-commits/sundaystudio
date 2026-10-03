@@ -1,0 +1,13 @@
+{
+  "id": "augustine-john-tractates",
+  "title": "Augustine's Tractates on the Gospel of John",
+  "author": "Augustine of Hippo",
+  "year": "1888 English translation",
+  "license": "Public domain (John Gibb translation, Nicene and Post-Nicene Fathers, First Series, Vol. 7, 1888)",
+  "sourceUrl": "https://www.newadvent.org/fathers/1701.htm",
+  "originalSourceUrl": "https://archive.org/details/npnf107",
+  "description": "Selected passage-keyed chapters from Augustine's Tractates on the Gospel of John, using the John Gibb translation in Nicene and Post-Nicene Fathers, First Series, volume 7 (1888). One verified tractate excerpt is included for each of John chapters 1–21; this does not claim to cover every verse or all 124 tractates.",
+  "kind": "commentary",
+  "lookupType": "chapter commentary",
+  "attribution": "Augustine of Hippo, Tractates on the Gospel of John, translated by John Gibb, in Nicene and Post-Nicene Fathers, First Series, Vol. 7, edited by Philip Schaff (1888), public-domain edition"
+}

@@ -20,6 +20,7 @@
  *   - john-trapp               → SermonIndex /commentary/trapp/<book>/<ch>
  *   - thomas-scott             → SermonIndex /commentary/tscott/PSA/<ch>
  *   - augustine-expositions    → New Advent /fathers/1801<psalm>.htm (Psalms)
+ *   - augustine-john-tractates → New Advent /fathers/1701<tractate>.htm (selected John passages)
  *   - luther-galatians        → CCEL /ccel/luther/galatians/galatians.<ch>.html
  *
  * Why BibleHub and not CCEL? CCEL serves a per-work plain-text dump only for
@@ -450,9 +451,15 @@ export function extractBibleHubExcerpt(html: string): string {
   return finalizeExcerpt(combined);
 }
 
+interface ChapterOut {
+  text: string;
+  title?: string;
+  sourceUrl?: string;
+}
+
 interface BookOut {
   book: string;
-  chapters: Record<string, { text: string }>;
+  chapters: Record<string, ChapterOut>;
   _sourceUrl: string;
 }
 
@@ -764,6 +771,11 @@ export function extractNewAdventExcerpt(html: string): string {
   return finalizeExcerpt(stripHtml(body));
 }
 
+export function extractNewAdventHeading(html: string): string {
+  const heading = /<h1[^>]*>[\s\S]*?<\/h1>/i.exec(html);
+  return heading ? stripHtml(heading[0]) : "";
+}
+
 /**
  * Extract the chapter body from CCEL's XHTML reader. A balanced div scan is
  * used instead of a greedy regex because the chapter contains nested spans,
@@ -817,6 +829,82 @@ async function ingestAugustineExpositions(): Promise<void> {
   }
   console.log(`[augustine-expositions] fetched and kept ${kept} Psalm chapters`);
   writeBooks("augustine-expositions", books, [psalms]);
+}
+
+const AUGUSTINE_JOHN_TRACTATES = [
+  { chapter: 1, tractate: 1, passage: "John 1:1-5" },
+  { chapter: 2, tractate: 8, passage: "John 2:1-4" },
+  { chapter: 3, tractate: 12, passage: "John 3:6-21" },
+  { chapter: 4, tractate: 15, passage: "John 4:1-42" },
+  { chapter: 5, tractate: 17, passage: "John 5:1-18" },
+  { chapter: 6, tractate: 24, passage: "John 6:1-14" },
+  { chapter: 7, tractate: 28, passage: "John 7:1-13" },
+  { chapter: 8, tractate: 34, passage: "John 8:12" },
+  { chapter: 9, tractate: 44, passage: "John 9" },
+  { chapter: 10, tractate: 45, passage: "John 10:1-10" },
+  { chapter: 11, tractate: 49, passage: "John 11:1-54" },
+  { chapter: 12, tractate: 51, passage: "John 12:12-26" },
+  { chapter: 13, tractate: 55, passage: "John 13:1-5" },
+  { chapter: 14, tractate: 67, passage: "John 14:1-3" },
+  { chapter: 15, tractate: 80, passage: "John 15:1-3" },
+  { chapter: 16, tractate: 93, passage: "John 16:1-4" },
+  { chapter: 17, tractate: 104, passage: "John 17:1" },
+  { chapter: 18, tractate: 112, passage: "John 18:1-12" },
+  { chapter: 19, tractate: 116, passage: "John 19:1-16" },
+  { chapter: 20, tractate: 121, passage: "John 20:10-29" },
+  { chapter: 21, tractate: 123, passage: "John 21:12-19" },
+] as const;
+
+function normalizeCitation(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, "");
+}
+
+async function ingestAugustineJohnTractates(): Promise<void> {
+  const john = BOOKS.find((book) => book.canonical === "john");
+  if (!john) throw new Error("John inventory is unavailable");
+  const book: BookOut = {
+    book: john.name,
+    chapters: {},
+    _sourceUrl: "https://www.newadvent.org/fathers/1701.htm",
+  };
+
+  for (const selected of AUGUSTINE_JOHN_TRACTATES) {
+    const url =
+      `https://www.newadvent.org/fathers/1701` +
+      `${String(selected.tractate).padStart(3, "0")}.htm`;
+    const html = await fetchWithRetry(url);
+    const heading = extractNewAdventHeading(html);
+    const expectedHeading =
+      `Tractate ${selected.tractate} (${selected.passage})`;
+    if (normalizeCitation(heading) !== normalizeCitation(expectedHeading)) {
+      throw new Error(
+        `[augustine-john-tractates] FATAL: ${url} heading changed; ` +
+          `expected "${expectedHeading}", received "${heading || "(missing)"}"`,
+      );
+    }
+    const excerpt = extractNewAdventExcerpt(html);
+    if (excerpt.length < NEW_ADVENT_MIN_EXCERPT_CHARS) {
+      throw new Error(
+        `[augustine-john-tractates] FATAL: John ${selected.chapter} ` +
+          `produced only ${excerpt.length} cleaned characters`,
+      );
+    }
+    book.chapters[String(selected.chapter)] = {
+      title: `Tractate ${selected.tractate} — ${selected.passage}`,
+      text: excerpt,
+      sourceUrl: url,
+    };
+  }
+
+  const books = new Map<string, BookOut>([[john.canonical, book]]);
+  console.log(
+    `[augustine-john-tractates] fetched ${Object.keys(book.chapters).length} ` +
+      "passage-keyed John chapters",
+  );
+  writeBooks("augustine-john-tractates", books, [john]);
 }
 
 async function ingestLutherGalatians(): Promise<void> {
@@ -980,6 +1068,7 @@ function writeBooks(
  */
 export const KNOWN_EMPTY_UPSTREAM: Record<string, string[]> = {
   "jamieson-fausset-brown": [],
+  "augustine-john-tractates": [],
   "barnes-notes": [
     "exodus 36",
     "exodus 37",
@@ -1122,7 +1211,7 @@ async function main() {
   const sourceId = process.argv[2];
   if (!sourceId) {
     console.error(
-       "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury|matthew-poole|ellicott-english-readers|wesley-explanatory-notes|joseph-benson|john-trapp|thomas-scott|augustine-expositions|luther-galatians>",
+      "Usage: ingest-commentary <jamieson-fausset-brown|barnes-notes|pulpit-commentary|adam-clarke|john-gill|keil-delitzsch|calvin-commentaries|spurgeon-treasury|matthew-poole|ellicott-english-readers|wesley-explanatory-notes|joseph-benson|john-trapp|thomas-scott|augustine-expositions|augustine-john-tractates|luther-galatians>",
     );
     process.exit(1);
   }
@@ -1193,6 +1282,9 @@ async function main() {
       break;
     case "augustine-expositions":
       await ingestAugustineExpositions();
+      break;
+    case "augustine-john-tractates":
+      await ingestAugustineJohnTractates();
       break;
     case "luther-galatians":
       await ingestLutherGalatians();

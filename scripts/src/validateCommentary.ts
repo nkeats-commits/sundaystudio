@@ -48,6 +48,7 @@ interface Manifest {
 interface Chapter {
   text?: unknown;
   title?: unknown;
+  sourceUrl?: unknown;
 }
 
 interface BookFile {
@@ -167,6 +168,17 @@ function validateCorpus(sourceId: string, spec: CommentaryValidationSpec): void 
       }
       if (chapter.title !== undefined && typeof chapter.title !== "string") {
         fail(sourceId, `${file} chapter ${chapterKey}`, "title must be text when present");
+      }
+      if (
+        spec.requiresChapterSourceUrl &&
+        (typeof chapter.sourceUrl !== "string" ||
+          !/^https?:\/\//.test(chapter.sourceUrl))
+      ) {
+        fail(
+          sourceId,
+          `${file} chapter ${chapterKey}`,
+          "missing valid passage source URL",
+        );
       }
       bookChapters.push(chapterNumber);
       totalChapters++;

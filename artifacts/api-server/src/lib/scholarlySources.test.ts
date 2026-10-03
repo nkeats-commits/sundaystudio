@@ -122,6 +122,7 @@ test("registry: only sources with populated book corpora are registered", () => 
     "john-trapp",
     "thomas-scott",
     "augustine-expositions",
+    "augustine-john-tractates",
     "luther-galatians",
   ]) {
     assert.ok(
@@ -177,6 +178,7 @@ test("registry: bundled commentaries cover ~all 66 books × 1189 chapters", () =
     "john-trapp": { books: 65, chapters: 1186 },
     "thomas-scott": { books: 1, chapters: 149 },
     "augustine-expositions": { books: 1, chapters: 150 },
+    "augustine-john-tractates": { books: 1, chapters: 21 },
     "luther-galatians": { books: 1, chapters: 6 },
   };
   const CANONICAL_BOOKS: ReadonlyArray<readonly [string, number]> = [
@@ -308,6 +310,16 @@ test("lookupCommentary: Augustine and Luther expose their verified partial cover
   assert.match(luther[0].sourceTitle, /Commentary on Galatians/);
   assert.ok(luther[0].text.length >= 100);
 
+  const augustineJohn = lookupCommentary(
+    ["augustine-john-tractates"],
+    ["John 1:1-5"],
+  );
+  assert.equal(augustineJohn.length, 1);
+  assert.equal(augustineJohn[0].sourceAuthor, "Augustine of Hippo");
+  assert.match(augustineJohn[0].sourceTitle, /Tractates on the Gospel of John/);
+  assert.match(augustineJohn[0].title ?? "", /Tractate 1.*John 1:1-5/);
+  assert.ok(augustineJohn[0].text.length >= 100);
+
   assert.deepEqual(
     lookupCommentary(["augustine-expositions"], ["Romans 8:28"]),
     [],
@@ -317,6 +329,11 @@ test("lookupCommentary: Augustine and Luther expose their verified partial cover
     lookupCommentary(["luther-galatians"], ["Romans 8:28"]),
     [],
     "Luther must not imply whole-Bible coverage",
+  );
+  assert.deepEqual(
+    lookupCommentary(["augustine-john-tractates"], ["Romans 8:28"]),
+    [],
+    "Augustine's John source must stay limited to the Gospel of John",
   );
 });
 
@@ -350,6 +367,7 @@ test("lookupCommentary: every bundled corpus has a representative hit", () => {
     "john-trapp": { passage: "Romans 8:28", minimum: 80 },
     "thomas-scott": { passage: "Psalms 23:1", minimum: 80 },
     "augustine-expositions": { passage: "Psalms 23:1", minimum: 100 },
+    "augustine-john-tractates": { passage: "John 3:16", minimum: 100 },
     "luther-galatians": { passage: "Galatians 5:1", minimum: 100 },
   };
   for (const [sourceId, representative] of Object.entries(representatives)) {
@@ -375,6 +393,7 @@ test("new commentary corpora contain no upstream placeholders, HTML, or footers"
     "john-trapp",
     "thomas-scott",
     "augustine-expositions",
+    "augustine-john-tractates",
     "luther-galatians",
   ]) {
     for (const file of readdirSync(join(root, sourceId))) {
@@ -406,6 +425,7 @@ test("lookupCommentary: disabled new sources contribute no context", () => {
           "wesley-explanatory-notes",
           "ellicott-english-readers",
           "augustine-expositions",
+          "augustine-john-tractates",
           "luther-galatians",
         ].includes(hit.sourceId),
     ),

@@ -127,6 +127,7 @@ Currently wired sources:
 - `john-trapp`             → `https://www.sermonindex.net/commentary/trapp/` (65 books / 1,186 chapters; three verified upstream gaps)
 - `thomas-scott`           → `https://www.sermonindex.net/commentary/tscott/` (Psalms 1–150 except Psalm 59; 149 chapters)
 - `augustine-expositions`  → `https://www.newadvent.org/fathers/1801.htm` (Augustine's Expositions on the Psalms; 150 chapters)
+- `augustine-john-tractates` → `https://www.newadvent.org/fathers/1701.htm` (Augustine's Tractates on the Gospel of John; selected, verse-labeled excerpts in John 1–21)
 - `luther-galatians`       → `https://ccel.org/ccel/luther/galatians.html` (Luther's Commentary on Galatians; 6 chapters)
 
 Why BibleHub: CCEL only publishes plain-text dumps for a few works, and the
@@ -154,6 +155,16 @@ The normal minimum cleaned excerpt length is 200 characters. Wesley uses a
 100-character floor because a few authentic chapter notes are intentionally
 brief (for example, Psalms 131 and 150); footer-only pages become empty after
 boilerplate cleanup and still fail the completeness gate unless allowlisted.
+
+Augustine's additional John corpus uses the public-domain John Gibb English
+translation in *Nicene and Post-Nicene Fathers*, First Series, volume 7,
+edited by Philip Schaff and published in 1888. New Advent's contents page
+lists each tractate beside its Gospel passage; the checked-in source keeps one
+verified tractate excerpt for each of John chapters 1–21. Each chapter entry
+records its exact tractate heading and source URL. This is intentionally a
+selected passage corpus, not a claim that every verse or all 124 tractates are
+included. Its separate manifest keeps it independently opt-in from
+Augustine's Psalms source.
 
 To add another source backed by BibleHub, add a `case` in the script's
 `main()` switch with the BibleHub path segment, then run the script. To add
