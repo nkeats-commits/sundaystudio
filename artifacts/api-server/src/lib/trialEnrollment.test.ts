@@ -14,7 +14,7 @@ import {
   type TrialingSubscription,
 } from "./trialEnrollment";
 
-const start = 1_780_000_000;
+const start = Math.floor(Date.now() / 1000) - 60 * 60;
 const baseSubscription: TrialingSubscription = {
   id: "sub_trial",
   customer: "cus_user",
@@ -78,6 +78,14 @@ test("Stripe trial is valid only when it is trialing, has a payment method, and 
     isCardBackedTrialSubscription({
       ...baseSubscription,
       trial_end: start + 13 * 24 * 60 * 60,
+    }),
+    false,
+  );
+  assert.equal(
+    isCardBackedTrialSubscription({
+      ...baseSubscription,
+      trial_start: start - 15 * 24 * 60 * 60,
+      trial_end: start - 24 * 60 * 60,
     }),
     false,
   );

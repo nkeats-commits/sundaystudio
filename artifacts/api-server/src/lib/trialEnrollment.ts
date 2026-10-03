@@ -85,7 +85,10 @@ export function isCardBackedTrialSubscription(
 
   const trialDurationSeconds = subscription.trial_end - subscription.trial_start;
   const expectedDurationSeconds = TRIAL_DAYS * DAY_MS / 1000;
-  return Math.abs(trialDurationSeconds - expectedDurationSeconds) <= 60;
+  return (
+    subscription.trial_end * 1000 > Date.now() &&
+    Math.abs(trialDurationSeconds - expectedDurationSeconds) <= 60
+  );
 }
 
 export function isConfirmedTrialCheckout({
