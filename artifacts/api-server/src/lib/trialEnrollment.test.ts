@@ -6,7 +6,9 @@ import {
   buildCardRequiredTrialOptions,
   CARD_REQUIRED_TRIAL_TERMS,
   isCardBackedTrialSubscription,
+  isCurrentCardBackedTrialSubscription,
   isConfirmedTrialCheckout,
+  extendedTrialEnd,
   isTrialEnrollmentEligible,
   shouldStartCardTrial,
   reusableEnrollmentCheckoutUrl,
@@ -89,6 +91,67 @@ test("Stripe trial is valid only when it is trialing, has a payment method, and 
     }),
     false,
   );
+});
+
+test("only the matching active card-backed Stripe trial can be extended", () => {
+  const effectiveTrialEnd = new Date(baseSubscription.trial_end! * 1000);
+  const input = {
+    subscription: baseSubscription,
+    customerId: "cus_user",
+    trialStartedAt: new Date(baseSubscription.trial_start! * 1000),
+    trialEndsAt: effectiveTrialEnd,
+    now: start * 1000,
+  };
+
+  assert.equal(isCurrentCardBackedTrialSubscription(input), true);
+  assert.equal(
+    isCurrentCardBackedTrialSubscription({
+      ...input,
+      subscription: { ...baseSubscription, status: "active" },
+    }),
+    false,
+  );
+  assert.equal(
+    isCurrentCardBackedTrialSubscription({
+      ...input,
+      subscription: { ...baseSubscription, default_payment_method: null },
+    }),
+    false,
+  );
+  assert.equal(
+    isCurrentCardBackedTrialSubscription({
+      ...input,
+      subscription: { ...baseSubscription, customer: "cus_other" },
+    }),
+    false,
+  );
+  assert.equal(
+    isCurrentCardBackedTrialSubscription({
+      ...input,
+      trialStartedAt: new Date((baseSubscription.trial_start! - 1) * 1000),
+    }),
+    false,
+  );
+  assert.equal(
+    isCurrentCardBackedTrialSubscription({
+      ...input,
+      trialEndsAt: new Date((baseSubscription.trial_end! + 1) * 1000),
+    }),
+    false,
+  );
+  assert.equal(
+    isCurrentCardBackedTrialSubscription({
+      ...input,
+      now: baseSubscription.trial_end! * 1000,
+    }),
+    false,
+  );
+});
+
+test("extension adds the selected days to a future Stripe trial end only", () => {
+  assert.equal(extendedTrialEnd(start + 14 * 24 * 60 * 60, 7, start * 1000),
+    start + 21 * 24 * 60 * 60);
+  assert.equal(extendedTrialEnd(start, 14, start * 1000), null);
 });
 
 test("only the signed-in user's completed, card-backed Stripe trial is confirmed", () => {

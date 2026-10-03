@@ -1,5 +1,14 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { count, desc, eq, gte, sql, getTableColumns, notInArray } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  sql,
+  getTableColumns,
+  notInArray,
+} from "drizzle-orm";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -24,6 +33,11 @@ import {
   type AccessState,
   TRIAL_DAYS,
 } from "../lib/getAccessState";
+import {
+  extendedTrialEnd,
+  isCurrentCardBackedTrialSubscription,
+  type TrialingSubscription,
+} from "../lib/trialEnrollment";
 import { getMonthlyPriceId } from "../lib/getMonthlyPriceId";
 import { ObjectStorageService } from "../lib/objectStorage";
 
@@ -63,6 +77,7 @@ async function stripeSubsAvailable(): Promise<boolean> {
 function buildUserStateCte(stripeAvailable: boolean) {
   const trialMs = TRIAL_DAYS * 24 * 60 * 60 * 1000;
   const trialInterval = sql.raw(`interval '${TRIAL_DAYS} days'`);
+  const trialEndExpr = sql`COALESCE(u.trial_ends_at, u.trial_started_at + ${trialInterval})`;
   const subJoin = stripeAvailable
     ? sql`
         latest_sub AS (
@@ -94,17 +109,17 @@ function buildUserStateCte(stripeAvailable: boolean) {
               CASE
                 WHEN u.trial_enrollment_status = 'pending' THEN 'enrollment_required'
                 WHEN u.trial_enrollment_status = 'enrolled'
-                  AND u.trial_started_at + ${trialInterval} > NOW() THEN 'trial'
+                  AND ${trialEndExpr} > NOW() THEN 'trial'
                 ELSE 'expired'
               END
             WHEN s.status = 'active' THEN 'active'
             WHEN s.status = 'trialing'
               AND u.trial_enrollment_status = 'enrolled'
-              AND u.trial_started_at + ${trialInterval} > NOW() THEN 'trial'
+              AND ${trialEndExpr} > NOW() THEN 'trial'
             WHEN s.status = 'incomplete'
               AND u.trial_enrollment_status = 'enrolled'
-              AND u.trial_started_at + ${trialInterval} > NOW() THEN 'trial'
-            WHEN s.status = 'trialing' AND u.trial_enrollment_status = 'enrolled' THEN 'trialing'
+              AND ${trialEndExpr} > NOW() THEN 'trial'
+            WHEN s.status = 'trialing' AND u.trial_enrollment_status = 'enrolled' THEN 'expired'
             WHEN s.status = 'trialing' THEN 'enrollment_required'
             WHEN s.status IN ('past_due','unpaid','incomplete','paused') THEN 'past_due'
             WHEN s.status IN ('canceled','incomplete_expired') THEN 'canceled'
@@ -113,7 +128,7 @@ function buildUserStateCte(stripeAvailable: boolean) {
     : sql`CASE
             WHEN u.trial_enrollment_status = 'pending' THEN 'enrollment_required'
             WHEN u.trial_enrollment_status = 'enrolled'
-              AND u.trial_started_at + ${trialInterval} > NOW() THEN 'trial'
+              AND ${trialEndExpr} > NOW() THEN 'trial'
             ELSE 'expired'
           END`;
   return {
@@ -132,7 +147,8 @@ function buildUserStateCte(stripeAvailable: boolean) {
       user_state AS (
         SELECT
           u.id, u.email, u.first_name, u.last_name, u.image_url,
-          u.created_at, u.trial_started_at, u.trial_enrollment_status, u.stripe_customer_id,
+          u.created_at, u.trial_started_at, u.trial_ends_at,
+          u.trial_enrollment_status, u.stripe_customer_id,
           ${subSelect}
           -- GREATEST(NULL, x) returns NULL in Postgres, so fall back to
           -- the lone non-null side when only one of plans/sermons exists.
@@ -156,6 +172,7 @@ function buildUserStateCte(stripeAvailable: boolean) {
 function rowToAccessState(row: {
   state_kind: string;
   trial_started_at: Date | string | null;
+  trial_ends_at: Date | string | null;
   created_at: Date | string;
   trial_enrollment_status: string;
   sub_current_period_end: number | string | null;
@@ -163,7 +180,9 @@ function rowToAccessState(row: {
 }): AccessState {
   const trialStartRaw = row.trial_started_at ?? row.created_at;
   const trialStartMs = new Date(trialStartRaw).getTime();
-  const trialEndMs = trialStartMs + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  const trialEndMs = row.trial_ends_at
+    ? new Date(row.trial_ends_at).getTime()
+    : trialStartMs + TRIAL_DAYS * 24 * 60 * 60 * 1000;
   const periodEndIso = (() => {
     const v = row.sub_current_period_end;
     if (v == null) return null;
@@ -447,7 +466,7 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
       SELECT COUNT(*)::int AS c
       FROM user_state
       WHERE state_kind = 'trial'
-        AND trial_started_at + ${trialIntervalSql}
+        AND COALESCE(trial_ends_at, trial_started_at + ${trialIntervalSql})
             <= NOW() + interval '3 days'
     `);
     const trialsEndingSoon = Number(
@@ -814,7 +833,8 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
       ${cte}
       SELECT
         id, email, first_name, last_name, image_url,
-        created_at, trial_started_at, trial_enrollment_status, stripe_customer_id,
+        created_at, trial_started_at, trial_ends_at,
+        trial_enrollment_status, stripe_customer_id,
         sub_current_period_end, sub_cancel_at_period_end,
         last_activity_at, state_kind,
         COUNT(*) OVER()::int AS total_count
@@ -834,6 +854,7 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
       image_url: string | null;
       created_at: Date | string;
       trial_started_at: Date | string | null;
+      trial_ends_at: Date | string | null;
       trial_enrollment_status: string;
       stripe_customer_id: string | null;
       sub_current_period_end: number | string | null;
@@ -945,7 +966,7 @@ router.get(
   },
 );
 
-/** POST /admin/users/:id/extend-trial — reject unsafe local-only extensions. */
+/** POST /admin/users/:id/extend-trial — move Stripe and app trial ends together. */
 router.post(
   "/admin/users/:id/extend-trial",
   requireAuth,
@@ -958,30 +979,173 @@ router.post(
       badRequest(res, parsedBody.error);
       return;
     }
+    if (!(await isStripeConfigured())) {
+      res.status(503).json({ error: "Stripe is not configured on this server." });
+      return;
+    }
+
+    const stripeUpdateRef: {
+      current: {
+      stripe: Awaited<ReturnType<typeof getUncachableStripeClient>>;
+      subscriptionId: string;
+      oldTrialEnd: number;
+      newTrialEnd: number;
+      } | null;
+    } = { current: null };
+
     try {
-      const [u] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, targetId))
-        .limit(1);
-      if (!u) {
+      const result = await db.transaction(async (tx) => {
+        const [u] = await tx
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.id, targetId))
+          .limit(1)
+          .for("update");
+        if (!u) return { kind: "missing" as const };
+        if (
+          u.trialEnrollmentStatus !== "enrolled" ||
+          !u.stripeCustomerId ||
+          !u.trialStartedAt
+        ) {
+          return { kind: "ineligible" as const };
+        }
+
+        const currentState = await getAccessState(u.id);
+        if (currentState.kind !== "trial") {
+          return { kind: "ineligible" as const };
+        }
+
+        const currentTrialEnd =
+          u.trialEndsAt ??
+          new Date(
+            u.trialStartedAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000,
+          );
+        const stripe = await getUncachableStripeClient();
+        const subscriptions = await stripe.subscriptions.list({
+          customer: u.stripeCustomerId,
+          status: "trialing",
+          limit: 100,
+        });
+        const subscription = subscriptions.data.find((candidate) =>
+          isCurrentCardBackedTrialSubscription({
+            subscription: candidate as unknown as TrialingSubscription,
+            customerId: u.stripeCustomerId!,
+            trialStartedAt: u.trialStartedAt!,
+            trialEndsAt: currentTrialEnd,
+          }),
+        );
+        if (subscription?.trial_end == null) {
+          return { kind: "ineligible" as const };
+        }
+
+        const newTrialEnd = extendedTrialEnd(
+          subscription.trial_end,
+          parsedBody.data.days,
+        );
+        if (newTrialEnd == null) {
+          return { kind: "ineligible" as const };
+        }
+
+        // Keep enough information to compensate Stripe if the local commit
+        // fails or the Stripe response is lost after the update succeeds.
+        stripeUpdateRef.current = {
+          stripe,
+          subscriptionId: subscription.id,
+          oldTrialEnd: subscription.trial_end,
+          newTrialEnd,
+        };
+        const updatedSubscription = await stripe.subscriptions.update(
+          subscription.id,
+          { trial_end: newTrialEnd },
+        );
+        if (
+          !isCurrentCardBackedTrialSubscription({
+            subscription: updatedSubscription as unknown as TrialingSubscription,
+            customerId: u.stripeCustomerId,
+            trialStartedAt: u.trialStartedAt,
+            trialEndsAt: new Date(newTrialEnd * 1000),
+          })
+        ) {
+          throw new Error("Stripe did not confirm the requested trial end.");
+        }
+
+        const [updatedUser] = await tx
+          .update(usersTable)
+          .set({
+            trialEndsAt: new Date(newTrialEnd * 1000),
+            trialReminderSentAt: null,
+            trialFinalReminderEmailSentAt: null,
+            trialExpiredEmailSentAt: null,
+          })
+          .where(
+            and(
+              eq(usersTable.id, targetId),
+              eq(usersTable.trialEnrollmentStatus, "enrolled"),
+            ),
+          )
+          .returning({ id: usersTable.id });
+        if (!updatedUser) {
+          throw new Error("The user's trial enrollment changed during extension.");
+        }
+
+        return {
+          kind: "extended" as const,
+          trialEndsAt: new Date(newTrialEnd * 1000).toISOString(),
+        };
+      });
+
+      if (result.kind === "missing") {
         res.status(404).json({ error: "User not found" });
         return;
       }
-      const currentState = await getAccessState(u.id);
-      if (currentState.kind !== "trial") {
+      if (result.kind === "ineligible") {
         res.status(409).json({
-          error: "Only a currently active, confirmed trial can be extended.",
+          error:
+            "Only a currently active, card-backed Stripe trial can be extended.",
         });
         return;
       }
-      res.status(409).json({
-        error:
-          "Card-backed trial extensions are unavailable here because this action cannot move the Stripe first-charge date with the access end date.",
+
+      stripeUpdateRef.current = null;
+      const trialEndsAt = new Date(result.trialEndsAt).getTime();
+      res.json({
+        state: {
+          kind: "trial",
+          daysLeft: Math.max(
+            0,
+            Math.ceil((trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000)),
+          ),
+          trialEndsAt: result.trialEndsAt,
+        },
       });
     } catch (err) {
+      const stripeUpdate = stripeUpdateRef.current;
+      if (stripeUpdate) {
+        try {
+          const liveSubscription = await stripeUpdate.stripe.subscriptions.retrieve(
+            stripeUpdate.subscriptionId,
+          );
+          if (
+            liveSubscription.status === "trialing" &&
+            liveSubscription.trial_end === stripeUpdate.newTrialEnd
+          ) {
+            await stripeUpdate.stripe.subscriptions.update(
+              stripeUpdate.subscriptionId,
+              { trial_end: stripeUpdate.oldTrialEnd },
+            );
+          }
+        } catch (rollbackError) {
+          req.log.error(
+            { err: rollbackError, subscriptionId: stripeUpdate.subscriptionId },
+            "Failed to restore Stripe trial end after local extension failure",
+          );
+        }
+      }
       req.log.error({ err }, "extend-trial failed");
-      res.status(500).json({ error: "Failed to extend trial" });
+      res.status(500).json({
+        error:
+          "Failed to extend the trial. No local access date was changed; contact support if Stripe shows a different trial end.",
+      });
     }
   },
 );

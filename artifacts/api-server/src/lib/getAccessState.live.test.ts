@@ -18,7 +18,8 @@ let user = {
   id: userId,
   stripeCustomerId: customerId,
   trialStartedAt: null as Date | null,
-  trialEnrollmentStatus: "pending" as const,
+  trialEndsAt: null as Date | null,
+  trialEnrollmentStatus: "pending" as "pending" | "enrolled" | "expired",
   createdAt: new Date(Date.now() - 90 * DAY_SECONDS * 1000),
 };
 let subscriptionRow: SubscriptionRow = {
@@ -67,6 +68,7 @@ mock.module("@workspace/db", {
       id: "users.id",
       stripeCustomerId: "users.stripe_customer_id",
       trialStartedAt: "users.trial_started_at",
+      trialEndsAt: "users.trial_ends_at",
       trialEnrollmentStatus: "users.trial_enrollment_status",
       trialEnrollmentSessionId: "users.trial_enrollment_session_id",
       createdAt: "users.created_at",
@@ -118,6 +120,7 @@ function resetFixtures() {
     id: userId,
     stripeCustomerId: customerId,
     trialStartedAt: null,
+    trialEndsAt: null,
     trialEnrollmentStatus: "pending",
     createdAt: new Date(Date.now() - 90 * DAY_SECONDS * 1000),
   };
@@ -146,6 +149,10 @@ test("adopts only a live, card-backed legacy Stripe trial and preserves paid acc
       trialStart * 1000,
     );
     assert.equal(enrollmentUpdates[0]?.trialEnrollmentStatus, "enrolled");
+    assert.equal(
+      (enrollmentUpdates[0]?.trialEndsAt as Date).getTime(),
+      (trialStart + 14 * DAY_SECONDS) * 1000,
+    );
     if (state.kind === "trial") {
       assert.equal(
         state.trialEndsAt,
@@ -201,6 +208,22 @@ test("adopts only a live, card-backed legacy Stripe trial and preserves paid acc
     assert.equal(state.kind, "active");
     assert.equal(isAccessAllowed(state), true);
     assert.deepEqual(retrievedSubscriptionIds, []);
+    assert.equal(enrollmentUpdates.length, 0);
+  });
+
+  await t.test("a stale trialing mirror cannot extend access past the saved end", async () => {
+    resetFixtures();
+    user = {
+      ...user,
+      trialStartedAt: new Date(trialStart * 1000),
+      trialEndsAt: new Date(Date.now() - 1000),
+      trialEnrollmentStatus: "enrolled",
+    };
+
+    const state = await getAccessState(userId);
+
+    assert.equal(state.kind, "expired");
+    assert.equal(isAccessAllowed(state), false);
     assert.equal(enrollmentUpdates.length, 0);
   });
 });

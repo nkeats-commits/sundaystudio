@@ -31,6 +31,7 @@ export async function confirmTrialEnrollment(
     .update(usersTable)
     .set({
       trialStartedAt: new Date(subscription.trial_start! * 1000),
+      trialEndsAt: new Date(subscription.trial_end! * 1000),
       trialEnrollmentStatus: "enrolled",
       trialEnrollmentSessionId: null,
     })

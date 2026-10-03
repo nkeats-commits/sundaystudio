@@ -8,8 +8,9 @@
  *   1. Day-11 → `trial_expiring`  ("3 days left in your trial")
  *   2. Day-14 → `trial_expired`   ("Your trial has ended")
  *
- * Trialing Stripe subscriptions are expected here: their confirmed trial
- * start anchors the countdown. Only converted active subscribers are skipped.
+ * Trialing Stripe subscriptions are expected here: the confirmed trial start
+ * anchors midpoint events, while the effective trial end schedules expiry
+ * reminders. Only converted active subscribers are skipped.
  *
  * Schedule: called once at boot (to catch any missed sends) then every 24 h.
  */
@@ -19,12 +20,17 @@ import { db, usersTable, libraryItemsTable, servicePlansTable, sermonsTable } fr
 import { isNull, isNotNull, and, lte, gt, eq } from "drizzle-orm";
 import { logger } from "./logger";
 import { EVENTS } from "./eventRegistry";
-import { recordTrialEvent, trialDayWindow } from "./trialAnalytics";
+import { recordTrialEvent, trialDayWindow, trialEndWindow } from "./trialAnalytics";
 
 const TRIAL_DAYS = 14;
 const MIDPOINT_DAY = 7;
 const REMINDER_DAY = 11; // fire trial_expiring on day 11 (3 days before expiry)
 const FINAL_REMINDER_DAY = 13;
+const TRIAL_INTERVAL = sql.raw(`interval '${TRIAL_DAYS} days'`);
+
+function effectiveTrialEndSql() {
+  return sql`COALESCE(${usersTable.trialEndsAt}, ${usersTable.trialStartedAt} + ${TRIAL_INTERVAL})`;
+}
 
 /**
  * Returns true if we should skip the event for this user.
@@ -77,9 +83,15 @@ export async function runTrialEmailCron(): Promise<void> {
   ) => {
     if (!user.email || (await shouldSkipEvent(user))) return;
     const deliveredContext = await usageContext(user.id);
+    const effectiveTrialEnd =
+      user.trialEndsAt ??
+      (user.trialStartedAt
+        ? new Date(user.trialStartedAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000)
+        : null);
     const delivered = await recordTrialEvent(user.id, eventName, {
       firstName: user.firstName,
       trialStartedAt: user.trialStartedAt?.toISOString(),
+      trialEndsAt: effectiveTrialEnd?.toISOString(),
       pricingPath: "/pricing",
       workflowPath: deliveredContext.servicePlans > 0 ? "/services" : "/dashboard",
       ...deliveredContext,
@@ -109,13 +121,19 @@ export async function runTrialEmailCron(): Promise<void> {
   }
 
   // ── trial_final_reminder: final, respectful reminder on day 13 ──────────
-  const finalWindow = trialDayWindow(now, FINAL_REMINDER_DAY);
+  const finalWindow = trialEndWindow(now, TRIAL_DAYS - FINAL_REMINDER_DAY);
   const finalCandidates = await db.select().from(usersTable).where(and(
     eq(usersTable.trialEnrollmentStatus, "enrolled"),
     isNull(usersTable.trialFinalReminderEmailSentAt),
     isNotNull(usersTable.email),
-    lte(usersTable.trialStartedAt, finalWindow.endInclusive),
-    gt(usersTable.trialStartedAt, finalWindow.startExclusive),
+    lte(
+      effectiveTrialEndSql(),
+      finalWindow.endInclusive,
+    ),
+    gt(
+      effectiveTrialEndSql(),
+      finalWindow.startExclusive,
+    ),
   ));
   for (const user of finalCandidates) {
     try {
@@ -127,7 +145,7 @@ export async function runTrialEmailCron(): Promise<void> {
 
   // ── trial_expiring: users whose trial is on day 11 (started 11–12 days ago) ──
   // Idempotency is guaranteed by the trialReminderSentAt stamp.
-  const reminderWindow = trialDayWindow(now, REMINDER_DAY);
+  const reminderWindow = trialEndWindow(now, TRIAL_DAYS - REMINDER_DAY);
 
   const reminderCandidates = await db
     .select()
@@ -137,8 +155,14 @@ export async function runTrialEmailCron(): Promise<void> {
         eq(usersTable.trialEnrollmentStatus, "enrolled"),
         isNull(usersTable.trialReminderSentAt),
         isNotNull(usersTable.email),
-         lte(usersTable.trialStartedAt, reminderWindow.endInclusive),
-         gt(usersTable.trialStartedAt, reminderWindow.startExclusive),
+        lte(
+          effectiveTrialEndSql(),
+          reminderWindow.endInclusive,
+        ),
+        gt(
+          effectiveTrialEndSql(),
+          reminderWindow.startExclusive,
+        ),
       ),
     );
 
@@ -163,7 +187,7 @@ export async function runTrialEmailCron(): Promise<void> {
 
   // ── trial_expired: users whose trial ended on day 14 (started 14–15 days ago) ──
   // Idempotency is guaranteed by the trialExpiredEmailSentAt stamp.
-  const expiredWindow = trialDayWindow(now, TRIAL_DAYS);
+  const expiredWindow = trialEndWindow(now, 0);
 
   const expiredCandidates = await db
     .select()
@@ -173,8 +197,14 @@ export async function runTrialEmailCron(): Promise<void> {
         eq(usersTable.trialEnrollmentStatus, "enrolled"),
         isNull(usersTable.trialExpiredEmailSentAt),
         isNotNull(usersTable.email),
-         lte(usersTable.trialStartedAt, expiredWindow.endInclusive),
-         gt(usersTable.trialStartedAt, expiredWindow.startExclusive),
+        lte(
+          effectiveTrialEndSql(),
+          expiredWindow.endInclusive,
+        ),
+        gt(
+          effectiveTrialEndSql(),
+          expiredWindow.startExclusive,
+        ),
       ),
     );
 

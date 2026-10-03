@@ -11,6 +11,7 @@ export const usersTable = pgTable("users", {
   // trial subscription. New users remain pending until that confirmation.
   stripeCustomerId: text("stripe_customer_id"),
   trialStartedAt: timestamp("trial_started_at", { withTimezone: true }),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
   trialEnrollmentStatus: text("trial_enrollment_status")
     .$type<"pending" | "enrolled" | "expired">()
     .notNull()

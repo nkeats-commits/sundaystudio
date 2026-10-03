@@ -39,11 +39,13 @@ export function isAccessAllowed(state: AccessState): boolean {
 export function getLocalTrialAccessState({
   enrollmentStatus,
   trialStartedAt,
+  trialEndsAt,
   createdAt,
   now = Date.now(),
 }: {
   enrollmentStatus: "pending" | "enrolled" | "expired";
   trialStartedAt: Date | string | null;
+  trialEndsAt?: Date | string | null;
   createdAt: Date | string;
   now?: number;
 }): AccessState {
@@ -63,8 +65,9 @@ export function getLocalTrialAccessState({
     };
   }
 
-  const trialEndMs =
-    new Date(trialStartedAt).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  const trialEndMs = trialEndsAt
+    ? new Date(trialEndsAt).getTime()
+    : new Date(trialStartedAt).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
   if (now < trialEndMs) {
     return {
       kind: "trial",
@@ -131,6 +134,7 @@ export async function getAccessState(userId: string): Promise<AccessState> {
     .select({
       stripeCustomerId: usersTable.stripeCustomerId,
       trialStartedAt: usersTable.trialStartedAt,
+      trialEndsAt: usersTable.trialEndsAt,
       trialEnrollmentStatus: usersTable.trialEnrollmentStatus,
       createdAt: usersTable.createdAt,
     })
@@ -209,12 +213,24 @@ export async function getAccessState(userId: string): Promise<AccessState> {
           }
         }
         if (
-          (row.status === "trialing" || row.status === "incomplete") &&
+          row.status === "trialing" &&
+          user.trialEnrollmentStatus === "enrolled"
+        ) {
+          return getLocalTrialAccessState({
+            enrollmentStatus: user.trialEnrollmentStatus,
+            trialStartedAt: user.trialStartedAt,
+            trialEndsAt: user.trialEndsAt,
+            createdAt: user.createdAt,
+          });
+        }
+        if (
+          row.status === "incomplete" &&
           user.trialEnrollmentStatus === "enrolled"
         ) {
           const confirmedTrial = getLocalTrialAccessState({
             enrollmentStatus: user.trialEnrollmentStatus,
             trialStartedAt: user.trialStartedAt,
+            trialEndsAt: user.trialEndsAt,
             createdAt: user.createdAt,
           });
           if (confirmedTrial.kind === "trial") return confirmedTrial;
@@ -238,6 +254,7 @@ export async function getAccessState(userId: string): Promise<AccessState> {
   return getLocalTrialAccessState({
     enrollmentStatus: user.trialEnrollmentStatus,
     trialStartedAt: user.trialStartedAt,
+    trialEndsAt: user.trialEndsAt,
     createdAt: user.createdAt,
   });
 }

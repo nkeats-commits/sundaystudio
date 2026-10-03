@@ -91,6 +91,46 @@ export function isCardBackedTrialSubscription(
   );
 }
 
+/**
+ * Validates the already-enrolled trial that support may extend. Unlike
+ * enrollment, an existing trial may be longer than the original 14 days.
+ */
+export function isCurrentCardBackedTrialSubscription({
+  subscription,
+  customerId,
+  trialStartedAt,
+  trialEndsAt,
+  now = Date.now(),
+}: {
+  subscription: TrialingSubscription;
+  customerId: string;
+  trialStartedAt: Date | string;
+  trialEndsAt: Date | string;
+  now?: number;
+}): boolean {
+  const startMs = new Date(trialStartedAt).getTime();
+  const endMs = new Date(trialEndsAt).getTime();
+  return (
+    subscription.status === "trialing" &&
+    !!subscription.default_payment_method &&
+    stripeReferenceId(subscription.customer) === customerId &&
+    subscription.trial_start != null &&
+    subscription.trial_end != null &&
+    Math.floor(startMs / 1000) === subscription.trial_start &&
+    endMs === subscription.trial_end * 1000 &&
+    endMs > now
+  );
+}
+
+export function extendedTrialEnd(
+  currentTrialEnd: number,
+  days: 7 | 14 | 30,
+  now = Date.now(),
+): number | null {
+  if (currentTrialEnd * 1000 <= now) return null;
+  return currentTrialEnd + days * DAY_MS / 1000;
+}
+
 export function isConfirmedTrialCheckout({
   session,
   subscription,

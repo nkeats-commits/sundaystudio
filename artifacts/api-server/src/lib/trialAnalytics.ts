@@ -52,6 +52,28 @@ export function trialDayWindow(
 }
 
 /**
+ * Returns the candidate timestamp window for a message based on the number
+ * of days remaining until a trial ends. A zero-day window covers an end
+ * within the previous 24 hours.
+ */
+export function trialEndWindow(
+  now: Date,
+  daysRemaining: number,
+): { startExclusive: Date; endInclusive: Date } {
+  if (
+    !Number.isInteger(daysRemaining) ||
+    daysRemaining < 0 ||
+    daysRemaining > TRIAL_DAYS
+  ) {
+    throw new RangeError(`Days remaining must be an integer from 0 to ${TRIAL_DAYS}`);
+  }
+  return {
+    startExclusive: new Date(now.getTime() + (daysRemaining - 1) * DAY_MS),
+    endInclusive: new Date(now.getTime() + daysRemaining * DAY_MS),
+  };
+}
+
+/**
  * Records a conversion event locally and mirrors it to Resend when the event
  * belongs in lifecycle automation. Never lets analytics break the primary UX.
  */

@@ -6,6 +6,7 @@ import {
   useGetAdminUserAiUsage,
   compAdminUserSubscription,
   deleteAdminUser,
+  extendAdminUserTrial,
   getGetAdminUserQueryKey,
   getGetAdminMetricsQueryKey,
   getGetAdminUsersQueryKey,
@@ -105,9 +106,12 @@ export default function AdminUserDetail() {
   });
 
   const [busyAction, setBusyAction] = useState<
-    null | "comp" | "delete"
+    null | "comp" | "delete" | "extend"
   >(null);
-  const [confirm, setConfirm] = useState<null | "comp" | "delete">(null);
+  const [confirm, setConfirm] = useState<null | "comp" | "delete" | "extend">(
+    null,
+  );
+  const [extensionDays, setExtensionDays] = useState<7 | 14 | 30>(7);
 
   async function refreshAll() {
     await Promise.all([
@@ -130,6 +134,23 @@ export default function AdminUserDetail() {
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to comp subscription",
+      );
+    } finally {
+      setBusyAction(null);
+      setConfirm(null);
+    }
+  }
+
+  async function onExtendTrial() {
+    if (busyAction) return;
+    setBusyAction("extend");
+    try {
+      await extendAdminUserTrial(id, { days: extensionDays });
+      toast.success(`Trial extended by ${extensionDays} days`);
+      await refreshAll();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to extend trial",
       );
     } finally {
       setBusyAction(null);
@@ -219,6 +240,16 @@ export default function AdminUserDetail() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-sm">
                 <Detail label="Trial started" value={fmt(user.trialStartedAt)} />
+                <Detail
+                  label="Trial ends"
+                  value={
+                    user.state.kind === "trial"
+                      ? fmt(user.state.trialEndsAt)
+                      : user.state.kind === "expired"
+                        ? fmt(user.state.trialEndedAt)
+                        : "—"
+                  }
+                />
                 <Detail
                   label="Last activity"
                   value={fmt(user.lastActivityAt)}
@@ -396,17 +427,32 @@ export default function AdminUserDetail() {
                     Extend trial
                   </p>
                   <p className="text-xs text-[var(--worship-slate)]">
-                    Unavailable until the Stripe charge date and trial access
-                    end can be extended together.
+                    Move the Stripe charge date and app access end together.
+                    The confirmed trial start stays unchanged.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  disabled
-                  className="px-4 py-2 rounded-lg bg-[var(--worship-navy)] text-white text-sm font-medium opacity-50"
-                >
-                  Unavailable
-                </button>
+                {user.state.kind === "trial" && user.stripeCustomerId ? (
+                  <div className="flex gap-2">
+                    {([7, 14, 30] as const).map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => {
+                          setExtensionDays(days);
+                          setConfirm("extend");
+                        }}
+                        disabled={busyAction !== null}
+                        className="px-3 py-2 rounded-lg bg-[var(--worship-navy)] text-white text-sm font-medium hover:bg-[#161e30] disabled:opacity-50"
+                      >
+                        +{days} days
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-[var(--worship-slate)]">
+                    Active card-backed trial only
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b border-[var(--worship-border)]">
@@ -450,6 +496,20 @@ export default function AdminUserDetail() {
         )}
       </div>
 
+      <ConfirmDialog
+        open={confirm === "extend"}
+        title={`Extend trial by ${extensionDays} days?`}
+        body={
+          <>
+            Stripe's first-charge date and the app's access end will both move
+            by {extensionDays} days. The confirmed trial start will not change.
+          </>
+        }
+        confirmLabel="Extend trial"
+        onConfirm={onExtendTrial}
+        onCancel={() => setConfirm(null)}
+        busy={busyAction === "extend"}
+      />
       <ConfirmDialog
         open={confirm === "comp"}
         title="Comp subscription?"

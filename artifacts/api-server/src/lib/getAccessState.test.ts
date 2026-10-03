@@ -42,6 +42,43 @@ test("enrolled trial countdown starts from the confirmed Stripe trial date", () 
   assert.equal(isAccessAllowed(state), true);
 });
 
+test("an extended trial uses its saved end without changing its original start", () => {
+  const trialStartedAt = new Date(now - 12 * DAY_MS);
+  const trialEndsAt = new Date(now + 9 * DAY_MS);
+  const state = getLocalTrialAccessState({
+    enrollmentStatus: "enrolled",
+    trialStartedAt,
+    trialEndsAt,
+    createdAt,
+    now,
+  });
+
+  assert.deepEqual(state, {
+    kind: "trial",
+    daysLeft: 9,
+    trialEndsAt: trialEndsAt.toISOString(),
+  });
+  assert.equal(isAccessAllowed(state), true);
+});
+
+test("an extended trial is expired at its saved end date", () => {
+  const trialStartedAt = new Date(now - 30 * DAY_MS);
+  const trialEndsAt = new Date(now - 1);
+  const state = getLocalTrialAccessState({
+    enrollmentStatus: "enrolled",
+    trialStartedAt,
+    trialEndsAt,
+    createdAt,
+    now,
+  });
+
+  assert.deepEqual(state, {
+    kind: "expired",
+    trialEndedAt: trialEndsAt.toISOString(),
+  });
+  assert.equal(isAccessAllowed(state), false);
+});
+
 test("expired accounts stay ineligible and cannot get another local trial", () => {
   const state = getLocalTrialAccessState({
     enrollmentStatus: "expired",

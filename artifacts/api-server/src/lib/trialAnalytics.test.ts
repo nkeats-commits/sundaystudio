@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { TRIAL_DAYS } from "./getAccessState";
-import { trialDay, trialDayWindow } from "./trialAnalytics";
+import { trialDay, trialDayWindow, trialEndWindow } from "./trialAnalytics";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -52,4 +52,23 @@ test("trialDayWindow rejects days outside the trial", () => {
   assert.throws(() => trialDayWindow(now, 0), RangeError);
   assert.throws(() => trialDayWindow(now, TRIAL_DAYS + 1), RangeError);
   assert.throws(() => trialDayWindow(now, 7.5), RangeError);
+});
+
+test("trialEndWindow schedules reminders from the effective end date", () => {
+  const now = new Date("2026-09-02T12:00:00.000Z");
+
+  for (const daysRemaining of [0, 1, 3]) {
+    const window = trialEndWindow(now, daysRemaining);
+    assert.equal(
+      window.startExclusive.getTime(),
+      now.getTime() + (daysRemaining - 1) * DAY_MS,
+    );
+    assert.equal(
+      window.endInclusive.getTime(),
+      now.getTime() + daysRemaining * DAY_MS,
+    );
+  }
+
+  assert.throws(() => trialEndWindow(now, -1), RangeError);
+  assert.throws(() => trialEndWindow(now, 1.5), RangeError);
 });
