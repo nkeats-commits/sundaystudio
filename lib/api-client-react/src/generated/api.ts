@@ -26,6 +26,11 @@ import type {
   AdminUserList,
   AnalyzeManuscripts200,
   ApiError,
+  AssistantApiError,
+  AssistantConversation,
+  AssistantConversationDetail,
+  AssistantMessageExchange,
+  AssistantSendMessageInput,
   BillingCheckoutConfirmationInput,
   BillingRedirect,
   BillingStatusResponse,
@@ -297,6 +302,451 @@ export function useGetMe<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List the current user's assistant conversations
+ */
+export const getListAssistantConversationsUrl = () => {
+  return `/api/assistant/conversations`;
+};
+
+export const listAssistantConversations = async (
+  options?: RequestInit,
+): Promise<AssistantConversation[]> => {
+  return customFetch<AssistantConversation[]>(
+    getListAssistantConversationsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListAssistantConversationsQueryKey = () => {
+  return [`/api/assistant/conversations`] as const;
+};
+
+export const getListAssistantConversationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAssistantConversations>>,
+  TError = ErrorType<UnauthorizedResponse | ApiError>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAssistantConversations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListAssistantConversationsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAssistantConversations>>
+  > = ({ signal }) => listAssistantConversations({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAssistantConversations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAssistantConversationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAssistantConversations>>
+>;
+export type ListAssistantConversationsQueryError = ErrorType<
+  UnauthorizedResponse | ApiError
+>;
+
+/**
+ * @summary List the current user's assistant conversations
+ */
+
+export function useListAssistantConversations<
+  TData = Awaited<ReturnType<typeof listAssistantConversations>>,
+  TError = ErrorType<UnauthorizedResponse | ApiError>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAssistantConversations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAssistantConversationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Start a new assistant conversation
+ */
+export const getCreateAssistantConversationUrl = () => {
+  return `/api/assistant/conversations`;
+};
+
+export const createAssistantConversation = async (
+  options?: RequestInit,
+): Promise<AssistantConversation> => {
+  return customFetch<AssistantConversation>(
+    getCreateAssistantConversationUrl(),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getCreateAssistantConversationMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAssistantConversation>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAssistantConversation>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["createAssistantConversation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAssistantConversation>>,
+    void
+  > = () => {
+    return createAssistantConversation(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAssistantConversationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAssistantConversation>>
+>;
+
+export type CreateAssistantConversationMutationError = ErrorType<
+  UnauthorizedResponse | ApiError
+>;
+
+/**
+ * @summary Start a new assistant conversation
+ */
+export const useCreateAssistantConversation = <
+  TError = ErrorType<UnauthorizedResponse | ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAssistantConversation>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAssistantConversation>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCreateAssistantConversationMutationOptions(options));
+};
+
+/**
+ * @summary Get a conversation and its messages
+ */
+export const getGetAssistantConversationUrl = (id: number) => {
+  return `/api/assistant/conversations/${id}`;
+};
+
+export const getAssistantConversation = async (
+  id: number,
+  options?: RequestInit,
+): Promise<AssistantConversationDetail> => {
+  return customFetch<AssistantConversationDetail>(
+    getGetAssistantConversationUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAssistantConversationQueryKey = (id: number) => {
+  return [`/api/assistant/conversations/${id}`] as const;
+};
+
+export const getGetAssistantConversationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAssistantConversation>>,
+  TError = ErrorType<UnauthorizedResponse | ApiError | NotFoundResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAssistantConversation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAssistantConversationQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAssistantConversation>>
+  > = ({ signal }) =>
+    getAssistantConversation(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAssistantConversation>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAssistantConversationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAssistantConversation>>
+>;
+export type GetAssistantConversationQueryError = ErrorType<
+  UnauthorizedResponse | ApiError | NotFoundResponse
+>;
+
+/**
+ * @summary Get a conversation and its messages
+ */
+
+export function useGetAssistantConversation<
+  TData = Awaited<ReturnType<typeof getAssistantConversation>>,
+  TError = ErrorType<UnauthorizedResponse | ApiError | NotFoundResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAssistantConversation>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAssistantConversationQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete one of the current user's conversations
+ */
+export const getDeleteAssistantConversationUrl = (id: number) => {
+  return `/api/assistant/conversations/${id}`;
+};
+
+export const deleteAssistantConversation = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteAssistantConversationUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAssistantConversationMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | ApiError | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAssistantConversation>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAssistantConversation>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteAssistantConversation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAssistantConversation>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteAssistantConversation(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAssistantConversationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAssistantConversation>>
+>;
+
+export type DeleteAssistantConversationMutationError = ErrorType<
+  UnauthorizedResponse | ApiError | NotFoundResponse
+>;
+
+/**
+ * @summary Delete one of the current user's conversations
+ */
+export const useDeleteAssistantConversation = <
+  TError = ErrorType<UnauthorizedResponse | ApiError | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAssistantConversation>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAssistantConversation>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteAssistantConversationMutationOptions(options));
+};
+
+/**
+ * The user message is saved before model generation. If generation fails,
+the message remains in the conversation and may be retried by sending
+the same content again.
+
+ * @summary Save a user message and generate an assistant response
+ */
+export const getSendAssistantMessageUrl = (id: number) => {
+  return `/api/assistant/conversations/${id}/messages`;
+};
+
+export const sendAssistantMessage = async (
+  id: number,
+  assistantSendMessageInput: AssistantSendMessageInput,
+  options?: RequestInit,
+): Promise<AssistantMessageExchange> => {
+  return customFetch<AssistantMessageExchange>(getSendAssistantMessageUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(assistantSendMessageInput),
+  });
+};
+
+export const getSendAssistantMessageMutationOptions = <
+  TError = ErrorType<
+    AssistantApiError | UnauthorizedResponse | ApiError | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendAssistantMessage>>,
+    TError,
+    { id: number; data: BodyType<AssistantSendMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendAssistantMessage>>,
+  TError,
+  { id: number; data: BodyType<AssistantSendMessageInput> },
+  TContext
+> => {
+  const mutationKey = ["sendAssistantMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendAssistantMessage>>,
+    { id: number; data: BodyType<AssistantSendMessageInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return sendAssistantMessage(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendAssistantMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendAssistantMessage>>
+>;
+export type SendAssistantMessageMutationBody =
+  BodyType<AssistantSendMessageInput>;
+export type SendAssistantMessageMutationError = ErrorType<
+  AssistantApiError | UnauthorizedResponse | ApiError | NotFoundResponse
+>;
+
+/**
+ * @summary Save a user message and generate an assistant response
+ */
+export const useSendAssistantMessage = <
+  TError = ErrorType<
+    AssistantApiError | UnauthorizedResponse | ApiError | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendAssistantMessage>>,
+    TError,
+    { id: number; data: BodyType<AssistantSendMessageInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendAssistantMessage>>,
+  TError,
+  { id: number; data: BodyType<AssistantSendMessageInput> },
+  TContext
+> => {
+  return useMutation(getSendAssistantMessageMutationOptions(options));
+};
 
 /**
  * @summary Mark onboarding as complete for the current user

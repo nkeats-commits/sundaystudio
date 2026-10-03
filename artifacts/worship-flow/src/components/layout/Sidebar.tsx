@@ -20,6 +20,7 @@ import {
   HelpCircle,
   X,
   Loader2,
+  MessageCircle,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
@@ -76,6 +77,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   ];
 
+  const assistantItem = { icon: MessageCircle, label: 'Assistant', href: '/assistant' };
+
   const otherItems = [
     { icon: ListVideo, label: 'Service Builder', href: '/service-builder' },
     { icon: BookOpen, label: 'Liturgy Generator', href: '/generators/liturgy' },
@@ -124,6 +127,26 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             </Link>
           );
         })}
+
+        {(() => {
+          const item = assistantItem;
+          const active = location === item.href || location.startsWith(item.href + '/');
+          return (
+            <Link
+              href={item.href}
+              data-testid="nav-assistant"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                active
+                  ? 'bg-white/10 text-white'
+                  : 'bg-white/5 text-[var(--worship-pale-gold)] hover:bg-white/[0.08] hover:text-white'
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-[var(--worship-pale-gold)]'}`} />
+              {item.label}
+              <span className="ml-auto rounded-full border border-[var(--worship-gold)]/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--worship-gold)]">New</span>
+            </Link>
+          );
+        })()}
 
         <div className="my-4 mx-3 h-px bg-white/10" />
         <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">SERMON PREP</div>

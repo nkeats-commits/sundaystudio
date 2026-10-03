@@ -80,6 +80,7 @@ const { Sidebar } = await import('./Sidebar');
 
 const navigation = [
   { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Assistant', href: '/assistant' },
   { label: 'Sermon Builder', href: '/sermons/new' },
   { label: 'Sermon Archive', href: '/sermons' },
   { label: 'Sermon Series', href: '/sermons/series' },
@@ -225,6 +226,8 @@ test('shows Admin only after ownership confirms in both responsive render paths'
 
 test('highlights the matching nested sermon and saved-service routes', () => {
   const routeExpectations = [
+    { location: '/assistant', activeHref: '/assistant' },
+    { location: '/assistant/anything', activeHref: '/assistant' },
     { location: '/sermons/123', activeHref: '/sermons' },
     { location: '/sermons/series/456', activeHref: '/sermons/series' },
     { location: '/bible-tools', activeHref: '/bible-tools' },

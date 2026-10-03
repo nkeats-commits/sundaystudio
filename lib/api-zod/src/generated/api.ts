@@ -48,6 +48,92 @@ export const GetMeResponse = zod.object({
 });
 
 /**
+ * @summary List the current user's assistant conversations
+ */
+export const ListAssistantConversationsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListAssistantConversationsResponse = zod.array(
+  ListAssistantConversationsResponseItem,
+);
+
+/**
+ * @summary Get a conversation and its messages
+ */
+export const GetAssistantConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAssistantConversationResponse = zod
+  .object({
+    id: zod.number(),
+    title: zod.string(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  })
+  .and(
+    zod.object({
+      messages: zod.array(
+        zod.object({
+          id: zod.number(),
+          conversationId: zod.number(),
+          role: zod.enum(["user", "assistant"]),
+          content: zod.string(),
+          createdAt: zod.coerce.date(),
+        }),
+      ),
+    }),
+  );
+
+/**
+ * @summary Delete one of the current user's conversations
+ */
+export const DeleteAssistantConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * The user message is saved before model generation. If generation fails,
+the message remains in the conversation and may be retried by sending
+the same content again.
+
+ * @summary Save a user message and generate an assistant response
+ */
+export const SendAssistantMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const sendAssistantMessageBodyContentMax = 8000;
+
+export const SendAssistantMessageBody = zod.object({
+  content: zod
+    .string()
+    .min(1)
+    .max(sendAssistantMessageBodyContentMax)
+    .describe("User-authored message; whitespace-only content is rejected."),
+});
+
+export const SendAssistantMessageResponse = zod.object({
+  userMessage: zod.object({
+    id: zod.number(),
+    conversationId: zod.number(),
+    role: zod.enum(["user", "assistant"]),
+    content: zod.string(),
+    createdAt: zod.coerce.date(),
+  }),
+  assistantMessage: zod.object({
+    id: zod.number(),
+    conversationId: zod.number(),
+    role: zod.enum(["user", "assistant"]),
+    content: zod.string(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
  * @summary Mark onboarding as complete for the current user
  */
 export const CompleteOnboardingResponse = zod.object({

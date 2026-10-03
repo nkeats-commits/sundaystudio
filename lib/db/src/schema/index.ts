@@ -12,4 +12,6 @@ export * from "./pastorManuscripts";
 export * from "./aiUsageEvents";
 export * from "./helpArticles";
 export * from "./trialEvents";
+export * from "./conversations";
+export * from "./messages";
 

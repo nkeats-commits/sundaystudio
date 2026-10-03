@@ -78,6 +78,13 @@
       "when": 1791000000000,
       "tag": "0017_add_trial_ends_at",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792000000000,
+      "tag": "0018_pastoral_assistant_chat",
+      "breakpoints": true
     }
   ]
 }

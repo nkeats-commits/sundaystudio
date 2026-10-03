@@ -18,6 +18,7 @@ import integrationsPcsRouter from "./integrationsPcs";
 import billingRouter from "./billing";
 import adminRouter from "./admin";
 import helpArticlesRouter from "./helpArticles";
+import assistantRouter from "./assistant";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(integrationsPcsRouter);
 router.use(billingRouter);
 router.use(adminRouter);
 router.use(helpArticlesRouter);
+router.use(assistantRouter);
 
 export default router;

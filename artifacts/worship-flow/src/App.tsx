@@ -37,6 +37,7 @@ import DevotionalGenerator from "./pages/DevotionalGenerator";
 import SoulCareGenerator from "./pages/SoulCareGenerator";
 import Library from "./pages/Library";
 import ChurchProfile from "./pages/ChurchProfile";
+import Assistant from "./pages/Assistant";
 import Settings from "./pages/Settings";
 import SermonBuilder from "./pages/SermonBuilder";
 import SermonArchive from "./pages/SermonArchive";
@@ -444,6 +445,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/bible-tools">{() => <Protected component={BibleTools} />}</Route>
           <Route path="/resources">{() => <Protected component={() => <Paywalled component={ResourceLibrary} />} />}</Route>
           <Route path="/church">{() => <Protected component={ChurchProfile} />}</Route>
+          <Route path="/assistant">{() => <Protected component={Assistant} />}</Route>
           <Route path="/settings/integrations">{() => <Protected component={Integrations} />}</Route>
           <Route path="/settings">{() => <Protected component={Settings} />}</Route>
           <Route path="/pricing">{() => <Protected component={Pricing} />}</Route>

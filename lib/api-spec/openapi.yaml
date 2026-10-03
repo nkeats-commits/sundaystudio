@@ -20,6 +20,8 @@ tags:
     description: Dashboard summaries
   - name: generate
     description: AI generation endpoints
+  - name: assistant
+    description: Pastoral AI assistant conversations
   - name: sermons
     description: Sermon Builder operations
   - name: sermon-resources
@@ -72,6 +74,145 @@ paths:
                 $ref: "#/components/schemas/MeResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /assistant/conversations:
+    get:
+      operationId: listAssistantConversations
+      tags: [assistant]
+      summary: List the current user's assistant conversations
+      responses:
+        "200":
+          description: User-owned conversations ordered by most recently updated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssistantConversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: Active subscription or trial required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    post:
+      operationId: createAssistantConversation
+      tags: [assistant]
+      summary: Start a new assistant conversation
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantConversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: Active subscription or trial required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /assistant/conversations/{id}:
+    get:
+      operationId: getAssistantConversation
+      tags: [assistant]
+      summary: Get a conversation and its messages
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Conversation with ordered messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantConversationDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: Active subscription or trial required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteAssistantConversation
+      tags: [assistant]
+      summary: Delete one of the current user's conversations
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Conversation and its messages deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: Active subscription or trial required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /assistant/conversations/{id}/messages:
+    post:
+      operationId: sendAssistantMessage
+      tags: [assistant]
+      summary: Save a user message and generate an assistant response
+      description: |
+        The user message is saved before model generation. If generation fails,
+        the message remains in the conversation and may be retried by sending
+        the same content again.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantSendMessageInput"
+      responses:
+        "200":
+          description: Persisted user and assistant messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantMessageExchange"
+        "400":
+          description: Invalid message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: Active subscription or trial required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: A church profile is required before using the assistant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantApiError"
+        "502":
+          description: Assistant generation failed; the user message was saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantApiError"
 
   /onboarding/complete:
     post:
@@ -2472,6 +2613,78 @@ components:
         error:
           type: string
       required: [error]
+
+    AssistantApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [invalid_message, profile_required, generation_failed]
+      required: [error, code]
+
+    AssistantConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, createdAt, updatedAt]
+
+    AssistantMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, conversationId, role, content, createdAt]
+
+    AssistantConversationDetail:
+      allOf:
+        - $ref: "#/components/schemas/AssistantConversation"
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: "#/components/schemas/AssistantMessage"
+          required: [messages]
+
+    AssistantSendMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 8000
+          description: User-authored message; whitespace-only content is rejected.
+      required: [content]
+
+    AssistantMessageExchange:
+      type: object
+      properties:
+        userMessage:
+          $ref: "#/components/schemas/AssistantMessage"
+        assistantMessage:
+          $ref: "#/components/schemas/AssistantMessage"
+      required: [userMessage, assistantMessage]
 
     HelpArticle:
       type: object

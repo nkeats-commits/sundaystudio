@@ -13,6 +13,61 @@ export interface ApiError {
   error: string;
 }
 
+export type AssistantApiErrorCode =
+  (typeof AssistantApiErrorCode)[keyof typeof AssistantApiErrorCode];
+
+export const AssistantApiErrorCode = {
+  invalid_message: "invalid_message",
+  profile_required: "profile_required",
+  generation_failed: "generation_failed",
+} as const;
+
+export interface AssistantApiError {
+  error: string;
+  code: AssistantApiErrorCode;
+}
+
+export interface AssistantConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AssistantMessageRole =
+  (typeof AssistantMessageRole)[keyof typeof AssistantMessageRole];
+
+export const AssistantMessageRole = {
+  user: "user",
+  assistant: "assistant",
+} as const;
+
+export interface AssistantMessage {
+  id: number;
+  conversationId: number;
+  role: AssistantMessageRole;
+  content: string;
+  createdAt: string;
+}
+
+export type AssistantConversationDetail = AssistantConversation & {
+  messages: AssistantMessage[];
+};
+
+export interface AssistantSendMessageInput {
+  /**
+   * User-authored message; whitespace-only content is rejected.
+   * @minLength 1
+   * @maxLength 8000
+   */
+  content: string;
+}
+
+export interface AssistantMessageExchange {
+  userMessage: AssistantMessage;
+  assistantMessage: AssistantMessage;
+}
+
 export interface HelpArticle {
   id: number;
   /** URL-safe identifier (lowercase letters, numbers, hyphens) */
