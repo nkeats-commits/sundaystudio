@@ -10,6 +10,7 @@ export type AccessStateKind =
   (typeof AccessStateKind)[keyof typeof AccessStateKind];
 
 export const AccessStateKind = {
+  enrollment_required: "enrollment_required",
   trial: "trial",
   active: "active",
   trialing: "trialing",

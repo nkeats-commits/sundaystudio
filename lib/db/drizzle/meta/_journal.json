@@ -64,6 +64,13 @@
       "when": 1749100000000,
       "tag": "0009_add_ai_usage_events_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780000000000,
+      "tag": "0016_require_card_before_trial",
+      "breakpoints": true
     }
   ]
 }

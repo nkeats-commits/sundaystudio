@@ -24,7 +24,9 @@ const RESEND_TRACKED_EVENTS = new Set<string>([
 ]);
 
 export function trialDay(trialStartedAt: Date | string | null | undefined): number {
-  if (!trialStartedAt) return 1;
+  // Enrollment events before Stripe confirms the trial are day 0; account
+  // creation must never be used as the start of the conversion clock.
+  if (!trialStartedAt) return 0;
   const elapsed = Date.now() - new Date(trialStartedAt).getTime();
   return Math.max(1, Math.min(TRIAL_DAYS + 1, Math.floor(elapsed / DAY_MS) + 1));
 }

@@ -17,7 +17,7 @@ test("trialDay calculates each conversion milestone and clamps outside the trial
     assert.equal(trialDay(new Date(now - 13 * DAY_MS - 1)), 14);
     assert.equal(trialDay(new Date(now - TRIAL_DAYS * DAY_MS)), TRIAL_DAYS + 1);
     assert.equal(trialDay(new Date(now + DAY_MS)), 1);
-    assert.equal(trialDay(null), 1);
+    assert.equal(trialDay(null), 0);
   } finally {
     Date.now = originalNow;
   }

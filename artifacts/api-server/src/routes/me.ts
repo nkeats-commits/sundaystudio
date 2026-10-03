@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, usersTable, churchProfilesTable } from "@workspace/db";
 import { UpdateChurchProfileBody } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireActiveAccess } from "../middlewares/requireActiveAccess";
 import { trackEvent } from "../lib/emailClient";
 import { EVENTS } from "../lib/eventRegistry";
 
@@ -161,7 +162,11 @@ router.put("/me/church", requireAuth, async (req, res) => {
   })();
 });
 
-router.post("/onboarding/complete", requireAuth, async (req, res) => {
+router.post(
+  "/onboarding/complete",
+  requireAuth,
+  requireActiveAccess,
+  async (req, res) => {
   const userId = req.userId!;
   const now = new Date();
   await db
@@ -169,6 +174,7 @@ router.post("/onboarding/complete", requireAuth, async (req, res) => {
     .set({ onboardingCompletedAt: now })
     .where(eq(usersTable.id, userId));
   res.json({ onboardingCompletedAt: now.toISOString() });
-});
+  },
+);
 
 export default router;

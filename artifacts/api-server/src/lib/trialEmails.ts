@@ -8,8 +8,8 @@
  *   1. Day-11 → `trial_expiring`  ("3 days left in your trial")
  *   2. Day-14 → `trial_expired`   ("Your trial has ended")
  *
- * Both queries skip users who already have a Stripe subscription row
- * (active or trialing) so paying customers are never targeted.
+ * Trialing Stripe subscriptions are expected here: their confirmed trial
+ * start anchors the countdown. Only converted active subscribers are skipped.
  *
  * Schedule: called once at boot (to catch any missed sends) then every 24 h.
  */
@@ -34,16 +34,16 @@ const FINAL_REMINDER_DAY = 13;
  * the event rather than risk targeting an active subscriber.
  */
 async function shouldSkipEvent(user: { stripeCustomerId: string | null }): Promise<boolean> {
-  if (!user.stripeCustomerId) return false; // no Stripe record → free trial, fire event
+  if (!user.stripeCustomerId) return false;
 
   try {
     const result = await db.execute(sql`
       SELECT id FROM stripe.subscriptions
       WHERE customer = ${user.stripeCustomerId}
-        AND status IN ('active', 'trialing')
+        AND status = 'active'
       LIMIT 1
     `);
-    // Active/trialing subscriber → skip
+    // Converted active subscriber → skip
     return (result.rows.length ?? 0) > 0;
   } catch {
     // Stripe schema missing or DB error → fail-closed, skip the event
@@ -94,6 +94,7 @@ export async function runTrialEmailCron(): Promise<void> {
   // ── trial_midpoint: value recap around day 7 ─────────────────────────────
   const midpointWindow = trialDayWindow(now, MIDPOINT_DAY);
   const midpointCandidates = await db.select().from(usersTable).where(and(
+    eq(usersTable.trialEnrollmentStatus, "enrolled"),
     isNull(usersTable.trialMidpointEmailSentAt),
     isNotNull(usersTable.email),
     lte(usersTable.trialStartedAt, midpointWindow.endInclusive),
@@ -110,6 +111,7 @@ export async function runTrialEmailCron(): Promise<void> {
   // ── trial_final_reminder: final, respectful reminder on day 13 ──────────
   const finalWindow = trialDayWindow(now, FINAL_REMINDER_DAY);
   const finalCandidates = await db.select().from(usersTable).where(and(
+    eq(usersTable.trialEnrollmentStatus, "enrolled"),
     isNull(usersTable.trialFinalReminderEmailSentAt),
     isNotNull(usersTable.email),
     lte(usersTable.trialStartedAt, finalWindow.endInclusive),
@@ -132,6 +134,7 @@ export async function runTrialEmailCron(): Promise<void> {
     .from(usersTable)
     .where(
       and(
+        eq(usersTable.trialEnrollmentStatus, "enrolled"),
         isNull(usersTable.trialReminderSentAt),
         isNotNull(usersTable.email),
          lte(usersTable.trialStartedAt, reminderWindow.endInclusive),
@@ -167,6 +170,7 @@ export async function runTrialEmailCron(): Promise<void> {
     .from(usersTable)
     .where(
       and(
+        eq(usersTable.trialEnrollmentStatus, "enrolled"),
         isNull(usersTable.trialExpiredEmailSentAt),
         isNotNull(usersTable.email),
          lte(usersTable.trialStartedAt, expiredWindow.endInclusive),

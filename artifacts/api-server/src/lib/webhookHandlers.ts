@@ -1,9 +1,14 @@
-import { getStripeSync } from "./stripeClient";
+import { getStripeSync, getUncachableStripeClient } from "./stripeClient";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { EVENTS } from "./eventRegistry";
 import { logger } from "./logger";
 import { recordTrialEvent } from "./trialAnalytics";
+import { confirmTrialEnrollment } from "./confirmTrialEnrollment";
+import {
+  stripeReferenceId,
+  type TrialingSubscription,
+} from "./trialEnrollment";
 
 /**
  * Stripe subscription statuses that indicate the subscription was NOT active.
@@ -114,6 +119,59 @@ async function fireSubscriptionEvent(payload: Buffer): Promise<void> {
   }
 }
 
+/**
+ * A Checkout redirect is not proof of enrollment. Confirm eligible trial
+ * subscriptions from Stripe's API as a second, retry-safe source of truth.
+ */
+async function confirmTrialFromWebhook(payload: Buffer): Promise<void> {
+  try {
+    const event = JSON.parse(payload.toString()) as {
+      type?: string;
+      data?: {
+        object?: {
+          id?: string;
+          customer?: string | { id: string };
+          metadata?: Record<string, string>;
+        };
+      };
+    };
+    if (
+      event.type !== "customer.subscription.created" &&
+      event.type !== "customer.subscription.updated"
+    ) {
+      return;
+    }
+    const object = event.data?.object;
+    if (
+      !object?.id ||
+      object.metadata?.trialEnrollment !== "required_card" ||
+      !object.metadata.userId
+    ) {
+      return;
+    }
+
+    const customerId = stripeReferenceId(object.customer);
+    if (!customerId) return;
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, object.metadata.userId))
+      .limit(1);
+    if (!user || user.stripeCustomerId !== customerId) return;
+
+    const stripe = await getUncachableStripeClient();
+    const subscription = await stripe.subscriptions.retrieve(object.id);
+    await confirmTrialEnrollment(
+      user.id,
+      customerId,
+      subscription as unknown as TrialingSubscription,
+      logger,
+    );
+  } catch (err) {
+    logger.warn({ err }, "Stripe trial enrollment confirmation failed");
+  }
+}
+
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string): Promise<void> {
     if (!Buffer.isBuffer(payload)) {
@@ -130,5 +188,6 @@ export class WebhookHandlers {
 
     // Fire Resend Automations event for subscription lifecycle changes.
     void fireSubscriptionEvent(payload);
+    void confirmTrialFromWebhook(payload);
   }
 }

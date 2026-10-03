@@ -93,18 +93,21 @@ export default function TermsOfService() {
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
-                <strong style={{ color: 'var(--worship-navy)' }}>Free trial</strong> — New accounts
-                receive a limited free trial period. No payment is required to start.
+                <strong style={{ color: 'var(--worship-navy)' }}>Free trial</strong> — A valid payment
+                card is required to start a 14-day trial. You will not be charged during the trial.
+                Unless you cancel before it ends, your card will be charged $9.99 and the subscription
+                will renew monthly.
               </li>
               <li>
-                <strong style={{ color: 'var(--worship-navy)' }}>Billing</strong> — After your trial,
-                continued access requires a paid subscription. Billing is handled by Stripe and
-                charged on a recurring basis (monthly or annually, as selected).
+                <strong style={{ color: 'var(--worship-navy)' }}>Billing</strong> — After the 14-day
+                trial, continued access costs $9.99 per month. Billing is handled by Stripe and charged
+                monthly until canceled.
               </li>
               <li>
                 <strong style={{ color: 'var(--worship-navy)' }}>Cancellation</strong> — You may cancel
-                your subscription at any time. Access continues through the end of your current billing
-                period. We do not offer prorated refunds for partial periods.
+                from the billing portal at any time. Cancel before the trial ends to avoid the first
+                charge; after billing begins, access continues through the end of your current monthly
+                billing period. We do not offer prorated refunds for partial periods.
               </li>
               <li>
                 <strong style={{ color: 'var(--worship-navy)' }}>Price changes</strong> — We may change

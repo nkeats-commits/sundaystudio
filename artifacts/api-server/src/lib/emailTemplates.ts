@@ -117,7 +117,8 @@ export function trialReminderHtml({ firstName, pricingUrl }: TrialEmailData): st
             .join("")}
         </table>
         <p style="margin:0 0 40px;font-size:13px;color:${SLATE};line-height:1.6;">
-          No card required during your trial. Cancel any time from your billing portal.
+          A payment card is on file for your trial. You will not be charged until it ends; then your
+          subscription renews at $9.99/month. Cancel before the trial ends to avoid the first charge.
         </p>
       </td>
     </tr>
@@ -188,13 +189,13 @@ export function trialReminderText({ firstName, pricingUrl }: TrialEmailData): st
   const greeting = firstName ? `Hi ${firstName},` : "Hi there,";
   return `${greeting}
 
-Your Sunday Studio free trial ends in 3 days.
+Your Sunday Studio free trial ends in 3 days. Your card will be charged $9.99/month when the trial ends unless you cancel first.
 
 Subscribe now for $9.99/month to keep your service plans, sermons, liturgy, devotionals, and soul care tools — right where you left them.
 
 Subscribe here: ${pricingUrl}
 
-No card was required during your trial. Cancel any time.
+Your card is on file. Cancel before the trial ends to avoid the first $9.99/month charge.
 
 — The Sunday Studio Team`;
 }

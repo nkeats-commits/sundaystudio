@@ -29,18 +29,27 @@ export default function Paywalled({ component: Component }: PaywalledProps) {
 
   const isPastDue = state?.kind === 'past_due';
 
-  const headline = isPastDue
+  const enrollmentRequired = state?.kind === 'enrollment_required';
+  const headline = enrollmentRequired
+    ? 'Add a card to start your 14-day trial'
+    : isPastDue
     ? 'Your payment needs attention'
     : state?.kind === 'canceled'
     ? 'Your subscription has ended'
     : 'Your free trial has ended';
 
-  const body = isPastDue
+  const body = enrollmentRequired
+    ? 'No charge today. Your $9.99/month subscription begins after 14 days; cancel before then to avoid the first charge.'
+    : isPastDue
     ? 'Update your payment method to restore full access to Sunday Studio.'
     : 'You can still view and edit your saved work — subscribe to unlock AI generation and saving.';
 
-  const ctaHref = isPastDue ? '/billing' : '/pricing';
-  const ctaLabel = isPastDue ? 'Update payment →' : 'Subscribe now — $9.99/mo →';
+  const ctaHref = isPastDue || enrollmentRequired ? '/billing' : '/pricing';
+  const ctaLabel = enrollmentRequired
+    ? 'Add card and start trial →'
+    : isPastDue
+    ? 'Update payment →'
+    : 'Subscribe now — $9.99/mo →';
 
   return (
     <>
@@ -74,7 +83,7 @@ export default function Paywalled({ component: Component }: PaywalledProps) {
           </Link>
         </div>
 
-        {!isPastDue && (
+        {!isPastDue && !enrollmentRequired && (
           <div
             className="px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3"
             style={{ backgroundColor: 'var(--worship-cream)' }}
@@ -105,7 +114,7 @@ export default function Paywalled({ component: Component }: PaywalledProps) {
           </div>
         )}
 
-        {isPastDue && (
+        {(isPastDue || enrollmentRequired) && (
           <Link
             href={ctaHref}
             className="sm:hidden flex items-center justify-center gap-1.5 px-4 py-3 text-sm font-semibold transition-opacity hover:opacity-90"

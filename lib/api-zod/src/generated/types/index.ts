@@ -33,6 +33,7 @@ export * from "./adminUserList";
 export * from "./adminUserSummary";
 export * from "./analyzeManuscripts200";
 export * from "./apiError";
+export * from "./billingCheckoutConfirmationInput";
 export * from "./billingRedirect";
 export * from "./billingStatusResponse";
 export * from "./bulkDeleteLibraryItems400";

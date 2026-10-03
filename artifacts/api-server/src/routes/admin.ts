@@ -53,8 +53,8 @@ async function stripeSubsAvailable(): Promise<boolean> {
 /**
  * Build the `user_state` CTE that derives every user's canonical access
  * state in pure SQL. Mirrors the logic in `getAccessState` — Stripe sub
- * status takes precedence; otherwise the local 14-day trial window from
- * `trial_started_at` (or `created_at`) decides trial-vs-expired. Used by
+ * status takes precedence; otherwise only a Stripe-confirmed trial window
+ * from `trial_started_at` can become trial-vs-expired. Used by
  * both the metrics aggregation and the users list so neither truncates.
  *
  * `lastActivityAt` is also pre-joined here so the users list doesn't need
@@ -85,23 +85,35 @@ function buildUserStateCte(stripeAvailable: boolean) {
     ? sql`LEFT JOIN latest_sub s ON s.customer = u.stripe_customer_id`
     : sql``;
   // Mirrors getAccessState exactly:
-  //   - any present sub row decides the state (unknown statuses → past_due,
-  //     matching the conservative "no access" fallback)
-  //   - no sub row → trial vs expired by the local 14-day window
+  //   - active paid subscriptions retain access
+  //   - Stripe trials require confirmed card-backed enrollment
+  //   - pending enrollment never becomes a local trial
   const stateCase = stripeAvailable
     ? sql`CASE
             WHEN s.status IS NULL THEN
-              CASE WHEN COALESCE(u.trial_started_at, u.created_at) + ${trialInterval} > NOW()
-                   THEN 'trial' ELSE 'expired' END
+              CASE
+                WHEN u.trial_enrollment_status = 'pending' THEN 'enrollment_required'
+                WHEN u.trial_enrollment_status = 'enrolled'
+                  AND u.trial_started_at + ${trialInterval} > NOW() THEN 'trial'
+                ELSE 'expired'
+              END
             WHEN s.status = 'active' THEN 'active'
-            WHEN s.status = 'trialing' THEN 'trialing'
+            WHEN s.status = 'trialing'
+              AND u.trial_enrollment_status = 'enrolled'
+              AND u.trial_started_at + ${trialInterval} > NOW() THEN 'trial'
+            WHEN s.status = 'incomplete'
+              AND u.trial_enrollment_status = 'enrolled'
+              AND u.trial_started_at + ${trialInterval} > NOW() THEN 'trial'
+            WHEN s.status = 'trialing' AND u.trial_enrollment_status = 'enrolled' THEN 'trialing'
+            WHEN s.status = 'trialing' THEN 'enrollment_required'
             WHEN s.status IN ('past_due','unpaid','incomplete','paused') THEN 'past_due'
             WHEN s.status IN ('canceled','incomplete_expired') THEN 'canceled'
             ELSE 'past_due'
           END`
     : sql`CASE
-            WHEN COALESCE(u.trial_started_at, u.created_at) + ${trialInterval} > NOW()
-              THEN 'trial'
+            WHEN u.trial_enrollment_status = 'pending' THEN 'enrollment_required'
+            WHEN u.trial_enrollment_status = 'enrolled'
+              AND u.trial_started_at + ${trialInterval} > NOW() THEN 'trial'
             ELSE 'expired'
           END`;
   return {
@@ -120,7 +132,7 @@ function buildUserStateCte(stripeAvailable: boolean) {
       user_state AS (
         SELECT
           u.id, u.email, u.first_name, u.last_name, u.image_url,
-          u.created_at, u.trial_started_at, u.stripe_customer_id,
+          u.created_at, u.trial_started_at, u.trial_enrollment_status, u.stripe_customer_id,
           ${subSelect}
           -- GREATEST(NULL, x) returns NULL in Postgres, so fall back to
           -- the lone non-null side when only one of plans/sermons exists.
@@ -145,6 +157,7 @@ function rowToAccessState(row: {
   state_kind: string;
   trial_started_at: Date | string | null;
   created_at: Date | string;
+  trial_enrollment_status: string;
   sub_current_period_end: number | string | null;
   sub_cancel_at_period_end: boolean | null;
 }): AccessState {
@@ -159,6 +172,8 @@ function rowToAccessState(row: {
     return new Date(n * 1000).toISOString();
   })();
   switch (row.state_kind) {
+    case "enrollment_required":
+      return { kind: "enrollment_required" };
     case "active":
       return {
         kind: "active",
@@ -318,7 +333,14 @@ const userIdParam = z.object({ id: z.string().min(1).max(128) });
 const usersListQuery = z.object({
   search: z.string().max(200).optional(),
   status: z
-    .enum(["trial", "subscribed", "past_due", "canceled", "expired"])
+    .enum([
+      "enrollment_required",
+      "trial",
+      "subscribed",
+      "past_due",
+      "canceled",
+      "expired",
+    ])
     .optional(),
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
   offset: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
@@ -425,7 +447,7 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
       SELECT COUNT(*)::int AS c
       FROM user_state
       WHERE state_kind = 'trial'
-        AND COALESCE(trial_started_at, created_at) + ${trialIntervalSql}
+        AND trial_started_at + ${trialIntervalSql}
             <= NOW() + interval '3 days'
     `);
     const trialsEndingSoon = Number(
@@ -473,12 +495,14 @@ router.get("/admin/metrics", requireAuth, requireOwner, async (req, res) => {
         WITH cohort_30 AS (
           SELECT u.id, u.stripe_customer_id
           FROM users u
-          WHERE u.created_at >= ${thirtyAgo}
+          WHERE u.trial_enrollment_status = 'enrolled'
+            AND u.trial_started_at >= ${thirtyAgo}
         ),
         cohort_90 AS (
           SELECT u.id, u.stripe_customer_id
           FROM users u
-          WHERE u.created_at >= ${ninetyAgo}
+          WHERE u.trial_enrollment_status = 'enrolled'
+            AND u.trial_started_at >= ${ninetyAgo}
         )
         SELECT
           (SELECT COUNT(DISTINCT c.id)::int
@@ -742,7 +766,7 @@ router.get(
 
 /**
  * GET /admin/users — paginated list with optional search and status filter.
- * Status filter ∈ {trial, subscribed, past_due, canceled, expired}.
+ * Status filter ∈ {enrollment_required, trial, subscribed, past_due, canceled, expired}.
  */
 router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
   const parsedQuery = usersListQuery.safeParse(req.query);
@@ -761,6 +785,7 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
     // it covers. "subscribed" intentionally bundles active + trialing,
     // matching the UI's combined badge.
     const statusKinds: Record<string, string[]> = {
+      enrollment_required: ["enrollment_required"],
       trial: ["trial"],
       subscribed: ["active", "trialing"],
       past_due: ["past_due"],
@@ -789,7 +814,7 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
       ${cte}
       SELECT
         id, email, first_name, last_name, image_url,
-        created_at, trial_started_at, stripe_customer_id,
+        created_at, trial_started_at, trial_enrollment_status, stripe_customer_id,
         sub_current_period_end, sub_cancel_at_period_end,
         last_activity_at, state_kind,
         COUNT(*) OVER()::int AS total_count
@@ -809,6 +834,7 @@ router.get("/admin/users", requireAuth, requireOwner, async (req, res) => {
       image_url: string | null;
       created_at: Date | string;
       trial_started_at: Date | string | null;
+      trial_enrollment_status: string;
       stripe_customer_id: string | null;
       sub_current_period_end: number | string | null;
       sub_cancel_at_period_end: boolean | null;
@@ -892,7 +918,7 @@ router.get(
         lastName: u.lastName,
         imageUrl: u.imageUrl,
         createdAt: u.createdAt.toISOString(),
-        trialStartedAt: u.trialStartedAt
+        trialStartedAt: u.trialEnrollmentStatus === "enrolled" && u.trialStartedAt
           ? u.trialStartedAt.toISOString()
           : null,
         stripeCustomerId: u.stripeCustomerId,
@@ -919,11 +945,7 @@ router.get(
   },
 );
 
-/**
- * POST /admin/users/:id/extend-trial — bump `trial_started_at` forward so
- * the target gains `days` more days of trial. Idempotent in the sense that
- * calling it twice with the same `days` adds twice as much.
- */
+/** POST /admin/users/:id/extend-trial — reject unsafe local-only extensions. */
 router.post(
   "/admin/users/:id/extend-trial",
   requireAuth,
@@ -936,7 +958,6 @@ router.post(
       badRequest(res, parsedBody.error);
       return;
     }
-    const { days } = parsedBody.data;
     try {
       const [u] = await db
         .select()
@@ -947,31 +968,17 @@ router.post(
         res.status(404).json({ error: "User not found" });
         return;
       }
-      // Always *increase* days_left by `days`. If the trial has already
-      // expired we treat "now" as the floor so the user gets a fresh
-      // `days` of trial; otherwise we extend their existing window.
-      // trial_end = trial_started_at + TRIAL_DAYS, so to make
-      // new_trial_end = max(current_end, now) + days, we set
-      // new_anchor   = new_trial_end - TRIAL_DAYS.
-      const dayMs = 24 * 60 * 60 * 1000;
-      const trialMs = TRIAL_DAYS * dayMs;
-      const baseAnchor = u.trialStartedAt ?? u.createdAt;
-      const currentEndMs = baseAnchor.getTime() + trialMs;
-      const newEndMs = Math.max(currentEndMs, Date.now()) + days * dayMs;
-      const finalAnchor = new Date(newEndMs - trialMs);
-      await db
-        .update(usersTable)
-        .set({ trialStartedAt: finalAnchor })
-        .where(eq(usersTable.id, u.id));
-
-      const ownerEmail = getOwnerEmail();
-      req.log.info(
-        { ownerEmail, targetId: u.id, days },
-        "admin extended trial",
-      );
-
-      const state = await getAccessState(u.id);
-      res.json({ state });
+      const currentState = await getAccessState(u.id);
+      if (currentState.kind !== "trial") {
+        res.status(409).json({
+          error: "Only a currently active, confirmed trial can be extended.",
+        });
+        return;
+      }
+      res.status(409).json({
+        error:
+          "Card-backed trial extensions are unavailable here because this action cannot move the Stripe first-charge date with the access end date.",
+      });
     } catch (err) {
       req.log.error({ err }, "extend-trial failed");
       res.status(500).json({ error: "Failed to extend trial" });

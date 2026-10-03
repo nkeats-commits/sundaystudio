@@ -4,7 +4,6 @@ import { AppLayout } from "../components/layout/AppLayout";
 import {
   useGetAdminUser,
   useGetAdminUserAiUsage,
-  extendAdminUserTrial,
   compAdminUserSubscription,
   deleteAdminUser,
   getGetAdminUserQueryKey,
@@ -105,9 +104,8 @@ export default function AdminUserDetail() {
     },
   });
 
-  const [days, setDays] = useState<7 | 14 | 30>(7);
   const [busyAction, setBusyAction] = useState<
-    null | "extend" | "comp" | "delete"
+    null | "comp" | "delete"
   >(null);
   const [confirm, setConfirm] = useState<null | "comp" | "delete">(null);
 
@@ -120,20 +118,6 @@ export default function AdminUserDetail() {
         queryKey: getGetAdminMetricsQueryKey(),
       }),
     ]);
-  }
-
-  async function onExtend() {
-    if (busyAction) return;
-    setBusyAction("extend");
-    try {
-      await extendAdminUserTrial(id, { days });
-      toast.success(`Extended trial by ${days} days`);
-      await refreshAll();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to extend trial");
-    } finally {
-      setBusyAction(null);
-    }
   }
 
   async function onComp() {
@@ -412,26 +396,16 @@ export default function AdminUserDetail() {
                     Extend trial
                   </p>
                   <p className="text-xs text-[var(--worship-slate)]">
-                    Push the trial end date forward by N days.
+                    Unavailable until the Stripe charge date and trial access
+                    end can be extended together.
                   </p>
                 </div>
-                <select
-                  value={days}
-                  onChange={(e) =>
-                    setDays(parseInt(e.target.value, 10) as 7 | 14 | 30)
-                  }
-                  className="w-28 px-3 py-2 rounded-lg border border-[var(--worship-border)] bg-white text-sm"
-                >
-                  <option value={7}>7 days</option>
-                  <option value={14}>14 days</option>
-                  <option value={30}>30 days</option>
-                </select>
                 <button
-                  onClick={onExtend}
-                  disabled={busyAction !== null}
-                  className="px-4 py-2 rounded-lg bg-[var(--worship-navy)] text-white text-sm font-medium disabled:opacity-50"
+                  type="button"
+                  disabled
+                  className="px-4 py-2 rounded-lg bg-[var(--worship-navy)] text-white text-sm font-medium opacity-50"
                 >
-                  {busyAction === "extend" ? "Extending…" : "Extend"}
+                  Unavailable
                 </button>
               </div>
 

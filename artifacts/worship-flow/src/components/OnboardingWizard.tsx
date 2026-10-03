@@ -22,6 +22,7 @@ import {
   getGetMeQueryKey,
   type MeResponse,
 } from '@workspace/api-client-react';
+import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 
 const basePath = (import.meta.env?.BASE_URL ?? '/').replace(/\/$/, '');
 
@@ -407,6 +408,7 @@ function Step3Ready({
 
 export function OnboardingWizard() {
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
+  const { state: billingState, isLoading: billingLoading, isError: billingError } = useSubscriptionStatus();
   const {
     data: me,
     isFetched: meFetched,
@@ -424,6 +426,9 @@ export function OnboardingWizard() {
   const [, setLocation] = useLocation();
 
   if (!authLoaded || !isSignedIn) return null;
+  // New and legacy cardless-trial accounts must finish Stripe enrollment
+  // before onboarding can be completed or workspace access can begin.
+  if (billingLoading || billingError || billingState?.kind === 'enrollment_required') return null;
   // Keep the shell mounted during invalidation/refetches after the first result.
   if (!meFetched) return null;
   // A failed current-user request is not evidence of an empty profile.

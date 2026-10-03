@@ -56,10 +56,16 @@ export interface BillingRedirect {
   url: string;
 }
 
+export interface BillingCheckoutConfirmationInput {
+  /** @minLength 1 */
+  sessionId: string;
+}
+
 export type AccessStateKind =
   (typeof AccessStateKind)[keyof typeof AccessStateKind];
 
 export const AccessStateKind = {
+  enrollment_required: "enrollment_required",
   trial: "trial",
   active: "active",
   trialing: "trialing",
@@ -69,8 +75,9 @@ export const AccessStateKind = {
 } as const;
 
 /**
- * Discriminated union describing whether the user is in their trial,
-actively subscribed, lapsed, or expired.  Discriminated by `kind`.
+ * Discriminated union describing whether the user must enroll with a
+payment method, is in a Stripe-confirmed trial, actively subscribed,
+lapsed, or expired. Discriminated by `kind`.
 
  */
 export interface AccessState {
@@ -2092,6 +2099,7 @@ export type GetAdminUsersStatus =
   (typeof GetAdminUsersStatus)[keyof typeof GetAdminUsersStatus];
 
 export const GetAdminUsersStatus = {
+  enrollment_required: "enrollment_required",
   trial: "trial",
   subscribed: "subscribed",
   past_due: "past_due",

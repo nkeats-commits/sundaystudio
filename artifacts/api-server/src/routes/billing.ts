@@ -9,6 +9,18 @@ import {
 import { getAccessState, TRIAL_DAYS } from "../lib/getAccessState";
 import { getMonthlyPriceId } from "../lib/getMonthlyPriceId";
 import { recordTrialEvent } from "../lib/trialAnalytics";
+import { ConfirmBillingCheckoutSessionBody } from "@workspace/api-zod";
+import {
+  CARD_CHECKOUT_PAYMENT_OPTIONS,
+  buildCardRequiredTrialOptions,
+  isConfirmedTrialCheckout,
+  reusableEnrollmentCheckoutUrl,
+  shouldStartCardTrial,
+  stripeReferenceId,
+  type CheckoutSessionForEnrollment,
+  type TrialingSubscription,
+} from "../lib/trialEnrollment";
+import { confirmTrialEnrollment } from "../lib/confirmTrialEnrollment";
 
 const router: IRouter = Router();
 
@@ -45,11 +57,7 @@ router.post("/billing/checkout-session", requireAuth, async (req, res) => {
   // Guard: don't let an already-subscribed user create another subscription.
   // Direct them to the billing portal to manage the existing one instead.
   const currentState = await getAccessState(req.userId!);
-  if (
-    currentState.kind === "active" ||
-    currentState.kind === "trialing" ||
-    currentState.kind === "past_due"
-  ) {
+  if (["active", "trialing", "past_due"].includes(currentState.kind)) {
     res.status(409).json({
       error:
         "You already have an active subscription. Use the billing portal to manage it.",
@@ -99,37 +107,202 @@ router.post("/billing/checkout-session", requireAuth, async (req, res) => {
         .where(eq(usersTable.id, user.id));
     }
 
-    // If the local trial is still running, honor the remainder by passing
-    // `trial_end` so Stripe defers the first charge until the trial would
-    // have ended.  Past that point, no Stripe-side trial — charge now.
-    const trialStart = user.trialStartedAt ?? user.createdAt;
-    const trialEndMs =
-      new Date(trialStart).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
-    const trialEndUnix = Math.floor(trialEndMs / 1000);
-    const nowUnix = Math.floor(Date.now() / 1000);
-    const subscriptionData =
-      trialEndUnix > nowUnix + 60 ? { trial_end: trialEndUnix } : undefined;
-
+    const startsTrial = shouldStartCardTrial(
+      currentState.kind,
+      user.trialEnrollmentStatus,
+    );
     const origin = originFromReq(req);
+
+    if (startsTrial && user.trialEnrollmentSessionId) {
+      try {
+        const prior = await stripe.checkout.sessions.retrieve(
+          user.trialEnrollmentSessionId,
+          { expand: ["subscription"] },
+        );
+        const reusableUrl = reusableEnrollmentCheckoutUrl(
+          [prior as unknown as CheckoutSessionForEnrollment],
+          user.id,
+          customerId,
+        );
+        if (reusableUrl) {
+          res.json({ url: reusableUrl });
+          return;
+        }
+
+        if (prior.status === "complete" && prior.metadata?.trialEnrollment === "required_card") {
+          const subscriptionId = stripeReferenceId(prior.subscription);
+          const subscription = subscriptionId
+            ? typeof prior.subscription === "object" && prior.subscription !== null
+              ? prior.subscription
+              : await stripe.subscriptions.retrieve(subscriptionId)
+            : null;
+          if (
+            subscription &&
+            isConfirmedTrialCheckout({
+              session: prior as unknown as CheckoutSessionForEnrollment,
+              subscription: subscription as unknown as TrialingSubscription,
+              userId: user.id,
+              customerId,
+            })
+          ) {
+            await confirmTrialEnrollment(
+              user.id,
+              customerId,
+              subscription as unknown as TrialingSubscription,
+              req.log,
+            );
+            res.json({
+              url: `${origin}/billing?status=success&session_id=${encodeURIComponent(prior.id)}`,
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        // A deleted or expired prior Checkout session is safe to replace.
+        req.log.info({ err, userId: user.id }, "Replacing stale trial Checkout session");
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
+      ...CARD_CHECKOUT_PAYMENT_OPTIONS,
       line_items: [{ price: priceId, quantity: 1 }],
-      ...(subscriptionData ? { subscription_data: subscriptionData } : {}),
-      success_url: `${origin}/billing?status=success`,
-      cancel_url: `${origin}/pricing?status=canceled`,
+      ...(startsTrial
+        ? buildCardRequiredTrialOptions(user.id)
+        : {
+            metadata: { userId: user.id },
+            custom_text: {
+              submit: {
+                message:
+                  "Your $9.99/month subscription begins today and renews monthly until canceled.",
+              },
+            },
+          }),
+      success_url: `${origin}/billing?status=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/pricing?status=canceled&enrollment=required`,
       allow_promotion_codes: true,
+    }, {
+      idempotencyKey: startsTrial
+        ? `trial-checkout-${user.id}-${customerId}-${user.trialEnrollmentSessionId ?? "first"}`
+        : `paid-checkout-${user.id}-${customerId}-${Math.floor(Date.now() / 60_000)}`,
     });
+
+    if (startsTrial) {
+      await db
+        .update(usersTable)
+        .set({ trialEnrollmentSessionId: session.id })
+        .where(eq(usersTable.id, user.id));
+    }
 
     void recordTrialEvent(req.userId!, "ss_checkout_started", {
       source: "checkout_session",
-      trialEndsAt: subscriptionData ? new Date(trialEndMs).toISOString() : null,
+      enrollment: startsTrial,
     }, req.log);
 
     res.json({ url: session.url });
   } catch (err) {
     req.log.error({ err }, "Failed to create Stripe checkout session");
     res.status(500).json({ error: "Failed to start checkout" });
+  }
+});
+
+/** POST /api/billing/checkout-confirmation — verify Stripe, never the redirect, grants trial access. */
+router.post("/billing/checkout-confirmation", requireAuth, async (req, res) => {
+  const parsed = ConfirmBillingCheckoutSessionBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid Checkout session ID is required." });
+    return;
+  }
+  if (!(await isStripeConfigured())) {
+    res.status(503).json({ error: "Billing is not configured yet. Try again shortly." });
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, req.userId!))
+    .limit(1);
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (!user.stripeCustomerId) {
+    res.status(409).json({ error: "This Checkout session is not confirmed for this account." });
+    return;
+  }
+
+  try {
+    const stripe = await getUncachableStripeClient();
+    const session = await stripe.checkout.sessions.retrieve(parsed.data.sessionId);
+    const subscriptionId = stripeReferenceId(session.subscription);
+    if (
+      session.status !== "complete" ||
+      session.mode !== "subscription" ||
+      session.metadata?.userId !== user.id ||
+      stripeReferenceId(session.customer) !== user.stripeCustomerId ||
+      !subscriptionId
+    ) {
+      res.status(409).json({ error: "Checkout is not complete for this account yet." });
+      return;
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const subscriptionData = subscription as unknown as TrialingSubscription & {
+      current_period_end: number | null;
+      cancel_at_period_end: boolean;
+    };
+    const confirmedTrial = isConfirmedTrialCheckout({
+      session: session as unknown as CheckoutSessionForEnrollment,
+      subscription: subscriptionData,
+      userId: user.id,
+      customerId: user.stripeCustomerId,
+    });
+
+    if (confirmedTrial) {
+      const activated = await confirmTrialEnrollment(
+        user.id,
+        user.stripeCustomerId,
+        subscriptionData,
+        req.log,
+      );
+      if (!activated) {
+        res.status(409).json({ error: "This account is not eligible for a trial." });
+        return;
+      }
+    } else if (
+      subscriptionData.status !== "active" ||
+      !subscriptionData.default_payment_method
+    ) {
+      res.status(409).json({ error: "Stripe has not confirmed a card-backed subscription." });
+      return;
+    }
+
+    let state;
+    if (confirmedTrial) {
+      const trialEndsAt = new Date(subscriptionData.trial_end! * 1000);
+      state = {
+        kind: "trial" as const,
+        daysLeft: Math.max(
+          0,
+          Math.ceil((trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
+        ),
+        trialEndsAt: trialEndsAt.toISOString(),
+      };
+    } else {
+      state = {
+        kind: "active" as const,
+        currentPeriodEnd: subscriptionData.current_period_end
+          ? new Date(subscriptionData.current_period_end * 1000).toISOString()
+          : null,
+        cancelAtPeriodEnd: subscriptionData.cancel_at_period_end,
+      };
+    }
+    res.json({ state, trialDays: TRIAL_DAYS });
+  } catch (err) {
+    req.log.error({ err, userId: user.id }, "Failed to confirm Stripe Checkout");
+    res.status(500).json({ error: "Failed to confirm Checkout with Stripe." });
   }
 });
 

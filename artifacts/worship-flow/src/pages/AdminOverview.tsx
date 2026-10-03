@@ -321,7 +321,9 @@ export default function AdminOverview() {
                     <tbody>
                       {data.conversion.byTrialDay.map((row) => (
                         <tr key={row.trialDay} className="border-b border-[var(--worship-border)] last:border-0">
-                          <td className="py-2 pr-3 font-medium text-[var(--worship-navy)]">Day {row.trialDay}</td>
+                          <td className="py-2 pr-3 font-medium text-[var(--worship-navy)]">
+                            {row.trialDay === 0 ? "Before trial" : `Day ${row.trialDay}`}
+                          </td>
                           <td className="py-2 pr-3">{row.activated}</td>
                           <td className="py-2 pr-3">{row.promptShown}</td>
                           <td className="py-2 pr-3">{row.promptClicked}</td>

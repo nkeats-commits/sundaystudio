@@ -26,6 +26,7 @@ import type {
   AdminUserList,
   AnalyzeManuscripts200,
   ApiError,
+  BillingCheckoutConfirmationInput,
   BillingRedirect,
   BillingStatusResponse,
   BulkDeleteLibraryItems400,
@@ -6018,7 +6019,7 @@ export function useGetBillingStatus<
 }
 
 /**
- * @summary Create a Stripe Checkout session and return its URL
+ * @summary Create a Stripe Checkout session for trial enrollment or subscription
  */
 export const getCreateBillingCheckoutSessionUrl = () => {
   return `/api/billing/checkout-session`;
@@ -6078,7 +6079,7 @@ export type CreateBillingCheckoutSessionMutationError = ErrorType<
 >;
 
 /**
- * @summary Create a Stripe Checkout session and return its URL
+ * @summary Create a Stripe Checkout session for trial enrollment or subscription
  */
 export const useCreateBillingCheckoutSession = <
   TError = ErrorType<UnauthorizedResponse | ApiError>,
@@ -6098,6 +6099,98 @@ export const useCreateBillingCheckoutSession = <
   TContext
 > => {
   return useMutation(getCreateBillingCheckoutSessionMutationOptions(options));
+};
+
+/**
+ * @summary Confirm a completed Stripe Checkout session for the signed-in user
+ */
+export const getConfirmBillingCheckoutSessionUrl = () => {
+  return `/api/billing/checkout-confirmation`;
+};
+
+export const confirmBillingCheckoutSession = async (
+  billingCheckoutConfirmationInput: BillingCheckoutConfirmationInput,
+  options?: RequestInit,
+): Promise<BillingStatusResponse> => {
+  return customFetch<BillingStatusResponse>(
+    getConfirmBillingCheckoutSessionUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(billingCheckoutConfirmationInput),
+    },
+  );
+};
+
+export const getConfirmBillingCheckoutSessionMutationOptions = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof confirmBillingCheckoutSession>>,
+    TError,
+    { data: BodyType<BillingCheckoutConfirmationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof confirmBillingCheckoutSession>>,
+  TError,
+  { data: BodyType<BillingCheckoutConfirmationInput> },
+  TContext
+> => {
+  const mutationKey = ["confirmBillingCheckoutSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof confirmBillingCheckoutSession>>,
+    { data: BodyType<BillingCheckoutConfirmationInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return confirmBillingCheckoutSession(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConfirmBillingCheckoutSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof confirmBillingCheckoutSession>>
+>;
+export type ConfirmBillingCheckoutSessionMutationBody =
+  BodyType<BillingCheckoutConfirmationInput>;
+export type ConfirmBillingCheckoutSessionMutationError = ErrorType<
+  ApiError | UnauthorizedResponse
+>;
+
+/**
+ * @summary Confirm a completed Stripe Checkout session for the signed-in user
+ */
+export const useConfirmBillingCheckoutSession = <
+  TError = ErrorType<ApiError | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof confirmBillingCheckoutSession>>,
+    TError,
+    { data: BodyType<BillingCheckoutConfirmationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof confirmBillingCheckoutSession>>,
+  TError,
+  { data: BodyType<BillingCheckoutConfirmationInput> },
+  TContext
+> => {
+  return useMutation(getConfirmBillingCheckoutSessionMutationOptions(options));
 };
 
 /**

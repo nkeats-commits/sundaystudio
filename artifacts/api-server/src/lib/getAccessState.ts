@@ -1,6 +1,13 @@
 import { sql } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { confirmTrialEnrollment } from "./confirmTrialEnrollment";
+import { getUncachableStripeClient } from "./stripeClient";
+import {
+  isCardBackedTrialSubscription,
+  stripeReferenceId,
+  type TrialingSubscription,
+} from "./trialEnrollment";
 
 export const TRIAL_DAYS = 14;
 
@@ -12,6 +19,7 @@ export const TRIAL_DAYS = 14;
  * of boolean flags.
  */
 export type AccessState =
+  | { kind: "enrollment_required" }
   | { kind: "trial"; daysLeft: number; trialEndsAt: string }
   | { kind: "active"; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean }
   | { kind: "trialing"; currentPeriodEnd: string | null }
@@ -28,13 +36,91 @@ export function isAccessAllowed(state: AccessState): boolean {
   );
 }
 
+export function getLocalTrialAccessState({
+  enrollmentStatus,
+  trialStartedAt,
+  createdAt,
+  now = Date.now(),
+}: {
+  enrollmentStatus: "pending" | "enrolled" | "expired";
+  trialStartedAt: Date | string | null;
+  createdAt: Date | string;
+  now?: number;
+}): AccessState {
+  if (enrollmentStatus === "pending") {
+    return { kind: "enrollment_required" };
+  }
+
+  // An expired status is an explicit ineligibility marker, even if a legacy
+  // timestamp is malformed or close to the migration boundary.
+  if (enrollmentStatus !== "enrolled" || !trialStartedAt) {
+    const priorStart = trialStartedAt ?? createdAt;
+    return {
+      kind: "expired",
+      trialEndedAt: new Date(
+        new Date(priorStart).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000,
+      ).toISOString(),
+    };
+  }
+
+  const trialEndMs =
+    new Date(trialStartedAt).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  if (now < trialEndMs) {
+    return {
+      kind: "trial",
+      daysLeft: Math.max(
+        0,
+        Math.ceil((trialEndMs - now) / (24 * 60 * 60 * 1000)),
+      ),
+      trialEndsAt: new Date(trialEndMs).toISOString(),
+    };
+  }
+  return {
+    kind: "expired",
+    trialEndedAt: new Date(trialEndMs).toISOString(),
+  };
+}
+
+export function getStripeSubscriptionAccessState(
+  status: string,
+  currentPeriodEnd: string | null,
+  cancelAtPeriodEnd: boolean | null,
+  enrollmentStatus: "pending" | "enrolled" | "expired",
+): AccessState {
+  switch (status) {
+    case "active":
+      // A paid subscriber is not required to re-enter a payment method,
+      // regardless of a legacy local trial-enrollment marker.
+      return {
+        kind: "active",
+        currentPeriodEnd,
+        cancelAtPeriodEnd: !!cancelAtPeriodEnd,
+      };
+    case "trialing":
+      return enrollmentStatus === "enrolled"
+        ? { kind: "trialing", currentPeriodEnd }
+        : { kind: "enrollment_required" };
+    case "past_due":
+    case "unpaid":
+    case "incomplete":
+    case "paused":
+      return { kind: "past_due", currentPeriodEnd };
+    case "canceled":
+    case "incomplete_expired":
+      return { kind: "canceled" };
+    default:
+      return { kind: "past_due", currentPeriodEnd };
+  }
+}
+
 /**
  * Compute the user's billing access state.
  *
  * Source of truth, in order:
  *   1. Active / trialing / past_due / canceled subscription mirrored into
  *      the `stripe.subscriptions` table by stripe-replit-sync.
- *   2. Otherwise, the local 14-day trial window from `users.trial_started_at`.
+ *   2. Otherwise, a local 14-day window created only after Stripe confirms a
+ *      card-backed trial. Pending and expired enrollments never grant access.
  *
  * If the `stripe` schema doesn't exist yet (Stripe integration not connected)
  * we fall back silently to the local trial — the app still works for trial
@@ -45,6 +131,7 @@ export async function getAccessState(userId: string): Promise<AccessState> {
     .select({
       stripeCustomerId: usersTable.stripeCustomerId,
       trialStartedAt: usersTable.trialStartedAt,
+      trialEnrollmentStatus: usersTable.trialEnrollmentStatus,
       createdAt: usersTable.createdAt,
     })
     .from(usersTable)
@@ -79,31 +166,65 @@ export async function getAccessState(userId: string): Promise<AccessState> {
 
       if (row) {
         const periodEndIso = toIsoFromUnixOrDate(row.current_period_end);
-        switch (row.status) {
-          case "active":
-            return {
-              kind: "active",
-              currentPeriodEnd: periodEndIso,
-              cancelAtPeriodEnd: !!row.cancel_at_period_end,
-            };
-          case "trialing":
-            return { kind: "trialing", currentPeriodEnd: periodEndIso };
-          case "past_due":
-          case "unpaid":
-            return { kind: "past_due", currentPeriodEnd: periodEndIso };
-          case "canceled":
-          case "incomplete_expired":
-            // Stripe state takes precedence: a real canceled subscription
-            // is canonical regardless of where the local trial clock sits.
-            return { kind: "canceled" };
-          case "incomplete":
-          case "paused":
-            // Treat as past_due (no access) — explicit, not silent allow.
-            return { kind: "past_due", currentPeriodEnd: periodEndIso };
-          default:
-            // Unknown future statuses: be conservative, no access.
-            return { kind: "past_due", currentPeriodEnd: periodEndIso };
+        if (
+          row.status === "trialing" &&
+          user.trialEnrollmentStatus === "pending"
+        ) {
+          // Preserve a pre-migration Stripe trial only when Stripe itself
+          // confirms a 14-day trial with a saved payment method. A local
+          // cardless trial has no Stripe subscription and cannot pass this.
+          try {
+            const stripe = await getUncachableStripeClient();
+            const liveSubscription = await stripe.subscriptions.retrieve(row.id);
+            const subscription =
+              liveSubscription as unknown as TrialingSubscription;
+            if (
+              isCardBackedTrialSubscription(subscription) &&
+              stripeReferenceId(subscription.customer) ===
+                user.stripeCustomerId
+            ) {
+              const confirmed = await confirmTrialEnrollment(
+                userId,
+                user.stripeCustomerId,
+                subscription,
+              );
+              if (confirmed) {
+                const trialEndsAt = new Date(subscription.trial_end! * 1000);
+                return {
+                  kind: "trial",
+                  daysLeft: Math.max(
+                    0,
+                    Math.ceil(
+                      (trialEndsAt.getTime() - Date.now()) /
+                        (24 * 60 * 60 * 1000),
+                    ),
+                  ),
+                  trialEndsAt: trialEndsAt.toISOString(),
+                };
+              }
+            }
+          } catch {
+            // If Stripe cannot verify the old subscription, keep access
+            // blocked until the user completes a verified enrollment flow.
+          }
         }
+        if (
+          (row.status === "trialing" || row.status === "incomplete") &&
+          user.trialEnrollmentStatus === "enrolled"
+        ) {
+          const confirmedTrial = getLocalTrialAccessState({
+            enrollmentStatus: user.trialEnrollmentStatus,
+            trialStartedAt: user.trialStartedAt,
+            createdAt: user.createdAt,
+          });
+          if (confirmedTrial.kind === "trial") return confirmedTrial;
+        }
+        return getStripeSubscriptionAccessState(
+          row.status,
+          periodEndIso,
+          row.cancel_at_period_end,
+          user.trialEnrollmentStatus,
+        );
       }
     } catch (err) {
       // stripe schema missing or DB hiccup — fall through to local trial.
@@ -112,30 +233,13 @@ export async function getAccessState(userId: string): Promise<AccessState> {
     }
   }
 
-  // No active subscription — compute trial state from the local clock.
-  const trialStart = user.trialStartedAt ?? user.createdAt;
-  const trialEndMs =
-    new Date(trialStart).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  if (now < trialEndMs) {
-    const daysLeft = Math.max(
-      0,
-      Math.ceil((trialEndMs - now) / (24 * 60 * 60 * 1000)),
-    );
-    return {
-      kind: "trial",
-      daysLeft,
-      trialEndsAt: new Date(trialEndMs).toISOString(),
-    };
-  }
-  // No real Stripe subscription row was found above (only a customer record
-  // may exist from an abandoned checkout).  Treat the user as a plain
-  // trial-expired user — `canceled` is reserved for actual canceled
-  // subscriptions in `stripe.subscriptions`.
-  return {
-    kind: "expired",
-    trialEndedAt: new Date(trialEndMs).toISOString(),
-  };
+  // No active subscription — compute access from the Stripe-confirmed local
+  // trial anchor; the account creation timestamp is never used as a start.
+  return getLocalTrialAccessState({
+    enrollmentStatus: user.trialEnrollmentStatus,
+    trialStartedAt: user.trialStartedAt,
+    createdAt: user.createdAt,
+  });
 }
 
 function toIsoFromUnixOrDate(

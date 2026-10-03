@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
   ExternalLink,
@@ -17,6 +18,8 @@ import { toast } from "sonner";
 import {
   useCreateBillingCheckoutSession,
   useCreateBillingPortalSession,
+  useConfirmBillingCheckoutSession,
+  getGetBillingStatusQueryKey,
   useRecordTrialEvent,
 } from "@workspace/api-client-react";
 import { AppLayout } from "../components/layout/AppLayout";
@@ -73,19 +76,49 @@ export default function Billing() {
   const [location] = useLocation();
   const checkout = useCreateBillingCheckoutSession();
   const portal = useCreateBillingPortalSession();
+  const confirmCheckout = useConfirmBillingCheckoutSession();
+  const queryClient = useQueryClient();
   const { mutate: recordTrialEvent } = useRecordTrialEvent();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("status") === "success") {
-      toast.success("Subscription confirmed. Welcome to Pro!");
+    if (params.get("status") !== "success") return;
+    const sessionId = params.get("session_id");
+    const cleanUrl = window.location.pathname + window.location.hash || "/billing";
+    window.history.replaceState({}, "", cleanUrl);
+    if (!sessionId) {
+      toast.error("Checkout could not be verified. Please check your billing status.");
       void refetch();
-      const cleanUrl =
-        window.location.pathname + window.location.hash || "/billing";
-      window.history.replaceState({}, "", cleanUrl);
+      return;
     }
-  }, [location, refetch]);
+
+    void (async () => {
+      try {
+        const confirmation = await confirmCheckout.mutateAsync({
+          data: { sessionId },
+        });
+        queryClient.setQueryData(getGetBillingStatusQueryKey(), confirmation);
+        if (
+          confirmation.state.kind === "trial" ||
+          confirmation.state.kind === "trialing" ||
+          confirmation.state.kind === "active"
+        ) {
+          toast.success(
+            confirmation.state.kind === "trial" ||
+              confirmation.state.kind === "trialing"
+              ? "Your card-backed trial is active."
+              : "Subscription confirmed. Welcome to Pro!",
+          );
+        } else {
+          toast.error("Stripe has not confirmed access yet. Please try again shortly.");
+        }
+      } catch {
+        await refetch();
+        toast.error("Checkout is still being confirmed. Your access will update once Stripe verifies it.");
+      }
+    })();
+  }, [location, refetch, confirmCheckout.mutateAsync, queryClient]);
 
   const startCheckout = async () => {
     setBusy(true);
@@ -150,6 +183,7 @@ export default function Billing() {
 
   // ── Trial / expired / canceled: full StoryBrand upsell layout ──────────
   if (
+    state.kind === "enrollment_required" ||
     state.kind === "trial" ||
     state.kind === "expired" ||
     state.kind === "canceled"
@@ -163,7 +197,16 @@ export default function Billing() {
 
           {/* ── Trial countdown / expired badge ── */}
           <div className="flex justify-center">
-            {state.kind === "trial" ? (
+            {state.kind === "enrollment_required" ? (
+              <div
+                data-testid="status-billing-enrollment-required"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+                style={{ backgroundColor: "var(--worship-pale-gold)", color: "var(--worship-navy)" }}
+              >
+                <Sparkles className="w-4 h-4" style={{ color: "var(--worship-gold)" }} />
+                Add a card to start your 14-day trial
+              </div>
+            ) : state.kind === "trial" ? (
               <div
                 data-testid={state.kind === "trial" ? "status-billing-trial" : "status-billing-lapsed"}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
@@ -201,7 +244,9 @@ export default function Billing() {
                 fontFamily: "var(--font-serif)",
               }}
             >
-              {isExpiredOrCanceled
+              {state.kind === "enrollment_required"
+                ? "Start your 14-day trial"
+                : isExpiredOrCanceled
                 ? "Ready to plan with confidence again?"
                 : "Sunday keeps coming.\nSunday Studio keeps you ready."}
             </h1>
@@ -210,7 +255,9 @@ export default function Billing() {
               className="text-base max-w-lg mx-auto"
               style={{ color: "var(--worship-muted-slate)" }}
             >
-              {isExpiredOrCanceled
+              {state.kind === "enrollment_required"
+                ? "A card is required to start. You will not be charged today. Your $9.99/month subscription starts after 14 days; cancel before then to avoid the first charge."
+                : isExpiredOrCanceled
                 ? "Pick up right where you left off. Everything you need to plan, preach, and lead with depth — for less than a cup of coffee a week."
                 : "We know what it feels like to face Sunday morning with a half-formed plan. Sunday Studio gives you the tools to lead with depth, not just survive the week."}
             </p>
@@ -263,6 +310,8 @@ export default function Billing() {
                   <Loader2 className="w-4 h-4 animate-spin" /> Starting
                   checkout…
                 </>
+              ) : state.kind === "enrollment_required" ? (
+                "Add a card and start my 14-day trial"
               ) : state.kind === "trial" ? (
                 "Subscribe — billing starts when your trial ends"
               ) : (
@@ -275,7 +324,9 @@ export default function Billing() {
               className="text-xs text-center"
               style={{ color: "var(--worship-muted-slate)" }}
             >
-              {state.kind === "trial"
+              {state.kind === "enrollment_required"
+                ? "Card required. No charge today; $9.99/month starts after 14 days. Cancel before then to avoid the first charge."
+                : state.kind === "trial"
                 ? `No charge today. Your first $9.99 charge is scheduled for ${formatDate(state.trialEndsAt)}. Cancel before then or anytime from the billing portal.`
                 : "Cancel anytime from the billing portal. Secure checkout via Stripe."}
             </p>

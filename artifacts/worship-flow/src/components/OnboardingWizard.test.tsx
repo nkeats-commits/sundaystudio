@@ -27,6 +27,11 @@ Object.defineProperty(globalThis, 'React', {
 let currentLocation = '/dashboard';
 const setLocationCalls: string[] = [];
 let authState = { isLoaded: true, isSignedIn: true };
+let billingState: { kind: string; daysLeft?: number; trialEndsAt?: string } = {
+  kind: 'trial',
+  daysLeft: 14,
+  trialEndsAt: '2026-10-17T00:00:00.000Z',
+};
 let clerkListener:
   | ((payload: { user?: { id: string } | null }) => void)
   | undefined;
@@ -45,6 +50,19 @@ mock.module('@clerk/react', {
   namedExports: {
     useAuth: () => authState,
     useClerk: () => clerk,
+  },
+});
+
+mock.module('../hooks/useSubscriptionStatus', {
+  namedExports: {
+    useSubscriptionStatus: () => ({
+      state: billingState,
+      allowed: billingState.kind !== 'enrollment_required',
+      trialDays: 14,
+      isLoading: false,
+      isError: false,
+      refetch: async () => undefined,
+    }),
   },
 });
 
@@ -131,8 +149,29 @@ beforeEach(() => {
   currentLocation = '/dashboard';
   setLocationCalls.length = 0;
   authState = { isLoaded: true, isSignedIn: true };
+  billingState = {
+    kind: 'trial',
+    daysLeft: 14,
+    trialEndsAt: '2026-10-17T00:00:00.000Z',
+  };
   clerkListener = undefined;
   document.body.innerHTML = '';
+});
+
+test('keeps onboarding hidden until payment enrollment is confirmed', async () => {
+  billingState = { kind: 'enrollment_required' };
+  globalThis.fetch = async (input) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/me') return response(initialMe);
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  renderWizard();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    screen.queryByRole('heading', { name: 'Tell us about yourself' }),
+    null,
+  );
 });
 
 afterEach(() => {

@@ -5721,6 +5721,7 @@ export const GetBillingStatusResponse = zod.object({
   state: zod
     .object({
       kind: zod.enum([
+        "enrollment_required",
         "trial",
         "active",
         "trialing",
@@ -5752,18 +5753,67 @@ export const GetBillingStatusResponse = zod.object({
         ),
     })
     .describe(
-      "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+      "Discriminated union describing whether the user must enroll with a\npayment method, is in a Stripe-confirmed trial, actively subscribed,\nlapsed, or expired. Discriminated by `kind`.\n",
     ),
   trialDays: zod.number().describe("Length of the free trial in days."),
 });
 
 /**
- * @summary Create a Stripe Checkout session and return its URL
+ * @summary Create a Stripe Checkout session for trial enrollment or subscription
  */
 export const CreateBillingCheckoutSessionResponse = zod.object({
   url: zod
     .string()
     .describe("URL the browser should be redirected to (Checkout or Portal)."),
+});
+
+/**
+ * @summary Confirm a completed Stripe Checkout session for the signed-in user
+ */
+
+export const ConfirmBillingCheckoutSessionBody = zod.object({
+  sessionId: zod.string().min(1),
+});
+
+export const ConfirmBillingCheckoutSessionResponse = zod.object({
+  state: zod
+    .object({
+      kind: zod.enum([
+        "enrollment_required",
+        "trial",
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "expired",
+      ]),
+      daysLeft: zod
+        .number()
+        .nullish()
+        .describe("Days remaining in the local trial (only when kind=trial)."),
+      trialEndsAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ends (only when kind=trial)."),
+      trialEndedAt: zod
+        .string()
+        .nullish()
+        .describe("When the local trial ended (only when kind=expired)."),
+      currentPeriodEnd: zod
+        .string()
+        .nullish()
+        .describe("End of the current Stripe billing period."),
+      cancelAtPeriodEnd: zod
+        .boolean()
+        .nullish()
+        .describe(
+          "True if a Stripe subscription is set to cancel at period end.",
+        ),
+    })
+    .describe(
+      "Discriminated union describing whether the user must enroll with a\npayment method, is in a Stripe-confirmed trial, actively subscribed,\nlapsed, or expired. Discriminated by `kind`.\n",
+    ),
+  trialDays: zod.number().describe("Length of the free trial in days."),
 });
 
 /**
@@ -5882,7 +5932,14 @@ export const getAdminUsersQueryOffsetMin = 0;
 export const GetAdminUsersQueryParams = zod.object({
   search: zod.coerce.string().optional(),
   status: zod
-    .enum(["trial", "subscribed", "past_due", "canceled", "expired"])
+    .enum([
+      "enrollment_required",
+      "trial",
+      "subscribed",
+      "past_due",
+      "canceled",
+      "expired",
+    ])
     .optional(),
   limit: zod.coerce.number().min(1).max(getAdminUsersQueryLimitMax).optional(),
   offset: zod.coerce.number().min(getAdminUsersQueryOffsetMin).optional(),
@@ -5900,6 +5957,7 @@ export const GetAdminUsersResponse = zod.object({
       state: zod
         .object({
           kind: zod.enum([
+            "enrollment_required",
             "trial",
             "active",
             "trialing",
@@ -5933,7 +5991,7 @@ export const GetAdminUsersResponse = zod.object({
             ),
         })
         .describe(
-          "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+          "Discriminated union describing whether the user must enroll with a\npayment method, is in a Stripe-confirmed trial, actively subscribed,\nlapsed, or expired. Discriminated by `kind`.\n",
         ),
       lastActivityAt: zod.string().nullish(),
     }),
@@ -5962,6 +6020,7 @@ export const GetAdminUserResponse = zod.object({
   state: zod
     .object({
       kind: zod.enum([
+        "enrollment_required",
         "trial",
         "active",
         "trialing",
@@ -5993,7 +6052,7 @@ export const GetAdminUserResponse = zod.object({
         ),
     })
     .describe(
-      "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+      "Discriminated union describing whether the user must enroll with a\npayment method, is in a Stripe-confirmed trial, actively subscribed,\nlapsed, or expired. Discriminated by `kind`.\n",
     ),
   counts: zod.object({
     servicePlans: zod.number(),
@@ -6040,6 +6099,7 @@ export const ExtendAdminUserTrialResponse = zod.object({
   state: zod
     .object({
       kind: zod.enum([
+        "enrollment_required",
         "trial",
         "active",
         "trialing",
@@ -6071,7 +6131,7 @@ export const ExtendAdminUserTrialResponse = zod.object({
         ),
     })
     .describe(
-      "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+      "Discriminated union describing whether the user must enroll with a\npayment method, is in a Stripe-confirmed trial, actively subscribed,\nlapsed, or expired. Discriminated by `kind`.\n",
     ),
 });
 
@@ -6117,6 +6177,7 @@ export const CompAdminUserSubscriptionResponse = zod.object({
   state: zod
     .object({
       kind: zod.enum([
+        "enrollment_required",
         "trial",
         "active",
         "trialing",
@@ -6148,7 +6209,7 @@ export const CompAdminUserSubscriptionResponse = zod.object({
         ),
     })
     .describe(
-      "Discriminated union describing whether the user is in their trial,\nactively subscribed, lapsed, or expired.  Discriminated by `kind`.\n",
+      "Discriminated union describing whether the user must enroll with a\npayment method, is in a Stripe-confirmed trial, actively subscribed,\nlapsed, or expired. Discriminated by `kind`.\n",
     ),
   couponId: zod.string().nullish(),
 });

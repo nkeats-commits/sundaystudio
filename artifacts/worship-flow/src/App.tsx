@@ -56,6 +56,7 @@ import NotFound from "./pages/NotFound";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { ClerkQueryClientCacheInvalidator } from "./components/ClerkQueryClientCacheInvalidator";
 import { TrialEndedModal } from "./components/TrialEndedModal";
+import { useSubscriptionStatus } from "./hooks/useSubscriptionStatus";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
@@ -356,9 +357,34 @@ function RequireSignedIn({ children }: { children: React.ReactNode }) {
 function Protected({ component: Component }: { component: React.ComponentType }) {
   return (
     <RequireSignedIn>
-      <Component />
+      <ProtectedWorkspace component={Component} />
     </RequireSignedIn>
   );
+}
+
+function ProtectedWorkspace({ component: Component }: { component: React.ComponentType }) {
+  const [location, setLocation] = useLocation();
+  const { state, isLoading, isError } = useSubscriptionStatus();
+  const enrollmentPage = location === "/billing" || location === "/pricing";
+
+  useEffect(() => {
+    if (state?.kind === "enrollment_required" && !enrollmentPage) {
+      setLocation("/billing", { replace: true });
+    }
+  }, [state?.kind, enrollmentPage, setLocation]);
+
+  if (isLoading) return null;
+  if (isError || !state) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center">
+        <p className="max-w-md text-sm text-[var(--worship-muted-slate)]">
+          We couldn’t verify your billing status. Refresh the page to try again.
+        </p>
+      </div>
+    );
+  }
+  if (state.kind === "enrollment_required" && !enrollmentPage) return null;
+  return <Component />;
 }
 
 function ClerkProviderWithRoutes() {
@@ -381,7 +407,7 @@ function ClerkProviderWithRoutes() {
         signUp: {
           start: {
             title: "Begin planning with Sunday Studio",
-            subtitle: "Create your account to get started",
+            subtitle: "Create your account, then add a card to start 14 days free. $9.99/month after the trial.",
           },
         },
       }}

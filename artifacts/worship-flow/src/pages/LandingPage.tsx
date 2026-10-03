@@ -267,7 +267,7 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-wrap gap-x-8 gap-y-3">
-              {['14-day free trial', 'No card required', 'Cancel anytime'].map((t) => (
+              {['14-day free trial', 'Card required; no charge today', 'Cancel before the first charge'].map((t) => (
                 <div key={t} className="flex items-center gap-2 text-sm" style={{ color: 'var(--worship-muted-slate)' }}>
                   <Check className="w-4 h-4" style={{ color: 'var(--worship-gold)' }} />
                   {t}
@@ -661,11 +661,11 @@ export default function LandingPage() {
             Your best ministry is closer than you think.
           </h2>
           <p className="text-lg mb-3" style={{ color: 'var(--worship-slate)' }}>
-            Try Sunday Studio free for 14 days. Then just{' '}
+            Add a card to start your 14-day trial. Then just{' '}
             <strong style={{ color: 'var(--worship-navy)' }}>$9.99/month</strong> — for everything.
           </p>
           <p className="text-sm mb-10" style={{ color: 'var(--worship-muted-slate)' }}>
-            No card required to start. Cancel any time.
+            No charge today. $9.99/month begins after the trial. Cancel before it ends to avoid the first charge.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

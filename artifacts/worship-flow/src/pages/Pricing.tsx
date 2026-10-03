@@ -123,9 +123,13 @@ export default function Pricing() {
             <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
               Your trial has ended. Your saved work is still here when you are ready:
             </p>
+          ) : state?.kind === "enrollment_required" ? (
+            <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
+              Add a card to start your 14-day free trial. No charge today; $9.99/month begins after the trial.
+            </p>
           ) : (
             <p className="text-lg" style={{ color: "var(--worship-muted-slate)" }}>
-              Try the complete Sunday rhythm free for {trialDays} days. No card required.
+              Start a {trialDays}-day free trial with a card. No charge today; $9.99/month begins after the trial.
             </p>
           )}
           {hasReturnContext && (
@@ -213,6 +217,8 @@ export default function Pricing() {
               </>
             ) : state?.kind === "trial" ? (
               ACTIVE_TRIAL_SUBSCRIBE_COPY
+            ) : state?.kind === "enrollment_required" ? (
+              "Add a card and start my 14-day trial"
             ) : (
               "Subscribe to Sunday Studio Pro"
             )}
@@ -223,7 +229,9 @@ export default function Pricing() {
             className="text-xs text-center mt-3"
             style={{ color: "var(--worship-muted-slate)" }}
           >
-              Cancel anytime from the billing portal. Secure checkout via Stripe.
+              {state?.kind === "enrollment_required"
+                ? "A card is required. No charge today; $9.99/month starts after 14 days. Cancel before then to avoid the first charge."
+                : "Cancel anytime from the billing portal. Secure checkout via Stripe."}
           </p>
 
            {state?.kind === "trial" && (

@@ -26,6 +26,7 @@ export function useSubscriptionStatus() {
     allowed,
     trialDays: query.data?.trialDays ?? 14,
     isLoading: query.isLoading,
+    isError: query.isError,
     refetch: query.refetch,
   };
 }

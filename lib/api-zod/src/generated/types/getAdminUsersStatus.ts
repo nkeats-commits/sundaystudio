@@ -10,6 +10,7 @@ export type GetAdminUsersStatus =
   (typeof GetAdminUsersStatus)[keyof typeof GetAdminUsersStatus];
 
 export const GetAdminUsersStatus = {
+  enrollment_required: "enrollment_required",
   trial: "trial",
   subscribed: "subscribed",
   past_due: "past_due",

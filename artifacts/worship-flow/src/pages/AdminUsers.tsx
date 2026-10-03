@@ -9,10 +9,11 @@ import type { AccessState, AccessStateKind } from "@workspace/api-client-react";
 import { Search, ArrowRight } from "lucide-react";
 
 const STATUS_OPTIONS: Array<{
-  value: "" | "trial" | "subscribed" | "past_due" | "canceled" | "expired";
+  value: "" | "enrollment_required" | "trial" | "subscribed" | "past_due" | "canceled" | "expired";
   label: string;
 }> = [
   { value: "", label: "All" },
+  { value: "enrollment_required", label: "Card required" },
   { value: "trial", label: "Trial" },
   { value: "subscribed", label: "Subscribed" },
   { value: "past_due", label: "Past due" },
@@ -34,6 +35,9 @@ function Badge({ tone, children }: { tone: string; children: React.ReactNode }) 
 
 /** Trial column: shows trial status & days left/ended (or em-dash if N/A). */
 function TrialCell({ state }: { state: AccessState }) {
+  if (state.kind === "enrollment_required") {
+    return <Badge tone="bg-amber-50 text-amber-700">Card required</Badge>;
+  }
   if (state.kind === "trial") {
     return (
       <Badge tone="bg-blue-50 text-blue-700">

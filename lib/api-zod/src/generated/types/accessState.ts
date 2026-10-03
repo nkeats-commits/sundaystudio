@@ -8,8 +8,9 @@
 import type { AccessStateKind } from "./accessStateKind";
 
 /**
- * Discriminated union describing whether the user is in their trial,
-actively subscribed, lapsed, or expired.  Discriminated by `kind`.
+ * Discriminated union describing whether the user must enroll with a
+payment method, is in a Stripe-confirmed trial, actively subscribed,
+lapsed, or expired. Discriminated by `kind`.
 
  */
 export interface AccessState {

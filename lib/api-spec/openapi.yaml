@@ -1695,7 +1695,7 @@ paths:
     post:
       operationId: createBillingCheckoutSession
       tags: [billing]
-      summary: Create a Stripe Checkout session and return its URL
+      summary: Create a Stripe Checkout session for trial enrollment or subscription
       responses:
         "200":
           description: Checkout session created
@@ -1707,6 +1707,45 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "503":
           description: Billing not yet configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /billing/checkout-confirmation:
+    post:
+      operationId: confirmBillingCheckoutSession
+      tags: [billing]
+      summary: Confirm a completed Stripe Checkout session for the signed-in user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BillingCheckoutConfirmationInput"
+      responses:
+        "200":
+          description: Current server-confirmed billing status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingStatusResponse"
+        "400":
+          description: Invalid checkout confirmation request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: User or checkout session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Checkout is incomplete or the Stripe trial is not confirmed
           content:
             application/json:
               schema:
@@ -1783,7 +1822,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [trial, subscribed, past_due, canceled, expired]
+            enum: [enrollment_required, trial, subscribed, past_due, canceled, expired]
         - name: limit
           in: query
           required: false
@@ -2515,15 +2554,24 @@ components:
           description: URL the browser should be redirected to (Checkout or Portal).
       required: [url]
 
+    BillingCheckoutConfirmationInput:
+      type: object
+      required: [sessionId]
+      properties:
+        sessionId:
+          type: string
+          minLength: 1
+
     AccessState:
       type: object
       description: |
-        Discriminated union describing whether the user is in their trial,
-        actively subscribed, lapsed, or expired.  Discriminated by `kind`.
+        Discriminated union describing whether the user must enroll with a
+        payment method, is in a Stripe-confirmed trial, actively subscribed,
+        lapsed, or expired. Discriminated by `kind`.
       properties:
         kind:
           type: string
-          enum: [trial, active, trialing, past_due, canceled, expired]
+          enum: [enrollment_required, trial, active, trialing, past_due, canceled, expired]
         daysLeft:
           type: integer
           nullable: true
