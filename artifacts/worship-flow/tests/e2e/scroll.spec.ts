@@ -504,6 +504,77 @@ test("representative signed-in routes do not introduce horizontal page overflow"
   }
 });
 
+test("Assistant keeps the composer visible and restores transcript position around a mobile keyboard resize", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  await installApiFixtures(page);
+  await page.goto("/assistant");
+  await page.getByTestId("select-mobile-conversation").selectOption(
+    String(assistantConversation.id),
+  );
+
+  const transcript = page.getByTestId("transcript");
+  await expect(page.getByTestId("message-assistant-918")).toBeVisible();
+  await expect
+    .poll(() =>
+      transcript.evaluate(
+        (element) => element.scrollHeight - element.clientHeight - element.scrollTop,
+      ),
+    )
+    .toBeLessThanOrEqual(16);
+  await transcript.evaluate((element) => {
+    element.scrollTop = Math.min(180, element.scrollHeight - element.clientHeight);
+  });
+  const previousTranscriptPosition = await transcript.evaluate(
+    (element) => element.scrollTop,
+  );
+  expect(previousTranscriptPosition).toBeGreaterThan(0);
+
+  await page.getByTestId("input-message").fill("A message while the keyboard is open.");
+  await page.setViewportSize({ width: 390, height: 390 });
+
+  const assistantRoot = page.getByTestId("assistant-root");
+  await expect(assistantRoot).toHaveAttribute(
+    "data-assistant-keyboard-open",
+    "true",
+  );
+  await expect(page.getByTestId("form-send-message")).toBeInViewport();
+  await expect(page.getByTestId("button-send-message")).toBeInViewport();
+  const transcriptBounds = await transcript.boundingBox();
+  expect(transcriptBounds).not.toBeNull();
+  expect(
+    await transcript.evaluate(
+      (element) => element.scrollHeight - element.clientHeight,
+    ),
+  ).toBeGreaterThan(0);
+
+  await transcript.evaluate((element) => {
+    element.scrollTop = Math.min(
+      element.scrollTop + 80,
+      element.scrollHeight - element.clientHeight,
+    );
+  });
+  await expect
+    .poll(() => transcript.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(previousTranscriptPosition);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(assistantRoot).toHaveAttribute(
+    "data-assistant-keyboard-open",
+    "false",
+  );
+  await expect
+    .poll(() => transcript.evaluate((element) => element.scrollTop))
+    .toBe(previousTranscriptPosition);
+  await context.close();
+});
+
 test("Assistant stays usable without horizontal overflow at phone widths", async ({
   page,
 }) => {

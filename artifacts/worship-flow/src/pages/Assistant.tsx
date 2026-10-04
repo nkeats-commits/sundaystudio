@@ -46,6 +46,11 @@ export default function Assistant() {
   const [pendingText, setPendingText] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<AssistantConversation | null>(null);
   const [actionError, setActionError] = useState('');
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const assistantRootRef = useRef<HTMLDivElement>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const keyboardOpenRef = useRef(false);
+  const transcriptScrollTopBeforeKeyboardRef = useRef<number | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const createConversation = useCreateAssistantConversation();
   const deleteConversation = useDeleteAssistantConversation();
@@ -56,6 +61,92 @@ export default function Assistant() {
       queryKey: getGetAssistantConversationQueryKey(activeId ?? 0),
     },
   });
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    let baselineHeight = viewport?.height ?? window.innerHeight;
+    let previousWidth = window.innerWidth;
+
+    const updateViewport = () => {
+      const root = assistantRootRef.current;
+      if (!root) return;
+
+      const visibleHeight = viewport?.height ?? window.innerHeight;
+      root.style.setProperty('--assistant-visual-viewport-height', `${visibleHeight}px`);
+      root.style.setProperty(
+        '--assistant-visual-viewport-top',
+        `${viewport?.offsetTop ?? 0}px`,
+      );
+
+      if (window.innerWidth !== previousWidth) {
+        previousWidth = window.innerWidth;
+        baselineHeight = visibleHeight;
+      } else if (visibleHeight > baselineHeight) {
+        baselineHeight = visibleHeight;
+      }
+
+      const activeElement = document.activeElement;
+      const textEntryIsFocused =
+        activeElement instanceof HTMLElement &&
+        activeElement.matches('textarea, input, [contenteditable="true"]');
+      const viewportIsKeyboardReduced = baselineHeight - visibleHeight > 120;
+      const isOpen =
+        viewportIsKeyboardReduced &&
+        (textEntryIsFocused || keyboardOpenRef.current);
+
+      if (
+        textEntryIsFocused &&
+        !keyboardOpenRef.current &&
+        transcriptScrollTopBeforeKeyboardRef.current === null
+      ) {
+        transcriptScrollTopBeforeKeyboardRef.current =
+          transcriptRef.current?.scrollTop ?? null;
+      }
+
+      if (isOpen === keyboardOpenRef.current) return;
+
+      keyboardOpenRef.current = isOpen;
+      if (isOpen) {
+        if (transcriptScrollTopBeforeKeyboardRef.current === null) {
+          transcriptScrollTopBeforeKeyboardRef.current =
+            transcriptRef.current?.scrollTop ?? null;
+        }
+      } else {
+        const previousScrollTop = transcriptScrollTopBeforeKeyboardRef.current;
+        if (previousScrollTop !== null) {
+          const restoreTranscriptPosition = () => {
+            if (transcriptRef.current) {
+              transcriptRef.current.scrollTop = previousScrollTop;
+            }
+          };
+          if (typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(() => {
+              window.requestAnimationFrame(restoreTranscriptPosition);
+            });
+          } else {
+            restoreTranscriptPosition();
+          }
+        }
+        transcriptScrollTopBeforeKeyboardRef.current = null;
+      }
+      setKeyboardOpen(isOpen);
+    };
+
+    viewport?.addEventListener('resize', updateViewport);
+    viewport?.addEventListener('scroll', updateViewport);
+    window.addEventListener('resize', updateViewport);
+    document.addEventListener('focusin', updateViewport);
+    document.addEventListener('focusout', updateViewport);
+    updateViewport();
+
+    return () => {
+      viewport?.removeEventListener('resize', updateViewport);
+      viewport?.removeEventListener('scroll', updateViewport);
+      window.removeEventListener('resize', updateViewport);
+      document.removeEventListener('focusin', updateViewport);
+      document.removeEventListener('focusout', updateViewport);
+    };
+  }, []);
 
   useEffect(() => {
     const end = transcriptEndRef.current;
@@ -155,7 +246,12 @@ export default function Assistant() {
 
   return (
     <AppLayout title="Pastoral Assistant">
-      <div className="mx-auto flex w-full min-w-0 min-h-0 max-w-[1440px] flex-col overflow-x-clip lg:min-h-[calc(100dvh-8rem)]">
+      <div
+        ref={assistantRootRef}
+        data-testid="assistant-root"
+        data-assistant-keyboard-open={keyboardOpen}
+        className={`assistant-root mx-auto flex w-full min-w-0 min-h-0 max-w-[1440px] flex-col overflow-x-clip lg:min-h-[calc(100dvh-8rem)]${keyboardOpen ? ' assistant-keyboard-mode' : ''}`}
+      >
         <header className="mb-3 flex flex-wrap items-end justify-between gap-3 border-b border-[var(--worship-border)] pb-3 sm:mb-5 sm:gap-4 sm:pb-5">
           <div className="min-w-0">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--worship-muted-slate)]">A thinking partner for ministry</p>
@@ -172,7 +268,7 @@ export default function Assistant() {
           </button>
         </header>
 
-        <div className="grid h-[62dvh] min-h-[360px] min-w-0 w-full max-h-[560px] flex-none overflow-hidden rounded-2xl border border-[var(--worship-border)] bg-[var(--worship-white)] shadow-[0_10px_35px_rgba(31,42,68,0.06)] lg:h-auto lg:max-h-none lg:min-h-[560px] lg:flex-1 lg:grid-cols-[264px_minmax(0,1fr)]">
+        <div data-testid="assistant-panel" className="grid h-[62dvh] min-h-[360px] min-w-0 w-full max-h-[560px] flex-none overflow-hidden rounded-2xl border border-[var(--worship-border)] bg-[var(--worship-white)] shadow-[0_10px_35px_rgba(31,42,68,0.06)] lg:h-auto lg:max-h-none lg:min-h-[560px] lg:flex-1 lg:grid-cols-[264px_minmax(0,1fr)]">
           <aside className="hidden max-h-[260px] flex-col border-b border-[var(--worship-border)] bg-[#f7f2e9] lg:flex lg:max-h-none lg:border-b-0 lg:border-r">
             <div className="flex items-center justify-between px-4 pb-3 pt-4">
               <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--worship-slate)]">Conversations</h2>
@@ -249,7 +345,7 @@ export default function Assistant() {
               <span className="hidden shrink-0 items-center gap-1.5 text-[11px] text-[var(--worship-muted-warm)] sm:flex"><ShieldCheck className="h-3.5 w-3.5" /> Grounded in your context</span>
             </div>
 
-            <div className="shrink-0 border-b border-[var(--worship-border)] px-3 py-2 lg:hidden">
+            <div data-assistant-mobile-controls className="shrink-0 border-b border-[var(--worship-border)] px-3 py-2 lg:hidden">
               <div className="flex min-w-0 items-center gap-2">
                 <label className="sr-only" htmlFor="assistant-conversation-select">Switch conversation</label>
                 <select
@@ -311,7 +407,7 @@ export default function Assistant() {
               </details>
             </div>
 
-            <div data-testid="transcript" aria-live="polite" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 md:px-8">
+            <div ref={transcriptRef} data-testid="transcript" aria-live="polite" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 md:px-8">
               {activeId === null ? (
                 <div data-testid="empty-new-chat" className="mx-auto flex min-h-[260px] max-w-xl min-w-0 flex-col items-center justify-center text-center sm:min-h-[330px]">
                   <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--worship-border)] bg-[#f7f2e9] text-[var(--worship-navy)]"><MessageCircle className="h-6 w-6" /></div>
