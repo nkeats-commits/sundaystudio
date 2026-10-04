@@ -325,7 +325,7 @@ export default function Billing() {
               style={{ color: "var(--worship-muted-slate)" }}
             >
               {state.kind === "enrollment_required"
-                ? "You won't be charged today. After 14 days, your subscription is $9.99/month. You can cancel anytime before your first charge."
+                ? "You won't be charged today. After 14 days, your subscription will begin. You can cancel anytime before your first charge."
                 : state.kind === "trial"
                 ? `No charge today. Your first $9.99 charge is scheduled for ${formatDate(state.trialEndsAt)}. Cancel before then or anytime from the billing portal.`
                 : "Cancel anytime from the billing portal. Secure checkout via Stripe."}
