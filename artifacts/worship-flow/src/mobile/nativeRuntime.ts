@@ -24,6 +24,11 @@ export const nativeAppLinkHosts = configuredMobileAppUrl
 
 export const isNativeApp = (): boolean => Capacitor.isNativePlatform();
 
+export function nativePlatform(): "ios" | "android" | null {
+  const platform = Capacitor.getPlatform();
+  return platform === "ios" || platform === "android" ? platform : null;
+}
+
 /** Resolve API routes for the bundled app without changing normal web routing. */
 export function apiUrl(path: string): string {
   return resolveApiRequestUrl(path, isNativeApp(), mobileApiBaseUrl);

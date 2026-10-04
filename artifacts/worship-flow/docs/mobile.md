@@ -103,19 +103,57 @@ Before a release, exercise these flows on both platforms:
 7. Repeat the tests after force-quitting the app and after reopening a
    `sundaystudio://` link.
 
-## Clerk OAuth support boundary
+## Clerk hosted authentication
 
-The WebView retains the current `@clerk/react` sign-in and sign-up components,
-and API requests continue to use their Clerk session tokens. OAuth services
-can reject authentication from embedded WebViews. Clerk's documented native
-hosted-auth flow activates a session through its iOS or Android SDK; this
-Capacitor shell does not yet bridge those native SDKs into the React auth
-provider. Do not add a token to a callback URL or create a second credential
-store as a workaround. Verify the enabled Clerk sign-in methods on real
-devices before offering them in a release; if a provider blocks the WebView,
-add Clerk's supported native hosted-auth bridge, register each bundle ID and
-package name in Clerk's Native Applications settings, and test the returned
-session on both platforms.
+The app keeps the existing `@clerk/react` provider and sign-in/sign-up screens.
+On iOS and Android, the screens offer Clerk Account Portal in the platform
+browser for social sign-in and sign-up; the embedded provider buttons are hidden
+there because OAuth providers can reject WebViews. Email and password remain
+available in the existing React UI. The app validates Clerk's callback state
+and PKCE verifier, redeems the one-time hosted-auth nonce with Clerk, updates
+the existing Clerk client, and activates the returned session. Callback data is
+consumed by the bridge and is not routed through Wouter or browser history.
+
+The browser flow keeps its PKCE verifier and state in memory until it completes.
+No session token is placed in a callback URL or application-managed storage.
+Clerk's own client/session handling and the existing fresh `getToken()` bearer
+token getter remain responsible for session persistence and protected API
+requests. A process killed before the user returns from the browser cannot
+resume the in-progress flow; the user can start it again.
+
+Before testing or publishing, configure both Clerk environments that the app
+uses:
+
+1. In Clerk's **Native applications** settings, enable the Native API and add
+   the iOS bundle identifier `app.sundaystudio.app` and Android package name
+   `app.sundaystudio.app`. Production validates these identifiers.
+2. Keep the iOS callback scheme `app.sundaystudio.app` registered in
+   `ios/App/App/Info.plist`; the callback is
+   `app.sundaystudio.app://callback`.
+3. Keep the Android intent filter for
+   `clerk://app.sundaystudio.app.hosted-callback` in
+   `android/app/src/main/AndroidManifest.xml`.
+4. If `CAPACITOR_APP_ID` changes, update the Clerk Native applications entry
+   and both native callback registrations to the same new application ID,
+   rebuild/sync the native projects, and register that identifier before
+   producing a production build.
+5. Configure the provider credentials required by the Clerk environment.
+   Account Portal uses each provider's web OAuth flow. Production Apple sign-in
+   requires an Apple Services ID and key configured in Clerk.
+
+Test the full browser return on a real iOS device and Android device (or
+simulator with the provider's supported test setup):
+
+1. Start sign-in and sign-up from the native app. Confirm Account Portal opens
+   outside the embedded WebView and that cancelling returns without activating
+   a session.
+2. Complete each enabled OAuth provider. Confirm the app returns to the
+   dashboard, `useAuth()` becomes signed in, and a protected API request uses
+   a fresh `Authorization: Bearer` token.
+3. Force-quit and relaunch after a completed sign-in. Confirm Clerk restores the
+   session and a protected API request still gets a fresh bearer token.
+4. Confirm neither callback values nor Clerk session tokens appear in app
+   routes, browser history, or application-managed storage.
 
 ## Release preparation
 

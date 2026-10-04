@@ -10,3 +10,4 @@
 - [Translation token alignment](translation-token-alignment.md) — Keep translation-specific verified token coverage separate from lexical data; explicit gaps are safer than inferred matches.
 - [Mixed capability fixtures](mixed-capability-fixtures.md) — UI tests with multiple capability variants should assert counts and stable order instead of singular labels.
 - [Stripe-backed trial administration](stripe-backed-trial-admin.md) — Never shift local trial dates without matching Stripe's scheduled charge; keep extensions disabled until both can change together.
+- [Clerk hosted auth in Capacitor](clerk-hosted-auth-capacitor.md) — Keep the native hosted-auth bridge isolated and fail closed when Clerk's internal React wrapper access changes.

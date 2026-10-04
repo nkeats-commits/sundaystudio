@@ -1,4 +1,4 @@
-import { Component, useEffect, type ReactNode } from 'react';
+import { Component, useEffect, useState, type ReactNode } from 'react';
 import { ClerkProvider, SignIn, SignUp, Show, useAuth, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
@@ -60,7 +60,16 @@ import { ClerkQueryClientCacheInvalidator } from "./components/ClerkQueryClientC
 import { TrialEndedModal } from "./components/TrialEndedModal";
 import { ProtectedWorkspace } from "./components/ProtectedWorkspace";
 import { NativeAppBridge } from "./mobile/NativeAppBridge";
-import { isNativeApp, mobileApiBaseUrl } from "./mobile/nativeRuntime";
+import {
+  isNativeApp,
+  mobileApiBaseUrl,
+  nativePlatform,
+} from "./mobile/nativeRuntime";
+import {
+  nativeHostedAuthRedirect,
+  startClerkHostedAuth,
+} from "./mobile/clerkHostedAuth";
+import { openClerkHostedAuthInBrowser } from "./mobile/nativeHostedAuth";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
@@ -131,6 +140,14 @@ const clerkAppearance = {
   },
 };
 
+const nativeClerkAppearance = {
+  ...clerkAppearance,
+  elements: {
+    ...clerkAppearance.elements,
+    socialButtonsBlock: "hidden",
+  },
+};
+
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full flex bg-[#F8F4EA]">
@@ -157,18 +174,91 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function NativeHostedAuthAction({ mode }: { mode: "sign-in" | "sign-up" }) {
+  const clerk = useClerk();
+  const [, setLocation] = useLocation();
+  const [isOpening, setIsOpening] = useState(false);
+
+  const startSignIn = async () => {
+    if (isOpening) return;
+    const platform = nativePlatform();
+    if (!platform) {
+      toast.error("Native sign-in is available only in the iOS and Android apps.");
+      return;
+    }
+
+    setIsOpening(true);
+    try {
+      const { createdSessionId } = await startClerkHostedAuth(
+        clerk,
+        {
+          redirectUrl: nativeHostedAuthRedirect(platform),
+          mode,
+        },
+        { openAuthSession: openClerkHostedAuthInBrowser },
+      );
+      if (createdSessionId) setLocation("/dashboard");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not finish sign-in in the browser.",
+      );
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
+  return (
+    <div className="mb-5 rounded-xl border border-[#E5E1D8] bg-white/70 p-4">
+      <p className="mb-3 text-sm text-[#475569]">
+        Use Clerk’s secure browser flow for social sign-in.
+      </p>
+      <button
+        type="button"
+        onClick={() => void startSignIn()}
+        disabled={isOpening || !clerk.loaded}
+        className="w-full rounded-lg bg-[#1F2A44] px-4 py-3 font-medium text-white transition hover:bg-[#161e30] disabled:cursor-wait disabled:opacity-60"
+      >
+        {isOpening
+          ? "Waiting for secure sign-in…"
+          : mode === "sign-in"
+            ? "Continue in secure browser"
+            : "Create account in secure browser"}
+      </button>
+      <p className="mt-3 text-xs text-[#64748B]">
+        Email and password sign-in remains available below.
+      </p>
+    </div>
+  );
+}
+
 function SignInPage() {
+  const native = isNativeApp();
   return (
     <AuthLayout>
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      {native && <NativeHostedAuthAction mode="sign-in" />}
+      <SignIn
+        routing="path"
+        path={`${basePath}/sign-in`}
+        signUpUrl={`${basePath}/sign-up`}
+        appearance={native ? nativeClerkAppearance : undefined}
+      />
     </AuthLayout>
   );
 }
 
 function SignUpPage() {
+  const native = isNativeApp();
   return (
     <AuthLayout>
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+      {native && <NativeHostedAuthAction mode="sign-up" />}
+      <SignUp
+        routing="path"
+        path={`${basePath}/sign-up`}
+        signInUrl={`${basePath}/sign-in`}
+        appearance={native ? nativeClerkAppearance : undefined}
+      />
     </AuthLayout>
   );
 }
@@ -375,6 +465,7 @@ function ClerkProviderWithRoutes() {
     <ClerkProvider
       publishableKey={clerkPubKey}
       proxyUrl={clerkProxyUrl}
+      standardBrowser={!isNativeApp()}
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}

@@ -20,7 +20,9 @@ export function appUrlToPath(
     if (url.hostname === "open") {
       route = url.pathname;
     } else if (url.hostname === "auth" && url.pathname === "/callback") {
-      route = "/sign-in";
+      // OAuth callbacks are handled by Clerk's hosted-auth bridge. Never
+      // expose callback query parameters to the app router or browser history.
+      return null;
     } else {
       route = `/${url.hostname}${url.pathname === "/" ? "" : url.pathname}`;
     }

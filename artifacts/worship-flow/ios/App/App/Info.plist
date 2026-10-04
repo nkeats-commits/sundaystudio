@@ -32,6 +32,14 @@
 				<string>sundaystudio</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.sundaystudio.app.clerk-hosted-auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app.sundaystudio.app</string>
+			</array>
+		</dict>
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>

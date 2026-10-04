@@ -15,9 +15,11 @@ test("routes app-scheme and verified website links into the app", () => {
     ]),
     "/settings/integrations?pcs=ok",
   );
+  assert.equal(appUrlToPath("sundaystudio://auth/callback?__clerk_status=complete"), null);
+  assert.equal(appUrlToPath("app.sundaystudio.app://callback?state=private"), null);
   assert.equal(
-    appUrlToPath("sundaystudio://auth/callback?__clerk_status=complete"),
-    "/sign-in?__clerk_status=complete",
+    appUrlToPath("clerk://app.sundaystudio.app.hosted-callback?created_session_id=sess_1"),
+    null,
   );
 });
 
