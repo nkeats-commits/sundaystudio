@@ -41,33 +41,33 @@ function formatDate(iso: string | null | undefined): string {
 const OUTCOMES = [
   {
     icon: Calendar,
-    headline: "Walk into Sunday prepared, not scrambling",
-    body: "Build complete service plans in minutes — order of worship, transitions, speaking cues — all in one place.",
+    headline: "Spend less time scrambling; more time serving",
+    body: "Sunday Studio helps you bring your service plan together faster, leaving more time for prayer, people, and ministry.",
   },
   {
     icon: Zap,
-    headline: "Generate liturgy, songs, and moments instantly",
-    body: "AI-powered tools for every part of the service: call to worship, benedictions, speaking moments, and more.",
+    headline: "Prepare content with spiritual depth",
+    body: "Use Scripture and your service theme to guide sermons, liturgy, songs, and speaking moments, with your pastoral discernment leading.",
   },
   {
     icon: BookOpen,
-    headline: "Preach with depth, not just bullet points",
-    body: "The Sermon Builder gives you commentary, cross-references, and structured outlines — right where you write.",
+    headline: "Lead Sunday with confidence",
+    body: "Bring the order, transitions, and cues together in one clear plan your team can follow.",
   },
   {
     icon: Users,
-    headline: "Keep your whole team aligned",
-    body: "Share service plans, assign roles, and send devotionals that spiritually prepare your team before Sunday.",
+    headline: "Help your team serve as one",
+    body: "Share roles, service plans, and devotionals so your team knows how to prepare and where to serve.",
   },
   {
     icon: MessageCircle,
-    headline: "Small group questions, ready to go",
-    body: "Generate discussion questions tied to your sermon or theme — ready to hand off to your small group leaders.",
+    headline: "Carry the message beyond Sunday",
+    body: "Equip small-group leaders with thoughtful questions connected to the sermon, ready to guide conversation through the week.",
   },
   {
     icon: FileText,
-    headline: "Export anything, anytime",
-    body: "Send your order of worship as Markdown, plain text, or email — formatted and ready to share.",
+    headline: "Spend less time formatting",
+    body: "Share a clear order of worship as Markdown, plain text, or email—formatted for the way your team needs it.",
   },
 ];
 
