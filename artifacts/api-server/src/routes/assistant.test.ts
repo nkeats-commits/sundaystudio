@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import express from "express";
 import type { AddressInfo } from "node:net";
+import { clerkMiddleware } from "@clerk/express";
 import { and, eq } from "drizzle-orm";
 import {
   type AiUsageEvent,
@@ -20,6 +21,12 @@ import assistantRouter from "./assistant";
 function makeApp() {
   const app = express();
   app.use(express.json());
+  app.use(
+    clerkMiddleware({
+      publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+      secretKey: process.env.CLERK_SECRET_KEY,
+    }),
+  );
   app.use((req, _res, next) => {
     req.log = { error: () => undefined, warn: () => undefined } as never;
     next();

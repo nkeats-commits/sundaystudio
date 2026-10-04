@@ -4,13 +4,19 @@ import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import type { AddressInfo } from "node:net";
-import { db, libraryItemsTable, usersTable } from "@workspace/db";
+import { db, libraryItemsTable, trialEventsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import generateRouter from "./generate";
 import { jobManager } from "../lib/jobManager";
 
 async function seedTrialUser(uid: string) {
-  await db.insert(usersTable).values({ id: uid }).onConflictDoNothing();
+  const now = new Date();
+  await db.insert(usersTable).values({
+    id: uid,
+    trialEnrollmentStatus: "enrolled",
+    trialStartedAt: now,
+    trialEndsAt: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+  }).onConflictDoNothing();
 }
 
 function userId() {
@@ -18,6 +24,7 @@ function userId() {
 }
 
 async function cleanup(uid: string) {
+  await db.delete(trialEventsTable).where(eq(trialEventsTable.userId, uid));
   await db.delete(libraryItemsTable).where(eq(libraryItemsTable.userId, uid));
   await db.delete(usersTable).where(eq(usersTable.id, uid));
 }

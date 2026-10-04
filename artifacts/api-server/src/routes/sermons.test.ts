@@ -31,6 +31,7 @@ import {
   sermonExportsTable,
   sermonResourcesTable,
   sermonsTable,
+  trialEventsTable,
   usersTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -114,7 +115,13 @@ for (const [format, render] of [
 }
 
 async function seedTrialUser(uid: string) {
-  await db.insert(usersTable).values({ id: uid }).onConflictDoNothing();
+  const now = new Date();
+  await db.insert(usersTable).values({
+    id: uid,
+    trialEnrollmentStatus: "enrolled",
+    trialStartedAt: now,
+    trialEndsAt: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+  }).onConflictDoNothing();
 }
 
 function makeApp() {
@@ -141,12 +148,26 @@ function userId() {
 }
 
 async function cleanup(uid: string) {
+  await db.delete(trialEventsTable).where(eq(trialEventsTable.userId, uid));
   await db.delete(sermonExportsTable).where(eq(sermonExportsTable.userId, uid));
   await db.delete(sermonsTable).where(eq(sermonsTable.userId, uid));
   await db
     .delete(sermonResourcesTable)
     .where(eq(sermonResourcesTable.userId, uid));
   await db.delete(usersTable).where(eq(usersTable.id, uid));
+}
+
+async function waitForTrialEvents(uid: string, expectedCount: number) {
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    const rows = await db
+      .select({ id: trialEventsTable.id })
+      .from(trialEventsTable)
+      .where(eq(trialEventsTable.userId, uid));
+    if (rows.length >= expectedCount) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.fail(`Expected ${expectedCount} trial events for the export requests.`);
 }
 
 test("POST /api/sermons/:id/export saves word-study source verses in every format", async () => {
@@ -181,6 +202,12 @@ test("POST /api/sermons/:id/export saves word-study source verses in every forma
         }
       }
     }
+    // The endpoint intentionally records analytics after its response.
+    // Wait for those writes before cleanup deletes the user row.
+    await waitForTrialEvents(
+      uid,
+      exportReferenceCases.length * 4,
+    );
   } finally {
     await close();
     await cleanup(uid);

@@ -51,7 +51,13 @@ async function cleanup(uid: string) {
 test("GET /api/dashboard returns card-safe recent services and summary counts", async () => {
   const uid = userId();
   await cleanup(uid);
-  await db.insert(usersTable).values({ id: uid });
+  const now = new Date();
+  await db.insert(usersTable).values({
+    id: uid,
+    trialEnrollmentStatus: "enrolled",
+    trialStartedAt: now,
+    trialEndsAt: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+  });
   await db.insert(servicePlansTable).values({
     userId: uid,
     title: "Easter Sunday",

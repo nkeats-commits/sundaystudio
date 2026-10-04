@@ -23,6 +23,7 @@ import {
   db,
   libraryItemsTable,
   sermonResourcesTable,
+  trialEventsTable,
   usersTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -36,7 +37,13 @@ import sermonResourcesRouter from "./sermonResources";
  * when hitting an endpoint guarded by `requireActiveAccess`.
  */
 async function seedTrialUser(uid: string) {
-  await db.insert(usersTable).values({ id: uid }).onConflictDoNothing();
+  const now = new Date();
+  await db.insert(usersTable).values({
+    id: uid,
+    trialEnrollmentStatus: "enrolled",
+    trialStartedAt: now,
+    trialEndsAt: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+  }).onConflictDoNothing();
 }
 
 function makeApp() {
@@ -63,6 +70,7 @@ function userId() {
 }
 
 async function cleanup(uid: string) {
+  await db.delete(trialEventsTable).where(eq(trialEventsTable.userId, uid));
   await db.delete(libraryItemsTable).where(eq(libraryItemsTable.userId, uid));
   await db.delete(sermonResourcesTable).where(eq(sermonResourcesTable.userId, uid));
   await db.delete(usersTable).where(eq(usersTable.id, uid));
