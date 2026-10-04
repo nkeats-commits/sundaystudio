@@ -7,4 +7,4 @@ Use Node/jsdom tests to protect the structural contract: route content should us
 
 **Why:** Scroll behavior depends on browser layout, viewport sizing, and WebView behavior that DOM-only tests cannot reproduce.
 
-**How to apply:** When changing shared app-shell overflow or height rules, add lightweight structural regression assertions and separately exercise long authenticated pages, overlays, and native viewports.
+**How to apply:** When changing shared app-shell overflow or height rules, add lightweight structural regression assertions and separately exercise long authenticated pages, overlays, and native viewports. Browser tests for protected routes can use an isolated test-only Clerk facade and deterministic API fixtures while rendering the real app shell; never add an auth bypass to production configuration.
