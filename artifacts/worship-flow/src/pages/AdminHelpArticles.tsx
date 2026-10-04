@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@clerk/react";
 import { Link } from "wouter";
 import { AppLayout } from "../components/layout/AppLayout";
 import {
@@ -23,18 +24,25 @@ import {
 } from "lucide-react";
 import { CategoryOrderPanel } from "../components/CategoryOrderPanel";
 import { ArticleOrderPanel } from "../components/ArticleOrderPanel";
+import { apiUrl } from "../mobile/nativeRuntime";
 
 export default function AdminHelpArticles() {
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
   const { data: articles, isLoading, error } = useAdminListHelpArticles({
     query: { queryKey: getAdminListHelpArticlesQueryKey() },
   });
 
   const seedMut = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/help-articles/seed`, {
+      const token = await getToken();
+      const res = await fetch(apiUrl(`${import.meta.env.BASE_URL}api/admin/help-articles/seed`), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Seed failed");
       return res.json() as Promise<{ inserted: number; skipped: number }>;

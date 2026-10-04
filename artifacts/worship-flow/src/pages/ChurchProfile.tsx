@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { apiUrl } from '../mobile/nativeRuntime';
 import { toast } from 'sonner';
 import { useLocation } from 'wouter';
 import { Upload, Trash2, FileText, Loader2, Sparkles, Plus, X, ArrowDown } from 'lucide-react';
@@ -62,7 +63,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function ChurchProfile() {
-  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const { isLoaded: authLoaded, isSignedIn, getToken } = useAuth();
   const meQuery = useGetMe({
     query: {
       enabled: authLoaded && !!isSignedIn,
@@ -247,9 +248,14 @@ export default function ChurchProfile() {
       setUploading(true);
       try {
         for (const file of fileArr) {
-          const urlRes = await fetch('/api/storage/uploads/request-url', {
+          const token = await getToken();
+          const urlRes = await fetch(apiUrl('/api/storage/uploads/request-url'), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            credentials: 'include',
             body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
           });
           if (!urlRes.ok) throw new Error('Failed to get upload URL');
@@ -287,7 +293,7 @@ export default function ChurchProfile() {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     },
-    [createManuscript, queryClient],
+    [createManuscript, getToken, queryClient],
   );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {

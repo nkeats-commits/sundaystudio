@@ -43,6 +43,7 @@ import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useChurchProfileReady } from '../hooks/useChurchProfileReady';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { useTrialNudge } from '../hooks/useTrialNudge';
+import { copyText, isNativeApp, shareTextFile } from '../mobile/nativeRuntime';
 import {
   BookOpen,
   Lightbulb,
@@ -258,6 +259,16 @@ function escapeHtml(s: string): string {
 
 function printExportContent(exportContent: { content: string; format: string }): void {
   const title = exportTitleFor(exportContent.format);
+  if (isNativeApp()) {
+    void shareTextFile(
+      title,
+      exportContent.content,
+      `sermon-${exportContent.format}.txt`,
+    )
+      .then(() => toast.success('Sermon export ready to share'))
+      .catch(() => toast.error('Could not share sermon export'));
+    return;
+  }
   const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1000');
   if (!win) {
     toast.error('Popup blocked — allow popups for this site to print.');
@@ -1832,7 +1843,7 @@ export default function SermonBuilder() {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => printExportContent(exportContent)} className="px-3 py-1.5 text-xs rounded-lg border flex items-center gap-1.5 hover:bg-slate-50" style={{ borderColor: 'var(--worship-border)' }}><Printer className="w-3.5 h-3.5" /> Print</button>
-                <button onClick={() => navigator.clipboard.writeText(exportContent.content).then(() => toast.success('Copied'))} className="worship-btn-primary px-3 py-1.5 text-xs rounded-lg">Copy</button>
+                <button onClick={() => void copyText(exportContent.content).then(() => toast.success('Copied')).catch(() => toast.error('Could not copy'))} className="worship-btn-primary px-3 py-1.5 text-xs rounded-lg">Copy</button>
                 <button onClick={() => setExportContent(null)} className="p-1.5 rounded hover:bg-slate-100"><X className="w-4 h-4" /></button>
               </div>
             </div>

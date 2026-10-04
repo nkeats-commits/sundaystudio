@@ -42,6 +42,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
+import { copyText } from '../mobile/nativeRuntime';
 import type { LibraryItem } from '@workspace/api-client-react';
 import {
   Dialog,
@@ -1715,8 +1716,7 @@ function LibraryItemDetailDialog({
 
   const handleCopy = () => {
     if (!item) return;
-    navigator.clipboard
-      .writeText(buildCopyText(item))
+    copyText(buildCopyText(item))
       .then(() => toast.success('Copied to clipboard'))
       .catch(() => toast.error('Could not copy'));
   };

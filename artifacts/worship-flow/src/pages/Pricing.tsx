@@ -14,6 +14,7 @@ import {
   getPricingReturnContext,
   trialBannerCopy,
 } from "../lib/trialConversion";
+import { openExternalUrl } from "../mobile/nativeRuntime";
 
 const FEATURES = [
   "Unlimited service plans + AI generators",
@@ -61,7 +62,7 @@ export default function Pricing() {
       });
       const result = await checkout.mutateAsync();
       if (result?.url) {
-        window.location.href = result.url;
+        await openExternalUrl(result.url);
       } else {
         toast.error("Checkout could not be started.");
         setLoading(false);

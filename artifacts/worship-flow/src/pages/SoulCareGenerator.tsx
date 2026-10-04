@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
+import { copyText, isNativeApp, shareTextFile } from '../mobile/nativeRuntime';
 import {
   Save,
   Loader2,
@@ -154,6 +155,25 @@ export default function SoulCareGenerator() {
   const handlePrint = () => {
     if (!generate.data) return;
     const d = generate.data;
+    if (isNativeApp()) {
+      const text = [
+        d.title,
+        `${d.practiceTradition} · ${d.durationMinutes} min · ${formData.audience === 'self' ? 'Personal' : 'Team'}`,
+        d.leaderNotes ? `Leader notes:\n${d.leaderNotes}` : '',
+        `Opening:\n${d.opening}`,
+        `Scripture — ${d.scripture.reference}\n"${d.scripture.text}"\n${d.scripture.reflection}`,
+        `Guided Practice:\n${d.practices.map((p, i) => `${i + 1}. ${p.name}${p.durationMinutes ? ` (${p.durationMinutes} min)` : ''}\n${p.instructions}`).join('\n\n')}`,
+        d.journalingPrompts?.length
+          ? `Journaling Prompts:\n${d.journalingPrompts.map((prompt, i) => `${i + 1}. ${prompt}`).join('\n')}`
+          : '',
+        `Closing:\n${d.closing}`,
+        `Take-home practice:\n${d.takeHomePractice}`,
+      ].filter(Boolean).join('\n\n');
+      void shareTextFile('Soul care session', text, 'soul-care-session.txt')
+        .then(() => toast.success('Soul care export ready to share'))
+        .catch(() => toast.error('Could not share soul care export'));
+      return;
+    }
     const esc = (s: string) =>
       s
         .replace(/&/g, '&amp;')
@@ -292,8 +312,9 @@ export default function SoulCareGenerator() {
       '',
       `Take-home practice:\n${d.takeHomePractice}`,
     ].join('\n');
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+    void copyText(text)
+      .then(() => toast.success('Copied to clipboard'))
+      .catch(() => toast.error('Could not copy to clipboard'));
   };
 
   const audienceBtn = (value: Audience, label: string, Icon: typeof User) => {

@@ -32,6 +32,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { SlotPicker, LinkedPill, slotPickerSupported } from '../components/SlotPicker';
+import { copyText, isNativeApp, shareTextFile } from '../mobile/nativeRuntime';
 
 export default function ServiceDetail() {
   const [, params] = useRoute('/services/:id');
@@ -55,16 +56,23 @@ export default function ServiceDetail() {
     exportPlan.mutate(
       { id, data: { format } },
       {
-        onSuccess: (resp) => {
-          navigator.clipboard
-            .writeText(resp.content)
-            .then(() => {
-              toast.success(
-                format === 'markdown' ? 'Markdown copied' : 'Text copied',
+        onSuccess: async (resp) => {
+          try {
+            if (isNativeApp()) {
+              await shareTextFile(
+                'Service plan',
+                resp.content,
+                `service-plan-${id}.${format === 'markdown' ? 'md' : 'txt'}`,
               );
-              setExportOpen(false);
-            })
-            .catch(() => toast.error('Could not copy to clipboard'));
+              toast.success('Service plan ready to share');
+            } else {
+              await copyText(resp.content);
+              toast.success(format === 'markdown' ? 'Markdown copied' : 'Text copied');
+            }
+            setExportOpen(false);
+          } catch {
+            toast.error(isNativeApp() ? 'Could not share service plan' : 'Could not copy to clipboard');
+          }
         },
         onError: () => toast.error('Could not export service plan'),
       },
@@ -74,6 +82,10 @@ export default function ServiceDetail() {
   const handlePrint = () => {
     if (!id) return;
     setExportOpen(false);
+    if (isNativeApp()) {
+      setLocation(`/services/${id}/print`);
+      return;
+    }
     window.open(`${import.meta.env.BASE_URL}services/${id}/print`, '_blank');
   };
 

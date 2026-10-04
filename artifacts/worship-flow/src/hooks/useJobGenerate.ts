@@ -4,6 +4,7 @@ import {
   useGenerationJob,
   useGenerationJobStore,
 } from "../contexts/GenerationJobStore";
+import { apiUrl } from "../mobile/nativeRuntime";
 
 /**
  * Polling-based replacement for the old SSE-based `useStreamingGenerate`.
@@ -126,7 +127,7 @@ export function useJobGenerate<TData>(
     async (jobId: string): Promise<void> => {
       try {
         const h = await buildAuthHeaders();
-        await fetch(`${POLL_BASE_PATH}/${jobId}`, {
+        await fetch(apiUrl(`${POLL_BASE_PATH}/${jobId}`), {
           method: "DELETE",
           headers: { Accept: "application/json", ...(h.Authorization ? { Authorization: h.Authorization } : {}) },
           credentials: "include",
@@ -157,7 +158,7 @@ export function useJobGenerate<TData>(
 
       try {
         const headers = await buildAuthHeaders();
-        const startRes = await fetch(startPath, {
+        const startRes = await fetch(apiUrl(startPath), {
           method: "POST",
           headers,
           body: JSON.stringify(body),

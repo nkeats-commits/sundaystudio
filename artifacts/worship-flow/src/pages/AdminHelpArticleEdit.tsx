@@ -9,6 +9,7 @@ import {
   getAdminListHelpArticlesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { apiUrl } from "../mobile/nativeRuntime";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -56,7 +57,7 @@ export default function AdminHelpArticleEdit() {
       const token = await getToken();
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`${import.meta.env.BASE_URL}api/admin/help-articles/images`, {
+      const res = await fetch(apiUrl(`${import.meta.env.BASE_URL}api/admin/help-articles/images`), {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",

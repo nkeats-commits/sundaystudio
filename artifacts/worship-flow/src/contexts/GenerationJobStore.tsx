@@ -6,6 +6,7 @@ import React, {
   useRef,
   type ReactNode,
 } from 'react';
+import { apiUrl } from '../mobile/nativeRuntime';
 
 const POLL_INTERVAL_MS = 1500;
 const POLL_BASE_PATH = '/api/generate/jobs';
@@ -102,7 +103,7 @@ async function buildPollHeaders(): Promise<Record<string, string>> {
 async function cancelServerJob(jobId: string): Promise<void> {
   try {
     const headers = await buildPollHeaders();
-    await fetch(`${POLL_BASE_PATH}/${jobId}`, {
+    await fetch(apiUrl(`${POLL_BASE_PATH}/${jobId}`), {
       method: 'DELETE',
       headers,
       credentials: 'include',
@@ -202,7 +203,7 @@ export function GenerationJobStoreProvider({ children }: { children: ReactNode }
 
         try {
           const headers = await buildPollHeaders();
-          const res = await fetch(`${POLL_BASE_PATH}/${entry.jobId}`, {
+          const res = await fetch(apiUrl(`${POLL_BASE_PATH}/${entry.jobId}`), {
             method: 'GET',
             headers,
             credentials: 'include',

@@ -103,6 +103,11 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
 }
 
 @layer utilities {
@@ -160,6 +165,24 @@
   .worship-btn-outline:hover {
     background-color: var(--worship-gold);
     color: white;
+  }
+}
+
+.worship-app-shell {
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.worship-app-main {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior-y: contain;
+}
+
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
   }
 }
 

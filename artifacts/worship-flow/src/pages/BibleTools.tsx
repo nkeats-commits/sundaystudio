@@ -39,6 +39,7 @@ import {
   type BibleToolsLookupMode,
 } from '../lib/bibleTools';
 import { toast } from 'sonner';
+import { copyText, isNativeApp } from '../mobile/nativeRuntime';
 
 type LookupMode = BibleToolsLookupMode;
 
@@ -47,6 +48,10 @@ function splitTerms(value: string): string[] {
 }
 
 async function copyToClipboard(value: string): Promise<void> {
+  if (isNativeApp()) {
+    await copyText(value);
+    return;
+  }
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(value);
     return;

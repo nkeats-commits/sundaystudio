@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Save, Loader2, Mic, Copy, AlertCircle, CalendarPlus, ArrowRight } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { copyText } from '../mobile/nativeRuntime';
 import { useCreateLibraryItem, getListLibraryItemsQueryKey, type GeneratedSpeakingMoment, type LibraryItem } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -115,7 +116,9 @@ export default function SpeakingMomentGenerator() {
 
   const handleCopy = () => {
     if (!generate.data) return;
-    navigator.clipboard.writeText(generate.data.title + '\n\n' + generate.data.body);
+    void copyText(generate.data.title + '\n\n' + generate.data.body)
+      .then(() => toast.success('Copied to clipboard'))
+      .catch(() => toast.error('Could not copy to clipboard'));
     toast.success("Copied to clipboard");
   };
 

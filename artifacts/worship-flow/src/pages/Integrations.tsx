@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
+import { openExternalUrl } from '../mobile/nativeRuntime';
 import {
   Building2,
   ChevronDown,
@@ -82,7 +83,7 @@ export default function Integrations() {
   const handleConnect = async () => {
     try {
       const { authUrl } = await connect.mutateAsync();
-      window.location.assign(authUrl);
+      await openExternalUrl(authUrl);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Could not start connection';
       toast.error(msg);

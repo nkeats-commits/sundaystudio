@@ -4,6 +4,7 @@ import { Flame, Check, Loader2, X } from 'lucide-react';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { useCreateBillingCheckoutSession } from '@workspace/api-client-react';
 import { toast } from 'sonner';
+import { openExternalUrl } from '../mobile/nativeRuntime';
 
 const SESSION_KEY = 'trialEndedModalSeen';
 
@@ -37,7 +38,7 @@ export function TrialEndedModal() {
     try {
       const result = await checkout.mutateAsync();
       if (result?.url) {
-        window.location.href = result.url;
+        await openExternalUrl(result.url);
       } else {
         toast.error('Checkout could not be started.');
         setLoading(false);

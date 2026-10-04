@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { useRef } from "react";
 import { Toaster, toast } from "sonner";
 import {
+  setBaseUrl,
   setAuthTokenGetter,
   setOnUnauthorized,
   setOnPaymentRequired,
@@ -58,12 +59,16 @@ import { OnboardingWizard } from "./components/OnboardingWizard";
 import { ClerkQueryClientCacheInvalidator } from "./components/ClerkQueryClientCacheInvalidator";
 import { TrialEndedModal } from "./components/TrialEndedModal";
 import { ProtectedWorkspace } from "./components/ProtectedWorkspace";
+import { NativeAppBridge } from "./mobile/NativeAppBridge";
+import { isNativeApp, mobileApiBaseUrl } from "./mobile/nativeRuntime";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const queryClient = new QueryClient();
+
+setBaseUrl(isNativeApp() ? mobileApiBaseUrl : null);
 
 function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
@@ -392,6 +397,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <GenerationJobStoreProvider>
+        <NativeAppBridge />
         <ClerkQueryClientCacheInvalidator />
         <ClerkAuthBootstrap />
         <GenerationCompleteToaster />

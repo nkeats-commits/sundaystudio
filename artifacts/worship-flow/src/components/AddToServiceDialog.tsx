@@ -12,6 +12,7 @@ import {
 } from '@workspace/api-client-react';
 import { Loader2, CalendarDays, Plus, ScrollText } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLocation } from 'wouter';
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,7 @@ export function AddToServiceDialog({
   kind,
   ensureSaved,
 }: AddToServiceDialogProps) {
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const plansQuery = useListServicePlans({
     query: { enabled: open, queryKey: getListServicePlansQueryKey() },
@@ -171,7 +173,7 @@ export function AddToServiceDialog({
         action: {
           label: 'Open',
           onClick: () => {
-            window.location.href = `${import.meta.env.BASE_URL}services/${selectedPlan.id}`;
+            setLocation(`/services/${selectedPlan.id}`);
           },
         },
       });

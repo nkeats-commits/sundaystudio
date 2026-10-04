@@ -12,6 +12,7 @@ import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { useTrialNudge } from '../hooks/useTrialNudge';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
 import { useLocation } from 'wouter';
+import { copyText } from '../mobile/nativeRuntime';
 
 const LITURGY_PHASES = [
   'Reading your theme and scripture…',
@@ -128,7 +129,9 @@ export default function LiturgyGenerator() {
 
   const handleCopy = () => {
     if (!generate.data) return;
-    navigator.clipboard.writeText(generate.data.title + '\n\n' + generate.data.body);
+    void copyText(generate.data.title + '\n\n' + generate.data.body)
+      .then(() => toast.success('Copied to clipboard'))
+      .catch(() => toast.error('Could not copy to clipboard'));
     toast.success("Copied to clipboard");
   };
 

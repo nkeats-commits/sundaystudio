@@ -24,6 +24,7 @@ import {
 } from "@workspace/api-client-react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { useSubscriptionStatus } from "../hooks/useSubscriptionStatus";
+import { openExternalUrl } from "../mobile/nativeRuntime";
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -136,7 +137,7 @@ export default function Billing() {
         },
       });
       const r = await checkout.mutateAsync();
-      if (r?.url) window.location.href = r.url;
+      if (r?.url) await openExternalUrl(r.url);
       else {
         toast.error("Could not start checkout");
         setBusy(false);
@@ -154,7 +155,7 @@ export default function Billing() {
     setBusy(true);
     try {
       const r = await portal.mutateAsync();
-      if (r?.url) window.location.href = r.url;
+      if (r?.url) await openExternalUrl(r.url);
       else {
         toast.error("Could not open billing portal");
         setBusy(false);

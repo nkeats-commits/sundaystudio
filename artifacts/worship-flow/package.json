@@ -6,11 +6,22 @@
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
+    "build:mobile": "node scripts/build-mobile.mjs",
+    "cap:add:ios": "cap add ios",
+    "cap:add:android": "cap add android",
+    "cap:sync": "cap sync",
+    "cap:open:ios": "cap open ios",
+    "cap:open:android": "cap open android",
+    "cap:run:ios": "cap run ios",
+    "cap:run:android": "cap run android",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-test-module-mocks --import tsx --test src/lib/parsePcoCsv.test.ts src/lib/passageMatch.test.ts src/lib/bibleTools.test.ts src/lib/trialConversion.test.ts src/components/OnboardingWizard.test.tsx src/components/OnboardingBanner.test.tsx src/components/CoverageBadge.test.tsx src/components/ProtectedWorkspace.test.tsx src/pages/ChurchProfile.test.tsx src/pages/Dashboard.test.tsx src/pages/BibleTools.test.tsx src/pages/SermonBuilder.test.tsx src/pages/ResourceLibrary.test.tsx src/pages/Assistant.test.tsx src/components/layout/Sidebar.test.tsx src/components/AdminRoutes.test.tsx"
+    "test": "node --experimental-test-module-mocks --import tsx --test src/lib/parsePcoCsv.test.ts src/lib/passageMatch.test.ts src/lib/bibleTools.test.ts src/lib/trialConversion.test.ts src/mobile/deepLinks.test.ts src/components/OnboardingWizard.test.tsx src/components/OnboardingBanner.test.tsx src/components/CoverageBadge.test.tsx src/components/ProtectedWorkspace.test.tsx src/pages/ChurchProfile.test.tsx src/pages/Dashboard.test.tsx src/pages/BibleTools.test.tsx src/pages/SermonBuilder.test.tsx src/pages/ResourceLibrary.test.tsx src/pages/Assistant.test.tsx src/components/layout/Sidebar.test.tsx src/components/AdminRoutes.test.tsx"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
@@ -88,6 +99,15 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/clipboard": "^8.0.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
     "@clerk/react": "^6.4.7",
     "@clerk/themes": "^2.4.57",
     "@dnd-kit/core": "^6.3.1",

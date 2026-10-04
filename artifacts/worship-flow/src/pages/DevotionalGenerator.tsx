@@ -12,6 +12,7 @@ import { PersonalizationChip } from '../components/PersonalizationChip';
 import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import { useTrialNudge } from '../hooks/useTrialNudge';
 import { AddToServiceDialog } from '../components/AddToServiceDialog';
+import { copyText } from '../mobile/nativeRuntime';
 
 const DEVOTIONAL_PHASES = [
   'Reading your theme and passage…',
@@ -118,8 +119,9 @@ export default function DevotionalGenerator() {
   const handleCopy = () => {
     if (!generate.data) return;
     const text = `${generate.data.title}\n\n${generate.data.scripture}\n${generate.data.opening}\n\n${generate.data.body}\n\nDiscussion:\n${generate.data.discussionQuestions.join('\n')}\n\nPrayer:\n${generate.data.closingPrayer}`;
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
+    void copyText(text)
+      .then(() => toast.success("Copied to clipboard"))
+      .catch(() => toast.error("Could not copy to clipboard"));
   };
 
   return (

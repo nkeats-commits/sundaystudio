@@ -3,7 +3,10 @@ import { useRoute, useLocation } from 'wouter';
 import {
   useGetServicePlan,
   getGetServicePlanQueryKey,
+  useExportServicePlan,
 } from '@workspace/api-client-react';
+import { isNativeApp, shareTextFile } from '../mobile/nativeRuntime';
+import { toast } from 'sonner';
 
 /**
  * Single-column print-friendly view of a service plan. Calls
@@ -18,12 +21,13 @@ export default function ServicePlanPrint() {
   const [, params] = useRoute('/services/:id/print');
   const [, setLocation] = useLocation();
   const id = params?.id ? parseInt(params.id) : 0;
+  const exportPlan = useExportServicePlan();
   const { data: service, isLoading } = useGetServicePlan(id, {
     query: { enabled: !!id, queryKey: getGetServicePlanQueryKey(id) },
   });
 
   useEffect(() => {
-    if (!service) return;
+    if (!service || isNativeApp()) return;
     // Defer one frame so layout settles before the print dialog snapshots.
     const t = setTimeout(() => {
       try {
@@ -34,6 +38,23 @@ export default function ServicePlanPrint() {
     }, 250);
     return () => clearTimeout(t);
   }, [service]);
+
+  const sharePlan = async () => {
+    try {
+      const exported = await exportPlan.mutateAsync({
+        id,
+        data: { format: 'markdown' },
+      });
+      await shareTextFile(
+        'Service plan',
+        exported.content,
+        `service-plan-${id}.md`,
+      );
+      toast.success('Service plan ready to share');
+    } catch {
+      toast.error('Could not share service plan');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -69,14 +90,29 @@ export default function ServicePlanPrint() {
           ← Back to service
         </button>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-1.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
-          >
-            Print / Save as PDF
-          </button>
+          {isNativeApp() ? (
+            <button
+              onClick={() => void sharePlan()}
+              disabled={exportPlan.isPending}
+              className="px-4 py-1.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-60"
+            >
+              {exportPlan.isPending ? 'Preparing…' : 'Share / export plan'}
+            </button>
+          ) : (
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-1.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800"
+            >
+              Print / Save as PDF
+            </button>
+          )}
         </div>
       </div>
+      {isNativeApp() && (
+        <p className="worship-print-toolbar print:hidden px-6 py-3 text-sm text-slate-600">
+          Printing is not available inside the app. Share the Markdown file to save, print, or send this plan.
+        </p>
+      )}
 
       <article className="max-w-3xl mx-auto px-10 py-12 worship-print-article">
         <header className="text-center mb-10 pb-6 border-b border-slate-300">

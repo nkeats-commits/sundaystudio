@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
+import { apiUrl } from '../mobile/nativeRuntime';
 import { useAuth } from '@clerk/react';
 import { AppLayout } from '../components/layout/AppLayout';
 import {
@@ -425,7 +426,7 @@ export default function ResourceLibrary() {
       const token = await getToken();
       const formData = new FormData();
       formData.append('file', file);
-      const resp = await fetch('/api/sermon-resources/extract-text', {
+      const resp = await fetch(apiUrl('/api/sermon-resources/extract-text'), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
@@ -451,7 +452,7 @@ export default function ResourceLibrary() {
     setFetchingUrl(true);
     try {
       const token = await getToken();
-      const resp = await fetch('/api/sermon-resources/fetch-url', {
+      const resp = await fetch(apiUrl('/api/sermon-resources/fetch-url'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

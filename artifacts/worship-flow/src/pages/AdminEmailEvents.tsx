@@ -2,6 +2,7 @@ import { AppLayout } from "../components/layout/AppLayout";
 import { Link } from "wouter";
 import { ArrowLeft, Copy, Check } from "lucide-react";
 import { useState } from "react";
+import { copyText } from "../mobile/nativeRuntime";
 import {
   EVENT_CATALOG,
   EVENT_CATEGORIES,
@@ -19,7 +20,7 @@ function CopyChip({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
-    void navigator.clipboard.writeText(value).then(() => {
+    void copyText(value).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
