@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { mock, test, beforeEach, afterEach } from 'node:test';
 import { JSDOM } from 'jsdom';
 import React from 'react';
@@ -77,6 +78,9 @@ mock.module('../../hooks/useJobGenerate', {
 
 const { render, cleanup } = await import('@testing-library/react');
 const { Sidebar } = await import('./Sidebar');
+
+const appLayoutSource = readFileSync(new URL('./AppLayout.tsx', import.meta.url), 'utf8');
+const appStyles = readFileSync(new URL('../../index.css', import.meta.url), 'utf8');
 
 const navigation = [
   { label: 'Dashboard', href: '/dashboard' },
@@ -170,6 +174,29 @@ test('renders the Bible Tools BETA badge inside its link in both responsive side
       'expected one Bible Tools BETA badge per sidebar',
     );
   }
+});
+
+test('keeps each responsive sidebar navigation list independently scrollable', () => {
+  const { container } = renderSidebar();
+
+  for (const sidebar of getResponsiveSidebars(container)) {
+    const navigationList = Array.from(sidebar.children).find((element) =>
+      element.classList.contains('overflow-y-auto'),
+    );
+
+    assert.ok(navigationList, 'expected the sidebar navigation to retain its own vertical scroll area');
+    assert.equal(navigationList.classList.contains('flex-1'), true);
+  }
+});
+
+test('keeps page scrolling on the document instead of a contained main panel', () => {
+  const mainClass = appLayoutSource.match(/<main className="([^"]*worship-app-main[^"]*)"/)?.[1];
+  const mainStyles = appStyles.match(/\.worship-app-main\s*\{([^}]*)\}/)?.[1];
+
+  assert.ok(mainClass, 'expected the app layout to define its shared main content region');
+  assert.ok(mainStyles, 'expected the shared main content styles');
+  assert.equal(mainClass.includes('overflow-y-auto'), false);
+  assert.doesNotMatch(mainStyles, /overscroll-behavior-y\s*:\s*contain/i);
 });
 
 test('keeps every navigation destination in both responsive render paths', () => {

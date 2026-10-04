@@ -11,3 +11,4 @@
 - [Mixed capability fixtures](mixed-capability-fixtures.md) — UI tests with multiple capability variants should assert counts and stable order instead of singular labels.
 - [Stripe-backed trial administration](stripe-backed-trial-admin.md) — Never shift local trial dates without matching Stripe's scheduled charge; keep extensions disabled until both can change together.
 - [Clerk hosted auth in Capacitor](clerk-hosted-auth-capacitor.md) — Keep the native hosted-auth bridge isolated and fail closed when Clerk's internal React wrapper access changes.
+- [Document scroll testing](document-scroll-testing.md) — Pair structural scroll-surface regression checks with browser or device verification; jsdom cannot measure real scrolling.
