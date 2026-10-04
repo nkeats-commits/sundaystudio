@@ -35,6 +35,19 @@ const assistantConversation = {
   updatedAt: "2026-10-03T12:00:00.000Z",
 };
 
+const assistantArchivedConversation = {
+  id: 916,
+  userId: "scroll-e2e-owner",
+  title: "Volunteer care planning",
+  createdAt: "2026-08-01T12:00:00.000Z",
+  updatedAt: "2026-08-03T12:00:00.000Z",
+};
+
+const assistantConversations = [
+  assistantConversation,
+  assistantArchivedConversation,
+];
+
 const assistantMarkdown = [
   "## A long reflection",
   "",
@@ -63,6 +76,19 @@ const assistantDetail = {
   ],
 };
 
+const assistantArchivedDetail = {
+  ...assistantArchivedConversation,
+  messages: [
+    {
+      id: 921,
+      conversationId: assistantArchivedConversation.id,
+      role: "assistant",
+      content: "Consider what support the volunteers need.",
+      createdAt: "2026-08-03T12:01:00.000Z",
+    },
+  ],
+};
+
 async function installApiFixtures(page: Page) {
   await page.route("**/api/**", async (route) => {
     const request = route.request();
@@ -73,7 +99,13 @@ async function installApiFixtures(page: Page) {
       pathname === "/api/assistant/conversations" &&
       request.method() === "GET"
     ) {
-      response = [assistantConversation];
+      response = assistantConversations;
+    } else if (
+      pathname ===
+        `/api/assistant/conversations/${assistantArchivedConversation.id}` &&
+      request.method() === "GET"
+    ) {
+      response = assistantArchivedDetail;
     } else if (
       pathname === `/api/assistant/conversations/${assistantConversation.id}` &&
       request.method() === "GET"
@@ -515,9 +547,13 @@ test("Assistant keeps the composer visible and restores transcript position arou
   const page = await context.newPage();
   await installApiFixtures(page);
   await page.goto("/assistant");
-  await page.getByTestId("select-mobile-conversation").selectOption(
-    String(assistantConversation.id),
-  );
+  await page.getByTestId("input-search-conversations").fill("long title");
+  await expect(
+    page.getByTestId(`button-search-conversation-${assistantConversation.id}`),
+  ).toHaveClass(/break-words/);
+  await page
+    .getByTestId(`button-search-conversation-${assistantConversation.id}`)
+    .click();
 
   const transcript = page.getByTestId("transcript");
   await expect(page.getByTestId("message-assistant-918")).toBeVisible();
@@ -582,7 +618,7 @@ test("Assistant stays usable without horizontal overflow at phone widths", async
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/assistant");
     await expect(page.getByTestId("heading-assistant")).toBeVisible();
-    await expect(page.getByTestId("select-mobile-conversation")).toBeVisible();
+    await expect(page.getByTestId("input-search-conversations")).toBeVisible();
     await expect(page.getByTestId("button-new-conversation-mobile")).toBeVisible();
 
     for (const prompt of await page
@@ -594,9 +630,30 @@ test("Assistant stays usable without horizontal overflow at phone widths", async
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
     }
 
-    await page.getByTestId("select-mobile-conversation").selectOption(
-      String(assistantConversation.id),
+    await page.getByTestId("input-search-conversations").fill("volunteer");
+    await expect(
+      page.getByTestId(
+        `button-search-conversation-${assistantArchivedConversation.id}`,
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId(
+        `button-search-conversation-${assistantConversation.id}`,
+      ),
+    ).toBeHidden();
+    await page
+      .getByTestId(
+        `button-search-conversation-${assistantArchivedConversation.id}`,
+      )
+      .click();
+    await expect(page.getByTestId("text-active-conversation-title")).toHaveText(
+      assistantArchivedConversation.title,
     );
+
+    await page.getByTestId("input-search-conversations").fill("long title");
+    await page
+      .getByTestId(`button-search-conversation-${assistantConversation.id}`)
+      .click();
     await expect(page.getByTestId("message-assistant-918")).toBeVisible();
     await expect(page.getByTestId("text-active-conversation-title")).toHaveClass(
       /truncate/,
@@ -648,5 +705,8 @@ test("Assistant stays usable without horizontal overflow at phone widths", async
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/assistant");
   await expect(page.getByTestId("list-conversations")).toBeVisible();
-  await expect(page.getByTestId("select-mobile-conversation")).toBeHidden();
+  await expect(page.getByTestId("input-search-conversations")).toBeHidden();
+  await expect(
+    page.getByTestId(`button-select-conversation-${assistantArchivedConversation.id}`),
+  ).toBeVisible();
 });

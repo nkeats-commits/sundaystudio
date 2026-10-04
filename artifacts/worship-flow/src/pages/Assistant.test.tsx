@@ -27,6 +27,8 @@ let profile: Record<string, unknown> | null = {
   focusAreas: ['Discipleship'],
 };
 let conversations: typeof conversation[] = [];
+let conversationsLoading = false;
+let conversationsError: Error | null = null;
 let detail: Record<string, unknown> | undefined;
 const refetchConversations = mock.fn(async () => undefined);
 const createMutate = mock.fn(async () => conversation);
@@ -57,7 +59,13 @@ mock.module('@workspace/api-client-react', {
     getGetAssistantConversationQueryKey: (id: number) => [`/api/assistant/conversations/${id}`],
     getListAssistantConversationsQueryKey: () => ['/api/assistant/conversations'],
     useGetMe: () => ({ data: { profile }, isLoading: false, isError: false, refetch: mock.fn() }),
-    useListAssistantConversations: () => ({ data: conversations, isLoading: false, isError: false, refetch: refetchConversations }),
+    useListAssistantConversations: () => ({
+      data: conversations,
+      isLoading: conversationsLoading,
+      isError: Boolean(conversationsError),
+      error: conversationsError,
+      refetch: refetchConversations,
+    }),
     useGetAssistantConversation: () => ({ data: detail, isLoading: false, isError: false, refetch: mock.fn() }),
     useCreateAssistantConversation: () => ({ mutateAsync: createMutate, isPending: false }),
     useSendAssistantMessage: () => ({
@@ -86,6 +94,8 @@ beforeEach(() => {
     focusAreas: ['Discipleship'],
   };
   conversations = [];
+  conversationsLoading = false;
+  conversationsError = null;
   detail = undefined;
   sendFailure = null;
   createMutate.mock.resetCalls();
@@ -107,9 +117,12 @@ test('renders a profile-grounded new conversation and pastoral boundaries', () =
   assert.match(boundaries, /not a substitute for emergency, medical, legal, or mental-health professionals/);
 });
 
-test('provides compact mobile conversation and church-context controls for long content', async () => {
+test('searches mobile conversations by title and safely wraps long matches', async () => {
   const longTitle = 'Conversation title '.repeat(16);
-  conversations = [{ ...conversation, title: longTitle }];
+  conversations = [
+    { ...conversation, title: longTitle },
+    { ...conversation, id: 18, title: 'Planning a memorial' },
+  ];
   detail = {
     ...conversation,
     title: longTitle,
@@ -122,12 +135,19 @@ test('provides compact mobile conversation and church-context controls for long 
   };
 
   render(<Assistant />);
-  assert.ok(screen.getByTestId('select-mobile-conversation'));
+  assert.ok(screen.getByTestId('input-search-conversations'));
   assert.ok(screen.getByTestId('button-new-conversation-mobile'));
   assert.ok(screen.getByTestId('details-mobile-church-context'));
   assert.ok(screen.getByTestId('text-mobile-profile-context'));
 
-  await act(async () => fireEvent.change(screen.getByTestId('select-mobile-conversation'), { target: { value: '17' } }));
+  await act(async () => fireEvent.change(screen.getByTestId('input-search-conversations'), { target: { value: 'conversation title' } }));
+  const longTitleMatch = screen.getByTestId('button-search-conversation-17');
+  assert.equal(longTitleMatch.textContent, longTitle);
+  assert.ok(longTitleMatch.classList.contains('break-words'));
+  assert.equal(screen.queryByTestId('button-search-conversation-18'), null);
+
+  await act(async () => fireEvent.click(longTitleMatch));
+  assert.equal((screen.getByTestId('input-search-conversations') as HTMLInputElement).value, '');
   assert.equal(screen.getByTestId('text-active-conversation-title').textContent, longTitle);
   assert.ok(screen.getByTestId('text-active-conversation-title').classList.contains('truncate'));
 
@@ -135,6 +155,25 @@ test('provides compact mobile conversation and church-context controls for long 
   assert.ok(assistantContent.classList.contains('assistant-markdown'));
   assert.equal(assistantContent.querySelectorAll('table tbody tr').length, 1);
   assert.ok(screen.getByTestId('transcript').classList.contains('min-w-0'));
+});
+
+test('shows clear loading, empty, and no-match states in the mobile conversation search', async () => {
+  conversationsLoading = true;
+  const loadingView = render(<Assistant />);
+  assert.ok(screen.getByTestId('status-mobile-conversations-loading'));
+  assert.equal((screen.getByTestId('input-search-conversations') as HTMLInputElement).disabled, true);
+
+  loadingView.unmount();
+  conversationsLoading = false;
+  conversations = [];
+  render(<Assistant />);
+  assert.ok(screen.getByTestId('text-mobile-conversations-empty'));
+
+  cleanup();
+  conversations = [conversation];
+  render(<Assistant />);
+  await act(async () => fireEvent.change(screen.getByTestId('input-search-conversations'), { target: { value: 'not in these conversations' } }));
+  assert.match(screen.getByTestId('text-mobile-conversations-no-match').textContent ?? '', /No saved conversations match/);
 });
 
 test('switches between saved conversations and displays the selected transcript', async () => {

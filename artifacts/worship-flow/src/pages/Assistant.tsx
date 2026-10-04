@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   AlertCircle, ArrowUp, Check, ChevronRight, CircleHelp, Loader2, MessageCircle,
-  Plus, ShieldCheck, Trash2, X,
+  Plus, Search, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import {
   getGetAssistantConversationQueryKey,
@@ -41,6 +41,7 @@ export default function Assistant() {
   const conversationsQuery = useListAssistantConversations();
   const conversations = conversationsQuery.data ?? EMPTY_CONVERSATIONS;
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [conversationSearch, setConversationSearch] = useState('');
   const [draft, setDraft] = useState('');
   const [retryText, setRetryText] = useState('');
   const [pendingText, setPendingText] = useState('');
@@ -103,6 +104,10 @@ export default function Assistant() {
           transcriptRef.current?.scrollTop ?? null;
       }
 
+      if (!textEntryIsFocused && !keyboardOpenRef.current) {
+        transcriptScrollTopBeforeKeyboardRef.current = null;
+      }
+
       if (isOpen === keyboardOpenRef.current) return;
 
       keyboardOpenRef.current = isOpen;
@@ -157,6 +162,13 @@ export default function Assistant() {
 
   const profile = meQuery.data?.profile;
   const profileReady = Boolean(profile?.churchName?.trim() && profile?.leaderName?.trim());
+  const matchingConversations = useMemo(() => {
+    const query = conversationSearch.trim().toLocaleLowerCase();
+    if (!query) return [];
+    return conversations.filter((conversation) =>
+      (conversation.title || 'Untitled conversation').toLocaleLowerCase().includes(query),
+    );
+  }, [conversationSearch, conversations]);
   const profileContext = useMemo(() => {
     if (!profile) return [];
     return [
@@ -173,6 +185,7 @@ export default function Assistant() {
 
   const startNewChat = () => {
     setActiveId(null);
+    setConversationSearch('');
     setDraft('');
     setRetryText('');
     setPendingText('');
@@ -181,6 +194,7 @@ export default function Assistant() {
 
   const selectConversation = (id: number) => {
     setActiveId(id);
+    setConversationSearch('');
     setRetryText('');
     setPendingText('');
     setActionError('');
@@ -347,26 +361,21 @@ export default function Assistant() {
 
             <div data-assistant-mobile-controls className="shrink-0 border-b border-[var(--worship-border)] px-3 py-2 lg:hidden">
               <div className="flex min-w-0 items-center gap-2">
-                <label className="sr-only" htmlFor="assistant-conversation-select">Switch conversation</label>
-                <select
-                  id="assistant-conversation-select"
-                  data-testid="select-mobile-conversation"
-                  aria-label="Switch conversation"
-                  value={activeId ?? ''}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    if (value === '') startNewChat();
-                    else selectConversation(Number(value));
-                  }}
-                  className="min-w-0 flex-1 truncate rounded-lg border border-[var(--worship-border)] bg-white px-2.5 py-2 text-sm text-[var(--worship-charcoal)]"
-                >
-                  <option value="">A new conversation</option>
-                  {conversations.map((conversation) => (
-                    <option key={conversation.id} value={conversation.id}>
-                      {conversation.title || 'Untitled conversation'}
-                    </option>
-                  ))}
-                </select>
+                <label className="sr-only" htmlFor="assistant-conversation-search">Search saved conversations</label>
+                <div className="relative min-w-0 flex-1">
+                  <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--worship-muted-slate)]" />
+                  <input
+                    id="assistant-conversation-search"
+                    data-testid="input-search-conversations"
+                    type="search"
+                    aria-label="Search saved conversations"
+                    value={conversationSearch}
+                    onChange={(event) => setConversationSearch(event.target.value)}
+                    disabled={conversationsQuery.isLoading}
+                    placeholder={conversationsQuery.isLoading ? 'Loading conversations…' : 'Find a saved conversation'}
+                    className="w-full min-w-0 rounded-lg border border-[var(--worship-border)] bg-white py-2 pl-9 pr-2.5 text-sm text-[var(--worship-charcoal)] placeholder:text-[var(--worship-muted-slate)] disabled:bg-[#f7f2e9]"
+                  />
+                </div>
                 <button
                   type="button"
                   data-testid="button-new-conversation-mobile"
@@ -376,6 +385,42 @@ export default function Assistant() {
                   <Plus className="h-4 w-4" /> New
                 </button>
               </div>
+              {conversationsQuery.isLoading ? (
+                <p role="status" data-testid="status-mobile-conversations-loading" className="px-1 pt-2 text-xs text-[var(--worship-muted-slate)]">Loading saved conversations…</p>
+              ) : conversationsQuery.isError ? (
+                <p role="alert" data-testid="status-mobile-conversations-error" className="px-1 pt-2 text-xs leading-5 text-red-800">
+                  Saved conversations could not be loaded.{' '}
+                  <button type="button" data-testid="button-retry-mobile-conversations" onClick={() => void conversationsQuery.refetch()} className="font-semibold underline">Try again</button>
+                </p>
+              ) : conversations.length === 0 ? (
+                <p data-testid="text-mobile-conversations-empty" className="px-1 pt-2 text-xs text-[var(--worship-muted-slate)]">Your saved conversations will appear here.</p>
+              ) : conversationSearch.trim() ? (
+                matchingConversations.length > 0 ? (
+                  <ul
+                    aria-label="Matching saved conversations"
+                    data-testid="list-mobile-conversation-matches"
+                    className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[var(--worship-border)] bg-white p-1"
+                  >
+                    {matchingConversations.map((conversation) => (
+                      <li key={conversation.id}>
+                        <button
+                          type="button"
+                          data-testid={`button-search-conversation-${conversation.id}`}
+                          aria-pressed={activeId === conversation.id}
+                          onClick={() => selectConversation(conversation.id)}
+                          className="w-full whitespace-normal break-words rounded-md px-2.5 py-2 text-left text-sm leading-5 text-[var(--worship-charcoal)] hover:bg-[#f7f2e9] focus:bg-[#f7f2e9] focus:outline-none"
+                        >
+                          {conversation.title || 'Untitled conversation'}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p role="status" data-testid="text-mobile-conversations-no-match" className="px-1 pt-2 text-xs text-[var(--worship-muted-slate)]">No saved conversations match “{conversationSearch.trim()}”.</p>
+                )
+              ) : (
+                <p data-testid="text-mobile-conversation-search-hint" className="px-1 pt-2 text-xs text-[var(--worship-muted-slate)]">Search by title to find an older conversation.</p>
+              )}
               <details data-testid="details-mobile-church-context" className="group mt-2 rounded-lg bg-[#f7f2e9] px-2.5 py-1.5">
                 <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-[var(--worship-navy)] [&::-webkit-details-marker]:hidden">
                   {profileReady ? <Check className="h-3.5 w-3.5 text-[var(--worship-success)]" /> : <CircleHelp className="h-3.5 w-3.5 text-[var(--worship-muted-warm)]" />}
