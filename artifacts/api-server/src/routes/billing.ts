@@ -41,8 +41,15 @@ function originFromReq(req: import("express").Request): string {
 
 /** GET /api/billing/status — used by the client `useSubscriptionStatus` hook. */
 router.get("/billing/status", requireAuth, async (req, res) => {
-  const state = await getAccessState(req.userId!);
-  res.json({ state, trialDays: TRIAL_DAYS });
+  try {
+    const state = await getAccessState(req.userId!);
+    res.json({ state, trialDays: TRIAL_DAYS });
+  } catch (err) {
+    req.log.error({ err }, "billing status verification failed");
+    res
+      .status(503)
+      .json({ error: "Unable to verify billing status. Please retry." });
+  }
 });
 
 /** POST /api/billing/checkout-session — opens Stripe Checkout in subscription mode. */

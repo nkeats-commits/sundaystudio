@@ -2136,6 +2136,10 @@ export type GenerateSermonToService400 = {
   error?: string;
 };
 
+export type GetBillingStatus503 = {
+  error: string;
+};
+
 export type GetAdminUsersParams = {
   search?: string;
   status?: GetAdminUsersStatus;

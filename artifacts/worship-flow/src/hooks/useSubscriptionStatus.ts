@@ -18,15 +18,17 @@ export function useSubscriptionStatus() {
   });
   const state = query.data?.state;
   const allowed =
-    state?.kind === "trial" ||
-    state?.kind === "active" ||
-    state?.kind === "trialing";
+    !query.isError &&
+    (state?.kind === "trial" ||
+      state?.kind === "active" ||
+      state?.kind === "trialing");
   return {
     state,
     allowed,
     trialDays: query.data?.trialDays ?? 14,
     isLoading: query.isLoading,
     isError: query.isError,
+    isFetching: query.isFetching,
     refetch: query.refetch,
   };
 }

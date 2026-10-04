@@ -80,6 +80,8 @@ export const requireAuth: RequestHandler = async (
     }
   } catch (err) {
     req.log.error({ err }, "failed to upsert user");
+    res.status(503).json({ error: "Unable to verify account. Please retry." });
+    return;
   }
 
   req.userId = userId;

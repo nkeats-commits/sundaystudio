@@ -98,6 +98,7 @@ import type {
   GeneratedSongs,
   GeneratedSpeakingMoment,
   GetAdminUsersParams,
+  GetBillingStatus503,
   HealthStatus,
   HelpArticle,
   HelpArticleBody,
@@ -6415,7 +6416,7 @@ export const getGetBillingStatusQueryKey = () => {
 
 export const getGetBillingStatusQueryOptions = <
   TData = Awaited<ReturnType<typeof getBillingStatus>>,
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<UnauthorizedResponse | GetBillingStatus503>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getBillingStatus>>,
@@ -6442,7 +6443,9 @@ export const getGetBillingStatusQueryOptions = <
 export type GetBillingStatusQueryResult = NonNullable<
   Awaited<ReturnType<typeof getBillingStatus>>
 >;
-export type GetBillingStatusQueryError = ErrorType<UnauthorizedResponse>;
+export type GetBillingStatusQueryError = ErrorType<
+  UnauthorizedResponse | GetBillingStatus503
+>;
 
 /**
  * @summary Current subscription/trial state for the signed-in user
@@ -6450,7 +6453,7 @@ export type GetBillingStatusQueryError = ErrorType<UnauthorizedResponse>;
 
 export function useGetBillingStatus<
   TData = Awaited<ReturnType<typeof getBillingStatus>>,
-  TError = ErrorType<UnauthorizedResponse>,
+  TError = ErrorType<UnauthorizedResponse | GetBillingStatus503>,
 >(options?: {
   query?: UseQueryOptions<
     Awaited<ReturnType<typeof getBillingStatus>>,
