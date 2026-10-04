@@ -256,7 +256,7 @@ export default function Billing() {
               style={{ color: "var(--worship-muted-slate)" }}
             >
               {state.kind === "enrollment_required"
-                ? "A card is required to start. You will not be charged today. Your $9.99/month subscription starts after 14 days; cancel before then to avoid the first charge."
+                ? "Get 14 days completely free. Cancel anytime."
                 : isExpiredOrCanceled
                 ? "Pick up right where you left off. Everything you need to plan, preach, and lead with depth — for less than a cup of coffee a week."
                 : "We know what it feels like to face Sunday morning with a half-formed plan. Sunday Studio gives you the tools to lead with depth, not just survive the week."}
@@ -325,7 +325,7 @@ export default function Billing() {
               style={{ color: "var(--worship-muted-slate)" }}
             >
               {state.kind === "enrollment_required"
-                ? "Card required. No charge today; $9.99/month starts after 14 days. Cancel before then to avoid the first charge."
+                ? "A card is required. No charge today. After 14 days, your subscription is $9.99/month. You can cancel anytime before your first charge."
                 : state.kind === "trial"
                 ? `No charge today. Your first $9.99 charge is scheduled for ${formatDate(state.trialEndsAt)}. Cancel before then or anytime from the billing portal.`
                 : "Cancel anytime from the billing portal. Secure checkout via Stripe."}
