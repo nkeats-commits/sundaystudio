@@ -172,6 +172,28 @@ async function expectAtDocumentEdge(
     .toBeLessThanOrEqual(3);
 }
 
+async function expectPageCanScrollToEnd(page: Page, cdp: CDPSession) {
+  await resetDocumentScroll(page);
+  expect((await scrollMetrics(page)).max).toBeGreaterThan(0);
+  await scrollToDocumentEnd(page, cdp, "wheel", "bottom");
+  await expectAtDocumentEdge(page, "bottom");
+  expect(
+    await page.evaluate(() => getComputedStyle(document.body).overflow),
+  ).not.toBe("hidden");
+}
+
+async function openAddToServiceDialog(page: Page) {
+  await page.goto("/generators/songs");
+  await page.getByTestId("input-theme").fill("Hope");
+  await page.getByTestId("button-find-songs").click();
+  await expect(page.getByTestId("card-song-0")).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId("button-add-song-to-service-0").click();
+
+  const dialog = page.getByRole("dialog", { name: "Add to a service plan" });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
 test.beforeEach(async ({ page }) => {
   await installApiFixtures(page);
 });
@@ -265,6 +287,17 @@ test("phone sidebar scrolls, navigates, closes, and leaves page scrolling availa
   await resetDocumentScroll(page);
   await scrollToDocumentEnd(page, cdp, "wheel", "bottom");
   await expectAtDocumentEdge(page, "bottom");
+
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await expect(drawer).toHaveAttribute("aria-hidden", "false");
+  const backdrop = page.locator(
+    'div[aria-hidden="true"][class*="bg-black/50"]',
+  );
+  await expect(backdrop).toBeVisible();
+  const { width, height } = page.viewportSize()!;
+  await backdrop.click({ position: { x: width - 8, y: Math.round(height / 2) } });
+  await expect(drawer).toHaveAttribute("aria-hidden", "true");
+  await expectPageCanScrollToEnd(page, cdp);
   await cdp.detach();
 });
 
@@ -338,6 +371,40 @@ test("scrollable song dialog remains usable and restores page scrolling when clo
     await page.evaluate(() => getComputedStyle(document.body).overflow),
   ).not.toBe("hidden");
   await scrollCdp.detach();
+});
+
+test("service dialog restores page scrolling after Escape dismissal", async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dialog = await openAddToServiceDialog(page);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  const cdp = await context.newCDPSession(page);
+  await expectPageCanScrollToEnd(page, cdp);
+  await cdp.detach();
+});
+
+test("service dialog restores page scrolling after backdrop dismissal", async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dialog = await openAddToServiceDialog(page);
+
+  const backdrop = page.locator(
+    '[data-state="open"][class~="bg-black/80"]',
+  );
+  await expect(backdrop).toBeVisible();
+  await backdrop.click({ position: { x: 8, y: 8 } });
+  await expect(dialog).toBeHidden();
+
+  const cdp = await context.newCDPSession(page);
+  await expectPageCanScrollToEnd(page, cdp);
+  await cdp.detach();
 });
 
 test("representative signed-in routes do not introduce horizontal page overflow", async ({
