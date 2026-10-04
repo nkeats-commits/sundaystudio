@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   AlertCircle, ArrowUp, Check, ChevronRight, CircleHelp, Loader2, MessageCircle,
   Plus, ShieldCheck, Trash2, X,
@@ -278,7 +280,18 @@ export default function Assistant() {
                       {message.role === 'assistant' && <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--worship-navy)] text-[var(--worship-pale-gold)]"><MessageCircle className="h-4 w-4" /></div>}
                       <div className={`max-w-[88%] rounded-2xl px-4 py-3 md:max-w-[78%] ${message.role === 'user' ? 'rounded-br-md bg-[var(--worship-navy)] text-white' : 'rounded-bl-md border border-[var(--worship-border)] bg-white text-[var(--worship-charcoal)]'}`}>
                         <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.12em] ${message.role === 'user' ? 'text-white/65' : 'text-[var(--worship-muted-slate)]'}`}>{message.role === 'user' ? 'You' : 'Sunday Studio'}</p>
-                        <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+                        {message.role === 'assistant' ? (
+                          <div
+                            data-testid={`message-content-${message.id}`}
+                            className="prose prose-sm max-w-none break-words text-[var(--worship-charcoal)] prose-headings:font-serif prose-headings:text-[var(--worship-navy)] prose-p:leading-6 prose-strong:text-[var(--worship-charcoal)] prose-blockquote:border-[var(--worship-gold)] prose-li:marker:text-[var(--worship-gold)] prose-a:text-[var(--worship-navy)] prose-hr:border-[var(--worship-border)]"
+                          >
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {message.content}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+                        )}
                       </div>
                       {message.role === 'user' && <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--worship-border)] bg-[#f1e8d9] text-xs font-bold text-[var(--worship-navy)]">You</div>}
                     </article>

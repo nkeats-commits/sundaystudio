@@ -132,6 +132,51 @@ test('switches between saved conversations and displays the selected transcript'
   assert.match(screen.getByTestId('list-messages').textContent ?? '', /family’s needs/);
 });
 
+test('renders assistant Markdown as formatted content while keeping user messages plain text', async () => {
+  conversations = [conversation];
+  detail = {
+    ...conversation,
+    messages: [
+      {
+        id: 3,
+        conversationId: 17,
+        role: 'assistant',
+        content: [
+          '## A Few Clarifying Questions',
+          '',
+          '- **How late, and how often?** Occasional tardiness is a different conversation.',
+          '- **Is this new behavior?**',
+          '',
+          '---',
+          '',
+          '> “I noticed you have been arriving late. Is everything okay?”',
+        ].join('\n'),
+      },
+      {
+        id: 4,
+        conversationId: 17,
+        role: 'user',
+        content: '**Please keep the words literal.**',
+      },
+    ],
+  };
+
+  render(<Assistant />);
+  await act(async () => fireEvent.click(screen.getByTestId('button-select-conversation-17')));
+
+  const assistantContent = screen.getByTestId('message-content-3');
+  assert.equal(assistantContent.querySelector('h2')?.textContent, 'A Few Clarifying Questions');
+  assert.equal(assistantContent.querySelectorAll('ul li').length, 2);
+  assert.equal(assistantContent.querySelector('strong')?.textContent, 'How late, and how often?');
+  assert.ok(assistantContent.querySelector('hr'));
+  assert.ok(assistantContent.querySelector('blockquote'));
+  assert.doesNotMatch(assistantContent.textContent ?? '', /##|\*\*|---/);
+
+  const userMessage = screen.getByTestId('message-user-4');
+  assert.equal(userMessage.querySelector('strong'), null);
+  assert.match(userMessage.textContent ?? '', /\*\*Please keep the words literal\.\*\*/);
+});
+
 test('offers profile completion when church context is missing', () => {
   profile = null;
   render(<Assistant />);
