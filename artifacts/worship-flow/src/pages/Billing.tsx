@@ -245,7 +245,7 @@ export default function Billing() {
               }}
             >
               {state.kind === "enrollment_required"
-                ? "Start your 14-day trial"
+                ? "Start your free 14-day trial"
                 : isExpiredOrCanceled
                 ? "Ready to plan with confidence again?"
                 : "Sunday keeps coming.\nSunday Studio keeps you ready."}
@@ -311,7 +311,7 @@ export default function Billing() {
                   checkout…
                 </>
               ) : state.kind === "enrollment_required" ? (
-                "Add a card and start my 14-day trial"
+                "Start your free 14-day trial"
               ) : state.kind === "trial" ? (
                 "Subscribe — billing starts when your trial ends"
               ) : (
