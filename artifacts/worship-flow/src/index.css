@@ -177,6 +177,29 @@
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
+.assistant-markdown {
+  overflow-wrap: anywhere;
+}
+
+.assistant-markdown :is(pre, table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.assistant-markdown :is(th, td) {
+  overflow-wrap: anywhere;
+}
+
+.assistant-markdown img {
+  max-width: 100%;
+  height: auto;
+}
+
+.assistant-message-text {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 767px) {
   input,
   select,

@@ -27,13 +27,81 @@ const servicePlan = {
   updatedAt: "2026-09-30T00:00:00.000Z",
 };
 
+const assistantConversation = {
+  id: 917,
+  userId: "scroll-e2e-owner",
+  title: `A conversation with a very long title ${"about ministry ".repeat(8)}`,
+  createdAt: "2026-10-01T12:00:00.000Z",
+  updatedAt: "2026-10-03T12:00:00.000Z",
+};
+
+const assistantMarkdown = [
+  "## A long reflection",
+  "",
+  ...Array.from(
+    { length: 32 },
+    (_, index) => `Paragraph ${index + 1}: Take time to listen before deciding what support the team needs.`,
+  ),
+  "",
+  `${"unbrokenpastoralword".repeat(16)}`,
+  "",
+  "| Question | Next step |",
+  "| --- | --- |",
+  "| What support is useful? | Schedule a conversation |",
+].join("\n");
+
+const assistantDetail = {
+  ...assistantConversation,
+  messages: [
+    {
+      id: 918,
+      conversationId: assistantConversation.id,
+      role: "assistant",
+      content: assistantMarkdown,
+      createdAt: "2026-10-03T12:01:00.000Z",
+    },
+  ],
+};
+
 async function installApiFixtures(page: Page) {
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
     let response: unknown = {};
 
-    if (pathname === "/api/billing/status") {
+    if (
+      pathname === "/api/assistant/conversations" &&
+      request.method() === "GET"
+    ) {
+      response = [assistantConversation];
+    } else if (
+      pathname === `/api/assistant/conversations/${assistantConversation.id}` &&
+      request.method() === "GET"
+    ) {
+      response = assistantDetail;
+    } else if (
+      pathname ===
+        `/api/assistant/conversations/${assistantConversation.id}/messages` &&
+      request.method() === "POST"
+    ) {
+      const content = (request.postDataJSON() as { content: string }).content;
+      response = {
+        userMessage: {
+          id: 919,
+          conversationId: assistantConversation.id,
+          role: "user",
+          content,
+          createdAt: "2026-10-03T12:02:00.000Z",
+        },
+        assistantMessage: {
+          id: 920,
+          conversationId: assistantConversation.id,
+          role: "assistant",
+          content: "Let’s take one step at a time.",
+          createdAt: "2026-10-03T12:03:00.000Z",
+        },
+      };
+    } else if (pathname === "/api/billing/status") {
       response = { state: { kind: "active" }, trialDays: 14 };
     } else if (pathname === "/api/admin/me") {
       response = { userId: "scroll-e2e-owner" };
@@ -434,4 +502,80 @@ test("representative signed-in routes do not introduce horizontal page overflow"
       ).toBeLessThanOrEqual(1);
     }
   }
+});
+
+test("Assistant stays usable without horizontal overflow at phone widths", async ({
+  page,
+}) => {
+  for (const width of [375, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/assistant");
+    await expect(page.getByTestId("heading-assistant")).toBeVisible();
+    await expect(page.getByTestId("select-mobile-conversation")).toBeVisible();
+    await expect(page.getByTestId("button-new-conversation-mobile")).toBeVisible();
+
+    for (const prompt of await page
+      .locator('[data-testid^="button-prompt-"]')
+      .all()) {
+      const bounds = await prompt.boundingBox();
+      expect(bounds, `prompt chip should be laid out at ${width}px`).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+    }
+
+    await page.getByTestId("select-mobile-conversation").selectOption(
+      String(assistantConversation.id),
+    );
+    await expect(page.getByTestId("message-assistant-918")).toBeVisible();
+    await expect(page.getByTestId("text-active-conversation-title")).toHaveClass(
+      /truncate/,
+    );
+    await expect(page.getByTestId("text-active-conversation-title")).toContainText(
+      "A conversation with a very long title",
+    );
+    await expect(page.getByTestId("input-message")).toBeInViewport();
+    await expect(page.getByTestId("button-send-message")).toBeInViewport();
+
+    const transcript = page.getByTestId("transcript");
+    const transcriptBox = await transcript.boundingBox();
+    expect(transcriptBox).not.toBeNull();
+    await page.mouse.move(
+      transcriptBox!.x + transcriptBox!.width / 2,
+      transcriptBox!.y + transcriptBox!.height / 2,
+    );
+    await page.mouse.wheel(0, 700);
+    await expect.poll(() =>
+      transcript.evaluate((element) => element.scrollTop),
+    ).toBeGreaterThan(0);
+
+    await page.getByTestId("details-mobile-church-context").locator("summary").click();
+    await expect(page.getByTestId("text-mobile-profile-context")).toHaveText(
+      "E2E Church",
+    );
+
+    const draft = `A mobile message with a very long word ${"withoutbreaks".repeat(10)}`;
+    await page.getByTestId("input-message").fill(draft);
+    await expect(page.getByTestId("button-send-message")).toBeEnabled();
+    const sendResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(
+          `/api/assistant/conversations/${assistantConversation.id}/messages`,
+        ) && response.request().method() === "POST",
+    );
+    await page.getByTestId("button-send-message").click();
+    await sendResponse;
+    await expect(page.getByTestId("input-message")).toHaveValue("");
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow, `Assistant page overflows at ${width}px`).toBeLessThanOrEqual(
+      1,
+    );
+  }
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/assistant");
+  await expect(page.getByTestId("list-conversations")).toBeVisible();
+  await expect(page.getByTestId("select-mobile-conversation")).toBeHidden();
 });

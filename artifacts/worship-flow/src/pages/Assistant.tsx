@@ -155,25 +155,25 @@ export default function Assistant() {
 
   return (
     <AppLayout title="Pastoral Assistant">
-      <div className="mx-auto flex min-h-[calc(100dvh-8rem)] max-w-[1440px] flex-col">
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-[var(--worship-border)] pb-5">
-          <div>
+      <div className="mx-auto flex w-full min-w-0 min-h-0 max-w-[1440px] flex-col overflow-x-clip lg:min-h-[calc(100dvh-8rem)]">
+        <header className="mb-3 flex flex-wrap items-end justify-between gap-3 border-b border-[var(--worship-border)] pb-3 sm:mb-5 sm:gap-4 sm:pb-5">
+          <div className="min-w-0">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--worship-muted-slate)]">A thinking partner for ministry</p>
-            <h1 data-testid="heading-assistant" className="font-serif text-3xl text-[var(--worship-navy)] md:text-[2.15rem]">Pastoral Assistant</h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--worship-slate)]">Work through a decision, prepare for a conversation, or make room to reflect—grounded in the context of your church.</p>
+            <h1 data-testid="heading-assistant" className="break-words font-serif text-2xl leading-tight text-[var(--worship-navy)] sm:text-3xl md:text-[2.15rem]">Pastoral Assistant</h1>
+            <p className="mt-1 hidden max-w-2xl text-sm leading-6 text-[var(--worship-slate)] sm:block">Work through a decision, prepare for a conversation, or make room to reflect—grounded in the context of your church.</p>
           </div>
           <button
             type="button"
             data-testid="button-new-conversation"
             onClick={startNewChat}
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--worship-navy)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1a2a4a]"
+            className="hidden shrink-0 items-center gap-2 rounded-lg bg-[var(--worship-navy)] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1a2a4a] sm:inline-flex"
           >
             <Plus className="h-4 w-4" /> New conversation
           </button>
         </header>
 
-        <div className="grid min-h-[560px] flex-1 overflow-hidden rounded-2xl border border-[var(--worship-border)] bg-[var(--worship-white)] shadow-[0_10px_35px_rgba(31,42,68,0.06)] lg:grid-cols-[264px_minmax(0,1fr)]">
-          <aside className="flex max-h-[260px] flex-col border-b border-[var(--worship-border)] bg-[#f7f2e9] lg:max-h-none lg:border-b-0 lg:border-r">
+        <div className="grid h-[62dvh] min-h-[360px] min-w-0 w-full max-h-[560px] flex-none overflow-hidden rounded-2xl border border-[var(--worship-border)] bg-[var(--worship-white)] shadow-[0_10px_35px_rgba(31,42,68,0.06)] lg:h-auto lg:max-h-none lg:min-h-[560px] lg:flex-1 lg:grid-cols-[264px_minmax(0,1fr)]">
+          <aside className="hidden max-h-[260px] flex-col border-b border-[var(--worship-border)] bg-[#f7f2e9] lg:flex lg:max-h-none lg:border-b-0 lg:border-r">
             <div className="flex items-center justify-between px-4 pb-3 pt-4">
               <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--worship-slate)]">Conversations</h2>
               <span data-testid="text-conversation-count" className="rounded-full bg-white px-2 py-0.5 text-xs text-[var(--worship-muted-warm)]">{conversations.length}</span>
@@ -237,60 +237,122 @@ export default function Assistant() {
             </div>
           </aside>
 
-          <section className="flex min-h-[530px] min-w-0 flex-col bg-[#fffdf9]">
-            <div className="flex items-center justify-between border-b border-[var(--worship-border)] px-5 py-3 md:px-7">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--worship-navy)] text-[var(--worship-pale-gold)]"><MessageCircle className="h-4 w-4" /></div>
-                <div>
-                  <p data-testid="text-active-conversation-title" className="max-w-[52vw] truncate text-sm font-semibold text-[var(--worship-navy)]">{activeId ? detailQuery.data?.title || conversations.find((item) => item.id === activeId)?.title || 'Conversation' : 'A new conversation'}</p>
+          <section className="flex min-h-0 min-w-0 flex-col bg-[#fffdf9]">
+            <div className="flex min-w-0 items-center justify-between gap-2 border-b border-[var(--worship-border)] px-3 py-2.5 sm:px-5 sm:py-3 md:px-7">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--worship-navy)] text-[var(--worship-pale-gold)]"><MessageCircle className="h-4 w-4" /></div>
+                <div className="min-w-0">
+                  <p data-testid="text-active-conversation-title" className="max-w-[calc(100vw-7rem)] truncate text-sm font-semibold text-[var(--worship-navy)] sm:max-w-[52vw]">{activeId ? detailQuery.data?.title || conversations.find((item) => item.id === activeId)?.title || 'Conversation' : 'A new conversation'}</p>
                   <p className="text-[11px] text-[var(--worship-muted-slate)]">Private pastoral reflection</p>
                 </div>
               </div>
-              <span className="hidden items-center gap-1.5 text-[11px] text-[var(--worship-muted-warm)] sm:flex"><ShieldCheck className="h-3.5 w-3.5" /> Grounded in your context</span>
+              <span className="hidden shrink-0 items-center gap-1.5 text-[11px] text-[var(--worship-muted-warm)] sm:flex"><ShieldCheck className="h-3.5 w-3.5" /> Grounded in your context</span>
             </div>
 
-            <div data-testid="transcript" aria-live="polite" className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
+            <div className="shrink-0 border-b border-[var(--worship-border)] px-3 py-2 lg:hidden">
+              <div className="flex min-w-0 items-center gap-2">
+                <label className="sr-only" htmlFor="assistant-conversation-select">Switch conversation</label>
+                <select
+                  id="assistant-conversation-select"
+                  data-testid="select-mobile-conversation"
+                  aria-label="Switch conversation"
+                  value={activeId ?? ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === '') startNewChat();
+                    else selectConversation(Number(value));
+                  }}
+                  className="min-w-0 flex-1 truncate rounded-lg border border-[var(--worship-border)] bg-white px-2.5 py-2 text-sm text-[var(--worship-charcoal)]"
+                >
+                  <option value="">A new conversation</option>
+                  {conversations.map((conversation) => (
+                    <option key={conversation.id} value={conversation.id}>
+                      {conversation.title || 'Untitled conversation'}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  data-testid="button-new-conversation-mobile"
+                  onClick={startNewChat}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[var(--worship-navy)] px-2.5 py-2 text-xs font-semibold text-white"
+                >
+                  <Plus className="h-4 w-4" /> New
+                </button>
+              </div>
+              <details data-testid="details-mobile-church-context" className="group mt-2 rounded-lg bg-[#f7f2e9] px-2.5 py-1.5">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-[var(--worship-navy)] [&::-webkit-details-marker]:hidden">
+                  {profileReady ? <Check className="h-3.5 w-3.5 text-[var(--worship-success)]" /> : <CircleHelp className="h-3.5 w-3.5 text-[var(--worship-muted-warm)]" />}
+                  <span>Church context</span>
+                  <span className="ml-auto font-normal text-[var(--worship-muted-slate)]">{profileReady ? 'Ready' : 'Needs details'}</span>
+                </summary>
+                <div className="pb-1 pt-2">
+                  {meQuery.isLoading ? (
+                    <div className="h-8 animate-pulse rounded bg-white/70" />
+                  ) : meQuery.isError ? (
+                    <div role="alert" data-testid="status-mobile-profile-error" className="text-xs leading-5 text-red-800">
+                      {errorText(meQuery.error, 'Profile context could not be checked.')}
+                      <button type="button" data-testid="button-retry-mobile-profile" onClick={() => void meQuery.refetch()} className="ml-1 font-semibold underline">Retry</button>
+                    </div>
+                  ) : profileReady ? (
+                    <>
+                      <p data-testid="text-mobile-profile-context" className="text-xs font-semibold leading-5 text-[var(--worship-navy)]">{profile?.churchName}</p>
+                      <p data-testid="text-mobile-profile-context-description" className="mt-1 text-[11px] leading-4 text-[var(--worship-slate)]">
+                        Guidance draws on your church profile{profileContext.length ? `, including ${profileContext.join(', ')}` : ''}.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p data-testid="text-mobile-profile-incomplete" className="text-xs leading-5 text-[var(--worship-slate)]">Add your church and leader details to give guidance a useful foundation.</p>
+                      <Link href="/church" data-testid="link-mobile-complete-profile" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--worship-navy)] underline decoration-[var(--worship-gold)] underline-offset-2">Complete profile <ChevronRight className="h-3 w-3" /></Link>
+                    </>
+                  )}
+                </div>
+              </details>
+            </div>
+
+            <div data-testid="transcript" aria-live="polite" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 md:px-8">
               {activeId === null ? (
-                <div data-testid="empty-new-chat" className="mx-auto flex min-h-[330px] max-w-xl flex-col items-center justify-center text-center">
+                <div data-testid="empty-new-chat" className="mx-auto flex min-h-[260px] max-w-xl min-w-0 flex-col items-center justify-center text-center sm:min-h-[330px]">
                   <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--worship-border)] bg-[#f7f2e9] text-[var(--worship-navy)]"><MessageCircle className="h-6 w-6" /></div>
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.17em] text-[var(--worship-muted-slate)]">Make space to think</p>
-                  <h2 className="font-serif text-2xl text-[var(--worship-navy)]">What’s weighing on you?</h2>
+                  <h2 className="break-words font-serif text-xl text-[var(--worship-navy)] sm:text-2xl">What’s weighing on you?</h2>
                   <p className="mt-2 max-w-md text-sm leading-6 text-[var(--worship-slate)]">Bring a ministry decision, a difficult conversation, or a question you’re still working through. We’ll take it one step at a time.</p>
-                  <div className="mt-6 flex flex-wrap justify-center gap-2">
+                  <div className="mt-4 flex w-full flex-wrap justify-center gap-2 sm:mt-6">
                     {['Help me think through a ministry decision', 'Prepare for a difficult conversation', 'What questions should I be asking?'].map((suggestion) => (
-                      <button key={suggestion} type="button" data-testid={`button-prompt-${suggestion.slice(0, 8).replaceAll(' ', '-').toLowerCase()}`} onClick={() => setDraft(suggestion)} className="rounded-full border border-[var(--worship-border)] bg-white px-3 py-2 text-xs text-[var(--worship-slate)] transition-colors hover:border-[var(--worship-gold)] hover:text-[var(--worship-navy)]">{suggestion}</button>
+                      <button key={suggestion} type="button" data-testid={`button-prompt-${suggestion.slice(0, 8).replaceAll(' ', '-').toLowerCase()}`} onClick={() => setDraft(suggestion)} className="max-w-full whitespace-normal break-words rounded-full border border-[var(--worship-border)] bg-white px-3 py-2 text-left text-xs leading-5 text-[var(--worship-slate)] transition-colors hover:border-[var(--worship-gold)] hover:text-[var(--worship-navy)]">{suggestion}</button>
                     ))}
                   </div>
                 </div>
               ) : detailQuery.isLoading ? (
-                <div data-testid="status-transcript-loading" className="mx-auto max-w-3xl space-y-5">
+                <div data-testid="status-transcript-loading" className="mx-auto min-w-0 max-w-3xl space-y-5">
                   <div className="ml-auto h-20 w-3/5 animate-pulse rounded-2xl bg-[var(--worship-sand)]/45" />
                   <div className="h-28 w-4/5 animate-pulse rounded-2xl bg-[#f2eadf]" />
                 </div>
               ) : detailError ? (
-                <div role="alert" data-testid="status-transcript-error" className="mx-auto mt-8 max-w-lg rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-900">
+                <div role="alert" data-testid="status-transcript-error" className="mx-auto mt-8 min-w-0 max-w-lg break-words rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-900">
                   <p className="font-semibold">This conversation could not be loaded.</p>
                   <p className="mt-1">{detailError}</p>
                   <button type="button" data-testid="button-retry-transcript" onClick={() => void detailQuery.refetch()} className="mt-3 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold hover:bg-red-100">Try again</button>
                 </div>
               ) : (detailQuery.data?.messages.length ?? 0) > 0 || pendingText ? (
-                <div data-testid="list-messages" className="mx-auto max-w-3xl space-y-6">
+                <div data-testid="list-messages" className="mx-auto min-w-0 max-w-3xl space-y-6">
                   {(detailQuery.data?.messages ?? []).map((message) => (
-                    <article key={message.id} data-testid={`message-${message.role}-${message.id}`} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <article key={message.id} data-testid={`message-${message.role}-${message.id}`} className={`flex min-w-0 gap-2 sm:gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       {message.role === 'assistant' && <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--worship-navy)] text-[var(--worship-pale-gold)]"><MessageCircle className="h-4 w-4" /></div>}
-                      <div className={`max-w-[88%] rounded-2xl px-4 py-3 md:max-w-[78%] ${message.role === 'user' ? 'rounded-br-md bg-[var(--worship-navy)] text-white' : 'rounded-bl-md border border-[var(--worship-border)] bg-white text-[var(--worship-charcoal)]'}`}>
+                      <div className={`min-w-0 max-w-[88%] break-words rounded-2xl px-3 py-3 sm:px-4 md:max-w-[78%] ${message.role === 'user' ? 'rounded-br-md bg-[var(--worship-navy)] text-white' : 'rounded-bl-md border border-[var(--worship-border)] bg-white text-[var(--worship-charcoal)]'}`}>
                         <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.12em] ${message.role === 'user' ? 'text-white/65' : 'text-[var(--worship-muted-slate)]'}`}>{message.role === 'user' ? 'You' : 'Sunday Studio'}</p>
                         {message.role === 'assistant' ? (
                           <div
                             data-testid={`message-content-${message.id}`}
-                            className="prose prose-sm max-w-none break-words text-[var(--worship-charcoal)] prose-headings:font-serif prose-headings:text-[var(--worship-navy)] prose-p:leading-6 prose-strong:text-[var(--worship-charcoal)] prose-blockquote:border-[var(--worship-gold)] prose-li:marker:text-[var(--worship-gold)] prose-a:text-[var(--worship-navy)] prose-hr:border-[var(--worship-border)]"
+                            className="assistant-markdown prose prose-sm min-w-0 max-w-full break-words text-[var(--worship-charcoal)] prose-headings:font-serif prose-headings:text-[var(--worship-navy)] prose-p:leading-6 prose-strong:text-[var(--worship-charcoal)] prose-blockquote:border-[var(--worship-gold)] prose-li:marker:text-[var(--worship-gold)] prose-a:text-[var(--worship-navy)] prose-hr:border-[var(--worship-border)]"
                           >
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                               {message.content}
                             </ReactMarkdown>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+                          <p className="assistant-message-text whitespace-pre-wrap text-sm leading-6">{message.content}</p>
                         )}
                       </div>
                       {message.role === 'user' && <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--worship-border)] bg-[#f1e8d9] text-xs font-bold text-[var(--worship-navy)]">You</div>}
@@ -298,9 +360,9 @@ export default function Assistant() {
                   ))}
                   {pendingText && (
                     <article data-testid="status-assistant-pending" className="flex justify-end gap-3">
-                      <div className="max-w-[78%] rounded-2xl rounded-br-md bg-[var(--worship-navy)] px-4 py-3 text-white">
+                      <div className="assistant-message-text min-w-0 max-w-[78%] break-words rounded-2xl rounded-br-md bg-[var(--worship-navy)] px-3 py-3 text-white sm:px-4">
                         <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/65">You</p>
-                        <p className="whitespace-pre-wrap text-sm leading-6">{pendingText}</p>
+                        <p className="assistant-message-text whitespace-pre-wrap text-sm leading-6">{pendingText}</p>
                       </div>
                       <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--worship-border)] bg-[#f1e8d9] text-xs font-bold text-[var(--worship-navy)]">You</div>
                     </article>
@@ -308,7 +370,7 @@ export default function Assistant() {
                   {isPending && <div data-testid="status-generating" className="flex items-center gap-3 text-xs text-[var(--worship-muted-slate)]"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--worship-navy)] text-[var(--worship-pale-gold)]"><MessageCircle className="h-4 w-4" /></div><span className="inline-flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Considering your question…</span></div>}
                 </div>
               ) : (
-                <div data-testid="empty-conversation" className="mx-auto flex min-h-[300px] max-w-lg flex-col items-center justify-center text-center">
+                <div data-testid="empty-conversation" className="mx-auto flex min-h-[260px] max-w-lg min-w-0 flex-col items-center justify-center text-center sm:min-h-[300px]">
                   <p className="font-serif text-xl text-[var(--worship-navy)]">A fresh start</p>
                   <p className="mt-2 text-sm text-[var(--worship-slate)]">Write what’s on your mind. Your conversation will be saved here.</p>
                 </div>
@@ -316,7 +378,7 @@ export default function Assistant() {
               <div ref={transcriptEndRef} />
             </div>
 
-            <div className="border-t border-[var(--worship-border)] bg-[#faf6ef] px-4 pb-3 pt-3 md:px-7">
+            <div className="shrink-0 border-t border-[var(--worship-border)] bg-[#faf6ef] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-4 md:px-7">
               {actionError && (
                 <div role="alert" data-testid="status-send-error" className="mb-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-900">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -324,16 +386,16 @@ export default function Assistant() {
                   <button type="button" data-testid="button-dismiss-error" aria-label="Dismiss error" onClick={() => setActionError('')} className="rounded p-0.5 hover:bg-red-100"><X className="h-3.5 w-3.5" /></button>
                 </div>
               )}
-              <form onSubmit={handleSubmit} data-testid="form-send-message" className="flex items-end gap-2 rounded-xl border border-[var(--worship-border)] bg-white p-2 shadow-sm focus-within:border-[var(--worship-gold)] focus-within:ring-2 focus-within:ring-[var(--worship-gold)]/15">
+              <form onSubmit={handleSubmit} data-testid="form-send-message" className="flex min-w-0 items-end gap-2 rounded-xl border border-[var(--worship-border)] bg-white p-2 shadow-sm focus-within:border-[var(--worship-gold)] focus-within:ring-2 focus-within:ring-[var(--worship-gold)]/15">
                 <label className="sr-only" htmlFor="assistant-message">Your message</label>
-                <textarea id="assistant-message" data-testid="input-message" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(draft); } }} maxLength={8000} rows={2} placeholder="Share what you’re working through…" className="max-h-36 min-h-[48px] flex-1 resize-y bg-transparent px-2 py-2 text-sm leading-5 text-[var(--worship-charcoal)] outline-none placeholder:text-[var(--worship-muted-slate)]" disabled={isPending} />
+                <textarea id="assistant-message" data-testid="input-message" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(draft); } }} maxLength={8000} rows={2} placeholder="Share what you’re working through…" className="assistant-message-text max-h-36 min-h-[48px] min-w-0 flex-1 resize-y bg-transparent px-2 py-2 text-sm leading-5 text-[var(--worship-charcoal)] outline-none placeholder:text-[var(--worship-muted-slate)]" disabled={isPending} />
                 <button type="submit" data-testid="button-send-message" disabled={!draft.trim() || isPending} aria-label={isPending ? 'Sending message' : 'Send message'} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--worship-navy)] text-white transition-colors hover:bg-[#1a2a4a] disabled:cursor-not-allowed disabled:opacity-40">
                   {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
                 </button>
               </form>
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-[10px] leading-4 text-[var(--worship-muted-slate)]">
-                <span>Enter to send · Shift + Enter for a new line · {draft.length}/8000</span>
-                <span data-testid="text-support-boundaries">A reflective aid, not divine authority or professional care.</span>
+              <div className="mt-2 flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-[10px] leading-4 text-[var(--worship-muted-slate)]">
+                <span className="min-w-0 break-words">Enter to send · Shift + Enter for a new line · {draft.length}/8000</span>
+                <span data-testid="text-support-boundaries" className="min-w-0 break-words">A reflective aid, not divine authority or professional care.</span>
               </div>
               <details data-testid="details-support-boundaries" className="mt-1">
                 <summary className="cursor-pointer text-[10px] font-medium text-[var(--worship-slate)] underline decoration-[var(--worship-border)] underline-offset-2">Important boundaries</summary>

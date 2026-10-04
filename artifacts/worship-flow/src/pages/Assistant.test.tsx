@@ -107,6 +107,36 @@ test('renders a profile-grounded new conversation and pastoral boundaries', () =
   assert.match(boundaries, /not a substitute for emergency, medical, legal, or mental-health professionals/);
 });
 
+test('provides compact mobile conversation and church-context controls for long content', async () => {
+  const longTitle = 'Conversation title '.repeat(16);
+  conversations = [{ ...conversation, title: longTitle }];
+  detail = {
+    ...conversation,
+    title: longTitle,
+    messages: [{
+      id: 5,
+      conversationId: 17,
+      role: 'assistant',
+      content: `Averylongunbrokenwordthatmustwrap${'withoutoverflow'.repeat(12)}\n\n| Topic | Next step |\n| --- | --- |\n| Follow up | Check in next week |`,
+    }],
+  };
+
+  render(<Assistant />);
+  assert.ok(screen.getByTestId('select-mobile-conversation'));
+  assert.ok(screen.getByTestId('button-new-conversation-mobile'));
+  assert.ok(screen.getByTestId('details-mobile-church-context'));
+  assert.ok(screen.getByTestId('text-mobile-profile-context'));
+
+  await act(async () => fireEvent.change(screen.getByTestId('select-mobile-conversation'), { target: { value: '17' } }));
+  assert.equal(screen.getByTestId('text-active-conversation-title').textContent, longTitle);
+  assert.ok(screen.getByTestId('text-active-conversation-title').classList.contains('truncate'));
+
+  const assistantContent = screen.getByTestId('message-content-5');
+  assert.ok(assistantContent.classList.contains('assistant-markdown'));
+  assert.equal(assistantContent.querySelectorAll('table tbody tr').length, 1);
+  assert.ok(screen.getByTestId('transcript').classList.contains('min-w-0'));
+});
+
 test('switches between saved conversations and displays the selected transcript', async () => {
   conversations = [
     conversation,
