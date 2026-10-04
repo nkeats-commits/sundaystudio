@@ -271,7 +271,7 @@ export default function Billing() {
               borderColor: "var(--worship-border)",
             }}
           >
-            <div className="flex items-baseline gap-2 mb-1">
+            <div className="flex items-baseline justify-center gap-2 mb-1">
               <span
                 className="text-2xl font-semibold"
                 style={{
