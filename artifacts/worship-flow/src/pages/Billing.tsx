@@ -282,7 +282,7 @@ export default function Billing() {
                 Sunday Studio Pro
               </span>
             </div>
-            <div className="flex items-baseline gap-2 mb-6">
+            <div className="flex items-baseline justify-center gap-2 mb-6">
               <span
                 className="text-5xl font-bold"
                 style={{ color: "var(--worship-navy)" }}
