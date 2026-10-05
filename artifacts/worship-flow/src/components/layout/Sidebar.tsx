@@ -70,6 +70,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const [location] = useLocation();
   const { user } = useUser();
   const { isOwner, isLoading: isOwnerLoading } = useIsOwner();
+  const [expandedDesktopGroups, setExpandedDesktopGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [expandedMobileGroups, setExpandedMobileGroups] = useState<Set<string>>(
     () => new Set(),
   );
@@ -149,6 +152,22 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     setExpandedMobileGroups(activeGroup ? new Set([activeGroup.id]) : new Set());
   }, [open, location]);
 
+  useEffect(() => {
+    const activeGroup = navigationGroups.find((group) =>
+      group.items.some((item) => isItemActive(item, group.id)),
+    );
+    setExpandedDesktopGroups(activeGroup ? new Set([activeGroup.id]) : new Set());
+  }, [location, isOwner, isOwnerLoading]);
+
+  const toggleDesktopGroup = (groupId: string) => {
+    setExpandedDesktopGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
   const toggleMobileGroup = (groupId: string) => {
     setExpandedMobileGroups((current) => {
       const next = new Set(current);
@@ -224,15 +243,39 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           { icon: MessageCircle, label: 'Assistant', href: '/assistant' },
           'assistant',
         )}
-        {navigationGroups.map((group) => (
-          <React.Fragment key={group.id}>
-            <div className="my-4 mx-3 h-px bg-white/10" />
-            <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
-              {group.label}
-            </div>
-            {group.items.map((item) => renderLink(item, item.href, group.id))}
-          </React.Fragment>
-        ))}
+        {navigationGroups.map((group) => {
+          const expanded = expandedDesktopGroups.has(group.id);
+          const panelId = `desktop-nav-group-${group.id}`;
+
+          return (
+            <section key={group.id} className="shrink-0">
+              <div className="my-3 mx-3 h-px bg-white/10" />
+              <button
+                type="button"
+                data-testid={`desktop-nav-group-toggle-${group.id}`}
+                aria-expanded={expanded}
+                aria-controls={panelId}
+                onClick={() => toggleDesktopGroup(group.id)}
+                className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)]"
+              >
+                <span>{group.label}</span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                    expanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              <div
+                id={panelId}
+                hidden={!expanded}
+                className="flex flex-col gap-1 pb-2"
+              >
+                {group.items.map((item) => renderLink(item, item.href, group.id))}
+              </div>
+            </section>
+          );
+        })}
       </div>
 
       <BackgroundGenerationIndicator />

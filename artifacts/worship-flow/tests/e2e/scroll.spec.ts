@@ -615,8 +615,7 @@ test("compact phone drawer exposes every group and destination at short and stan
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/dashboard");
-  const desktopSidebar = page.locator('div[class~="hidden"][class~="md:flex"]').first();
-  await expect(desktopSidebar.getByRole("link", { name: "Admin" })).toBeVisible();
+  const desktopSidebar = page.getByTestId("desktop-sidebar");
   const desktopHrefs = await desktopSidebar.locator("a").evaluateAll((links) =>
     links.map((link) => link.getAttribute("href")),
   );
@@ -626,7 +625,26 @@ test("compact phone drawer exposes every group and destination at short and stan
     { label: "Android", top: 24, bottom: 24 },
   ];
   expect(desktopHrefs).toEqual(allNavigationHrefs);
-  await expect(desktopSidebar.locator("button[aria-expanded]")).toHaveCount(0);
+  await expect(desktopSidebar.locator("button[aria-expanded]")).toHaveCount(3);
+  for (const group of mobileNavGroups) {
+    const toggle = desktopSidebar.getByTestId(
+      `desktop-nav-group-toggle-${group.id}`,
+    );
+    await expect(toggle).toBeInViewport();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      desktopSidebar.locator(`#desktop-nav-group-${group.id}`),
+    ).toBeHidden();
+  }
+  await expect(
+    desktopSidebar.getByRole("link", { name: "Admin" }),
+  ).toBeHidden();
+  await desktopSidebar
+    .getByTestId("desktop-nav-group-toggle-settings")
+    .click();
+  await expect(
+    desktopSidebar.getByRole("link", { name: "Admin" }),
+  ).toBeVisible();
 });
 
 test("desktop sidebar stays visible while the page and navigation scroll independently", async ({
@@ -662,6 +680,15 @@ test("desktop sidebar stays visible while the page and navigation scroll indepen
       `the signed-in Songs page should scroll at ${viewport.width}x${viewport.height}`,
     ).toBeGreaterThan(0);
     await expectSidebarWithinViewport(viewport.height);
+
+    for (const group of mobileNavGroups) {
+      const toggle = sidebar.getByTestId(
+        `desktop-nav-group-toggle-${group.id}`,
+      );
+      if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+        await toggle.click();
+      }
+    }
 
     const { scrollHeight, clientHeight } = await navigation.evaluate((element) => ({
       scrollHeight: element.scrollHeight,

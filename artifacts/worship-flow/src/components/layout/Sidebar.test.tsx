@@ -151,17 +151,56 @@ afterEach(() => {
   cleanup();
 });
 
-test('keeps desktop navigation expanded in its existing order', () => {
+test('keeps desktop navigation compact while showing every group label', () => {
   const { container } = renderSidebar();
   const desktopSidebar = getDesktopSidebar(container);
   const links = getLinks(desktopSidebar).map((link) => link.getAttribute('href'));
 
-  assert.deepEqual(links, navigation.map((item) => item.href));
+  assert.deepEqual(links, ['/dashboard', '/assistant']);
   const sidebarText = desktopSidebar.textContent ?? '';
   assert.ok(sidebarText.indexOf('Dashboard') < sidebarText.indexOf('SERMON PREP'));
   assert.ok(sidebarText.indexOf('SERMON PREP') < sidebarText.indexOf('OTHER TOOLS'));
   assert.ok(sidebarText.indexOf('OTHER TOOLS') < sidebarText.indexOf('SETTINGS'));
-  assert.equal(desktopSidebar.querySelectorAll('button[aria-expanded]').length, 0);
+
+  for (const group of [
+    { id: 'sermon-prep', label: 'SERMON PREP' },
+    { id: 'other-tools', label: 'OTHER TOOLS' },
+    { id: 'settings', label: 'SETTINGS' },
+  ]) {
+    const toggle = desktopSidebar.querySelector<HTMLButtonElement>(
+      `[data-testid="desktop-nav-group-toggle-${group.id}"]`,
+    );
+    const panel = desktopSidebar.querySelector<HTMLDivElement>(
+      `#desktop-nav-group-${group.id}`,
+    );
+
+    assert.ok(toggle, `expected a desktop disclosure button for ${group.label}`);
+    assert.ok(panel, `expected a desktop controlled panel for ${group.label}`);
+    assert.equal(toggle.textContent?.trim(), group.label);
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(toggle.getAttribute('aria-controls'), panel.id);
+    assert.equal(panel.hidden, true);
+  }
+});
+
+test('opens the matching desktop group for the current route', () => {
+  currentLocation = '/generators/songs';
+  const { container } = renderSidebar();
+  const desktopSidebar = getDesktopSidebar(container);
+  const toggle = desktopSidebar.querySelector<HTMLButtonElement>(
+    '[data-testid="desktop-nav-group-toggle-other-tools"]',
+  )!;
+  const panel = desktopSidebar.querySelector<HTMLDivElement>(
+    '#desktop-nav-group-other-tools',
+  )!;
+
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(panel.hidden, false);
+  assert.ok(
+    getLinks(desktopSidebar).some(
+      (link) => link.getAttribute('href') === '/generators/songs',
+    ),
+  );
 });
 
 test('keeps phone navigation compact while showing all group labels', () => {
@@ -277,15 +316,14 @@ test('keeps every navigation destination in both responsive render paths', () =>
   const desktopSidebar = getDesktopSidebar(container);
   const mobileSidebar = getMobileSidebar(container);
 
-  for (const { href } of navigation) {
-    assert.equal(
-      getLinks(desktopSidebar).filter((link) => link.getAttribute('href') === href).length,
-      1,
-      `expected ${href} in the expanded desktop sidebar`,
-    );
-  }
+  assert.deepEqual(
+    Array.from(desktopSidebar.querySelectorAll<HTMLAnchorElement>('a')).map((link) =>
+      link.getAttribute('href'),
+    ),
+    navigation.map((item) => item.href),
+  );
 
-  for (const group of [
+  const groups = [
     {
       id: 'sermon-prep',
       hrefs: ['/sermons/new', '/sermons', '/sermons/series', '/bible-tools', '/resources'],
@@ -307,7 +345,26 @@ test('keeps every navigation destination in both responsive render paths', () =>
       id: 'settings',
       hrefs: ['/help', '/church', '/settings/integrations', '/billing', '/settings', '/admin'],
     },
-  ]) {
+  ] as const;
+
+  for (const group of groups) {
+    const desktopToggle = desktopSidebar.querySelector<HTMLButtonElement>(
+      `[data-testid="desktop-nav-group-toggle-${group.id}"]`,
+    )!;
+    fireEvent.click(desktopToggle);
+    assert.equal(desktopToggle.getAttribute('aria-expanded'), 'true');
+    assert.deepEqual(
+      Array.from(
+        desktopSidebar.querySelectorAll<HTMLAnchorElement>(
+          `#desktop-nav-group-${group.id} a`,
+        ),
+      ).map((link) => link.getAttribute('href')),
+      group.hrefs,
+      `expected every ${group.id} destination in its expanded desktop group`,
+    );
+  }
+
+  for (const group of groups) {
     const toggle = mobileSidebar.querySelector<HTMLButtonElement>(
       `[data-testid="mobile-nav-group-toggle-${group.id}"]`,
     )!;
@@ -325,29 +382,41 @@ test('keeps every navigation destination in both responsive render paths', () =>
 
 test('shows Admin only after ownership confirms in both responsive render paths', () => {
   const ownerRender = renderSidebar();
+  const ownerDesktop = getDesktopSidebar(ownerRender.container);
+  fireEvent.click(
+    ownerDesktop.querySelector('[data-testid="desktop-nav-group-toggle-settings"]')!,
+  );
   const ownerMobile = getMobileSidebar(ownerRender.container);
   fireEvent.click(ownerMobile.querySelector('[data-testid="mobile-nav-group-toggle-settings"]')!);
 
-  assert.equal(getLinks(getDesktopSidebar(ownerRender.container)).filter((link) => link.getAttribute('href') === '/admin').length, 1);
+  assert.equal(getLinks(ownerDesktop).filter((link) => link.getAttribute('href') === '/admin').length, 1);
   assert.equal(getLinks(ownerMobile).filter((link) => link.getAttribute('href') === '/admin').length, 1);
 
   ownerRender.unmount();
   currentIsOwnerLoading = true;
   const loadingRender = renderSidebar();
+  const loadingDesktop = getDesktopSidebar(loadingRender.container);
+  fireEvent.click(
+    loadingDesktop.querySelector('[data-testid="desktop-nav-group-toggle-settings"]')!,
+  );
   const loadingMobile = getMobileSidebar(loadingRender.container);
   fireEvent.click(loadingMobile.querySelector('[data-testid="mobile-nav-group-toggle-settings"]')!);
 
-  assert.equal(getLinks(getDesktopSidebar(loadingRender.container)).filter((link) => link.getAttribute('href') === '/admin').length, 0);
+  assert.equal(getLinks(loadingDesktop).filter((link) => link.getAttribute('href') === '/admin').length, 0);
   assert.equal(getLinks(loadingMobile).filter((link) => link.getAttribute('href') === '/admin').length, 0);
 
   loadingRender.unmount();
   currentIsOwnerLoading = false;
   currentIsOwner = false;
   const nonOwnerRender = renderSidebar();
+  const nonOwnerDesktop = getDesktopSidebar(nonOwnerRender.container);
+  fireEvent.click(
+    nonOwnerDesktop.querySelector('[data-testid="desktop-nav-group-toggle-settings"]')!,
+  );
   const nonOwnerMobile = getMobileSidebar(nonOwnerRender.container);
   fireEvent.click(nonOwnerMobile.querySelector('[data-testid="mobile-nav-group-toggle-settings"]')!);
 
-  assert.equal(getLinks(getDesktopSidebar(nonOwnerRender.container)).filter((link) => link.getAttribute('href') === '/admin').length, 0);
+  assert.equal(getLinks(nonOwnerDesktop).filter((link) => link.getAttribute('href') === '/admin').length, 0);
   assert.equal(getLinks(nonOwnerMobile).filter((link) => link.getAttribute('href') === '/admin').length, 0);
 });
 
