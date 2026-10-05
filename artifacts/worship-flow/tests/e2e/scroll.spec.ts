@@ -31,6 +31,12 @@ const mobileNavGroups = [
   },
 ] as const;
 
+const keyboardNavGroups = [
+  { id: "sermon-prep", label: "SERMON PREP", firstLink: "Sermon Builder" },
+  { id: "other-tools", label: "OTHER TOOLS", firstLink: "Service Builder" },
+  { id: "settings", label: "SETTINGS", firstLink: "Help Center" },
+] as const;
+
 const allNavigationHrefs = [
   "/dashboard",
   "/assistant",
@@ -344,6 +350,66 @@ async function openAddToServiceDialog(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await installApiFixtures(page);
+});
+
+test("phone sidebar groups work with Enter and Space and expose link state to assistive technology", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard");
+  await expect(page.getByTestId("text-dashboard-welcome")).toBeVisible();
+
+  const drawer = page.locator(
+    'div[class~="md:hidden"][class~="fixed"][class~="inset-y-0"][class~="left-0"]',
+  );
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await expect(drawer).toHaveAttribute("aria-hidden", "false");
+
+  for (let index = 0; index < keyboardNavGroups.length; index += 1) {
+    const group = keyboardNavGroups[index]!;
+    const toggle = drawer.getByTestId(`mobile-nav-group-toggle-${group.id}`);
+    const panelId = `mobile-nav-group-${group.id}`;
+    const panel = drawer.locator(`#${panelId}`);
+
+    await expect(toggle).toHaveAccessibleName(group.label);
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(toggle).toHaveAttribute("aria-controls", panelId);
+    await expect(panel).toHaveAttribute("hidden", "");
+    await expect(panel.getByRole("link")).toHaveCount(0);
+
+    // With the group collapsed, Tab skips its links and reaches the next group control.
+    if (index < keyboardNavGroups.length - 1) {
+      await toggle.focus();
+      await page.keyboard.press("Tab");
+      await expect(
+        drawer.getByTestId(`mobile-nav-group-toggle-${keyboardNavGroups[index + 1]!.id}`),
+      ).toBeFocused();
+    } else {
+      await toggle.focus();
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
+    }
+
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(panel).not.toHaveAttribute("hidden", "");
+
+    const firstLink = panel.getByRole("link", {
+      name: group.firstLink,
+      exact: true,
+    });
+    await expect(firstLink).toHaveAccessibleName(group.firstLink);
+    await page.keyboard.press("Tab");
+    await expect(firstLink).toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press("Space");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(panel).toHaveAttribute("hidden", "");
+    await expect(panel.getByRole("link")).toHaveCount(0);
+  }
 });
 
 test("signed-in long and short pages reach both ends with wheel, trackpad, and touch", async ({
@@ -974,23 +1040,3 @@ test("Assistant stays usable without horizontal overflow at phone widths", async
     page.getByTestId(`button-select-conversation-${assistantArchivedConversation.id}`),
   ).toBeVisible();
 });
-
-      const headerContent = await header.locator("> div").first().boundingBox();
-
-      const accountContentBox = await accountContent.boundingBox();
-
-        const lastHref = group.hrefs[group.hrefs.length - 1];
-
-        const currentAccountBox = await account.boundingBox();
-
-        const lastLink = drawer.locator(`a[href="${lastHref}"]`).last();
-
-      const account = drawer.locator(".mobile-sidebar-account");
-
-      const accountContent = account.locator("> div");
-
-        const linkBox = await lastLink.boundingBox();
-
-      const accountBox = await account.boundingBox();
-
-        const currentNavigationBox = await navigationList.boundingBox();

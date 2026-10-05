@@ -183,6 +183,32 @@ test('keeps phone navigation compact while showing all group labels', () => {
   assert.match(mobileSidebar.textContent ?? '', /Pastor Example/);
 });
 
+test('exposes collapsed mobile groups as named disclosures with hidden controlled panels', () => {
+  const { container } = renderSidebar();
+  const mobileSidebar = getMobileSidebar(container);
+
+  for (const group of [
+    { id: 'sermon-prep', label: 'SERMON PREP' },
+    { id: 'other-tools', label: 'OTHER TOOLS' },
+    { id: 'settings', label: 'SETTINGS' },
+  ]) {
+    const toggle = mobileSidebar.querySelector<HTMLButtonElement>(
+      `[data-testid="mobile-nav-group-toggle-${group.id}"]`,
+    );
+    const panel = mobileSidebar.querySelector<HTMLDivElement>(
+      `#mobile-nav-group-${group.id}`,
+    );
+
+    assert.ok(toggle, `expected a disclosure button for ${group.label}`);
+    assert.ok(panel, `expected a controlled panel for ${group.label}`);
+    assert.equal(toggle.textContent?.trim(), group.label);
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(toggle.getAttribute('aria-controls'), panel.id);
+    assert.equal(panel.hidden, true);
+    assert.equal(panel.querySelectorAll('a').length > 0, true);
+  }
+});
+
 test('renders the Bible Tools BETA badge inside its link in both responsive sidebars', () => {
   const { container } = renderSidebar();
 
