@@ -212,7 +212,10 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
 
   const desktopNavContent = (
     <>
-      <div className="flex-1 min-h-0 overflow-y-auto py-4 flex flex-col gap-1 px-3">
+      <div
+        data-testid="desktop-sidebar-navigation"
+        className="flex-1 min-h-0 overflow-y-auto py-4 flex flex-col gap-1 px-3"
+      >
         {renderLink(
           { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
           'dashboard',
@@ -314,8 +317,15 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     <>
       {/* Desktop sidebar — sticky left column, always visible */}
       <div
-        className="hidden md:flex md:w-56 lg:w-64 shrink-0 flex-col h-screen sticky top-0"
-        style={{ backgroundColor: 'var(--worship-navy)', color: 'white' }}
+        data-testid="desktop-sidebar"
+        className="hidden md:flex md:w-56 lg:w-64 shrink-0 flex-col sticky overflow-hidden"
+        style={{
+          backgroundColor: 'var(--worship-navy)',
+          color: 'white',
+          top: 'env(safe-area-inset-top, 0px)',
+          height: 'calc(100dvh - env(safe-area-inset-top, 0px))',
+          maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px))',
+        }}
       >
         <div className="p-6 flex items-center gap-3">
           <Flame className="w-6 h-6" style={{ color: 'var(--worship-gold)' }} />

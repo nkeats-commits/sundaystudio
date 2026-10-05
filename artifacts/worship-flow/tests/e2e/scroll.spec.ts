@@ -532,6 +532,47 @@ test("compact phone drawer exposes every group and destination at short and stan
   await expect(desktopSidebar.locator("button[aria-expanded]")).toHaveCount(0);
 });
 
+test("desktop sidebar stays within the viewport and scrolls its navigation on short screens", async ({
+  page,
+}) => {
+  const desktopViewports = [
+    { width: 1280, height: 800 },
+    { width: 1024, height: 560 },
+  ];
+  const sidebar = page.getByTestId("desktop-sidebar");
+  const navigation = page.getByTestId("desktop-sidebar-navigation");
+
+  for (const viewport of desktopViewports) {
+    await page.setViewportSize(viewport);
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("text-dashboard-welcome")).toBeVisible();
+
+    const bounds = await sidebar.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        viewportHeight: window.innerHeight,
+      };
+    });
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewportHeight + 1);
+
+    const { scrollHeight, clientHeight } = await navigation.evaluate((element) => ({
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    }));
+    expect(scrollHeight).toBeGreaterThan(clientHeight);
+
+    await navigation.evaluate((element) => {
+      element.scrollTo({ top: element.scrollHeight, behavior: "instant" });
+    });
+    expect(await navigation.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await expect(sidebar.getByRole("link", { name: "Admin" })).toBeInViewport();
+    await expect(sidebar.getByText("Test Worship Leader")).toBeInViewport();
+  }
+});
+
 test("scrollable song dialog remains usable and restores page scrolling when closed", async ({
   page,
   context,
