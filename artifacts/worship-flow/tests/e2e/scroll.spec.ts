@@ -611,6 +611,59 @@ test("Assistant keeps the composer visible and restores transcript position arou
   await context.close();
 });
 
+test("Assistant lets phone users retry loading saved conversations", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  await installApiFixtures(page);
+
+  let conversationListUnavailable = true;
+  await page.route("**/api/assistant/conversations", async (route) => {
+    if (
+      route.request().method() === "GET" &&
+      conversationListUnavailable
+    ) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "Conversation service unavailable." }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+
+  await page.goto("/assistant");
+
+  await expect(page.getByTestId("status-mobile-conversations-error")).toContainText(
+    "Saved conversations could not be loaded.",
+  );
+  const retryButton = page.getByTestId("button-retry-mobile-conversations");
+  await expect(retryButton).toBeVisible();
+
+  conversationListUnavailable = false;
+  const conversationListResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/assistant/conversations") &&
+      response.request().method() === "GET" &&
+      response.status() === 200,
+  );
+  await retryButton.click();
+  await conversationListResponse;
+
+  await page.getByTestId("input-search-conversations").fill("long title");
+  await expect(
+    page.getByTestId(`button-search-conversation-${assistantConversation.id}`),
+  ).toBeVisible();
+
+  await context.close();
+});
+
 test("Assistant stays usable without horizontal overflow at phone widths", async ({
   page,
 }) => {
