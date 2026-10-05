@@ -629,8 +629,9 @@ test("compact phone drawer exposes every group and destination at short and stan
   await expect(desktopSidebar.locator("button[aria-expanded]")).toHaveCount(0);
 });
 
-test("desktop sidebar stays within the viewport and scrolls its navigation on short screens", async ({
+test("desktop sidebar stays visible while the page and navigation scroll independently", async ({
   page,
+  context,
 }) => {
   const desktopViewports = [
     { width: 1280, height: 800 },
@@ -638,19 +639,27 @@ test("desktop sidebar stays within the viewport and scrolls its navigation on sh
   ];
   const sidebar = page.getByTestId("desktop-sidebar");
   const navigation = page.getByTestId("desktop-sidebar-navigation");
+  const cdp = await context.newCDPSession(page);
+
+  const expectSidebarWithinViewport = async (height: number) => {
+    const bounds = await sidebar.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.y).toBeGreaterThanOrEqual(-1);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(height + 1);
+    expect(bounds!.height).toBeLessThanOrEqual(height + 1);
+  };
 
   for (const viewport of desktopViewports) {
     await page.setViewportSize(viewport);
-    await page.goto("/dashboard");
-    await expect(page.getByTestId("text-dashboard-welcome")).toBeVisible();
-
-    const sidebarBounds = await sidebar.boundingBox();
-    expect(sidebarBounds).not.toBeNull();
-    expect(sidebarBounds!.y).toBeGreaterThanOrEqual(0);
-    expect(sidebarBounds!.y + sidebarBounds!.height).toBeLessThanOrEqual(
-      viewport.height + 1,
-    );
-    expect(sidebarBounds!.height).toBeLessThanOrEqual(viewport.height + 1);
+    await page.goto("/generators/songs");
+    await expect(
+      page.getByRole("heading", { name: "Find Songs" }).first(),
+    ).toBeVisible();
+    expect(
+      (await scrollMetrics(page)).max,
+      `the signed-in Songs page should scroll at ${viewport.width}x${viewport.height}`,
+    ).toBeGreaterThan(0);
+    await expectSidebarWithinViewport(viewport.height);
 
     const { scrollHeight, clientHeight } = await navigation.evaluate((element) => ({
       scrollHeight: element.scrollHeight,
@@ -665,7 +674,35 @@ test("desktop sidebar stays within the viewport and scrolls its navigation on sh
 
     const accountName = sidebar.getByText("Test Worship Leader");
     await expect(accountName).toBeInViewport();
-    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    const navigationScrollAtTop = await navigation.evaluate(
+      (element) => element.scrollTop,
+    );
+
+    await scrollToDocumentEnd(page, cdp, "wheel", "bottom");
+    await expectAtDocumentEdge(page, "bottom");
+    await expectSidebarWithinViewport(viewport.height);
+    await expect(accountName).toBeInViewport();
+    expect(await navigation.evaluate((element) => element.scrollTop)).toBe(
+      navigationScrollAtTop,
+    );
+
+    const documentScrollAtBottom = await page.evaluate(() => window.scrollY);
+    await navigation.evaluate((element) => {
+      element.scrollTo({ top: element.scrollHeight, behavior: "instant" });
+    });
+    expect(await navigation.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(documentScrollAtBottom);
+    await expectSidebarWithinViewport(viewport.height);
+    await expect(sidebar.getByRole("link", { name: "Admin" })).toBeInViewport();
+    await expect(accountName).toBeInViewport();
+
+    await scrollToDocumentEnd(page, cdp, "wheel", "top");
+    await expectAtDocumentEdge(page, "top");
+    await expectSidebarWithinViewport(viewport.height);
+    await expect(accountName).toBeInViewport();
+    await navigation.evaluate((element) => {
+      element.scrollTo({ top: 0, behavior: "instant" });
+    });
     const documentScrollTop = await page.evaluate(() => window.scrollY);
 
     for (const link of await sidebar.locator("a").all()) {
@@ -691,6 +728,8 @@ test("desktop sidebar stays within the viewport and scrolls its navigation on sh
     await expect(sidebar.getByRole("link", { name: "Admin" })).toBeInViewport();
     await expect(accountName).toBeInViewport();
   }
+
+  await cdp.detach();
 });
 
 test("scrollable song dialog remains usable and restores page scrolling when closed", async ({
