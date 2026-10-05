@@ -35,6 +35,16 @@ function formatDate(value: string) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function formatUpdatedDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export default function Assistant() {
   const queryClient = useQueryClient();
   const meQuery = useGetMe();
@@ -410,7 +420,18 @@ export default function Assistant() {
                           onClick={() => selectConversation(conversation.id)}
                           className="w-full whitespace-normal break-words rounded-md px-2.5 py-2 text-left text-sm leading-5 text-[var(--worship-charcoal)] hover:bg-[#f7f2e9] focus:bg-[#f7f2e9] focus:outline-none"
                         >
-                          {conversation.title || 'Untitled conversation'}
+                          <span
+                            data-testid={`text-search-conversation-title-${conversation.id}`}
+                            className="block break-words"
+                          >
+                            {conversation.title || 'Untitled conversation'}
+                          </span>
+                          <span
+                            data-testid={`text-search-conversation-updated-${conversation.id}`}
+                            className="mt-0.5 block text-[11px] leading-4 text-[var(--worship-muted-slate)]"
+                          >
+                            Updated {formatUpdatedDate(conversation.updatedAt)}
+                          </span>
                         </button>
                       </li>
                     ))}

@@ -638,6 +638,11 @@ test("Assistant stays usable without horizontal overflow at phone widths", async
     ).toBeVisible();
     await expect(
       page.getByTestId(
+        `text-search-conversation-updated-${assistantArchivedConversation.id}`,
+      ),
+    ).toContainText("Updated");
+    await expect(
+      page.getByTestId(
         `button-search-conversation-${assistantConversation.id}`,
       ),
     ).toBeHidden();
@@ -651,6 +656,16 @@ test("Assistant stays usable without horizontal overflow at phone widths", async
     );
 
     await page.getByTestId("input-search-conversations").fill("long title");
+    await expect(
+      page.getByTestId(
+        `text-search-conversation-title-${assistantConversation.id}`,
+      ),
+    ).toHaveClass(/break-words/);
+    await expect(
+      page.getByTestId(
+        `text-search-conversation-updated-${assistantConversation.id}`,
+      ),
+    ).toContainText("Updated");
     await page
       .getByTestId(`button-search-conversation-${assistantConversation.id}`)
       .click();

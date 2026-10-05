@@ -142,8 +142,13 @@ test('searches mobile conversations by title and safely wraps long matches', asy
 
   await act(async () => fireEvent.change(screen.getByTestId('input-search-conversations'), { target: { value: 'conversation title' } }));
   const longTitleMatch = screen.getByTestId('button-search-conversation-17');
-  assert.equal(longTitleMatch.textContent, longTitle);
-  assert.ok(longTitleMatch.classList.contains('break-words'));
+  const longTitleText = screen.getByTestId('text-search-conversation-title-17');
+  assert.equal(longTitleText.textContent, longTitle);
+  assert.ok(longTitleText.classList.contains('break-words'));
+  assert.equal(
+    screen.getByTestId('text-search-conversation-updated-17').textContent,
+    'Updated Feb 2, 2025',
+  );
   assert.equal(screen.queryByTestId('button-search-conversation-18'), null);
 
   await act(async () => fireEvent.click(longTitleMatch));
