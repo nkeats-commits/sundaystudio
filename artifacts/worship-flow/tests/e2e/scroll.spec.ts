@@ -403,6 +403,8 @@ test("phone sidebar scrolls, navigates, closes, and leaves page scrolling availa
   const drawer = page.locator(
     'div[class~="md:hidden"][class~="fixed"][class~="inset-y-0"][class~="left-0"]',
   );
+
+      const header = drawer.locator(".mobile-sidebar-header");
   await page.getByRole("button", { name: "Open menu" }).click();
   await expect(drawer).toBeVisible();
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
@@ -413,7 +415,16 @@ test("phone sidebar scrolls, navigates, closes, and leaves page scrolling availa
   await drawer.getByTestId("mobile-nav-group-toggle-sermon-prep").click();
   await drawer.getByTestId("mobile-nav-group-toggle-other-tools").click();
 
-  const navigationList = drawer.locator(".overflow-y-auto").first();
+      const navigationList = drawer.getByTestId("mobile-sidebar-navigation");
+
+      const safeAreaPadding = await page.evaluate(() => ({
+        headerTop: Number.parseFloat(
+          getComputedStyle(document.querySelector(".mobile-sidebar-header")!).paddingTop,
+        ),
+        accountBottom: Number.parseFloat(
+          getComputedStyle(document.querySelector(".mobile-sidebar-account")!).paddingBottom,
+        ),
+      }));
   const scrollHeight = await navigationList.evaluate((element) => element.scrollHeight);
   const clientHeight = await navigationList.evaluate((element) => element.clientHeight);
   expect(scrollHeight).toBeGreaterThan(clientHeight);
@@ -448,7 +459,7 @@ test("phone sidebar scrolls, navigates, closes, and leaves page scrolling availa
     drawer.getByTestId("mobile-nav-group-toggle-other-tools"),
   ).toHaveAttribute("aria-expanded", "true");
   const backdrop = page.locator(
-    'div[aria-hidden="true"][class*="bg-black/50"]',
+    '[data-state="open"][class~="bg-black/80"]',
   );
   await expect(backdrop).toBeVisible();
   const { width, height } = page.viewportSize()!;
@@ -469,6 +480,8 @@ test("compact phone drawer exposes every group and destination at short and stan
     'div[class~="md:hidden"][class~="fixed"][class~="inset-y-0"][class~="left-0"]',
   );
 
+      const header = drawer.locator(".mobile-sidebar-header");
+
   for (const viewport of phoneViewports) {
     await page.setViewportSize(viewport);
     await page.goto("/dashboard");
@@ -480,13 +493,17 @@ test("compact phone drawer exposes every group and destination at short and stan
     await expect(drawer.getByText("Test Worship Leader")).toBeInViewport();
 
     for (const group of mobileNavGroups) {
-      const toggle = drawer.getByTestId(`mobile-nav-group-toggle-${group.id}`);
-      await expect(toggle).toBeInViewport();
-      await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    }
+        const toggle = drawer.getByTestId(`mobile-nav-group-toggle-${group.id}`);
 
-    for (const group of mobileNavGroups) {
-      const toggle = drawer.getByTestId(`mobile-nav-group-toggle-${group.id}`);
+      const navigationBox = await navigationList.boundingBox();
+        await expect(toggle).toBeInViewport();
+        await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      }
+
+      for (const group of mobileNavGroups) {
+        const toggle = drawer.getByTestId(`mobile-nav-group-toggle-${group.id}`);
+
+      const navigationBox = await navigationList.boundingBox();
       await toggle.click();
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
 
@@ -497,11 +514,20 @@ test("compact phone drawer exposes every group and destination at short and stan
       expect(hrefs).toEqual(group.hrefs);
     }
 
-    const navigationList = drawer.locator('[data-testid="mobile-sidebar-navigation"]');
-    const { scrollHeight, clientHeight } = await navigationList.evaluate((element) => ({
-      scrollHeight: element.scrollHeight,
-      clientHeight: element.clientHeight,
-    }));
+      const navigationList = drawer.getByTestId("mobile-sidebar-navigation");
+
+      const safeAreaPadding = await page.evaluate(() => ({
+        headerTop: Number.parseFloat(
+          getComputedStyle(document.querySelector(".mobile-sidebar-header")!).paddingTop,
+        ),
+        accountBottom: Number.parseFloat(
+          getComputedStyle(document.querySelector(".mobile-sidebar-account")!).paddingBottom,
+        ),
+      }));
+  const { scrollHeight, clientHeight } = await slotList.evaluate((element) => ({
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+  }));
     expect(scrollHeight).toBeGreaterThan(clientHeight);
     await expect(drawer.getByText("Test Worship Leader")).toBeInViewport();
 
@@ -528,6 +554,11 @@ test("compact phone drawer exposes every group and destination at short and stan
   const desktopHrefs = await desktopSidebar.locator("a").evaluateAll((links) =>
     links.map((link) => link.getAttribute("href")),
   );
+
+  const safeAreaProfiles = [
+    { label: "iOS", top: 59, bottom: 34 },
+    { label: "Android", top: 24, bottom: 24 },
+  ];
   expect(desktopHrefs).toEqual(allNavigationHrefs);
   await expect(desktopSidebar.locator("button[aria-expanded]")).toHaveCount(0);
 });
@@ -547,21 +578,14 @@ test("desktop sidebar stays within the viewport and scrolls its navigation on sh
     await page.goto("/dashboard");
     await expect(page.getByTestId("text-dashboard-welcome")).toBeVisible();
 
-    const bounds = await sidebar.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return {
-        top: rect.top,
-        bottom: rect.bottom,
-        viewportHeight: window.innerHeight,
-      };
-    });
+      const bounds = await prompt.boundingBox();
     expect(bounds.top).toBeGreaterThanOrEqual(0);
     expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewportHeight + 1);
 
-    const { scrollHeight, clientHeight } = await navigation.evaluate((element) => ({
-      scrollHeight: element.scrollHeight,
-      clientHeight: element.clientHeight,
-    }));
+  const { scrollHeight, clientHeight } = await slotList.evaluate((element) => ({
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+  }));
     expect(scrollHeight).toBeGreaterThan(clientHeight);
 
     await navigation.evaluate((element) => {
@@ -584,7 +608,7 @@ test("scrollable song dialog remains usable and restores page scrolling when clo
   await expect(page.getByTestId("card-song-0")).toBeVisible({ timeout: 20_000 });
 
   await page.getByTestId("button-add-song-to-service-0").click();
-  const dialog = page.getByRole("dialog", { name: "Add to a service plan" });
+  const dialog = await openAddToServiceDialog(page);
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Sunday Celebration" }).click();
 
@@ -596,7 +620,7 @@ test("scrollable song dialog remains usable and restores page scrolling when clo
   expect(scrollHeight).toBeGreaterThan(clientHeight);
 
   const cdp = await context.newCDPSession(page);
-  const bounds = await slotList.boundingBox();
+      const bounds = await prompt.boundingBox();
   expect(bounds).not.toBeNull();
   const startY = Math.round(bounds!.y + bounds!.height * 0.82);
   const endY = Math.round(bounds!.y + bounds!.height * 0.24);
@@ -697,9 +721,9 @@ test("representative signed-in routes do not introduce horizontal page overflow"
       await expect(
         page.getByRole("heading", { name: route.heading }).first(),
       ).toBeVisible();
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - window.innerWidth,
-      );
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
       expect(
         overflow,
         `${route.path} has horizontal overflow at ${viewport.label} width`,
@@ -727,7 +751,7 @@ test("Assistant keeps the composer visible and restores transcript position arou
     .getByTestId(`button-search-conversation-${assistantConversation.id}`)
     .click();
 
-  const transcript = page.getByTestId("transcript");
+    const transcript = page.getByTestId("transcript");
   await expect(page.getByTestId("message-assistant-918")).toBeVisible();
   await expect
     .poll(() =>
@@ -950,3 +974,23 @@ test("Assistant stays usable without horizontal overflow at phone widths", async
     page.getByTestId(`button-select-conversation-${assistantArchivedConversation.id}`),
   ).toBeVisible();
 });
+
+      const headerContent = await header.locator("> div").first().boundingBox();
+
+      const accountContentBox = await accountContent.boundingBox();
+
+        const lastHref = group.hrefs[group.hrefs.length - 1];
+
+        const currentAccountBox = await account.boundingBox();
+
+        const lastLink = drawer.locator(`a[href="${lastHref}"]`).last();
+
+      const account = drawer.locator(".mobile-sidebar-account");
+
+      const accountContent = account.locator("> div");
+
+        const linkBox = await lastLink.boundingBox();
+
+      const accountBox = await account.boundingBox();
+
+        const currentNavigationBox = await navigationList.boundingBox();
