@@ -644,22 +644,52 @@ test("desktop sidebar stays within the viewport and scrolls its navigation on sh
     await page.goto("/dashboard");
     await expect(page.getByTestId("text-dashboard-welcome")).toBeVisible();
 
-      const bounds = await prompt.boundingBox();
-    expect(bounds.top).toBeGreaterThanOrEqual(0);
-    expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewportHeight + 1);
+    const sidebarBounds = await sidebar.boundingBox();
+    expect(sidebarBounds).not.toBeNull();
+    expect(sidebarBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(sidebarBounds!.y + sidebarBounds!.height).toBeLessThanOrEqual(
+      viewport.height + 1,
+    );
+    expect(sidebarBounds!.height).toBeLessThanOrEqual(viewport.height + 1);
 
-  const { scrollHeight, clientHeight } = await slotList.evaluate((element) => ({
-    scrollHeight: element.scrollHeight,
-    clientHeight: element.clientHeight,
-  }));
+    const { scrollHeight, clientHeight } = await navigation.evaluate((element) => ({
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    }));
     expect(scrollHeight).toBeGreaterThan(clientHeight);
+
+    const desktopHrefs = await sidebar.locator("a").evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href")),
+    );
+    expect(desktopHrefs).toEqual(allNavigationHrefs);
+
+    const accountName = sidebar.getByText("Test Worship Leader");
+    await expect(accountName).toBeInViewport();
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    const documentScrollTop = await page.evaluate(() => window.scrollY);
+
+    for (const link of await sidebar.locator("a").all()) {
+      await link.scrollIntoViewIfNeeded();
+      const [linkBounds, navigationBounds] = await Promise.all([
+        link.boundingBox(),
+        navigation.boundingBox(),
+      ]);
+      expect(linkBounds).not.toBeNull();
+      expect(navigationBounds).not.toBeNull();
+      expect(linkBounds!.y).toBeGreaterThanOrEqual(navigationBounds!.y - 1);
+      expect(linkBounds!.y + linkBounds!.height).toBeLessThanOrEqual(
+        navigationBounds!.y + navigationBounds!.height + 1,
+      );
+      await expect(accountName).toBeInViewport();
+    }
+    expect(await page.evaluate(() => window.scrollY)).toBe(documentScrollTop);
 
     await navigation.evaluate((element) => {
       element.scrollTo({ top: element.scrollHeight, behavior: "instant" });
     });
     expect(await navigation.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     await expect(sidebar.getByRole("link", { name: "Admin" })).toBeInViewport();
-    await expect(sidebar.getByText("Test Worship Leader")).toBeInViewport();
+    await expect(accountName).toBeInViewport();
   }
 });
 

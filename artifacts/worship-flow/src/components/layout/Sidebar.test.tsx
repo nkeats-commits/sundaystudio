@@ -242,6 +242,26 @@ test('keeps each responsive sidebar navigation list independently scrollable', (
   }
 });
 
+test('bounds the desktop rail and keeps its account block outside the navigation scroll area', () => {
+  const { container } = renderSidebar();
+  const desktopSidebar = getDesktopSidebar(container);
+  const navigationList = desktopSidebar.querySelector<HTMLElement>(
+    '[data-testid="desktop-sidebar-navigation"]',
+  );
+  const accountBlock = Array.from(desktopSidebar.children).find((element) =>
+    element.classList.contains('border-t'),
+  );
+
+  assert.ok(desktopSidebar.classList.contains('min-h-0'));
+  assert.match(desktopSidebar.style.height, /100dvh/);
+  assert.match(desktopSidebar.style.height, /safe-area-inset-top/);
+  assert.match(desktopSidebar.style.maxHeight, /100dvh/);
+  assert.match(desktopSidebar.style.maxHeight, /safe-area-inset-top/);
+  assert.ok(navigationList, 'expected a dedicated desktop navigation scroll area');
+  assert.ok(accountBlock, 'expected a desktop account block below navigation');
+  assert.ok(accountBlock.classList.contains('shrink-0'));
+});
+
 test('keeps page scrolling on the document instead of a contained main panel', () => {
   const mainClass = appLayoutSource.match(/<main className="([^"]*worship-app-main[^"]*)"/)?.[1];
   const mainStyles = appStyles.match(/\.worship-app-main\s*\{([^}]*)\}/)?.[1];

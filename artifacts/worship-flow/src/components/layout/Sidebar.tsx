@@ -318,7 +318,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       {/* Desktop sidebar — sticky left column, always visible */}
       <div
         data-testid="desktop-sidebar"
-        className="hidden md:flex md:w-56 lg:w-64 shrink-0 flex-col sticky overflow-hidden"
+        className="hidden md:flex md:w-56 lg:w-64 shrink-0 min-h-0 flex-col sticky overflow-hidden"
         style={{
           backgroundColor: 'var(--worship-navy)',
           color: 'white',
