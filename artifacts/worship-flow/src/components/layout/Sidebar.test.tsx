@@ -76,7 +76,7 @@ mock.module('../../hooks/useJobGenerate', {
   },
 });
 
-const { render, cleanup } = await import('@testing-library/react');
+const { render, cleanup, fireEvent } = await import('@testing-library/react');
 const { Sidebar } = await import('./Sidebar');
 
 const appLayoutSource = readFileSync(new URL('./AppLayout.tsx', import.meta.url), 'utf8');
@@ -123,7 +123,17 @@ function getResponsiveSidebars(container: HTMLElement) {
 }
 
 function getLinks(sidebar: HTMLElement) {
-  return Array.from(sidebar.querySelectorAll<HTMLAnchorElement>('a'));
+  return Array.from(sidebar.querySelectorAll<HTMLAnchorElement>('a')).filter(
+    (link) => !link.closest('[hidden]'),
+  );
+}
+
+function getDesktopSidebar(container: HTMLElement) {
+  return getResponsiveSidebars(container)[0]!;
+}
+
+function getMobileSidebar(container: HTMLElement) {
+  return getResponsiveSidebars(container)[1]!;
 }
 
 function isActive(link: HTMLAnchorElement) {
@@ -141,27 +151,44 @@ afterEach(() => {
   cleanup();
 });
 
-test('keeps the Dashboard, SERMON PREP, and OTHER TOOLS sections in order', () => {
+test('keeps desktop navigation expanded in its existing order', () => {
   const { container } = renderSidebar();
+  const desktopSidebar = getDesktopSidebar(container);
+  const links = getLinks(desktopSidebar).map((link) => link.getAttribute('href'));
 
-  for (const sidebar of getResponsiveSidebars(container)) {
-    const links = getLinks(sidebar).map((link) => link.getAttribute('href'));
-    assert.deepEqual(
-      links,
-      navigation.map((item) => item.href),
+  assert.deepEqual(links, navigation.map((item) => item.href));
+  const sidebarText = desktopSidebar.textContent ?? '';
+  assert.ok(sidebarText.indexOf('Dashboard') < sidebarText.indexOf('SERMON PREP'));
+  assert.ok(sidebarText.indexOf('SERMON PREP') < sidebarText.indexOf('OTHER TOOLS'));
+  assert.ok(sidebarText.indexOf('OTHER TOOLS') < sidebarText.indexOf('SETTINGS'));
+  assert.equal(desktopSidebar.querySelectorAll('button[aria-expanded]').length, 0);
+});
+
+test('keeps phone navigation compact while showing all group labels', () => {
+  const { container } = renderSidebar();
+  const mobileSidebar = getMobileSidebar(container);
+
+  assert.deepEqual(
+    getLinks(mobileSidebar).map((link) => link.getAttribute('href')),
+    ['/dashboard', '/assistant'],
+  );
+  for (const group of ['sermon-prep', 'other-tools', 'settings']) {
+    const toggle = mobileSidebar.querySelector<HTMLButtonElement>(
+      `[data-testid="mobile-nav-group-toggle-${group}"]`,
     );
-
-    const sidebarText = sidebar.textContent ?? '';
-    assert.ok(sidebarText.indexOf('Dashboard') < sidebarText.indexOf('SERMON PREP'));
-    assert.ok(sidebarText.indexOf('SERMON PREP') < sidebarText.indexOf('OTHER TOOLS'));
+    assert.ok(toggle, `expected ${group} disclosure control`);
+    assert.equal(toggle.getAttribute('aria-expanded'), 'false');
   }
+  assert.match(mobileSidebar.textContent ?? '', /SERMON PREP.*OTHER TOOLS.*SETTINGS/);
+  assert.match(mobileSidebar.textContent ?? '', /Pastor Example/);
 });
 
 test('renders the Bible Tools BETA badge inside its link in both responsive sidebars', () => {
   const { container } = renderSidebar();
 
   for (const sidebar of getResponsiveSidebars(container)) {
-    const bibleToolsLink = getLinks(sidebar).find((link) => link.getAttribute('href') === '/bible-tools');
+    const bibleToolsLink = Array.from(sidebar.querySelectorAll<HTMLAnchorElement>('a'))
+      .find((link) => link.getAttribute('href') === '/bible-tools');
     assert.ok(bibleToolsLink, 'expected Bible Tools link in each responsive sidebar');
 
     const badge = bibleToolsLink.querySelector('[data-testid="bible-tools-beta-badge"]');
@@ -201,54 +228,81 @@ test('keeps page scrolling on the document instead of a contained main panel', (
 
 test('keeps every navigation destination in both responsive render paths', () => {
   const { container } = renderSidebar();
-  const sidebars = getResponsiveSidebars(container);
+  const desktopSidebar = getDesktopSidebar(container);
+  const mobileSidebar = getMobileSidebar(container);
 
   for (const { href } of navigation) {
-    for (const sidebar of sidebars) {
-      assert.equal(
-        getLinks(sidebar).filter((link) => link.getAttribute('href') === href).length,
-        1,
-        `expected ${href} in each responsive sidebar`,
-      );
-    }
+    assert.equal(
+      getLinks(desktopSidebar).filter((link) => link.getAttribute('href') === href).length,
+      1,
+      `expected ${href} in the expanded desktop sidebar`,
+    );
+  }
+
+  for (const group of [
+    {
+      id: 'sermon-prep',
+      hrefs: ['/sermons/new', '/sermons', '/sermons/series', '/bible-tools', '/resources'],
+    },
+    {
+      id: 'other-tools',
+      hrefs: [
+        '/service-builder',
+        '/generators/liturgy',
+        '/generators/songs',
+        '/generators/speaking-moment',
+        '/generators/devotional',
+        '/generators/soul-care',
+        '/library',
+        '/services',
+      ],
+    },
+    {
+      id: 'settings',
+      hrefs: ['/help', '/church', '/settings/integrations', '/billing', '/settings', '/admin'],
+    },
+  ]) {
+    const toggle = mobileSidebar.querySelector<HTMLButtonElement>(
+      `[data-testid="mobile-nav-group-toggle-${group.id}"]`,
+    )!;
+    fireEvent.click(toggle);
+    assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+    assert.deepEqual(
+      Array.from(
+        mobileSidebar.querySelectorAll<HTMLAnchorElement>(`#mobile-nav-group-${group.id} a`),
+      ).map((link) => link.getAttribute('href')),
+      group.hrefs,
+      `expected every ${group.id} destination in its expanded mobile group`,
+    );
   }
 });
 
 test('shows Admin only after ownership confirms in both responsive render paths', () => {
   const ownerRender = renderSidebar();
+  const ownerMobile = getMobileSidebar(ownerRender.container);
+  fireEvent.click(ownerMobile.querySelector('[data-testid="mobile-nav-group-toggle-settings"]')!);
 
-  for (const sidebar of getResponsiveSidebars(ownerRender.container)) {
-    assert.equal(
-      getLinks(sidebar).filter((link) => link.getAttribute('href') === '/admin').length,
-      1,
-      'expected Admin in each owner sidebar',
-    );
-  }
+  assert.equal(getLinks(getDesktopSidebar(ownerRender.container)).filter((link) => link.getAttribute('href') === '/admin').length, 1);
+  assert.equal(getLinks(ownerMobile).filter((link) => link.getAttribute('href') === '/admin').length, 1);
 
   ownerRender.unmount();
   currentIsOwnerLoading = true;
   const loadingRender = renderSidebar();
+  const loadingMobile = getMobileSidebar(loadingRender.container);
+  fireEvent.click(loadingMobile.querySelector('[data-testid="mobile-nav-group-toggle-settings"]')!);
 
-  for (const sidebar of getResponsiveSidebars(loadingRender.container)) {
-    assert.equal(
-      getLinks(sidebar).filter((link) => link.getAttribute('href') === '/admin').length,
-      0,
-      'expected Admin to be omitted from each sidebar while ownership is loading',
-    );
-  }
+  assert.equal(getLinks(getDesktopSidebar(loadingRender.container)).filter((link) => link.getAttribute('href') === '/admin').length, 0);
+  assert.equal(getLinks(loadingMobile).filter((link) => link.getAttribute('href') === '/admin').length, 0);
 
   loadingRender.unmount();
   currentIsOwnerLoading = false;
   currentIsOwner = false;
   const nonOwnerRender = renderSidebar();
+  const nonOwnerMobile = getMobileSidebar(nonOwnerRender.container);
+  fireEvent.click(nonOwnerMobile.querySelector('[data-testid="mobile-nav-group-toggle-settings"]')!);
 
-  for (const sidebar of getResponsiveSidebars(nonOwnerRender.container)) {
-    assert.equal(
-      getLinks(sidebar).filter((link) => link.getAttribute('href') === '/admin').length,
-      0,
-      'expected Admin to be omitted from each non-owner sidebar',
-    );
-  }
+  assert.equal(getLinks(getDesktopSidebar(nonOwnerRender.container)).filter((link) => link.getAttribute('href') === '/admin').length, 0);
+  assert.equal(getLinks(nonOwnerMobile).filter((link) => link.getAttribute('href') === '/admin').length, 0);
 });
 
 test('highlights the matching nested sermon and saved-service routes', () => {
@@ -278,6 +332,24 @@ test('highlights the matching nested sermon and saved-service routes', () => {
 
     unmount();
   }
+});
+
+test('opens the active mobile group when the drawer opens', () => {
+  currentLocation = '/generators/songs';
+  const onClose = () => undefined;
+  const { container, rerender } = render(<Sidebar open={false} onClose={onClose} />);
+  const mobileSidebar = getMobileSidebar(container);
+  const otherToolsToggle = mobileSidebar.querySelector<HTMLButtonElement>(
+    '[data-testid="mobile-nav-group-toggle-other-tools"]',
+  )!;
+
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'false');
+  rerender(<Sidebar open onClose={onClose} />);
+
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'true');
+  const activeLink = getLinks(mobileSidebar).find((link) => link.getAttribute('href') === '/generators/songs');
+  assert.ok(activeLink);
+  assert.equal(isActive(activeLink), true);
 });
 
 test('closes the mobile drawer when the location changes', () => {

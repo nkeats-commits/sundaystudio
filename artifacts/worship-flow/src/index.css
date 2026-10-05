@@ -177,6 +177,14 @@
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
+.mobile-sidebar-header {
+  padding-top: calc(1.25rem + env(safe-area-inset-top, 0px));
+}
+
+.mobile-sidebar-account {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
 .assistant-markdown {
   overflow-wrap: anywhere;
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   ListVideo,
@@ -21,6 +21,7 @@ import {
   X,
   Loader2,
   MessageCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
@@ -28,6 +29,19 @@ import { Shield } from 'lucide-react';
 import { useIsOwner } from '../../hooks/useIsOwner';
 import { useAnyPendingGenerationJobs } from '../../contexts/GenerationJobStore';
 import { generatorPagePath } from '../../hooks/useJobGenerate';
+
+type NavigationItem = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  href: string;
+  beta?: boolean;
+};
+
+type NavigationGroup = {
+  id: string;
+  label: string;
+  items: NavigationItem[];
+};
 
 function BackgroundGenerationIndicator() {
   const pendingJobs = useAnyPendingGenerationJobs();
@@ -56,6 +70,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const [location] = useLocation();
   const { user } = useUser();
   const { isOwner, isLoading: isOwnerLoading } = useIsOwner();
+  const [expandedMobileGroups, setExpandedMobileGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const prevLocationRef = useRef(location);
   useEffect(() => {
@@ -72,12 +89,6 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     { icon: BookOpen, label: 'Bible Tools', href: '/bible-tools', beta: true },
     { icon: LibraryIcon, label: 'Sermon Resources', href: '/resources' },
   ];
-
-  const dashboardItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-  ];
-
-  const assistantItem = { icon: MessageCircle, label: 'Assistant', href: '/assistant' };
 
   const otherItems = [
     { icon: ListVideo, label: 'Service Builder', href: '/service-builder' },
@@ -107,129 +118,185 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const initials = (firstName?.[0] || '') + (lastName?.[0] || '') || email?.[0]?.toUpperCase() || 'U';
   const fullName = firstName || lastName ? `${firstName} ${lastName}`.trim() : email;
 
-  const navContent = (
+  const navigationGroups: NavigationGroup[] = [
+    { id: 'sermon-prep', label: 'SERMON PREP', items: sermonItems },
+    { id: 'other-tools', label: 'OTHER TOOLS', items: otherItems },
+    { id: 'settings', label: 'SETTINGS', items: bottomItems },
+  ];
+
+  const isItemActive = (item: NavigationItem, groupId?: string) => {
+    if (item.href === '/dashboard') return location === item.href;
+
+    if (groupId === 'sermon-prep') {
+      return (
+        location === item.href ||
+        (item.href === '/sermons' &&
+          location.startsWith('/sermons/') &&
+          location !== '/sermons/new' &&
+          !location.startsWith('/sermons/series')) ||
+        (item.href === '/sermons/series' && location.startsWith('/sermons/series'))
+      );
+    }
+
+    return location === item.href || location.startsWith(item.href + '/');
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const activeGroup = navigationGroups.find((group) =>
+      group.items.some((item) => isItemActive(item, group.id)),
+    );
+    setExpandedMobileGroups(activeGroup ? new Set([activeGroup.id]) : new Set());
+  }, [open, location]);
+
+  const toggleMobileGroup = (groupId: string) => {
+    setExpandedMobileGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const renderLink = (
+    item: NavigationItem,
+    key: string,
+    groupId?: string,
+    mobile = false,
+  ) => {
+    const active = isItemActive(item, groupId);
+    const assistant = item.href === '/assistant';
+    return (
+      <Link
+        key={key}
+        href={item.href}
+        data-testid={assistant ? 'nav-assistant' : undefined}
+        className={`flex ${mobile ? 'min-h-11 ' : ''}items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
+          assistant ? 'font-semibold' : 'font-medium'
+        } transition-colors ${
+          active
+            ? 'bg-white/10 text-white'
+            : assistant
+              ? 'bg-white/5 text-[var(--worship-pale-gold)] hover:bg-white/[0.08] hover:text-white'
+              : 'text-slate-300 hover:bg-white/5 hover:text-white'
+        }`}
+      >
+        <item.icon
+          className={`w-5 h-5 shrink-0 ${
+            active
+              ? 'text-[var(--worship-gold)]'
+              : assistant
+                ? 'text-[var(--worship-pale-gold)]'
+                : 'text-slate-400'
+          }`}
+        />
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="truncate">{item.label}</span>
+          {item.beta ? (
+            <span
+              data-testid="bible-tools-beta-badge"
+              className="shrink-0 rounded bg-[var(--worship-gold)] px-1.5 py-0.5 text-[9px] font-bold leading-none tracking-wider text-[var(--worship-navy)]"
+            >
+              BETA
+            </span>
+          ) : null}
+        </span>
+        {assistant ? (
+          <span className="ml-auto rounded-full border border-[var(--worship-gold)]/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--worship-gold)]">
+            New
+          </span>
+        ) : null}
+      </Link>
+    );
+  };
+
+  const desktopNavContent = (
     <>
-      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-3">
-        {dashboardItems.map((item, i) => {
-          const active = location === item.href;
-          return (
-            <Link
-              key={i}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
-              {item.label}
-            </Link>
-          );
-        })}
+      <div className="flex-1 min-h-0 overflow-y-auto py-4 flex flex-col gap-1 px-3">
+        {renderLink(
+          { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+          'dashboard',
+        )}
+        {renderLink(
+          { icon: MessageCircle, label: 'Assistant', href: '/assistant' },
+          'assistant',
+        )}
+        {navigationGroups.map((group) => (
+          <React.Fragment key={group.id}>
+            <div className="my-4 mx-3 h-px bg-white/10" />
+            <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
+              {group.label}
+            </div>
+            {group.items.map((item) => renderLink(item, item.href, group.id))}
+          </React.Fragment>
+        ))}
+      </div>
 
-        {(() => {
-          const item = assistantItem;
-          const active = location === item.href || location.startsWith(item.href + '/');
-          return (
-            <Link
-              href={item.href}
-              data-testid="nav-assistant"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                active
-                  ? 'bg-white/10 text-white'
-                  : 'bg-white/5 text-[var(--worship-pale-gold)] hover:bg-white/[0.08] hover:text-white'
-              }`}
-            >
-              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-[var(--worship-pale-gold)]'}`} />
-              {item.label}
-              <span className="ml-auto rounded-full border border-[var(--worship-gold)]/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--worship-gold)]">New</span>
-            </Link>
-          );
-        })()}
+      <BackgroundGenerationIndicator />
+      <div className="shrink-0 p-4 border-t border-white/10">
+        <div className="flex items-center gap-3 px-2 overflow-hidden">
+          <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--worship-gold)] flex items-center justify-center text-[var(--worship-navy)] font-bold text-sm">
+            {initials}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium text-white truncate">{fullName}</span>
+            <span className="text-xs text-slate-400 truncate">{email}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 
-        <div className="my-4 mx-3 h-px bg-white/10" />
-        <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">SERMON PREP</div>
-        {sermonItems.map((item, i) => {
-          const active =
-            location === item.href ||
-            (item.href === '/sermons' &&
-              location.startsWith('/sermons/') &&
-              location !== '/sermons/new' &&
-              !location.startsWith('/sermons/series')) ||
-            (item.href === '/sermons/new' && location === '/sermons/new') ||
-            (item.href === '/sermons/series' && location.startsWith('/sermons/series'));
+  const mobileNavContent = (
+    <>
+      <div
+        data-testid="mobile-sidebar-navigation"
+        className="flex-1 min-h-0 overflow-y-auto py-3 flex flex-col gap-1 px-3"
+      >
+        {renderLink(
+          { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+          'dashboard',
+          undefined,
+          true,
+        )}
+        {renderLink(
+          { icon: MessageCircle, label: 'Assistant', href: '/assistant' },
+          'assistant',
+          undefined,
+          true,
+        )}
+        <div className="my-1 mx-3 h-px shrink-0 bg-white/10" />
+        {navigationGroups.map((group) => {
+          const expanded = expandedMobileGroups.has(group.id);
+          const panelId = `mobile-nav-group-${group.id}`;
           return (
-            <Link
-              key={`s-${i}`}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
-              <span className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="truncate">{item.label}</span>
-                {item.beta ? (
-                  <span
-                    data-testid="bible-tools-beta-badge"
-                    className="shrink-0 rounded bg-[var(--worship-gold)] px-1.5 py-0.5 text-[9px] font-bold leading-none tracking-wider text-[var(--worship-navy)]"
-                  >
-                    BETA
-                  </span>
-                ) : null}
-              </span>
-            </Link>
-          );
-        })}
-
-        <div className="my-4 mx-3 h-px bg-white/10" />
-        <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">OTHER TOOLS</div>
-        {otherItems.map((item, i) => {
-          const active = location === item.href || location.startsWith(item.href + '/');
-          return (
-            <Link
-              key={`o-${i}`}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
-              {item.label}
-            </Link>
-          );
-        })}
-
-        <div className="my-4 mx-3 h-px bg-white/10" />
-
-        <div className="px-3 mb-1 text-[10px] uppercase tracking-widest text-slate-500 font-semibold">SETTINGS</div>
-        {bottomItems.map((item, i) => {
-          const active = location === item.href || location.startsWith(item.href + '/');
-          return (
-            <Link
-              key={i}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <item.icon className={`w-5 h-5 ${active ? 'text-[var(--worship-gold)]' : 'text-slate-400'}`} />
-              {item.label}
-            </Link>
+            <section key={group.id} className="shrink-0 border-b border-white/10 last:border-b-0">
+              <button
+                type="button"
+                data-testid={`mobile-nav-group-toggle-${group.id}`}
+                aria-expanded={expanded}
+                aria-controls={panelId}
+                onClick={() => toggleMobileGroup(group.id)}
+                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-300 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)]"
+              >
+                <span>{group.label}</span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
+                    expanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              <div id={panelId} hidden={!expanded} className="flex flex-col gap-1 pb-2 pl-2">
+                {group.items.map((item) => renderLink(item, item.href, group.id, true))}
+              </div>
+            </section>
           );
         })}
       </div>
 
       <BackgroundGenerationIndicator />
-
-      <div className="p-4 border-t border-white/10">
+      <div className="mobile-sidebar-account shrink-0 border-t border-white/10 p-4">
         <div className="flex items-center gap-3 px-2 overflow-hidden">
           <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--worship-gold)] flex items-center justify-center text-[var(--worship-navy)] font-bold text-sm">
             {initials}
@@ -256,7 +323,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             Sunday Studio
           </span>
         </div>
-        {navContent}
+        {desktopNavContent}
       </div>
 
       {/* Mobile sidebar — fixed overlay drawer */}
@@ -267,7 +334,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         style={{ backgroundColor: 'var(--worship-navy)', color: 'white' }}
         aria-hidden={!open}
       >
-        <div className="p-5 flex items-center justify-between gap-3">
+        <div className="mobile-sidebar-header p-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Flame className="w-6 h-6" style={{ color: 'var(--worship-gold)' }} />
             <span className="text-xl font-semibold tracking-tight" style={{ color: 'var(--worship-gold)', fontFamily: 'var(--font-serif)' }}>
@@ -282,7 +349,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             <X className="w-5 h-5" />
           </button>
         </div>
-        {navContent}
+        {mobileNavContent}
       </div>
     </>
   );

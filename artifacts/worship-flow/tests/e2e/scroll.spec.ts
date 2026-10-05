@@ -7,6 +7,36 @@ const viewports = [
   { label: "phone", width: 390, height: 844 },
 ] as const;
 
+const mobileNavGroups = [
+  {
+    id: "sermon-prep",
+    hrefs: ["/sermons/new", "/sermons", "/sermons/series", "/bible-tools", "/resources"],
+  },
+  {
+    id: "other-tools",
+    hrefs: [
+      "/service-builder",
+      "/generators/liturgy",
+      "/generators/songs",
+      "/generators/speaking-moment",
+      "/generators/devotional",
+      "/generators/soul-care",
+      "/library",
+      "/services",
+    ],
+  },
+  {
+    id: "settings",
+    hrefs: ["/help", "/church", "/settings/integrations", "/billing", "/settings", "/admin"],
+  },
+] as const;
+
+const allNavigationHrefs = [
+  "/dashboard",
+  "/assistant",
+  ...mobileNavGroups.flatMap((group) => group.hrefs),
+];
+
 const servicePlan = {
   id: 41,
   userId: "scroll-e2e-owner",
@@ -135,6 +165,24 @@ async function installApiFixtures(page: Page) {
       };
     } else if (pathname === "/api/billing/status") {
       response = { state: { kind: "active" }, trialDays: 14 };
+    } else if (pathname === "/api/dashboard") {
+      response = {
+        verseOfDay: { text: "Be still and know.", reference: "Psalm 46:10" },
+        recentServices: [],
+        servicesThisMonth: 0,
+        librarySize: 0,
+        totalServices: 0,
+        suggestions: [],
+        trial: {
+          isActive: false,
+          daysLeft: null,
+          trialEndsAt: null,
+          activated: true,
+          servicePlans: 0,
+          sermons: 0,
+          libraryItems: 0,
+        },
+      };
     } else if (pathname === "/api/admin/me") {
       response = { userId: "scroll-e2e-owner" };
     } else if (pathname === "/api/me") {
@@ -359,6 +407,12 @@ test("phone sidebar scrolls, navigates, closes, and leaves page scrolling availa
   await expect(drawer).toBeVisible();
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
 
+  await expect(
+    drawer.getByTestId("mobile-nav-group-toggle-settings"),
+  ).toHaveAttribute("aria-expanded", "true");
+  await drawer.getByTestId("mobile-nav-group-toggle-sermon-prep").click();
+  await drawer.getByTestId("mobile-nav-group-toggle-other-tools").click();
+
   const navigationList = drawer.locator(".overflow-y-auto").first();
   const scrollHeight = await navigationList.evaluate((element) => element.scrollHeight);
   const clientHeight = await navigationList.evaluate((element) => element.clientHeight);
@@ -390,6 +444,9 @@ test("phone sidebar scrolls, navigates, closes, and leaves page scrolling availa
 
   await page.getByRole("button", { name: "Open menu" }).click();
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
+  await expect(
+    drawer.getByTestId("mobile-nav-group-toggle-other-tools"),
+  ).toHaveAttribute("aria-expanded", "true");
   const backdrop = page.locator(
     'div[aria-hidden="true"][class*="bg-black/50"]',
   );
@@ -399,6 +456,80 @@ test("phone sidebar scrolls, navigates, closes, and leaves page scrolling availa
   await expect(drawer).toHaveAttribute("aria-hidden", "true");
   await expectPageCanScrollToEnd(page, cdp);
   await cdp.detach();
+});
+
+test("compact phone drawer exposes every group and destination at short and standard sizes", async ({
+  page,
+}) => {
+  const phoneViewports = [
+    { width: 360, height: 640 },
+    { width: 390, height: 844 },
+  ];
+  const drawer = page.locator(
+    'div[class~="md:hidden"][class~="fixed"][class~="inset-y-0"][class~="left-0"]',
+  );
+
+  for (const viewport of phoneViewports) {
+    await page.setViewportSize(viewport);
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("text-dashboard-welcome")).toBeVisible();
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await expect(drawer).toHaveAttribute("aria-hidden", "false");
+    await expect(drawer.getByRole("link", { name: "Dashboard" })).toBeInViewport();
+    await expect(drawer.getByRole("link", { name: "Assistant" })).toBeInViewport();
+    await expect(drawer.getByText("Test Worship Leader")).toBeInViewport();
+
+    for (const group of mobileNavGroups) {
+      const toggle = drawer.getByTestId(`mobile-nav-group-toggle-${group.id}`);
+      await expect(toggle).toBeInViewport();
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    }
+
+    for (const group of mobileNavGroups) {
+      const toggle = drawer.getByTestId(`mobile-nav-group-toggle-${group.id}`);
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+      const panel = drawer.locator(`#mobile-nav-group-${group.id}`);
+      const hrefs = await panel.locator("a").evaluateAll((links) =>
+        links.map((link) => link.getAttribute("href")),
+      );
+      expect(hrefs).toEqual(group.hrefs);
+    }
+
+    const navigationList = drawer.locator('[data-testid="mobile-sidebar-navigation"]');
+    const { scrollHeight, clientHeight } = await navigationList.evaluate((element) => ({
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    }));
+    expect(scrollHeight).toBeGreaterThan(clientHeight);
+    await expect(drawer.getByText("Test Worship Leader")).toBeInViewport();
+
+    await navigationList.evaluate((element) => {
+      element.scrollTo({ top: 0, behavior: "instant" });
+    });
+    await drawer.getByRole("link", { name: "Song Assistant" }).click();
+    await expect(page.getByRole("heading", { name: "Find Songs" }).first()).toBeVisible();
+    await expect(drawer).toHaveAttribute("aria-hidden", "true");
+
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await expect(
+      drawer.getByTestId("mobile-nav-group-toggle-other-tools"),
+    ).toHaveAttribute("aria-expanded", "true");
+    await expect(drawer).toHaveAttribute("aria-hidden", "false");
+    await drawer.getByRole("button", { name: "Close menu" }).click();
+    await expect(drawer).toHaveAttribute("aria-hidden", "true");
+  }
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/dashboard");
+  const desktopSidebar = page.locator('div[class~="hidden"][class~="md:flex"]').first();
+  await expect(desktopSidebar.getByRole("link", { name: "Admin" })).toBeVisible();
+  const desktopHrefs = await desktopSidebar.locator("a").evaluateAll((links) =>
+    links.map((link) => link.getAttribute("href")),
+  );
+  expect(desktopHrefs).toEqual(allNavigationHrefs);
+  await expect(desktopSidebar.locator("button[aria-expanded]")).toHaveCount(0);
 });
 
 test("scrollable song dialog remains usable and restores page scrolling when closed", async ({
