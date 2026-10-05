@@ -636,6 +636,8 @@ test("desktop sidebar stays visible while the page and navigation scroll indepen
   const desktopViewports = [
     { width: 1280, height: 800 },
     { width: 1024, height: 560 },
+    // Equivalent CSS viewport to a 1600x800 desktop at 200% browser zoom.
+    { width: 800, height: 400 },
   ];
   const sidebar = page.getByTestId("desktop-sidebar");
   const navigation = page.getByTestId("desktop-sidebar-navigation");
