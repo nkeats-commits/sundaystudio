@@ -77,7 +77,7 @@ mock.module('../../hooks/useJobGenerate', {
 });
 
 const { render, cleanup, fireEvent } = await import('@testing-library/react');
-const { Sidebar } = await import('./Sidebar');
+const { Sidebar, SidebarDisclosureProvider } = await import('./Sidebar');
 
 const appLayoutSource = readFileSync(new URL('./AppLayout.tsx', import.meta.url), 'utf8');
 const appStyles = readFileSync(new URL('../../index.css', import.meta.url), 'utf8');
@@ -203,6 +203,40 @@ test('opens the matching desktop group for the current route', () => {
   );
 });
 
+test('keeps previously opened desktop groups open across routes and allows manual collapse', () => {
+  currentLocation = '/generators/songs';
+  const onClose = () => undefined;
+  const { container, rerender } = render(<Sidebar open onClose={onClose} />);
+  const desktopSidebar = getDesktopSidebar(container);
+  const sermonPrepToggle = desktopSidebar.querySelector<HTMLButtonElement>(
+    '[data-testid="desktop-nav-group-toggle-sermon-prep"]',
+  )!;
+  const otherToolsToggle = desktopSidebar.querySelector<HTMLButtonElement>(
+    '[data-testid="desktop-nav-group-toggle-other-tools"]',
+  )!;
+
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'true');
+  fireEvent.click(sermonPrepToggle);
+  assert.equal(sermonPrepToggle.getAttribute('aria-expanded'), 'true');
+
+  currentLocation = '/sermons/new';
+  rerender(<Sidebar open onClose={onClose} />);
+  assert.equal(sermonPrepToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'true');
+
+  fireEvent.click(otherToolsToggle);
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'false');
+  currentLocation = '/help';
+  rerender(<Sidebar open onClose={onClose} />);
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(
+    desktopSidebar
+      .querySelector('[data-testid="desktop-nav-group-toggle-settings"]')
+      ?.getAttribute('aria-expanded'),
+    'true',
+  );
+});
+
 test('keeps phone navigation compact while showing all group labels', () => {
   const { container } = renderSidebar();
   const mobileSidebar = getMobileSidebar(container);
@@ -272,13 +306,56 @@ test('keeps each responsive sidebar navigation list independently scrollable', (
   const { container } = renderSidebar();
 
   for (const sidebar of getResponsiveSidebars(container)) {
-    const navigationList = Array.from(sidebar.children).find((element) =>
-      element.classList.contains('overflow-y-auto'),
+    const navigationList = sidebar.querySelector<HTMLElement>(
+      '[data-testid$="-sidebar-navigation"]',
     );
 
     assert.ok(navigationList, 'expected the sidebar navigation to retain its own vertical scroll area');
     assert.equal(navigationList.classList.contains('flex-1'), true);
   }
+});
+
+test('shows a scroll cue only when navigation has more content below', () => {
+  const { container } = renderSidebar();
+  const navigationLists = [
+    getDesktopSidebar(container).querySelector<HTMLElement>(
+      '[data-testid="desktop-sidebar-navigation"]',
+    )!,
+    getMobileSidebar(container).querySelector<HTMLElement>(
+      '[data-testid="mobile-sidebar-navigation"]',
+    )!,
+  ];
+  let scrollHeight = 240;
+
+  for (const navigationList of navigationLists) {
+    Object.defineProperty(navigationList, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    });
+    Object.defineProperty(navigationList, 'clientHeight', {
+      configurable: true,
+      value: 120,
+    });
+  }
+
+  fireEvent(window, new window.Event('resize'));
+  assert.ok(container.querySelector('[data-testid="desktop-sidebar-scroll-cue"]'));
+  assert.ok(container.querySelector('[data-testid="mobile-sidebar-scroll-cue"]'));
+
+  for (const navigationList of navigationLists) {
+    navigationList.scrollTop = 120;
+    fireEvent.scroll(navigationList);
+  }
+  assert.equal(container.querySelector('[data-testid="desktop-sidebar-scroll-cue"]'), null);
+  assert.equal(container.querySelector('[data-testid="mobile-sidebar-scroll-cue"]'), null);
+
+  scrollHeight = 100;
+  for (const navigationList of navigationLists) {
+    navigationList.scrollTop = 0;
+  }
+  fireEvent(window, new window.Event('resize'));
+  assert.equal(container.querySelector('[data-testid="desktop-sidebar-scroll-cue"]'), null);
+  assert.equal(container.querySelector('[data-testid="mobile-sidebar-scroll-cue"]'), null);
 });
 
 test('bounds the desktop rail and keeps its account block outside the navigation scroll area', () => {
@@ -465,6 +542,81 @@ test('opens the active mobile group when the drawer opens', () => {
   const activeLink = getLinks(mobileSidebar).find((link) => link.getAttribute('href') === '/generators/songs');
   assert.ok(activeLink);
   assert.equal(isActive(activeLink), true);
+});
+
+test('preserves mobile disclosures when navigating, closing, reopening, and manually collapsing', () => {
+  currentLocation = '/generators/songs';
+  const onClose = () => undefined;
+  const { container, rerender } = render(<Sidebar open onClose={onClose} />);
+  const mobileSidebar = getMobileSidebar(container);
+  const sermonPrepToggle = mobileSidebar.querySelector<HTMLButtonElement>(
+    '[data-testid="mobile-nav-group-toggle-sermon-prep"]',
+  )!;
+  const otherToolsToggle = mobileSidebar.querySelector<HTMLButtonElement>(
+    '[data-testid="mobile-nav-group-toggle-other-tools"]',
+  )!;
+
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'true');
+  fireEvent.click(sermonPrepToggle);
+  assert.equal(sermonPrepToggle.getAttribute('aria-expanded'), 'true');
+
+  currentLocation = '/sermons/new';
+  rerender(<Sidebar open={false} onClose={onClose} />);
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(sermonPrepToggle.getAttribute('aria-expanded'), 'true');
+
+  currentLocation = '/help';
+  rerender(<Sidebar open={false} onClose={onClose} />);
+  rerender(<Sidebar open onClose={onClose} />);
+  assert.equal(otherToolsToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(sermonPrepToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(
+    mobileSidebar
+      .querySelector('[data-testid="mobile-nav-group-toggle-settings"]')
+      ?.getAttribute('aria-expanded'),
+    'true',
+  );
+
+  fireEvent.click(sermonPrepToggle);
+  assert.equal(sermonPrepToggle.getAttribute('aria-expanded'), 'false');
+  rerender(<Sidebar open={false} onClose={onClose} />);
+  rerender(<Sidebar open onClose={onClose} />);
+  assert.equal(sermonPrepToggle.getAttribute('aria-expanded'), 'false');
+});
+
+test('retains disclosures when feature navigation remounts the sidebar', () => {
+  currentLocation = '/generators/songs';
+  const onClose = () => undefined;
+  const renderRoute = () => (
+    <SidebarDisclosureProvider>
+      <Sidebar key={currentLocation} open onClose={onClose} />
+    </SidebarDisclosureProvider>
+  );
+  const { container, rerender } = render(renderRoute());
+
+  for (const sidebar of getResponsiveSidebars(container)) {
+    const groupPrefix = sidebar === getDesktopSidebar(container) ? 'desktop' : 'mobile';
+    const sermonPrepToggle = sidebar.querySelector<HTMLButtonElement>(
+      `[data-testid="${groupPrefix}-nav-group-toggle-sermon-prep"]`,
+    )!;
+    fireEvent.click(sermonPrepToggle);
+    assert.equal(sermonPrepToggle.getAttribute('aria-expanded'), 'true');
+  }
+
+  currentLocation = '/sermons/new';
+  rerender(renderRoute());
+
+  for (const sidebar of getResponsiveSidebars(container)) {
+    const groupPrefix = sidebar === getDesktopSidebar(container) ? 'desktop' : 'mobile';
+    for (const groupId of ['sermon-prep', 'other-tools']) {
+      assert.equal(
+        sidebar
+          .querySelector(`[data-testid="${groupPrefix}-nav-group-toggle-${groupId}"]`)
+          ?.getAttribute('aria-expanded'),
+        'true',
+      );
+    }
+  }
 });
 
 test('closes the mobile drawer when the location changes', () => {

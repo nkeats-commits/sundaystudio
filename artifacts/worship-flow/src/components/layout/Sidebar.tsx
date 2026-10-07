@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   ListVideo,
@@ -66,16 +66,118 @@ function BackgroundGenerationIndicator() {
   );
 }
 
-export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [location] = useLocation();
-  const { user } = useUser();
-  const { isOwner, isLoading: isOwnerLoading } = useIsOwner();
+function useHasMoreNavigationBelow(
+  navigationRef: React.RefObject<HTMLDivElement | null>,
+  contentVersion: Set<string>,
+) {
+  const [hasMoreBelow, setHasMoreBelow] = useState(false);
+
+  useEffect(() => {
+    const navigation = navigationRef.current;
+    if (!navigation) return;
+
+    const update = () => {
+      setHasMoreBelow(
+        navigation.scrollHeight - navigation.clientHeight - navigation.scrollTop > 1,
+      );
+    };
+    const view = navigation.ownerDocument.defaultView;
+    const ResizeObserverConstructor =
+      typeof ResizeObserver === 'undefined' ? null : ResizeObserver;
+    const resizeObserver = ResizeObserverConstructor
+      ? new ResizeObserverConstructor(update)
+      : null;
+    const MutationObserverConstructor = view?.MutationObserver;
+    const mutationObserver = MutationObserverConstructor
+      ? new MutationObserverConstructor(update)
+      : null;
+
+    update();
+    navigation.addEventListener('scroll', update, { passive: true });
+    view?.addEventListener('resize', update);
+    resizeObserver?.observe(navigation);
+    mutationObserver?.observe(navigation, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ['hidden'],
+    });
+
+    return () => {
+      navigation.removeEventListener('scroll', update);
+      view?.removeEventListener('resize', update);
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+    };
+  }, [navigationRef, contentVersion]);
+
+  return hasMoreBelow;
+}
+
+function NavigationScrollCue({ testId }: { testId: string }) {
+  return (
+    <div
+      data-testid={testId}
+      aria-hidden="true"
+      className="sidebar-navigation-scroll-cue pointer-events-none absolute inset-x-0 bottom-0 z-10 flex h-9 items-end justify-center pb-1.5 text-[var(--worship-gold)]"
+    >
+      <ChevronDown className="h-4 w-4 drop-shadow" />
+    </div>
+  );
+}
+
+type SidebarDisclosureState = {
+  expandedDesktopGroups: Set<string>;
+  setExpandedDesktopGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
+  expandedMobileGroups: Set<string>;
+  setExpandedMobileGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
+};
+
+const SidebarDisclosureContext = React.createContext<SidebarDisclosureState | null>(null);
+
+export function SidebarDisclosureProvider({ children }: { children: React.ReactNode }) {
   const [expandedDesktopGroups, setExpandedDesktopGroups] = useState<Set<string>>(
     () => new Set(),
   );
   const [expandedMobileGroups, setExpandedMobileGroups] = useState<Set<string>>(
     () => new Set(),
   );
+
+  return (
+    <SidebarDisclosureContext.Provider
+      value={{
+        expandedDesktopGroups,
+        setExpandedDesktopGroups,
+        expandedMobileGroups,
+        setExpandedMobileGroups,
+      }}
+    >
+      {children}
+    </SidebarDisclosureContext.Provider>
+  );
+}
+
+export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [location] = useLocation();
+  const { user } = useUser();
+  const { isOwner, isLoading: isOwnerLoading } = useIsOwner();
+  const disclosureState = useContext(SidebarDisclosureContext);
+  const [localExpandedDesktopGroups, setLocalExpandedDesktopGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [localExpandedMobileGroups, setLocalExpandedMobileGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const expandedDesktopGroups =
+    disclosureState?.expandedDesktopGroups ?? localExpandedDesktopGroups;
+  const setExpandedDesktopGroups =
+    disclosureState?.setExpandedDesktopGroups ?? setLocalExpandedDesktopGroups;
+  const expandedMobileGroups =
+    disclosureState?.expandedMobileGroups ?? localExpandedMobileGroups;
+  const setExpandedMobileGroups =
+    disclosureState?.setExpandedMobileGroups ?? setLocalExpandedMobileGroups;
+  const desktopNavigationRef = useRef<HTMLDivElement>(null);
+  const mobileNavigationRef = useRef<HTMLDivElement>(null);
 
   const prevLocationRef = useRef(location);
   useEffect(() => {
@@ -127,6 +229,15 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     { id: 'settings', label: 'SETTINGS', items: bottomItems },
   ];
 
+  const desktopHasMoreBelow = useHasMoreNavigationBelow(
+    desktopNavigationRef,
+    expandedDesktopGroups,
+  );
+  const mobileHasMoreBelow = useHasMoreNavigationBelow(
+    mobileNavigationRef,
+    expandedMobileGroups,
+  );
+
   const isItemActive = (item: NavigationItem, groupId?: string) => {
     if (item.href === '/dashboard') return location === item.href;
 
@@ -149,14 +260,26 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     const activeGroup = navigationGroups.find((group) =>
       group.items.some((item) => isItemActive(item, group.id)),
     );
-    setExpandedMobileGroups(activeGroup ? new Set([activeGroup.id]) : new Set());
+    if (!activeGroup) return;
+    setExpandedMobileGroups((current) => {
+      if (current.has(activeGroup.id)) return current;
+      const next = new Set(current);
+      next.add(activeGroup.id);
+      return next;
+    });
   }, [open, location]);
 
   useEffect(() => {
     const activeGroup = navigationGroups.find((group) =>
       group.items.some((item) => isItemActive(item, group.id)),
     );
-    setExpandedDesktopGroups(activeGroup ? new Set([activeGroup.id]) : new Set());
+    if (!activeGroup) return;
+    setExpandedDesktopGroups((current) => {
+      if (current.has(activeGroup.id)) return current;
+      const next = new Set(current);
+      next.add(activeGroup.id);
+      return next;
+    });
   }, [location, isOwner, isOwnerLoading]);
 
   const toggleDesktopGroup = (groupId: string) => {
@@ -231,51 +354,57 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
 
   const desktopNavContent = (
     <>
-      <div
-        data-testid="desktop-sidebar-navigation"
-        className="flex-1 min-h-0 overflow-y-auto py-4 flex flex-col gap-1 px-3"
-      >
-        {renderLink(
-          { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-          'dashboard',
-        )}
-        {renderLink(
-          { icon: MessageCircle, label: 'Assistant', href: '/assistant' },
-          'assistant',
-        )}
-        {navigationGroups.map((group) => {
-          const expanded = expandedDesktopGroups.has(group.id);
-          const panelId = `desktop-nav-group-${group.id}`;
+      <div className="relative flex flex-1 min-h-0 flex-col">
+        <div
+          ref={desktopNavigationRef}
+          data-testid="desktop-sidebar-navigation"
+          className="flex-1 min-h-0 overflow-y-auto py-4 flex flex-col gap-1 px-3"
+        >
+          {renderLink(
+            { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+            'dashboard',
+          )}
+          {renderLink(
+            { icon: MessageCircle, label: 'Assistant', href: '/assistant' },
+            'assistant',
+          )}
+          {navigationGroups.map((group) => {
+            const expanded = expandedDesktopGroups.has(group.id);
+            const panelId = `desktop-nav-group-${group.id}`;
 
-          return (
-            <section key={group.id} className="shrink-0">
-              <div className="my-3 mx-3 h-px bg-white/10" />
-              <button
-                type="button"
-                data-testid={`desktop-nav-group-toggle-${group.id}`}
-                aria-expanded={expanded}
-                aria-controls={panelId}
-                onClick={() => toggleDesktopGroup(group.id)}
-                className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)]"
-              >
-                <span>{group.label}</span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
-                    expanded ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-              <div
-                id={panelId}
-                hidden={!expanded}
-                className="flex flex-col gap-1 pb-2"
-              >
-                {group.items.map((item) => renderLink(item, item.href, group.id))}
-              </div>
-            </section>
-          );
-        })}
+            return (
+              <section key={group.id} className="shrink-0">
+                <div className="my-3 mx-3 h-px bg-white/10" />
+                <button
+                  type="button"
+                  data-testid={`desktop-nav-group-toggle-${group.id}`}
+                  aria-expanded={expanded}
+                  aria-controls={panelId}
+                  onClick={() => toggleDesktopGroup(group.id)}
+                  className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)]"
+                >
+                  <span>{group.label}</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                      expanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                <div
+                  id={panelId}
+                  hidden={!expanded}
+                  className="flex flex-col gap-1 pb-2"
+                >
+                  {group.items.map((item) => renderLink(item, item.href, group.id))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+        {desktopHasMoreBelow ? (
+          <NavigationScrollCue testId="desktop-sidebar-scroll-cue" />
+        ) : null}
       </div>
 
       <BackgroundGenerationIndicator />
@@ -295,50 +424,56 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
 
   const mobileNavContent = (
     <>
-      <div
-        data-testid="mobile-sidebar-navigation"
-        className="flex-1 min-h-0 overflow-y-auto py-3 flex flex-col gap-1 px-3"
-      >
-        {renderLink(
-          { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-          'dashboard',
-          undefined,
-          true,
-        )}
-        {renderLink(
-          { icon: MessageCircle, label: 'Assistant', href: '/assistant' },
-          'assistant',
-          undefined,
-          true,
-        )}
-        <div className="my-1 mx-3 h-px shrink-0 bg-white/10" />
-        {navigationGroups.map((group) => {
-          const expanded = expandedMobileGroups.has(group.id);
-          const panelId = `mobile-nav-group-${group.id}`;
-          return (
-            <section key={group.id} className="shrink-0 border-b border-white/10 last:border-b-0">
-              <button
-                type="button"
-                data-testid={`mobile-nav-group-toggle-${group.id}`}
-                aria-expanded={expanded}
-                aria-controls={panelId}
-                onClick={() => toggleMobileGroup(group.id)}
-                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-300 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)]"
-              >
-                <span>{group.label}</span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
-                    expanded ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-              <div id={panelId} hidden={!expanded} className="flex flex-col gap-1 pb-2 pl-2">
-                {group.items.map((item) => renderLink(item, item.href, group.id, true))}
-              </div>
-            </section>
-          );
-        })}
+      <div className="relative flex flex-1 min-h-0 flex-col">
+        <div
+          ref={mobileNavigationRef}
+          data-testid="mobile-sidebar-navigation"
+          className="flex-1 min-h-0 overflow-y-auto py-3 flex flex-col gap-1 px-3"
+        >
+          {renderLink(
+            { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+            'dashboard',
+            undefined,
+            true,
+          )}
+          {renderLink(
+            { icon: MessageCircle, label: 'Assistant', href: '/assistant' },
+            'assistant',
+            undefined,
+            true,
+          )}
+          <div className="my-1 mx-3 h-px shrink-0 bg-white/10" />
+          {navigationGroups.map((group) => {
+            const expanded = expandedMobileGroups.has(group.id);
+            const panelId = `mobile-nav-group-${group.id}`;
+            return (
+              <section key={group.id} className="shrink-0 border-b border-white/10 last:border-b-0">
+                <button
+                  type="button"
+                  data-testid={`mobile-nav-group-toggle-${group.id}`}
+                  aria-expanded={expanded}
+                  aria-controls={panelId}
+                  onClick={() => toggleMobileGroup(group.id)}
+                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-300 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--worship-gold)]"
+                >
+                  <span>{group.label}</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
+                      expanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                <div id={panelId} hidden={!expanded} className="flex flex-col gap-1 pb-2 pl-2">
+                  {group.items.map((item) => renderLink(item, item.href, group.id, true))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+        {mobileHasMoreBelow ? (
+          <NavigationScrollCue testId="mobile-sidebar-scroll-cue" />
+        ) : null}
       </div>
 
       <BackgroundGenerationIndicator />

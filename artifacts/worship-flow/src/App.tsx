@@ -59,6 +59,7 @@ import { OnboardingWizard } from "./components/OnboardingWizard";
 import { ClerkQueryClientCacheInvalidator } from "./components/ClerkQueryClientCacheInvalidator";
 import { TrialEndedModal } from "./components/TrialEndedModal";
 import { ProtectedWorkspace } from "./components/ProtectedWorkspace";
+import { SidebarDisclosureProvider } from "./components/layout/Sidebar";
 import { NativeAppBridge } from "./mobile/NativeAppBridge";
 import {
   isNativeApp,
@@ -494,6 +495,7 @@ function ClerkProviderWithRoutes() {
         <GenerationCompleteToaster />
         <OnboardingWizard />
         <TrialEndedModal />
+        <SidebarDisclosureProvider>
         <Switch>
           <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />
@@ -536,6 +538,7 @@ function ClerkProviderWithRoutes() {
           ))}
           <Route>{() => <Protected component={NotFound} />}</Route>
         </Switch>
+        </SidebarDisclosureProvider>
         </GenerationJobStoreProvider>
       </QueryClientProvider>
     </ClerkProvider>

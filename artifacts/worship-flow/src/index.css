@@ -185,6 +185,15 @@
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
+.sidebar-navigation-scroll-cue {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(17, 27, 52, 0.72) 48%,
+    var(--worship-navy) 100%
+  );
+}
+
 .assistant-markdown {
   overflow-wrap: anywhere;
 }

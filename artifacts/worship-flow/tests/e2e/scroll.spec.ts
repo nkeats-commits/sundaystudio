@@ -352,6 +352,108 @@ test.beforeEach(async ({ page }) => {
   await installApiFixtures(page);
 });
 
+test("sidebar keeps opened sections across feature navigation on desktop and phone", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1280, height: 800, mobile: false },
+    { width: 390, height: 844, mobile: true },
+  ]) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "Account Settings" })).toBeVisible();
+
+    const sidebar = viewport.mobile
+      ? page.locator(
+          'div[class~="md:hidden"][class~="fixed"][class~="inset-y-0"][class~="left-0"]',
+        )
+      : page.getByTestId("desktop-sidebar");
+    if (viewport.mobile) {
+      await page.getByRole("button", { name: "Open menu" }).click();
+      await expect(sidebar).toHaveAttribute("aria-hidden", "false");
+    }
+
+    const settingsToggle = sidebar.getByTestId(
+      `${viewport.mobile ? "mobile" : "desktop"}-nav-group-toggle-settings`,
+    );
+    const otherToolsToggle = sidebar.getByTestId(
+      `${viewport.mobile ? "mobile" : "desktop"}-nav-group-toggle-other-tools`,
+    );
+    await expect(settingsToggle).toHaveAttribute("aria-expanded", "true");
+    await otherToolsToggle.click();
+    await sidebar.getByRole("link", { name: "Song Assistant" }).click();
+    await expect(page.getByRole("heading", { name: "Find Songs" }).first()).toBeVisible();
+
+    if (viewport.mobile) {
+      await expect(sidebar).toHaveAttribute("aria-hidden", "true");
+      await page.getByRole("button", { name: "Open menu" }).click();
+      await expect(sidebar).toHaveAttribute("aria-hidden", "false");
+    }
+    await expect(settingsToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(otherToolsToggle).toHaveAttribute("aria-expanded", "true");
+
+    await settingsToggle.click();
+    await expect(settingsToggle).toHaveAttribute("aria-expanded", "false");
+    await otherToolsToggle.click();
+    await expect(otherToolsToggle).toHaveAttribute("aria-expanded", "false");
+  }
+});
+
+test("sidebar scroll cue appears only while more navigation remains below", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1280, height: 800, mobile: false },
+    { width: 390, height: 844, mobile: true },
+  ]) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto("/dashboard");
+
+    const sidebar = viewport.mobile
+      ? page.locator(
+          'div[class~="md:hidden"][class~="fixed"][class~="inset-y-0"][class~="left-0"]',
+        )
+      : page.getByTestId("desktop-sidebar");
+    if (viewport.mobile) {
+      await page.getByRole("button", { name: "Open menu" }).click();
+    }
+
+    const navigation = sidebar.getByTestId(
+      `${viewport.mobile ? "mobile" : "desktop"}-sidebar-navigation`,
+    );
+    const cue = sidebar.getByTestId(
+      `${viewport.mobile ? "mobile" : "desktop"}-sidebar-scroll-cue`,
+    );
+    await expect(cue).toHaveCount(0);
+
+    for (const group of mobileNavGroups) {
+      await sidebar.getByTestId(
+        `${viewport.mobile ? "mobile" : "desktop"}-nav-group-toggle-${group.id}`,
+      ).click();
+    }
+
+    const dimensions = await navigation.evaluate((element) => ({
+      scrollHeight: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    }));
+    expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight);
+    await expect(cue).toBeVisible();
+    const documentScrollTop = await page.evaluate(() => window.scrollY);
+
+    await navigation.evaluate((element) => {
+      element.scrollTo({ top: element.scrollHeight, behavior: "instant" });
+    });
+    await expect(cue).toHaveCount(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(documentScrollTop);
+    await expect(sidebar.getByText("Test Worship Leader")).toBeInViewport();
+
+    await navigation.evaluate((element) => {
+      element.scrollTo({ top: 0, behavior: "instant" });
+    });
+    await expect(cue).toBeVisible();
+  }
+});
+
 test("phone sidebar groups work with Enter and Space and expose link state to assistive technology", async ({
   page,
 }) => {
