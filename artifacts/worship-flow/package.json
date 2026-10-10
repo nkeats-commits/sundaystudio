@@ -17,6 +17,7 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:e2e:scroll": "playwright test --config=playwright.scroll.config.ts",
+    "test:e2e:scroll:safari": "playwright test --config=playwright.safari.config.ts",
     "test": "node --experimental-test-module-mocks --import tsx --test src/lib/parsePcoCsv.test.ts src/lib/passageMatch.test.ts src/lib/bibleTools.test.ts src/lib/trialConversion.test.ts src/mobile/deepLinks.test.ts src/mobile/clerkHostedAuth.test.ts src/mobile/authBearerIntegration.test.ts src/components/OnboardingWizard.test.tsx src/components/OnboardingBanner.test.tsx src/components/CoverageBadge.test.tsx src/components/ProtectedWorkspace.test.tsx src/pages/ChurchProfile.test.tsx src/pages/Dashboard.test.tsx src/pages/BibleTools.test.tsx src/pages/SermonBuilder.test.tsx src/pages/ResourceLibrary.test.tsx src/pages/Assistant.test.tsx src/components/layout/Sidebar.test.tsx src/components/AdminRoutes.test.tsx"
   },
   "devDependencies": {
